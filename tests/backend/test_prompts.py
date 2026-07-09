@@ -7,14 +7,28 @@ from app.llm.prompts import render_prompt
 
 
 def test_avatar_system_renders():
-    out = render_prompt("avatar/system.md", summary=None)
+    out = render_prompt("avatar/system.md", summary=None, knowledge=None)
     assert "상담사" in out
     assert "{{" not in out  # 미치환 변수 없음
 
 
 def test_avatar_summary_injected():
-    out = render_prompt("avatar/system.md", summary="사용자는 데이터 분석을 좋아함")
+    out = render_prompt(
+        "avatar/system.md", summary="사용자는 데이터 분석을 좋아함", knowledge=None
+    )
     assert "사용자는 데이터 분석을 좋아함" in out
+
+
+def test_avatar_knowledge_injected():
+    out = render_prompt(
+        "avatar/system.md",
+        summary=None,
+        knowledge="[backend-developer/daily-work.md]\n백엔드 개발자의 하루는...",
+    )
+    assert "백엔드 개발자의 하루는" in out
+    # 지식 없을 땐 해당 섹션 자체가 없어야 함
+    empty = render_prompt("avatar/system.md", summary=None, knowledge=None)
+    assert "참고 직무 지식" not in empty
 
 
 def test_missing_variable_raises():

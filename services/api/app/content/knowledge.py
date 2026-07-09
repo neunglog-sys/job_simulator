@@ -91,12 +91,23 @@ async def ingest_knowledge(session: AsyncSession) -> None:
 
 
 async def search_knowledge(
-    session: AsyncSession, query: str, job_code: str | None = None, top_k: int = 5
+    session: AsyncSession,
+    query: str,
+    job_code: str | None = None,
+    top_k: int = 5,
+    max_distance: float | None = None,
 ) -> list[DocChunk]:
-    """질의 임베딩 → 코사인 거리 기준 top-k 청크."""
+    """질의 임베딩 → 코사인 거리 기준 top-k 청크.
+
+    max_distance: 관련도 컷오프 (코사인 거리, 작을수록 유사). 잡담에 무관한
+    지식이 끼어드는 걸 막을 때 사용. mock 임베딩은 거리가 ~1.0이라 자연히 걸러짐.
+    """
     [qvec] = await get_llm().embed([query])
+    distance = DocChunk.embedding.cosine_distance(qvec)
     stmt = select(DocChunk)
     if job_code:
         stmt = stmt.where(DocChunk.job_code == job_code)
-    stmt = stmt.order_by(DocChunk.embedding.cosine_distance(qvec)).limit(top_k)
+    if max_distance is not None:
+        stmt = stmt.where(distance < max_distance)
+    stmt = stmt.order_by(distance).limit(top_k)
     return list((await session.execute(stmt)).scalars())
