@@ -1,0 +1,21 @@
+# 평가 역량 정의 — 직무 매트릭스(data/jobs)와 리포트 루브릭의 기준.
+competencies:
+  - key: situation_judgment
+    name: 상황 판단력
+    description: 업무 중 발생하는 상황의 맥락을 파악하고 우선순위를 정하는 능력
+
+  - key: problem_solving
+    name: 문제해결력
+    description: 문제의 원인을 분석하고 실행 가능한 해결책을 도출하는 능력
+
+  - key: communication
+    name: 커뮤니케이션
+    description: 의견을 명확히 전달하고 상대의 요구를 정확히 파악하는 능력
+
+  - key: collaboration
+    name: 협업
+    description: 동료와 신뢰를 형성하고 공동의 목표를 위해 조율하는 능력
+
+  - key: task_management
+    name: 업무 관리
+    description: 일정과 산출물을 계획적으로 관리하고 완수하는 능력
