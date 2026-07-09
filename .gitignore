@@ -1,2 +1,38 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Build output
+dist/
+build/
+.vite/
+
+# Logs
+*.log
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Private hackathon documents
+docs/hackathon/*.pdf
+
+# Generated project storage
+storage/logs/*
+!storage/logs/.gitkeep
+storage/reports/*
+!storage/reports/.gitkeep
+
+# Local tooling / personal scratch
 .claude/
 personal/
