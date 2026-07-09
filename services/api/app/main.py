@@ -15,6 +15,7 @@ from app.domains.consultation.router import router as consultation_router
 from app.domains.jobs.router import router as jobs_router
 from app.domains.recommendation.router import router as recommendation_router
 from app.domains.reporting.router import router as reporting_router
+from app.domains.tts.router import router as tts_router
 
 logging.basicConfig(level=logging.INFO)
 
@@ -45,6 +46,7 @@ app.include_router(consultation_router)
 app.include_router(recommendation_router)
 app.include_router(jobs_router)
 app.include_router(reporting_router)
+app.include_router(tts_router)
 
 
 @app.get("/health")
