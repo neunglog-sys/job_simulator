@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     # 임베딩 (RAG) — doc_chunks.embedding 차원(1536)과 맞아야 함
     embedding_model: str = "text-embedding-3-small"
 
+    # TTS — OPENAI_API_KEY 없으면 mock(비프음 WAV)으로 폴백
+    tts_model: str = "tts-1"
+    tts_voice: str = "nova"
+
     # CORS — 프론트 개발 서버 주소 (콤마 구분)
     cors_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost"
 
