@@ -7,6 +7,7 @@ from fastapi import Depends, Header, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.crypto import email_hash
 from app.core.db import get_session
 from app.core.security import decode_token
 from app.models import User
@@ -36,12 +37,12 @@ async def get_current_user(
             raise HTTPException(status_code=401, detail="존재하지 않는 사용자")
         return user
 
-    # 3) 데모 사용자 get-or-create (개발 편의)
+    # 3) 데모 사용자 get-or-create (개발 편의) — 이메일은 암호화 저장이라 해시로 조회
     user = (
-        await session.execute(select(User).where(User.email == DEMO_EMAIL))
+        await session.execute(select(User).where(User.email_hash == email_hash(DEMO_EMAIL)))
     ).scalar_one_or_none()
     if user is None:
-        user = User(email=DEMO_EMAIL, name="데모 사용자")
+        user = User(email=DEMO_EMAIL, email_hash=email_hash(DEMO_EMAIL), name="데모 사용자")
         session.add(user)
         await session.commit()
         await session.refresh(user)

@@ -16,3 +16,4 @@ pyjwt
 email-validator
 reportlab
 pytest
+cryptography
