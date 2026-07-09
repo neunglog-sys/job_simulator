@@ -12,3 +12,6 @@ pgvector
 sse-starlette
 openai
 google-genai
+pyjwt
+email-validator
+reportlab
