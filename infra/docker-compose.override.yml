@@ -1,0 +1,15 @@
+# 개발용 오버라이드 — `cd infra && docker compose up` 하면 자동 적용됨.
+# 시연/배포는 `docker compose -f docker-compose.yml up -d` 로 이 파일을 제외하고 실행.
+services:
+  api:
+    volumes:
+      - ../services/api/app:/app/app  # 소스 마운트 → 핫리로드
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  db:
+    ports:
+      - "5432:5432"  # 로컬 DB 클라이언트 접속용
+
+  redis:
+    ports:
+      - "6379:6379"

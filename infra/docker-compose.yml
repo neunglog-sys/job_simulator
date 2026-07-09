@@ -1,0 +1,57 @@
+name: jobsimulator
+
+services:
+  api:
+    build: ../services/api
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      # 컨테이너 내부 네트워크 기준 — .env보다 우선 적용됨
+      DATABASE_URL: postgresql+asyncpg://app:app@db:5432/jobsim
+      REDIS_URL: redis://redis:6379/0
+      STORAGE_DIR: /app/storage
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../data:/app/data:ro
+      - ../storage:/app/storage
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: jobsim
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d jobsim"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # React 앱 스캐폴딩 후 주석 해제 (apps/web/Dockerfile + infra/nginx/nginx.conf 필요)
+  # web:
+  #   build: ../apps/web
+  #   ports:
+  #     - "80:80"
+  #   depends_on:
+  #     - api
+
+volumes:
+  pgdata:
