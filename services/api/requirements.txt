@@ -17,3 +17,4 @@ email-validator
 reportlab
 pytest
 cryptography
+ruff
