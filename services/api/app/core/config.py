@@ -17,5 +17,15 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.0-flash"
 
+    # 임베딩 (RAG) — doc_chunks.embedding 차원(1536)과 맞아야 함
+    embedding_model: str = "text-embedding-3-small"
+
+    # CORS — 프론트 개발 서버 주소 (콤마 구분)
+    cors_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost"
+
+    # Auth — 시연/배포 전 .env에서 jwt_secret 교체 필수 (HS256 권장 최소 32바이트)
+    jwt_secret: str = "dev-only-secret-change-me-before-demo-0123456789"
+    jwt_expires_minutes: int = 60 * 24
+
 
 settings = Settings()

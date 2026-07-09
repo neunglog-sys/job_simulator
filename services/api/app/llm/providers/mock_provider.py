@@ -59,3 +59,18 @@ class MockProvider:
         for i in range(0, len(text), 8):
             await asyncio.sleep(0.02)  # 실제 스트리밍처럼 보이게
             yield text[i : i + 8]
+
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        """텍스트 해시 기반 결정적 벡터 — 검색 순위는 무의미하지만 파이프라인은 동작.
+
+        내장 hash()는 프로세스마다 시드가 달라 재시작 후 값이 바뀌므로 sha256 사용.
+        """
+        import hashlib
+        import random
+
+        vectors = []
+        for text in texts:
+            seed = int.from_bytes(hashlib.sha256(text.encode()).digest()[:8], "big")
+            rng = random.Random(seed)
+            vectors.append([rng.uniform(-1, 1) for _ in range(1536)])
+        return vectors

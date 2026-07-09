@@ -44,9 +44,20 @@ def _select_provider() -> LLMProvider:
     return MockProvider()
 
 
+def _select_embedding_provider() -> LLMProvider:
+    """임베딩 프로바이더 — 차원(1536) 문제로 openai 고정, 키 없으면 mock."""
+    if settings.openai_api_key:
+        from app.llm.providers.openai_provider import OpenAIProvider
+        return OpenAIProvider()
+    from app.llm.providers.mock_provider import MockProvider
+    logger.warning("OPENAI_API_KEY 없음 → 임베딩 mock 사용 (검색 순위 무의미)")
+    return MockProvider()
+
+
 class LLMGateway:
-    def __init__(self, provider: LLMProvider) -> None:
+    def __init__(self, provider: LLMProvider, embedder: LLMProvider) -> None:
         self.provider = provider
+        self.embedder = embedder
 
     def _log(self, kind: str, started: float, ok: bool, chars: int, error: str = "") -> None:
         try:
@@ -127,6 +138,17 @@ class LLMGateway:
         self._log("stream", started, ok=True, chars=chars)
 
 
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        started = time.time()
+        try:
+            vectors = await self.embedder.embed(texts)
+        except Exception as e:
+            self._log("embed", started, ok=False, chars=0, error=str(e))
+            raise
+        self._log("embed", started, ok=True, chars=sum(len(t) for t in texts))
+        return vectors
+
+
 @lru_cache
 def get_llm() -> LLMGateway:
-    return LLMGateway(_select_provider())
+    return LLMGateway(_select_provider(), _select_embedding_provider())

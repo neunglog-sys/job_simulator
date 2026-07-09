@@ -66,3 +66,12 @@ class OpenAIProvider:
                     yield chunk.choices[0].delta.content
         except Exception as e:  # noqa: BLE001
             raise LLMError(f"openai stream 실패: {e}") from e
+
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        try:
+            res = await self._client.embeddings.create(
+                model=settings.embedding_model, input=texts
+            )
+        except Exception as e:  # noqa: BLE001
+            raise LLMError(f"openai embed 실패: {e}") from e
+        return [item.embedding for item in res.data]

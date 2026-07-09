@@ -137,11 +137,14 @@ class ActionLog(TimestampMixin, Base):
 
 
 class Report(TimestampMixin, Base):
+    """진로 리포트 — 예선은 상담·추천 기반, 시뮬레이션 합류 시 simulation_id 사용."""
+
     __tablename__ = "reports"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    simulation_id: Mapped[int] = mapped_column(ForeignKey("simulations.id"))
+    consultation_id: Mapped[int | None] = mapped_column(ForeignKey("consultations.id"))
+    simulation_id: Mapped[int | None] = mapped_column(ForeignKey("simulations.id"))
     status: Mapped[str] = mapped_column(String(20), default="pending")  # pending|done|failed
     fit_score: Mapped[int | None] = mapped_column(Integer)
     strengths: Mapped[list] = mapped_column(JSONB, default=list)
@@ -151,11 +154,13 @@ class Report(TimestampMixin, Base):
 
 
 class DocChunk(Base):
-    """RAG용 문서 청크 (pgvector)."""
+    """RAG용 문서 청크 (pgvector) — data/knowledge/<job_code>/*.md 적재."""
 
     __tablename__ = "doc_chunks"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    source: Mapped[str] = mapped_column(String(255))
+    job_code: Mapped[str | None] = mapped_column(String(50), index=True)
+    source: Mapped[str] = mapped_column(String(255), index=True)  # 원본 파일 상대경로
+    file_hash: Mapped[str | None] = mapped_column(String(64))  # 변경 감지용 sha256
     content: Mapped[str] = mapped_column(Text)
     embedding = mapped_column(Vector(1536), nullable=True)
