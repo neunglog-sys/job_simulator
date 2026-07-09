@@ -26,6 +26,7 @@ Thumbs.db
 
 # Private hackathon documents
 docs/hackathon/*.pdf
+*.hwp
 
 # Generated project storage
 storage/logs/*
