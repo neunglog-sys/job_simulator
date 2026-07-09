@@ -72,7 +72,7 @@ async def ingest_knowledge(session: AsyncSession) -> None:
 
         # 변경된 파일은 통째로 교체
         await session.execute(delete(DocChunk).where(DocChunk.source == source))
-        for chunk, vector in zip(chunks, vectors):
+        for chunk, vector in zip(chunks, vectors, strict=True):
             session.add(
                 DocChunk(
                     job_code=job_code,

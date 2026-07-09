@@ -1,6 +1,7 @@
 """core/crypto — AES-256-GCM 암호화·레거시 호환·이메일 해시."""
 
 import pytest
+from cryptography.exceptions import InvalidTag
 
 from app.core.crypto import decrypt_str, email_hash, encrypt_str
 
@@ -28,7 +29,7 @@ def test_legacy_plaintext_passthrough():
 def test_tampered_ciphertext_rejected():
     enc = encrypt_str("변조 테스트")
     tampered = enc[:-4] + ("AAAA" if enc[-4:] != "AAAA" else "BBBB")
-    with pytest.raises(Exception):
+    with pytest.raises((InvalidTag, ValueError)):
         decrypt_str(tampered)
 
 
