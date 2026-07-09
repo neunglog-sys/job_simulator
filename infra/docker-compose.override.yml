@@ -5,6 +5,7 @@ services:
     volumes:
       - ../services/api/app:/app/app          # 소스 마운트 → 핫리로드
       - ../services/api/alembic:/app/alembic  # 마이그레이션 파일 생성/수정용
+      - ../tests:/app/tests:ro                # 테스트 실행용: docker compose exec api python -m pytest tests/backend
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
   db:
