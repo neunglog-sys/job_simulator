@@ -8,3 +8,7 @@ pydantic-settings
 httpx
 pyyaml
 jinja2
+pgvector
+sse-starlette
+openai
+google-genai
