@@ -29,6 +29,11 @@ class Settings(BaseSettings):
 
     # Auth — 시연/배포 전 .env에서 jwt_secret 교체 필수 (HS256 권장 최소 32바이트)
     jwt_secret: str = "dev-only-secret-change-me-before-demo-0123456789"
+
+    # 개인정보 암호화 (AES-256-GCM) — base64 인코딩된 32바이트 키.
+    # 생성: openssl rand -base64 32 / 비우면 개발용 고정키 파생(경고 로그).
+    # ⚠️ 팀 전원이 같은 키를 써야 함 (공용 DB의 암호문을 서로 복호화해야 하므로)
+    aes_key: str = ""
     jwt_expires_minutes: int = 60 * 24
 
 

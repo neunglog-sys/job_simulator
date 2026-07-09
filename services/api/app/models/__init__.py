@@ -15,6 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.crypto import EncryptedText
 from app.core.db import Base
 
 
@@ -25,12 +26,15 @@ class TimestampMixin:
 
 
 class User(TimestampMixin, Base):
+    """개인정보(email·name)는 AES-256 암호화 저장, 조회는 email_hash로."""
+
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    email: Mapped[str | None] = mapped_column(String(255), unique=True)
+    email: Mapped[str | None] = mapped_column(EncryptedText)
+    email_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
     pw_hash: Mapped[str | None] = mapped_column(String(255))
-    name: Mapped[str] = mapped_column(String(100))
+    name: Mapped[str] = mapped_column(EncryptedText)
 
 
 class Consultation(TimestampMixin, Base):
@@ -41,7 +45,7 @@ class Consultation(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     status: Mapped[str] = mapped_column(String(20), default="active")  # active|completed
-    summary: Mapped[str | None] = mapped_column(Text)  # Conversation Memory 요약
+    summary: Mapped[str | None] = mapped_column(EncryptedText)  # Conversation Memory 요약 (암호화)
 
 
 class Message(TimestampMixin, Base):
@@ -57,7 +61,7 @@ class Message(TimestampMixin, Base):
         ForeignKey("simulations.id"), index=True
     )
     role: Mapped[str] = mapped_column(String(16))  # user|assistant|npc:{name}
-    content: Mapped[str] = mapped_column(Text)
+    content: Mapped[str] = mapped_column(EncryptedText)  # 대화 내용 (암호화)
 
 
 class Job(Base):
