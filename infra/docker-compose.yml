@@ -7,8 +7,9 @@ services:
       - path: ../.env
         required: false
     environment:
-      # 컨테이너 내부 네트워크 기준 — .env보다 우선 적용됨
-      DATABASE_URL: postgresql+asyncpg://app:app@db:5432/jobsim
+      # DATABASE_URL은 .env에서 주입 (Supabase 클라우드 DB).
+      # 로컬 DB를 쓰려면: .env에 postgresql+asyncpg://app:app@db:5432/jobsim 설정 후
+      # `docker compose --profile localdb up -d` 로 기동.
       REDIS_URL: redis://redis:6379/0
       STORAGE_DIR: /app/storage
     ports:
@@ -17,12 +18,11 @@ services:
       - ../data:/app/data:ro
       - ../storage:/app/storage
     depends_on:
-      db:
-        condition: service_healthy
       redis:
         condition: service_healthy
 
   db:
+    profiles: ["localdb"]  # 기본은 Supabase — 로컬 DB가 필요할 때만 활성화
     image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: app

@@ -8,6 +8,7 @@ from app.content.seed import seed_content
 from app.core.db import SessionFactory, engine
 from app.core.redis import redis_client
 from app.domains.consultation.router import router as consultation_router
+from app.domains.recommendation.router import router as recommendation_router
 
 logging.basicConfig(level=logging.INFO)
 
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="나의 직무 아카데미아 API", lifespan=lifespan)
 
 app.include_router(consultation_router)
+app.include_router(recommendation_router)
 
 
 @app.get("/health")
