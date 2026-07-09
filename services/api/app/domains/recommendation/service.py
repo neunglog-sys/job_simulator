@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 TOP_N = 3
 NEUTRAL_SCORE = 50  # 근거 부족 시 중립값
+APTITUDE_CLARITY_MIN = 50  # 미달 시 추천 대신 추가 상담 유도 (중간 게이트)
 
 
 def _extraction_schema(competency_keys: list[str]) -> dict:
@@ -40,8 +41,17 @@ def _extraction_schema(competency_keys: list[str]) -> dict:
             "interests": {"type": "array", "items": {"type": "string"}},
             "strengths": {"type": "array", "items": {"type": "string"}},
             "summary": {"type": "string"},
+            "aptitude_clarity": {"type": "integer"},
+            "followup_questions": {"type": "array", "items": {"type": "string"}},
         },
-        "required": ["competency_scores", "interests", "strengths", "summary"],
+        "required": [
+            "competency_scores",
+            "interests",
+            "strengths",
+            "summary",
+            "aptitude_clarity",
+            "followup_questions",
+        ],
         "additionalProperties": False,
     }
 
@@ -90,6 +100,24 @@ async def create_recommendation(
 ) -> Recommendation:
     consultation = await get_owned_consultation(session, consultation_id, user)
     profile = await _extract_profile(session, consultation)
+
+    # 중간 게이트: 적성 파악이 부족하면 추천하지 않고 추가 상담으로 유도.
+    # "적성을 모른다"를 최종 리포트에서 통보하는 게 아니라 상담 단계에서 걸러 찾아가게 함.
+    clarity = int(profile.get("aptitude_clarity", 0))
+    if clarity < APTITUDE_CLARITY_MIN:
+        consultation.summary = profile.get("summary")  # 중간 결론은 다음 상담 컨텍스트로
+        await session.commit()
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "reason": "aptitude_unclear",
+                "aptitude_clarity": clarity,
+                "interim_conclusion": profile.get("summary"),
+                "followup_questions": profile.get("followup_questions", []),
+                "message": "적성 파악이 아직 부족해요. 아바타와 조금 더 이야기해보세요.",
+            },
+        )
+
     scores: dict[str, int] = profile.get("competency_scores") or {}
     names = {c["key"]: c["name"] for c in load_competencies()}
 
