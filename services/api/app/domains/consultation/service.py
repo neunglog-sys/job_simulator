@@ -6,12 +6,15 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.content.knowledge import search_knowledge
 from app.llm import get_llm
 from app.llm.base import ChatMessage
 from app.llm.prompts import render_prompt
 from app.models import Consultation, Message, User
 
 MEMORY_TURNS = 20  # 컨텍스트에 넣는 최근 메시지 수
+RAG_TOP_K = 3
+RAG_MAX_DISTANCE = 0.65  # 관련도 컷오프 — 잡담에 직무 지식이 끼어들지 않게
 
 
 async def create_consultation(session: AsyncSession, user: User) -> Consultation:
@@ -54,7 +57,18 @@ async def stream_reply(
     context = [
         ChatMessage(role=m.role, content=m.content) for m in history[-MEMORY_TURNS:]
     ]
-    system = render_prompt("avatar/system.md", summary=consultation.summary)
+
+    # RAG: 발화와 관련된 직무 지식이 있으면 아바타 프롬프트에 주입
+    chunks = await search_knowledge(
+        session, user_text, top_k=RAG_TOP_K, max_distance=RAG_MAX_DISTANCE
+    )
+    knowledge = (
+        "\n\n".join(f"[{c.source}]\n{c.content}" for c in chunks) if chunks else None
+    )
+
+    system = render_prompt(
+        "avatar/system.md", summary=consultation.summary, knowledge=knowledge
+    )
 
     full: list[str] = []
     try:
