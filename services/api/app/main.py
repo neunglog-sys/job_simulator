@@ -9,6 +9,7 @@ from app.core.db import SessionFactory, engine
 from app.core.redis import redis_client
 from app.domains.consultation.router import router as consultation_router
 from app.domains.recommendation.router import router as recommendation_router
+from app.domains.simulation.router import router as simulation_router
 
 logging.basicConfig(level=logging.INFO)
 
@@ -27,6 +28,7 @@ app = FastAPI(title="나의 직무 아카데미아 API", lifespan=lifespan)
 
 app.include_router(consultation_router)
 app.include_router(recommendation_router)
+app.include_router(simulation_router)
 
 
 @app.get("/health")

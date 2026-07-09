@@ -10,23 +10,33 @@ from typing import AsyncIterator
 from app.llm.base import ChatMessage
 
 
-def _fake_json(schema: dict) -> dict:
-    """스키마의 required 키를 채운 더미 객체 생성."""
-    out = {}
-    props = schema.get("properties", {})
-    for key in schema.get("required", list(props.keys())):
-        t = props.get(key, {}).get("type", "string")
-        if t == "string":
-            out[key] = f"(mock {key})"
-        elif t in ("number", "integer"):
-            out[key] = 70
-        elif t == "array":
-            out[key] = []
-        elif t == "object":
-            out[key] = {}
-        elif t == "boolean":
-            out[key] = True
-    return out
+def _fake_json(schema: dict, key: str = "") -> object:
+    """스키마의 required 키를 재귀적으로 채운 더미 객체 생성.
+
+    숫자는 70 (min/max 있으면 클램프) — 상태값 delta 같은 중첩 스키마도
+    mock에서 값이 채워져 전이·추천 등 전체 플로우가 키 없이 동작한다.
+    """
+    t = schema.get("type", "string")
+    if t == "object":
+        props = schema.get("properties", {})
+        return {
+            k: _fake_json(props.get(k, {}), k)
+            for k in schema.get("required", list(props.keys()))
+        }
+    if t == "string":
+        return f"(mock {key})"
+    if t in ("number", "integer"):
+        value = 70
+        if "maximum" in schema:
+            value = min(value, schema["maximum"])
+        if "minimum" in schema:
+            value = max(value, schema["minimum"])
+        return value
+    if t == "array":
+        return []
+    if t == "boolean":
+        return True
+    return None
 
 
 class MockProvider:
