@@ -50,6 +50,11 @@ async def ingest_knowledge(session: AsyncSession) -> None:
     ingested = skipped = 0
     for path in sorted(list(base.glob("*/*.md")) + list(base.glob("*/*.txt"))):
         job_code = path.parent.name
+        if job_code == "kb-v5":
+            # 예약된 접두사 — load_research가 kb-v5/% 를 통째로 삭제·재적재하므로
+            # 이 이름의 지식 폴더를 허용하면 서로의 청크를 지우게 됨
+            logger.warning("data/knowledge/kb-v5 폴더는 예약된 이름이라 건너뜀: %s", path)
+            continue
         source = f"{job_code}/{path.name}"
         text = path.read_text(encoding="utf-8")
         file_hash = hashlib.sha256(text.encode()).hexdigest()
