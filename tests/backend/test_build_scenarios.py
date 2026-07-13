@@ -28,9 +28,9 @@ def test_mission_npcs_comma_split():
 
 
 def test_split_criteria_failure_never_truncated():
-    success = "기준1, 기준2, 기준3, 기준4, 기준5, 기준6"  # 4개로 잘림
+    success = "기준1, 기준2, 기준3, 기준4, 기준5, 기준6"  # 라이트 난이도 — 2개로 잘림
     out = split_criteria(success, "임의 처리 금지")
-    assert len(out) == 5
+    assert len(out) == 3
     assert out[-1].startswith("흔한 실수를 피했는가")  # 실패패턴 기준 보장
 
 

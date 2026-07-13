@@ -124,8 +124,8 @@ def build_personas(category: str, work_flow: str, roles: list[str]) -> list[dict
 
 
 def split_criteria(success: str | None, failure: str | None) -> list[str]:
-    """성공기준 문장 → 채점 criteria 목록 (쉼표 분리, 2~5개)."""
-    items = [c.strip() for c in (success or "").split(",") if c.strip()][:4]
+    """성공기준 문장 → 채점 criteria 목록 (성공 2 + 실수방지 1 = 최대 3개 — 라이트 난이도)."""
+    items = [c.strip() for c in (success or "").split(",") if c.strip()][:2]
     if not items:
         items = ["미션 요구사항을 충족했는가"]
     if failure:  # 실패패턴 기준은 잘리지 않게 마지막에 보장 삽입
@@ -161,7 +161,10 @@ def mission_to_step(m: TeamMission, step_id: str) -> dict:
         "npcs": npcs,
         "guide": f"제공 자료: {m.materials}" if m.materials else None,
         "task": {
-            "prompt": f"{m.mission}\n\n제출 산출물: {m.outputs}" if m.outputs else m.mission,
+            "prompt": (
+                (f"{m.mission}\n\n제출 산출물: {m.outputs}" if m.outputs else (m.mission or ""))
+                + "\n\n💡 길게 쓰지 않아도 돼요 — 핵심만 담아 3~5문장이면 충분합니다."
+            ),
             "criteria": split_criteria(m.success_criteria, m.failure_patterns),
             "pass_score": 70,
             "hints": {
