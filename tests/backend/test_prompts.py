@@ -12,6 +12,23 @@ from app.llm.prompts import render_prompt
 def test_avatar_system_renders():
     out = render_prompt("avatar/system.md", summary=None, knowledge=None)
     assert "상담사" in out
+    assert "20~30대" in out
+    assert "아는 범위에서 먼저 답변" in out
+    assert "가장 작은 다음 행동 하나" in out
+    assert "현재 제공된 자료만으로는 정확히 확인하기 어려워요" in out
+    assert "추정치·범위·전망도 제시하지 않습니다" in out
+    assert "사용자의 성격이나 역량을 임의로 칭찬하지 않습니다" in out
+    assert "막힌 지점:" in out
+    assert "지금 할 일:" in out
+    assert "다른 방법:" in out
+    assert "매번·여전히·또·반복·몇 번" in out
+    assert "AI 분석 서비스" in out
+    assert "OO님" in out
+    assert "응답 직전 필수 확인" in out
+    assert "공감은 한 문장만 말하고 즉시" in out
+    assert "공식 정부 고용서비스" in out
+    assert "현재 대화에는 검색된 직무 자료(RAG 근거)가 없습니다" in out
+    assert "특정 교육과정·플랫폼·기관·자격증 이름" in out
     assert "{{" not in out  # 미치환 변수 없음
 
 
@@ -49,7 +66,28 @@ def test_report_prompt_renders():
     )
     assert "백엔드 개발자" in out
     assert "커뮤니케이션" in out
+    assert "20~30대" in out
+    assert "난이도를 낮춘 다음 행동 하나" in out
+    assert "현재 대화와 수행 기록만으로는 확인하기 어려움" in out
     assert "시뮬레이션" not in out  # 수행 데이터 없으면 해당 섹션 미출력
+
+
+def test_job_master_system_keeps_grounded_supportive_contract():
+    out = render_prompt(
+        "job-master/system.md",
+        job_title="백엔드 개발자",
+        scenario_title="API 오류 대응",
+        final_state={"trust": 70},
+        competencies=[
+            {"key": "problem_solving", "name": "문제해결", "description": "원인 분석"}
+        ],
+    )
+    assert "20~30대" in out
+    assert "다정하고 명료한 존댓말" in out
+    assert "난이도를 낮춘 다음 행동 하나" in out
+    assert "현재 기록만으로는 확인하기 어려움" in out
+    assert "JSON 스키마" in out
+    assert "{{" not in out
 
 
 def test_report_prompt_with_performance():
