@@ -45,16 +45,20 @@ async def seed_content(session: AsyncSession) -> None:
             job_id=job_ids[sc["job"]],
             slug=sc["slug"],
             title=sc["title"],
+            module=sc.get("module"),
             initial_state=sc["initial_state"],
             steps=sc["steps"],
+            sudden_quest=sc.get("sudden_quest"),
         )
         stmt = stmt.on_conflict_do_update(
             index_elements=[Scenario.slug],
             set_={
                 "job_id": stmt.excluded.job_id,
                 "title": stmt.excluded.title,
+                "module": stmt.excluded.module,
                 "initial_state": stmt.excluded.initial_state,
                 "steps": stmt.excluded.steps,
+                "sudden_quest": stmt.excluded.sudden_quest,
             },
         )
         await session.execute(stmt)
