@@ -42,6 +42,25 @@ def test_report_prompt_renders():
         "job-master/consult-report.md",
         recommendations=[{"job_title": "백엔드 개발자", "score": 80, "reason": "근거"}],
         competencies=[{"key": "communication", "name": "커뮤니케이션", "description": "설명"}],
+        performance=None,
     )
     assert "백엔드 개발자" in out
-    assert "커뮤니케이션" in out
+    assert "시뮬레이션" not in out  # 수행 데이터 없으면 해당 섹션 미출력
+
+
+def test_report_prompt_with_performance():
+    out = render_prompt(
+        "job-master/consult-report.md",
+        recommendations=[{"job_title": "백엔드 개발자", "score": 80, "reason": "근거"}],
+        competencies=[{"key": "communication", "name": "커뮤니케이션", "description": "설명"}],
+        performance={
+            "scenario_title": "의료·복지·상담 응대 — 신입의 하루",
+            "total": 82, "mission_avg": 85,
+            "competencies": {"communication": 81, "collaboration": None},
+            "missions": [{"type": "정상업무", "adjusted": 85, "attempts": 1}],
+            "quest": {"status": "passed", "adjusted": 70},
+        },
+    )
+    assert "시나리오 총점: 82점" in out
+    assert "돌발 퀘스트: 통과" in out
+    assert "collaboration" not in out  # None 역량은 미표기

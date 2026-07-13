@@ -6,6 +6,19 @@
 - {{ r.job_title }} (적합도 {{ r.score }}점): {{ r.reason }}
 {% endfor %}
 
+{% if performance %}
+## 직무 체험(시뮬레이션) 수행 결과 — 반드시 분석에 반영할 것
+- 체험 직무: {{ performance.scenario_title }}
+- 시나리오 총점: {{ performance.total }}점 (미션 평균 {{ performance.mission_avg }}점)
+- 역량별 점수: {% for k, v in performance.competencies.items() %}{% if v is not none %}{{ k }}={{ v }} {% endif %}{% endfor %}
+- 미션 수행: {% for m in performance.missions %}{{ m.type }}({{ m.adjusted }}점, {{ m.attempts }}회 시도) {% endfor %}
+{% if performance.quest %}- 돌발 퀘스트: {{ "통과" if performance.quest.status == "passed" else "미통과" }} ({{ performance.quest.adjusted }}점){% endif %}
+
+수행 데이터 해석 지침: 시도 횟수가 적고 점수가 높은 미션은 강점의 직접 증거,
+여러 번 시도한 미션 유형은 보완점의 직접 증거로 인용하세요.
+"말한 것"(상담)과 "해본 것"(수행)이 다르면 수행 쪽을 더 신뢰하세요.
+{% endif %}
+
 ## 평가 역량 기준
 {% for c in competencies %}
 - {{ c.name }} ({{ c.key }}): {{ c.description }}

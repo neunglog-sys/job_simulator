@@ -27,6 +27,15 @@ _body = ParagraphStyle("body", fontName=FONT, fontSize=10, leading=16)
 _muted = ParagraphStyle("muted", fontName=FONT, fontSize=9, leading=13, textColor=colors.grey)
 
 
+COMPETENCY_NAMES = {
+    "situation_judgment": "상황 판단력",
+    "problem_solving": "문제해결력",
+    "communication": "커뮤니케이션",
+    "collaboration": "협업",
+    "task_management": "업무 관리",
+}
+
+
 def render_report_pdf(
     path: Path,
     *,
@@ -36,6 +45,8 @@ def render_report_pdf(
     strengths: list[str],
     improvements: list[str],
     advice: str,
+    performance: dict | None = None,
+    percentile: dict | None = None,
 ) -> None:
     doc = SimpleDocTemplate(
         str(path), pagesize=A4,
@@ -63,7 +74,33 @@ def render_report_pdf(
     ]))
     story.append(table)
 
-    story.append(Paragraph(f"종합 적합도: {fit_score}점 / 100점", _h2))
+    fit_label = f"종합 적합도: {fit_score}점 / 100점"
+    if performance is not None:
+        fit_label += "  (상담 50% + 직무 체험 수행 50%)"
+    story.append(Paragraph(fit_label, _h2))
+
+    if performance is not None:
+        story.append(Paragraph("직무 체험 수행 결과", _h2))
+        head = f"{performance['scenario_title']} — 시나리오 총점 {performance['total']}점"
+        if percentile and percentile.get("top_percent") is not None:
+            head += f" · 상위 {percentile['top_percent']}%"
+        story.append(Paragraph(head, _body))
+        story.append(Spacer(1, 4))
+        comp_rows = [["역량", "점수"]] + [
+            [COMPETENCY_NAMES.get(k, k), f"{v}점" if v is not None else "-"]
+            for k, v in performance["competencies"].items()
+        ]
+        comp_table = Table(comp_rows, colWidths=[50 * mm, 25 * mm])
+        comp_table.setStyle(TableStyle([
+            ("FONTNAME", (0, 0), (-1, -1), FONT),
+            ("FONTSIZE", (0, 0), (-1, -1), 10),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.whitesmoke),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        story.append(comp_table)
+
     story.append(Paragraph("강점", _h2))
     for s in strengths:
         story.append(Paragraph(f"• {s}", _body))
