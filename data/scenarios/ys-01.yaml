@@ -59,7 +59,7 @@ steps:
   type: 자료·정보 누락
   title: 자료·정보 누락
   mission: |-
-    112치안종합상황실 지령요원: "신고 녹취에 위치가 애매하다. 뭘 더 물어봐야 출동지를 특정할 수 있을지 재질문 목록 정리해서 올려 봐."
+    임주원: "신고 녹취에 위치가 애매하다. 뭘 더 물어봐야 출동지를 특정할 수 있을지 재질문 목록 정리해서 올려 봐."
 
     녹취록에서 누락된 핵심정보(정확한 위치·피해자 상태·흉기 여부·가해자 인상착의)를 찾아내고 신고자 재질문 목록과 추정 출동지를 보고한다
   npcs:
@@ -204,13 +204,14 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 긴급코드와 생명·신체 위험도 기준으로 출동 우선순위를 배열하고 순찰차 2
+  - 출동 우선순위 배열표
+  - 순찰차 배정 보고문
   appearance:
     location: null
     available_steps:
     - m3
 - npc_id: npc_ys-01_02
-  name: 박서연
+  name: 최영수
   role: 사수 순찰요원
   rank: 반장
   personality:
@@ -227,8 +228,10 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - '지령 3요소(코드·사건유형·출동지)를 확인하고 장비 점검표를 완료한 뒤 '
-  - 통제선 근무 중 발생하는 돌발상황 3건(가스 냄새 감지, 구경꾼 진입 시
+  - 서명 완료된 장비 점검표
+  - 복명복창 보고문
+  - 위험징후 기록지
+  - 무전보고문 3건
   appearance:
     location: null
     available_steps:
@@ -237,7 +240,7 @@ npcs:
     conditions:
     - quest_started
 - npc_id: npc_ys-01_03
-  name: 112치안종합상황실 지령요원
+  name: 임주원
   role: 112치안종합상황실 지령요원
   rank: 요원
   personality:
@@ -254,14 +257,15 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 녹취록에서 누락된 핵심정보(정확한 위치·피해자 상태·흉기 여부·가해자 인
+  - 재질문 목록(3개 이상)
+  - 추정 출동지 보고문(근거 포함)
   appearance:
     location: null
     available_steps:
     - m2
 - npc_id: npc_ys-01_04
-  name: 형사팀 담당형사
-  role: 인계 상대
+  name: 임도윤
+  role: 형사팀 담당형사
   rank: 형사
   personality:
   - 협업 부서 담당자
@@ -298,7 +302,8 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 현장 메모를 6하원칙 발생보고서 초안으로 요약하고, 형사팀 AI 담당형사
+  - 6하원칙 발생보고서 초안
+  - 형사팀 인계 확인서
   appearance:
     location: null
     available_steps:

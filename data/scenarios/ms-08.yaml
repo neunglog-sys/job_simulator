@@ -13,7 +13,7 @@ steps:
   type: 정상업무
   title: 정상업무
   mission: |-
-    매장 선임: "첫 방문 고객의 요구와 상태를 상담하고 가능한 서비스 범위를 정하세요."
+    장현서: "첫 방문 고객의 요구와 상태를 상담하고 가능한 서비스 범위를 정하세요."
 
     희망결과·과거시술·알레르기·피부/행동상태를 확인하고 동의를 받는다.
   npcs:
@@ -56,7 +56,7 @@ steps:
   type: 자료·정보 누락
   title: 자료·정보 누락
   mission: |-
-    반려동물 미용 선임: "보호자가 예방접종·공격성 여부를 적지 않았습니다. 작업 전 확인하세요."
+    한시윤: "보호자가 예방접종·공격성 여부를 적지 않았습니다. 작업 전 확인하세요."
 
     미기재 정보를 확인하고 현재 행동상태를 관찰해 서비스 가능 여부를 판단한다.
   npcs:
@@ -90,7 +90,7 @@ steps:
   type: 우선순위 충돌
   title: 우선순위 충돌
   mission: |-
-    매장관리자: "예약이 지연된 가운데 긴급 수정요청과 다음 고객이 동시에 도착했습니다."
+    서태오: "예약이 지연된 가운데 긴급 수정요청과 다음 고객이 동시에 도착했습니다."
 
     안전하게 중단 가능한 지점·소요시간·고객영향을 확인해 일정과 안내를 조정한다.
   npcs:
@@ -128,7 +128,7 @@ steps:
   type: 보고·인계
   title: 보고·인계
   mission: |-
-    고객·보호자: "서비스 결과와 집에서 주의할 점, 재방문 기준을 설명하세요."
+    윤지안: "서비스 결과와 집에서 주의할 점, 재방문 기준을 설명하세요."
 
     완료내용·주의사항·금지행동·이상 시 연락기준을 쉬운 말로 안내한다.
   npcs:
@@ -151,7 +151,7 @@ steps:
     on_pass: __end__
 sudden_quest:
   npc: npc_ms-08_03
-  intro: 선임 실무자이(가) 다급하게 찾아왔다. "서비스 중 피부 발적이나 심한 불안반응이 나타났습니다. 즉시 대응하세요."
+  intro: 윤예린이(가) 다급하게 찾아왔다. "서비스 중 피부 발적이나 심한 불안반응이 나타났습니다. 즉시 대응하세요."
   task:
     kind: choice
     prompt: |-
@@ -178,7 +178,7 @@ sudden_quest:
     type: 오류·안전위험
 npcs:
 - npc_id: npc_ms-08_01
-  name: 매장관리자
+  name: 서태오
   role: 매장관리자
   rank: null
   personality:
@@ -195,13 +195,14 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 안전하게 중단 가능한 지점·소요시간·고객영향을 확인해 일정과 안내를 조정
+  - 일정조정표
+  - 고객안내 문구
   appearance:
     location: null
     available_steps:
     - m3
 - npc_id: npc_ms-08_02
-  name: 고객·보호자
+  name: 윤지안
   role: 고객·보호자
   rank: null
   personality:
@@ -218,13 +219,13 @@ npcs:
   - 아니 그게 무슨 말이에요?
   - 빨리 좀 처리해줘요.
   responsibilities:
-  - 완료내용·주의사항·금지행동·이상 시 연락기준을 쉬운 말로 안내한다
+  - 사후관리 안내서
   appearance:
     location: null
     available_steps:
     - m4
 - npc_id: npc_ms-08_03
-  name: 선임 실무자
+  name: 윤예린
   role: 선임 실무자
   rank: 선임
   personality:
@@ -241,7 +242,8 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 작업을 중단하고 상태를 확인해 세척·안정·전문기관 안내 여부를 결정한다
+  - 이상반응 보고서
+  - 사후안내
   appearance:
     location: null
     available_steps:
@@ -249,7 +251,7 @@ npcs:
     conditions:
     - quest_started
 - npc_id: npc_ms-08_04
-  name: 매장 선임
+  name: 장현서
   role: 매장 선임
   rank: 선임
   personality:
@@ -266,13 +268,14 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 희망결과·과거시술·알레르기·피부/행동상태를 확인하고 동의를 받는다
+  - 상담·동의서
+  - 서비스 계획
   appearance:
     location: null
     available_steps:
     - m1
 - npc_id: npc_ms-08_05
-  name: 반려동물 미용 선임
+  name: 한시윤
   role: 반려동물 미용 선임
   rank: 선임
   personality:
@@ -289,7 +292,8 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 미기재 정보를 확인하고 현재 행동상태를 관찰해 서비스 가능 여부를 판단한
+  - 사전상태 기록
+  - 보호자동의
   appearance:
     location: null
     available_steps:

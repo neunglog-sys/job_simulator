@@ -13,7 +13,7 @@ steps:
   type: 정상업무
   title: 정상업무
   mission: |-
-    프론트 매니저: "오늘 만실이야. 야간 로그 확인하고 인수인계 브리핑부터 하자."
+    유지훈: "오늘 만실이야. 야간 로그 확인하고 인수인계 브리핑부터 하자."
 
     야간 로그의 미결 3건을 파악하고 당일 예약 특이사항을 포함한 인수인계 브리핑을 수행한다
   npcs:
@@ -58,7 +58,7 @@ steps:
   type: 자료·정보 누락
   title: 자료·정보 누락
   mission: |-
-    외국인 투숙객: "My reservation should be here... under 'Kim'? The booking app says confirmed. (예약 조회 불일치)"
+    김예은: "My reservation should be here... under 'Kim'? The booking app says confirmed. (예약 조회 불일치)"
 
     예약자명 불일치 상황에서 확인 질문(예약번호·앱 화면·여권명)으로 실제 예약을 특정해 체크인을 처리한다
   npcs:
@@ -92,7 +92,7 @@ steps:
   type: 우선순위 충돌
   title: 우선순위 충돌
   mission: |-
-    프론트 선임: "지금 어메니티 요청, 길 문의, 옆방 소음 민원, 짐 보관까지 한번에 들어왔다. 순서 정해서 처리해 봐."
+    유하윤: "지금 어메니티 요청, 길 문의, 옆방 소음 민원, 짐 보관까지 한번에 들어왔다. 순서 정해서 처리해 봐."
 
     동시 요청 4건의 처리 순서를 정하고 직접 처리·부서 이관을 구분해 전건 회신까지 완료한다
   npcs:
@@ -130,7 +130,7 @@ steps:
   type: 보고·인계
   title: 보고·인계
   mission: |-
-    프론트 매니저: "교대 전에 오늘 로그 정리하고, 분실물이랑 미결 민원 상태 명확히 남겨 줘."
+    유지훈: "교대 전에 오늘 로그 정리하고, 분실물이랑 미결 민원 상태 명확히 남겨 줘."
 
     당일 로그를 유형별로 정리하고 분실물 대장 일치를 확인해 미결 민원 상태를 명시한 인계장을 완성한다
   npcs:
@@ -153,7 +153,7 @@ steps:
     on_pass: __end__
 sudden_quest:
   npc: npc_kts-05_04
-  intro: 만취 승객이(가) 다급하게 찾아왔다. "(개찰구 앞에서 비틀거리며 언성) 왜 못 들어가게 해! 내가 누군 줄 알아!"
+  intro: 최예린이(가) 다급하게 찾아왔다. "(개찰구 앞에서 비틀거리며 언성) 왜 못 들어가게 해! 내가 누군 줄 알아!"
   task:
     kind: choice
     prompt: |-
@@ -180,8 +180,8 @@ sudden_quest:
     type: 오류·안전위험
 npcs:
 - npc_id: npc_kts-05_01
-  name: 프론트 매니저
-  role: 당번 책임자
+  name: 유지훈
+  role: 프론트 매니저
   rank: 매니저
   personality:
   - 승인·보고를 받는 책임자
@@ -197,16 +197,18 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - '야간 로그의 미결 3건을 파악하고 당일 예약 특이사항을 포함한 인수인계 '
-  - 당일 로그를 유형별로 정리하고 분실물 대장 일치를 확인해 미결 민원 상태
+  - 인수인계 확인표
+  - 브리핑 메모
+  - 교대 인계장
+  - 분실물 대조 기록
   appearance:
     location: null
     available_steps:
     - m1
     - m4
 - npc_id: npc_kts-05_02
-  name: 프론트 선임
-  role: 사수
+  name: 유하윤
+  role: 프론트 선임
   rank: 선임
   personality:
   - 경험 많고 실무에 밝다
@@ -222,14 +224,15 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 동시 요청 4건의 처리 순서를 정하고 직접 처리·부서 이관을 구분해 전건
+  - 우선순위 배열표
+  - 처리·회신 로그
   appearance:
     location: null
     available_steps:
     - m3
 - npc_id: npc_kts-05_03
-  name: 외국인 투숙객
-  role: 영어
+  name: 김예은
+  role: 외국인 투숙객
   rank: null
   personality:
   - 응대 대상
@@ -245,13 +248,14 @@ npcs:
   - 아니 그게 무슨 말이에요?
   - 빨리 좀 처리해줘요.
   responsibilities:
-  - '예약자명 불일치 상황에서 확인 질문(예약번호·앱 화면·여권명)으로 실제 '
+  - 체크인 처리 기록
+  - 예약 표기 정정 메모
   appearance:
     location: null
     available_steps:
     - m2
 - npc_id: npc_kts-05_04
-  name: 만취 승객
+  name: 최예린
   role: 만취 승객
   rank: null
   personality:
@@ -268,7 +272,8 @@ npcs:
   - 아니 그게 무슨 말이에요?
   - 빨리 좀 처리해줘요.
   responsibilities:
-  - 만취 승객 소란에 단계 매뉴얼로 대응하며 단독 물리 대응 없이 에스컬레이
+  - 대응 단계 기록
+  - 상황 보고서
   appearance:
     location: null
     available_steps:

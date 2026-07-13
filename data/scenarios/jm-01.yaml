@@ -211,7 +211,8 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 음주측정→일상점검→이상 항목 보고→출고 가부 판단까지 근무 전 준비를 표
+  - 서명된 일상점검표
+  - 이상 항목 보고 메모(항목·수치 포함)
   appearance:
     location: null
     available_steps:
@@ -255,7 +256,8 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - '상차 물량과 배송리스트를 대조해 누락 2건·주소 불명 1건을 찾아내고, '
+  - 누락·오류 확인 메모(송장번호 명시)
+  - 수정된 배송 순서표
   appearance:
     location: null
     available_steps:
@@ -278,7 +280,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 주행 중 제동 경고등과 타는 냄새 발생 시 '의심되면 정지' 원칙으로 돌
+  - 단계별 대응 선택 기록
+  - 119·배차실 신고 스크립트
   appearance:
     location: null
     available_steps:
@@ -286,7 +289,7 @@ npcs:
     conditions:
     - quest_started
 - npc_id: npc_jm-01_05
-  name: 김순태
+  name: 장민수
   role: 동승 멘토)·배차실
   rank: 선임
   personality:
@@ -303,7 +306,8 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - '''정시성 vs 안전'' 충돌 상황에서 대응 카드를 우선순위대로 배열해 근거'
+  - 우선순위 배열표(각 카드 근거 포함)
+  - 무전 보고 스크립트
   appearance:
     location: null
     available_steps:
@@ -326,7 +330,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 돌발상황 경위서를 사실 중심 6하원칙으로 작성하고 다음 근무자 인계 메모
+  - 6하원칙 경위서
+  - 인수인계 메모(정비 의뢰·미배송 잔량 포함)
   appearance:
     location: null
     available_steps:

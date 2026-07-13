@@ -204,8 +204,10 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 이미지별 출처·라이선스 표기를 대조해 미확인·상업용 불가 항목을 탐지하고
-  - 결과보고서 요약과 아카이브 목록(디자인 자료화)을 작성하고, 팀장(AI)
+  - 라이선스 점검표
+  - 확인 질문 목록
+  - 대체 필요 소재 표시
+  - 결과보고서 요약
   appearance:
     location: null
     available_steps:
@@ -214,7 +216,7 @@ npcs:
     conditions:
     - quest_started
 - npc_id: npc_yg-01_02
-  name: 박도윤
+  name: 윤가연
   role: 시안·검수 지도
   rank: 선임
   personality:
@@ -231,8 +233,10 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - '시안 3종을 검수표 항목과 대조해 오탈자·색상·해상도·규격 오류를 찾아 '
-  - 마스터 파일을 검수표 기준으로 최종 점검하다 개인정보 노출 구간을 발견하
+  - 검수표(항목별 판정·근거 기재)
+  - 오류 표시 목록
+  - 오류 기록(타임코드·유형)
+  - 백업·버전 저장 기록
   appearance:
     location: null
     available_steps:
@@ -256,7 +260,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 요청 5건을 오류성(반드시 수정)과 취향성(협의 가능)으로 분류하고 소요
+  - 우선순위 배열표(오류성/취향성 구분·소요시간·근거)
+  - 보고 메모
   appearance:
     location: null
     available_steps:

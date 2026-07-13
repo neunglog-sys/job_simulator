@@ -13,7 +13,7 @@ steps:
   type: 정상업무
   title: 정상업무
   mission: |-
-    회계담당 사수: "6월 법인카드 사용내역과 영수증을 맞춰 비용정산표를 만들어 주세요."
+    문지안: "6월 법인카드 사용내역과 영수증을 맞춰 비용정산표를 만들어 주세요."
 
     거래일·금액·사용처를 대사하고 계정과목과 증빙상태를 기록한다.
   npcs:
@@ -56,7 +56,7 @@ steps:
   type: 자료·정보 누락
   title: 자료·정보 누락
   mission: |-
-    경리팀장: "거래처 세금계산서가 장부에는 있는데 파일이 없습니다. 마감 전에 확인해 주세요."
+    이민서: "거래처 세금계산서가 장부에는 있는데 파일이 없습니다. 마감 전에 확인해 주세요."
 
     실제 거래 여부와 발급·수취 상태를 확인하고 거래처에 보완 요청한다.
   npcs:
@@ -90,7 +90,7 @@ steps:
   type: 우선순위 충돌
   title: 우선순위 충돌
   mission: |-
-    회계팀장: "급여이체 검토와 월말 매입마감이 겹쳤습니다. 오늘 안에 위험 없이 처리순서를 정하세요."
+    고연우: "급여이체 검토와 월말 매입마감이 겹쳤습니다. 오늘 안에 위험 없이 처리순서를 정하세요."
 
     지급기한·오류영향·승인 선행조건을 기준으로 업무를 분할하고 보고한다.
   npcs:
@@ -128,7 +128,7 @@ steps:
   type: 보고·인계
   title: 보고·인계
   mission: |-
-    회계팀장: "월말 마감 결과와 아직 확인되지 않은 거래를 1분 보고로 정리하세요."
+    고연우: "월말 마감 결과와 아직 확인되지 않은 거래를 1분 보고로 정리하세요."
 
     완료금액·차이·미확인 원인·다음 조치를 수치와 함께 보고한다.
   npcs:
@@ -179,7 +179,7 @@ sudden_quest:
     type: 오류·안전위험
 npcs:
 - npc_id: npc_ms-02_01
-  name: 회계담당
+  name: 신서준
   role: 회계담당
   rank: null
   personality:
@@ -200,7 +200,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ms-02_02
-  name: 영업팀
+  name: 문연우
   role: 영업팀
   rank: null
   personality:
@@ -221,7 +221,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ms-02_03
-  name: 거래처
+  name: 안은채
   role: 거래처
   rank: null
   personality:
@@ -242,7 +242,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ms-02_04
-  name: 승인자
+  name: 배서현
   role: 승인자
   rank: null
   personality:
@@ -263,7 +263,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ms-02_05
-  name: 회계담당 사수
+  name: 문지안
   role: 회계담당 사수
   rank: null
   personality:
@@ -280,13 +280,14 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 거래일·금액·사용처를 대사하고 계정과목과 증빙상태를 기록한다
+  - 비용정산표
+  - 증빙누락 목록
   appearance:
     location: null
     available_steps:
     - m1
 - npc_id: npc_ms-02_06
-  name: 경리팀장
+  name: 이민서
   role: 경리팀장
   rank: 팀장
   personality:
@@ -303,13 +304,14 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 실제 거래 여부와 발급·수취 상태를 확인하고 거래처에 보완 요청한다
+  - 증빙확인표
+  - 거래처 요청메일
   appearance:
     location: null
     available_steps:
     - m2
 - npc_id: npc_ms-02_07
-  name: 회계팀장
+  name: 고연우
   role: 회계팀장
   rank: 팀장
   personality:
@@ -326,8 +328,10 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 지급기한·오류영향·승인 선행조건을 기준으로 업무를 분할하고 보고한다
-  - 완료금액·차이·미확인 원인·다음 조치를 수치와 함께 보고한다
+  - 처리계획표
+  - 중간보고 메시지
+  - 마감요약
+  - 미결항목표
   appearance:
     location: null
     available_steps:
@@ -351,7 +355,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 거래일·발주번호·공급내역을 비교해 중복지급 또는 정상 분할지급을 판단한다
+  - 중복검토표
+  - 지급보류 요청
   appearance:
     location: null
     available_steps:

@@ -13,7 +13,7 @@ steps:
   type: 정상업무
   title: 정상업무
   mission: |-
-    팀장: "내일 부서회의를 준비하고 회의자료와 참석자 확인표를 만들어 주세요."
+    양서현: "내일 부서회의를 준비하고 회의자료와 참석자 확인표를 만들어 주세요."
 
     회의 목적·시간·장소·참석자·필요자료를 확인하고 준비상태를 점검한다.
   npcs:
@@ -56,7 +56,7 @@ steps:
   type: 자료·정보 누락
   title: 자료·정보 누락
   mission: |-
-    행정지원 선배: "결재 올리기 전에 공문 초안의 첨부와 필수 항목을 확인해 주세요."
+    문도현: "결재 올리기 전에 공문 초안의 첨부와 필수 항목을 확인해 주세요."
 
     수신처·시행일·근거·붙임·담당연락처 누락을 찾아 보완 요청한다.
   npcs:
@@ -90,7 +90,7 @@ steps:
   type: 우선순위 충돌
   title: 우선순위 충돌
   mission: |-
-    총무팀장: "임원 방문 준비, 긴급 비품요청, 정기회의록 마감이 동시에 들어왔습니다."
+    이민서: "임원 방문 준비, 긴급 비품요청, 정기회의록 마감이 동시에 들어왔습니다."
 
     긴급도·중요도·대체가능성을 비교해 직접 처리와 협조 요청을 나눈다.
   npcs:
@@ -128,7 +128,7 @@ steps:
   type: 보고·인계
   title: 보고·인계
   mission: |-
-    교대자: "오늘 처리한 요청과 내일까지 남은 행정업무를 인계해 주세요."
+    백주원: "오늘 처리한 요청과 내일까지 남은 행정업무를 인계해 주세요."
 
     완료·결재중·보완대기·미착수로 구분하고 다음 행동을 정리한다.
   npcs:
@@ -150,7 +150,7 @@ steps:
     on_pass: __end__
 sudden_quest:
   npc: npc_ms-03_01
-  intro: 팀장이(가) 다급하게 찾아왔다. "전체메일 발송 전 수신자와 첨부파일을 최종 점검하세요."
+  intro: 양서현이(가) 다급하게 찾아왔다. "전체메일 발송 전 수신자와 첨부파일을 최종 점검하세요."
   task:
     kind: choice
     prompt: |-
@@ -177,7 +177,7 @@ sudden_quest:
     type: 오류·안전위험
 npcs:
 - npc_id: npc_ms-03_01
-  name: 팀장
+  name: 양서현
   role: 팀장
   rank: 팀장
   personality:
@@ -194,8 +194,10 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 회의 목적·시간·장소·참석자·필요자료를 확인하고 준비상태를 점검한다
-  - 잘못된 수신범위·구버전 첨부·개인정보 포함 여부를 확인하고 발송을 보류한
+  - 회의준비 체크리스트
+  - 안내메시지
+  - 발송검수표
+  - 수정메일
   appearance:
     location: null
     available_steps:
@@ -204,7 +206,7 @@ npcs:
     conditions:
     - quest_started
 - npc_id: npc_ms-03_02
-  name: 선배
+  name: 최하준
   role: 선배
   rank: null
   personality:
@@ -225,7 +227,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ms-03_03
-  name: 타부서 담당자
+  name: 백다은
   role: 타부서 담당자
   rank: null
   personality:
@@ -246,7 +248,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ms-03_04
-  name: 행정지원 선배
+  name: 문도현
   role: 행정지원 선배
   rank: null
   personality:
@@ -263,13 +265,14 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 수신처·시행일·근거·붙임·담당연락처 누락을 찾아 보완 요청한다
+  - 공문검수표
+  - 보완요청
   appearance:
     location: null
     available_steps:
     - m2
 - npc_id: npc_ms-03_05
-  name: 총무팀장
+  name: 이민서
   role: 총무팀장
   rank: 팀장
   personality:
@@ -286,13 +289,14 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 긴급도·중요도·대체가능성을 비교해 직접 처리와 협조 요청을 나눈다
+  - 우선순위표
+  - 협조요청안
   appearance:
     location: null
     available_steps:
     - m3
 - npc_id: npc_ms-03_06
-  name: 교대자
+  name: 백주원
   role: 교대자
   rank: null
   personality:
@@ -309,7 +313,7 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 완료·결재중·보완대기·미착수로 구분하고 다음 행동을 정리한다
+  - 업무인계표
   appearance:
     location: null
     available_steps:

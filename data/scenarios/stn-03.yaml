@@ -13,7 +13,7 @@ steps:
   type: 정상업무
   title: 정상업무
   mission: |-
-    CRM 분석 팀장: "지난 분기 재구매율을 고객군별로 분석해 다음 캠페인 대상 후보를 정리해 주세요."
+    문다은: "지난 분기 재구매율을 고객군별로 분석해 다음 캠페인 대상 후보를 정리해 주세요."
 
     데이터·CRM·매출 분석 · 기본 판단 업무
   npcs:
@@ -56,7 +56,7 @@ steps:
   type: 자료·정보 누락
   title: 자료·정보 누락
   mission: |-
-    데이터 엔지니어: "매출과 CRM 데이터를 결합해야 하는데 고객ID와 날짜 형식이 맞지 않습니다. 어떤 데이터를 보완해야 하는지 정리해 주세요."
+    양서연: "매출과 CRM 데이터를 결합해야 하는데 고객ID와 날짜 형식이 맞지 않습니다. 어떤 데이터를 보완해야 하는지 정리해 주세요."
 
     데이터·CRM·매출 분석 · 필수 자료 누락 대응
   npcs:
@@ -90,7 +90,7 @@ steps:
   type: 우선순위 충돌
   title: 우선순위 충돌
   mission: |-
-    분석 팀장: "경영진 매출요청, 마케팅 캠페인 분석, 운영팀 장애지표가 동시에 들어왔습니다. 우선순위를 근거와 함께 보고하세요."
+    강소율: "경영진 매출요청, 마케팅 캠페인 분석, 운영팀 장애지표가 동시에 들어왔습니다. 우선순위를 근거와 함께 보고하세요."
 
     데이터·CRM·매출 분석 · 업무 우선순위 조정
   npcs:
@@ -128,7 +128,7 @@ steps:
   type: 보고·인계
   title: 보고·인계
   mission: |-
-    분석 팀장: "분석 결과를 운영 대시보드 담당자가 매주 갱신할 수 있도록 보고서와 재현자료를 넘겨주세요."
+    강소율: "분석 결과를 운영 대시보드 담당자가 매주 갱신할 수 있도록 보고서와 재현자료를 넘겨주세요."
 
     데이터·CRM·매출 분석 · 결과 보고·인계
   npcs:
@@ -150,7 +150,7 @@ steps:
     on_pass: __end__
 sudden_quest:
   npc: npc_stn-03_01
-  intro: 분석 팀장이(가) 다급하게 찾아왔다. "매출이 40% 급증한 결과가 나왔습니다. 보고 전에 실제 변화인지 집계오류인지 검증해 주세요."
+  intro: 강소율이(가) 다급하게 찾아왔다. "매출이 40% 급증한 결과가 나왔습니다. 보고 전에 실제 변화인지 집계오류인지 검증해 주세요."
   task:
     kind: choice
     prompt: |-
@@ -177,7 +177,7 @@ sudden_quest:
     type: 오류·안전위험
 npcs:
 - npc_id: npc_stn-03_01
-  name: 분석 팀장
+  name: 강소율
   role: 분석 팀장
   rank: 팀장
   personality:
@@ -194,9 +194,10 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 데이터·CRM·매출 분석 · 업무 우선순위 조정
-  - 데이터·CRM·매출 분석 · 결과 보고·인계
-  - 데이터·CRM·매출 분석 · 오류·위험 검증
+  - 우선순위표
+  - 분석 일정안
+  - 인사이트 보고서
+  - 재현패키지
   appearance:
     location: null
     available_steps:
@@ -206,7 +207,7 @@ npcs:
     conditions:
     - quest_started
 - npc_id: npc_stn-03_02
-  name: CRM 담당
+  name: 최하윤
   role: CRM 담당
   rank: null
   personality:
@@ -227,7 +228,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_stn-03_03
-  name: 영업·마케팅 담당
+  name: 오주원
   role: 영업·마케팅 담당
   rank: null
   personality:
@@ -248,7 +249,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_stn-03_04
-  name: 데이터 엔지니어
+  name: 양서연
   role: 데이터 엔지니어
   rank: null
   personality:
@@ -265,13 +266,14 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 데이터·CRM·매출 분석 · 필수 자료 누락 대응
+  - 데이터 품질표
+  - 결합 전 확인질문
   appearance:
     location: null
     available_steps:
     - m2
 - npc_id: npc_stn-03_05
-  name: 의사결정자
+  name: 서은채
   role: 의사결정자
   rank: null
   personality:
@@ -292,7 +294,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_stn-03_06
-  name: CRM 분석 팀장
+  name: 문다은
   role: CRM 분석 팀장
   rank: 팀장
   personality:
@@ -309,7 +311,8 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 데이터·CRM·매출 분석 · 기본 판단 업무
+  - 고객군별 재구매 분석표
+  - 인사이트 3개
   appearance:
     location: null
     available_steps:

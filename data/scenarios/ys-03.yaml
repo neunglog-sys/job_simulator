@@ -13,7 +13,7 @@ steps:
   type: 정상업무
   title: 정상업무
   mission: |-
-    경호팀장: "오늘 강연회 정문 검색대 보조로 들어가라. 출입증 대조 철저히 하고, 탐지기 울리면 절대 직접 뒤지지 말고 2차 검색 요청해."
+    정건우: "오늘 강연회 정문 검색대 보조로 들어가라. 출입증 대조 철저히 하고, 탐지기 울리면 절대 직접 뒤지지 말고 2차 검색 요청해."
 
     출입통제 절차서에 따라 입장객 5명을 검색·대조하고 탐지기 반응자 1명을 절차대로 선임에게 인계한다
   npcs:
@@ -59,7 +59,7 @@ steps:
   type: 자료·정보 누락
   title: 자료·정보 누락
   mission: |-
-    경호팀장: "어제 선발조가 만든 답사보고서다. 행사장 도면이랑 맞춰보고 빠진 데 있으면 배치 확정 전에 보고해라."
+    정건우: "어제 선발조가 만든 답사보고서다. 행사장 도면이랑 맞춰보고 빠진 데 있으면 배치 확정 전에 보고해라."
 
     도면과 답사보고서를 대조해 누락된 위해요소 점검 항목을 전부 찾아 보완 요청 보고를 올린다
   npcs:
@@ -94,7 +94,7 @@ steps:
   type: 우선순위 충돌
   title: 우선순위 충돌
   mission: |-
-    경호팀장: "VIP 도착 5분 전인데 검색대는 밀리고 주차장에선 차 빼달라는 민원까지 들어왔다. 뭐부터 처리할지 순서 정해서 무전으로 보고해."
+    정건우: "VIP 도착 5분 전인데 검색대는 밀리고 주차장에선 차 빼달라는 민원까지 들어왔다. 뭐부터 처리할지 순서 정해서 무전으로 보고해."
 
     동시 발생 상황 4건의 처리 순서를 대상자 안전 기준으로 배열하고 근거와 함께 무전 보고한다
   npcs:
@@ -133,7 +133,7 @@ steps:
   type: 보고·인계
   title: 보고·인계
   mission: |-
-    경호팀장: "철수 전에 오늘 특이사항 일지에 정리하고, 야간조 오면 미결사항까지 빠짐없이 브리핑해라."
+    정건우: "철수 전에 오늘 특이사항 일지에 정리하고, 야간조 오면 미결사항까지 빠짐없이 브리핑해라."
 
     근무일지를 작성하고 AI 교대자와의 대화로 미결사항 포함 인계 브리핑을 완료한다
   npcs:
@@ -156,7 +156,7 @@ steps:
     on_pass: __end__
 sudden_quest:
   npc: npc_ys-03_06
-  intro: 선임 경호원이(가) 다급하게 찾아왔다. "B구역 통제선 근무 중에 이상 징후 보이면 절대 혼자 붙지 말고, 보이는 대로 무전 치고 네 위치 지켜라."
+  intro: 전은채이(가) 다급하게 찾아왔다. "B구역 통제선 근무 중에 이상 징후 보이면 절대 혼자 붙지 말고, 보이는 대로 무전 치고 네 위치 지켜라."
   task:
     kind: choice
     prompt: |-
@@ -184,8 +184,8 @@ sudden_quest:
     type: 오류·안전위험
 npcs:
 - npc_id: npc_ys-03_01
-  name: 경호팀장
-  role: 선임 경호원
+  name: 정건우
+  role: 경호팀장
   rank: 팀장
   personality:
   - 승인·보고를 받는 책임자
@@ -201,10 +201,10 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 출입통제 절차서에 따라 입장객 5명을 검색·대조하고 탐지기 반응자 1명을
-  - '도면과 답사보고서를 대조해 누락된 위해요소 점검 항목을 전부 찾아 보완 '
-  - 동시 발생 상황 4건의 처리 순서를 대상자 안전 기준으로 배열하고 근거와
-  - '근무일지를 작성하고 AI 교대자와의 대화로 미결사항 포함 인계 브리핑을 '
+  - 출입통제 기록표(통과/보류 판정)
+  - 근무 개시·종료 무전 보고문
+  - 누락항목 목록(위치·누락 사유)
+  - 주최측 확인 질문 3개
   appearance:
     location: null
     available_steps:
@@ -213,7 +213,7 @@ npcs:
     - m3
     - m4
 - npc_id: npc_ys-03_02
-  name: 행사 주최측 담당자
+  name: 박시윤
   role: 행사 주최측 담당자
   rank: null
   personality:
@@ -234,7 +234,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ys-03_03
-  name: 경호대상자 수행비서
+  name: 오소율
   role: 경호대상자 수행비서
   rank: null
   personality:
@@ -255,7 +255,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ys-03_04
-  name: 관할 경찰관
+  name: 손서연
   role: 관할 경찰관
   rank: null
   personality:
@@ -276,7 +276,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ys-03_05
-  name: 교대조 경호원
+  name: 황하윤
   role: 교대조 경호원
   rank: null
   personality:
@@ -297,7 +297,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ys-03_06
-  name: 선임 경호원
+  name: 전은채
   role: 선임 경호원
   rank: 선임
   personality:
@@ -314,7 +314,8 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 통제구역 접근자의 위해징후 등급을 판단하고 단계별 대응을 선택해 선임·경
+  - 육하원칙 무전 보고문
+  - 대응 단계 선택 기록
   appearance:
     location: null
     available_steps:

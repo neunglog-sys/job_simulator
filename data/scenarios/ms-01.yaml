@@ -13,7 +13,7 @@ steps:
   type: 정상업무
   title: 정상업무
   mission: |-
-    법률사무소 사수: "오늘 접수된 계약분쟁 자료를 정리해서 오후 회의 전에 증빙목록 초안을 만들어 주세요."
+    송연우: "오늘 접수된 계약분쟁 자료를 정리해서 오후 회의 전에 증빙목록 초안을 만들어 주세요."
 
     최신 계약서와 관련 증빙을 식별하고 자료별 출처·날짜·쟁점을 정리한다.
   npcs:
@@ -56,7 +56,7 @@ steps:
   type: 자료·정보 누락
   title: 자료·정보 누락
   mission: |-
-    기록관리 선배: "이관 대상 기록 20건을 등록해 주세요. 빠진 메타데이터가 있으면 먼저 표시하세요."
+    서다은: "이관 대상 기록 20건을 등록해 주세요. 빠진 메타데이터가 있으면 먼저 표시하세요."
 
     파일과 이관목록을 대조해 문서번호·작성일·보존기간·권한 누락을 찾는다.
   npcs:
@@ -90,7 +90,7 @@ steps:
   type: 우선순위 충돌
   title: 우선순위 충돌
   mission: |-
-    팀장: "법원 제출기한이 오늘인 서류와 내일 마감 번역검수가 동시에 들어왔습니다. 처리계획을 보고하세요."
+    양지안: "법원 제출기한이 오늘인 서류와 내일 마감 번역검수가 동시에 들어왔습니다. 처리계획을 보고하세요."
 
     법적 기한·선행검토·소요시간을 기준으로 작업순서와 협조 요청을 정한다.
   npcs:
@@ -128,7 +128,7 @@ steps:
   type: 보고·인계
   title: 보고·인계
   mission: |-
-    교대 사수: "오늘 처리한 사건자료와 미완료 항목을 다음 담당자가 바로 이어받게 정리해 주세요."
+    안예은: "오늘 처리한 사건자료와 미완료 항목을 다음 담당자가 바로 이어받게 정리해 주세요."
 
     완료·보류·추가확인 항목과 다음 행동·기한·담당자를 구분해 인계한다.
   npcs:
@@ -150,7 +150,7 @@ steps:
     on_pass: __end__
 sudden_quest:
   npc: npc_ms-01_08
-  intro: 문서관리 담당이(가) 다급하게 찾아왔다. "외부 발송 직전 문서의 개인정보와 수신권한을 최종 확인해 주세요."
+  intro: 장서연이(가) 다급하게 찾아왔다. "외부 발송 직전 문서의 개인정보와 수신권한을 최종 확인해 주세요."
   task:
     kind: choice
     prompt: |-
@@ -177,7 +177,7 @@ sudden_quest:
     type: 오류·안전위험
 npcs:
 - npc_id: npc_ms-01_01
-  name: 사수
+  name: 김지훈
   role: 사수
   rank: null
   personality:
@@ -198,7 +198,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ms-01_02
-  name: 의뢰부서
+  name: 황지아
   role: 의뢰부서
   rank: null
   personality:
@@ -219,7 +219,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ms-01_03
-  name: 기록관리자
+  name: 고하윤
   role: 기록관리자
   rank: null
   personality:
@@ -240,7 +240,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ms-01_04
-  name: 전문자격자
+  name: 전수빈
   role: 전문자격자
   rank: null
   personality:
@@ -261,7 +261,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ms-01_05
-  name: 법률사무소 사수
+  name: 모세종
   role: 법률사무소 사수
   rank: null
   personality:
@@ -278,13 +278,14 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 최신 계약서와 관련 증빙을 식별하고 자료별 출처·날짜·쟁점을 정리한다
+  - 증빙목록 초안
+  - 확인질문 3개
   appearance:
     location: null
     available_steps:
     - m1
 - npc_id: npc_ms-01_06
-  name: 기록관리 선배
+  name: 서다은
   role: 기록관리 선배
   rank: null
   personality:
@@ -301,13 +302,14 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 파일과 이관목록을 대조해 문서번호·작성일·보존기간·권한 누락을 찾는다
+  - 누락점검표
+  - 보완요청 메시지
   appearance:
     location: null
     available_steps:
     - m2
 - npc_id: npc_ms-01_07
-  name: 팀장
+  name: 양지안
   role: 팀장
   rank: 팀장
   personality:
@@ -324,13 +326,14 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 법적 기한·선행검토·소요시간을 기준으로 작업순서와 협조 요청을 정한다
+  - 우선순위표
+  - 일정·지원 요청안
   appearance:
     location: null
     available_steps:
     - m3
 - npc_id: npc_ms-01_08
-  name: 문서관리 담당
+  name: 장서연
   role: 문서관리 담당
   rank: null
   personality:
@@ -347,7 +350,9 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 주민번호·연락처·의료정보 등 민감정보와 잘못된 수신자를 찾아 발송을 보류
+  - 보안검수표
+  - 수정본
+  - 발송보류 보고
   appearance:
     location: null
     available_steps:
@@ -355,7 +360,7 @@ npcs:
     conditions:
     - quest_started
 - npc_id: npc_ms-01_09
-  name: 교대 사수
+  name: 안예은
   role: 교대 사수
   rank: null
   personality:
@@ -372,7 +377,8 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 완료·보류·추가확인 항목과 다음 행동·기한·담당자를 구분해 인계한다
+  - 인계메모
+  - 다음 액션 목록
   appearance:
     location: null
     available_steps:

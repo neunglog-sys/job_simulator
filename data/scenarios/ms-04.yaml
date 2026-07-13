@@ -13,7 +13,7 @@ steps:
   type: 정상업무
   title: 정상업무
   mission: |-
-    물류팀장: "오늘 출고 8건의 출고지시서와 운송장을 확인해 배차확인표를 완성하세요."
+    윤예준: "오늘 출고 8건의 출고지시서와 운송장을 확인해 배차확인표를 완성하세요."
 
     품목·수량·주소·차량·상차시간을 대조하고 출고 가능 여부를 표시한다.
   npcs:
@@ -56,7 +56,7 @@ steps:
   type: 자료·정보 누락
   title: 자료·정보 누락
   mission: |-
-    수출입 사수: "수입신고 전 인보이스와 패킹리스트의 불일치를 찾아 보완 요청하세요."
+    임다은: "수입신고 전 인보이스와 패킹리스트의 불일치를 찾아 보완 요청하세요."
 
     품명·수량·중량·금액·거래조건을 문서 간 대조한다.
   npcs:
@@ -90,7 +90,7 @@ steps:
   type: 우선순위 충돌
   title: 우선순위 충돌
   mission: |-
-    물류팀장: "긴급 항공출고와 정기 해상출고가 같은 인력·상차장을 사용합니다. 배치안을 정하세요."
+    윤예준: "긴급 항공출고와 정기 해상출고가 같은 인력·상차장을 사용합니다. 배치안을 정하세요."
 
     납기위약·운임·화물특성·대체시간을 비교해 작업순서를 정한다.
   npcs:
@@ -151,7 +151,7 @@ steps:
     on_pass: __end__
 sudden_quest:
   npc: npc_ms-04_07
-  intro: 관세업무 사수이(가) 다급하게 찾아왔다. "세관에서 품목분류 확인 요청이 왔습니다. 화물을 임의 출고하지 말고 대응자료를 정리하세요."
+  intro: 손도윤이(가) 다급하게 찾아왔다. "세관에서 품목분류 확인 요청이 왔습니다. 화물을 임의 출고하지 말고 대응자료를 정리하세요."
   task:
     kind: choice
     prompt: |-
@@ -178,7 +178,7 @@ sudden_quest:
     type: 오류·안전위험
 npcs:
 - npc_id: npc_ms-04_01
-  name: 물류팀장
+  name: 윤예준
   role: 물류팀장
   rank: 팀장
   personality:
@@ -195,15 +195,17 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 품목·수량·주소·차량·상차시간을 대조하고 출고 가능 여부를 표시한다
-  - 납기위약·운임·화물특성·대체시간을 비교해 작업순서를 정한다
+  - 출고체크표
+  - 배차확인표
+  - 배치계획표
+  - 비용·위험 비교표
   appearance:
     location: null
     available_steps:
     - m1
     - m3
 - npc_id: npc_ms-04_02
-  name: 운송사
+  name: 장도현
   role: 운송사
   rank: null
   personality:
@@ -224,7 +226,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ms-04_03
-  name: 창고담당
+  name: 배수빈
   role: 창고담당
   rank: null
   personality:
@@ -266,7 +268,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ms-04_05
-  name: 협력사
+  name: 임하준
   role: 협력사
   rank: null
   personality:
@@ -287,7 +289,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ms-04_06
-  name: 수출입 사수
+  name: 임다은
   role: 수출입 사수
   rank: null
   personality:
@@ -304,13 +306,14 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 품명·수량·중량·금액·거래조건을 문서 간 대조한다
+  - 서류불일치표
+  - 보완요청 메일
   appearance:
     location: null
     available_steps:
     - m2
 - npc_id: npc_ms-04_07
-  name: 관세업무 사수
+  name: 손도윤
   role: 관세업무 사수
   rank: null
   personality:
@@ -327,7 +330,8 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 보류사유와 필요한 자료를 확인해 전문담당자 검토용 패킷을 만든다
+  - 통관보류 대응표
+  - 자료패킷
   appearance:
     location: null
     available_steps:
@@ -352,7 +356,8 @@ npcs:
   - 아니 그게 무슨 말이에요?
   - 빨리 좀 처리해줘요.
   responsibilities:
-  - 확정사실·예상시간·대체안·다음 업데이트 시점을 구분해 전달한다
+  - 지연보고 메시지
+  - 대체운송안
   appearance:
     location: null
     available_steps:

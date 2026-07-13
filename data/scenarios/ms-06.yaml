@@ -13,7 +13,7 @@ steps:
   type: 정상업무
   title: 정상업무
   mission: |-
-    선임 사육사: "오전 급이 전에 개체 상태와 사육환경을 점검해 주세요."
+    조채원: "오전 급이 전에 개체 상태와 사육환경을 점검해 주세요."
 
     환경값과 개체 행동·섭취상태를 확인하고 급이 가능 여부를 표시한다.
   npcs:
@@ -56,7 +56,7 @@ steps:
   type: 자료·정보 누락
   title: 자료·정보 누락
   mission: |-
-    스마트팜 관리자: "야간 관수 기록이 비어 있습니다. 바로 재관수하지 말고 상태를 확인하세요."
+    권예준: "야간 관수 기록이 비어 있습니다. 바로 재관수하지 말고 상태를 확인하세요."
 
     로그 누락인지 실제 미관수인지 센서·토양·설비 상태로 교차확인한다.
   npcs:
@@ -90,7 +90,7 @@ steps:
   type: 우선순위 충돌
   title: 우선순위 충돌
   mission: |-
-    현장관리자: "폭염 예보와 예정된 방역작업이 겹쳤습니다. 작업순서를 조정하세요."
+    손지안: "폭염 예보와 예정된 방역작업이 겹쳤습니다. 작업순서를 조정하세요."
 
     생물 안전·작업자 안전·약제조건을 비교해 급수·차광·방역 순서를 정한다.
   npcs:
@@ -128,7 +128,7 @@ steps:
   type: 보고·인계
   title: 보고·인계
   mission: |-
-    교대관리자: "이상 개체와 시설상태를 야간근무자에게 인계하세요."
+    손다은: "이상 개체와 시설상태를 야간근무자에게 인계하세요."
 
     개체별 상태·금지행동·재확인 시각과 설비 위험을 인계한다.
   npcs:
@@ -150,7 +150,7 @@ steps:
     on_pass: __end__
 sudden_quest:
   npc: npc_ms-06_05
-  intro: 스마트팜 사수이(가) 다급하게 찾아왔다. "환경제어 알람과 함께 환기팬이 멈췄습니다. 안전하게 초기대응하세요."
+  intro: 유예린이(가) 다급하게 찾아왔다. "환경제어 알람과 함께 환기팬이 멈췄습니다. 안전하게 초기대응하세요."
   task:
     kind: choice
     prompt: |-
@@ -177,7 +177,7 @@ sudden_quest:
     type: 오류·안전위험
 npcs:
 - npc_id: npc_ms-06_01
-  name: 현장관리자
+  name: 손지안
   role: 현장관리자
   rank: null
   personality:
@@ -194,13 +194,13 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 생물 안전·작업자 안전·약제조건을 비교해 급수·차광·방역 순서를 정한다
+  - 폭염대응 작업표
   appearance:
     location: null
     available_steps:
     - m3
 - npc_id: npc_ms-06_02
-  name: 선임 사육사
+  name: 조채원
   role: 선임 사육사
   rank: 선임
   personality:
@@ -217,13 +217,13 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 환경값과 개체 행동·섭취상태를 확인하고 급이 가능 여부를 표시한다
+  - 환경·개체 점검표
   appearance:
     location: null
     available_steps:
     - m1
 - npc_id: npc_ms-06_03
-  name: 수의·재배 담당
+  name: 정하윤
   role: 수의·재배 담당
   rank: null
   personality:
@@ -244,7 +244,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ms-06_04
-  name: 스마트팜 관리자
+  name: 권예준
   role: 스마트팜 관리자
   rank: null
   personality:
@@ -261,13 +261,14 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 로그 누락인지 실제 미관수인지 센서·토양·설비 상태로 교차확인한다
+  - 관수확인표
+  - 조치보고
   appearance:
     location: null
     available_steps:
     - m2
 - npc_id: npc_ms-06_05
-  name: 스마트팜 사수
+  name: 유예린
   role: 스마트팜 사수
   rank: null
   personality:
@@ -284,7 +285,8 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 실제 환경위험을 확인하고 비상환기·구역보호·설비담당 호출을 수행한다
+  - 비상조치 기록
+  - 설비장애 보고
   appearance:
     location: null
     available_steps:
@@ -292,7 +294,7 @@ npcs:
     conditions:
     - quest_started
 - npc_id: npc_ms-06_06
-  name: 교대관리자
+  name: 손다은
   role: 교대관리자
   rank: null
   personality:
@@ -309,7 +311,7 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 개체별 상태·금지행동·재확인 시각과 설비 위험을 인계한다
+  - 교대인계서
   appearance:
     location: null
     available_steps:
