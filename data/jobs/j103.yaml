@@ -1,0 +1,18 @@
+# J103 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J103_*.yaml
+code: j103
+title: 배차현장 지원
+description: 운송 차량의 배차 일정과 상하차 현황을 실시간으로 확인하고 현장의 원활한 흐름을 조율하는 직무입니다. 배송 리스트 대조를 통해 누락이나 오류를 잡아내고, 운행
+  지연이나 민원 발생 시 배차 간격을 신속히 조정하여 물류 효율성을 극대화합니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 5
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 3
+  investigative: 2
+  artistic: 1
+  social: 3
+  enterprising: 4
+  conventional: 4

@@ -1,0 +1,18 @@
+# J097 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J097_*.yaml
+code: j097
+title: 통신장비 설치 보조
+description: 촬영 및 방제용 드론 등 정밀 통신 기체의 배선과 배터리, 모터 구동 상태를 점검하고 정비를 보조하는 직무. 회로도면과 실배선을 정밀하게 대조하여 불일치 지점을
+  식별하고, 배터리 팽창 등 화재 위험 요소를 사전에 격리 조치하여 기체 안전성을 확보합니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 4
+  communication: 3
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 4
+  investigative: 5
+  artistic: 1
+  social: 2
+  enterprising: 2
+  conventional: 4

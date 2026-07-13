@@ -1,0 +1,18 @@
+# J057 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J057_*.yaml
+code: j057
+title: 전시장 안내 스태프
+description: 전시장이나 문화 공간에서 관람객의 원활한 입장을 돕고 동선과 시설을 안내하는 직무. 쾌적하고 안전한 관람 환경을 유지하기 위해 현장 상황을 지속적으로 모니터링하며,
+  돌발적인 혼잡이나 민원에 유연하게 대처한다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 3
+  communication: 4
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 4
+  investigative: 1
+  artistic: 2
+  social: 4
+  enterprising: 3
+  conventional: 4

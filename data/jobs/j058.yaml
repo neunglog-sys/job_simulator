@@ -1,0 +1,18 @@
+# J058 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J058_*.yaml
+code: j058
+title: 교육운영 매니저 보조
+description: 교육 프로그램의 원활한 진행을 위해 제반 환경을 구축하고 운영을 지원하는 직무. 강사와 수강생 사이에서 출석 관리, 교재 준비, 애로사항 해결을 도맡으며 전반적인
+  교육 여정을 꼼꼼하게 보조한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 4
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 2
+  investigative: 2
+  artistic: 1
+  social: 4
+  enterprising: 3
+  conventional: 5

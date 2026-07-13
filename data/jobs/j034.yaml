@@ -1,0 +1,18 @@
+# J034 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J034_*.yaml
+code: j034
+title: 서비스기획 보조
+description: 사용자의 목소리와 요구사항을 분석하여 서비스의 핵심 기능을 정의하고 우선순위를 조율하는 직무. 개발팀 및 디자인팀과의 소통을 통해 모호한 요구사항을 구체적인 명세로
+  정리하며, 실현 가능한 서비스 스펙을 정립한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 4
+  communication: 4
+  collaboration: 4
+  task_management: 3
+interest_profile:
+  realistic: 1
+  investigative: 4
+  artistic: 3
+  social: 3
+  enterprising: 4
+  conventional: 3

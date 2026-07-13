@@ -1,0 +1,18 @@
+# J038 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J038_*.yaml
+code: j038
+title: 사업기획 보조
+description: 신규 사업의 타당성을 검증하기 위해 시장 자료와 비용 데이터를 수집하고 가설을 구체화하는 직무. 낙관적 가정을 배제하고 객관적 근거와 리스크 분석을 바탕으로 실행
+  대안의 우선순위를 정립한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 5
+  communication: 3
+  collaboration: 3
+  task_management: 3
+interest_profile:
+  realistic: 1
+  investigative: 5
+  artistic: 2
+  social: 2
+  enterprising: 5
+  conventional: 3

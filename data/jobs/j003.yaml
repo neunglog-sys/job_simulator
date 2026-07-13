@@ -1,0 +1,18 @@
+# J003 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J003_*.yaml
+code: j003
+title: 총무 담당자
+description: 임직원의 근무 환경을 개선하고 사내 자산과 비품을 효율적으로 관리 및 지원하는 직무입니다. 행사 지원, 회의실 준비, 사내 민원 해결 등 현장과 긴밀히 소통하며
+  쾌적한 오피스 환경을 유지하는 데 기여합니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 5
+  collaboration: 5
+  task_management: 4
+interest_profile:
+  realistic: 3
+  investigative: 2
+  artistic: 1
+  social: 5
+  enterprising: 4
+  conventional: 4

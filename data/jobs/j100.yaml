@@ -1,0 +1,18 @@
+# J100 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J100_*.yaml
+code: j100
+title: 환경안전 보조
+description: 건설 및 산업 현장을 순회하며 유해 위험 요인을 점검하고 작업 환경의 안전을 확보하는 직무입니다. 안전 수칙 준수 여부와 시설물 상태를 확인하고, 작업 허가서
+  검토 및 가스 측정값 분석을 통해 기준 초과 시 작업을 중지시키는 등 예방 조치를 수행합니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 4
+  communication: 3
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 4
+  investigative: 4
+  artistic: 1
+  social: 2
+  enterprising: 3
+  conventional: 5

@@ -1,0 +1,18 @@
+# J088 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J088_*.yaml
+code: j088
+title: 조리보조
+description: 주방 내에서 조리장을 도와 식재료를 전처리하고 조리 과정을 보조하는 직무. 위생 기준을 철저히 준수하며 실시간으로 밀려드는 주문의 우선순위를 파악해 신속하고 안전하게
+  음식을 완성한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 4
+  collaboration: 5
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 1
+  artistic: 2
+  social: 3
+  enterprising: 2
+  conventional: 4

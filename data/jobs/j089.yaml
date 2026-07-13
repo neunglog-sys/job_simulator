@@ -1,0 +1,18 @@
+# J089 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J089_*.yaml
+code: j089
+title: 식품제조 보조
+description: 식품 제조 현장에서 레시피와 규정에 맞춰 원재료를 계량하고 공정을 관리하는 직무. 대량 생산 환경에서 제품의 일관된 품질과 위생을 유지하기 위해 공정별 소요 시간과
+  설비 가동 상태를 체계적으로 점검한다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 3
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 2
+  artistic: 1
+  social: 2
+  enterprising: 2
+  conventional: 5

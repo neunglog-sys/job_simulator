@@ -1,0 +1,18 @@
+# J096 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J096_*.yaml
+code: j096
+title: 공조·보일러 관리 보조
+description: 공조기, 보일러, 차량 및 기계 장비의 유압과 온도를 측정하고 정비 업무를 보조하는 직무. 장비별 기술 지침서에 명시된 규격과 기준값을 정확히 대조하여 이상 유무를
+  판정하며, 가스 누출 등 위험 상황 발생 시 즉각적인 안전 대응 절차를 수행합니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 3
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 5
+  investigative: 4
+  artistic: 1
+  social: 2
+  enterprising: 2
+  conventional: 4

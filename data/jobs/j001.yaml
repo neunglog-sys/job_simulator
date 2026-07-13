@@ -1,0 +1,18 @@
+# J001 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J001_*.yaml
+code: j001
+title: 사무보조원
+description: 부서의 원활한 업무 수행을 위해 문서 정리, 일정 관리, 회의 준비 등 다양한 기초 행정 업무를 지원하는 직무입니다. 요청사항을 명확히 파악하여 신속하고 정확하게
+  처리하며, 부서원들이 본업에 집중할 수 있도록 돕습니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 2
+  communication: 4
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 2
+  investigative: 2
+  artistic: 1
+  social: 4
+  enterprising: 2
+  conventional: 5

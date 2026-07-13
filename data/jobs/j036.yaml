@@ -1,0 +1,18 @@
+# J036 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J036_*.yaml
+code: j036
+title: 프로젝트관리 보조
+description: 프로젝트의 전체 일정과 과업 진행률을 모니터링하고 발생 가능한 리스크와 지연 요소를 기록·관리하는 직무. 일정 변경 사항과 의사결정 로그를 투명하게 갱신하여 프로젝트가
+  계획대로 완수되도록 돕는다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 4
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 1
+  investigative: 3
+  artistic: 1
+  social: 3
+  enterprising: 3
+  conventional: 5

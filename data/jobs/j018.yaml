@@ -1,0 +1,18 @@
+# J018 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J018_*.yaml
+code: j018
+title: 재고관리 사무
+description: 출고 지시서와 실제 창고 재고를 정확하게 대조하여 수량 오류나 결손을 사전에 방지하는 직무입니다. 데이터상의 재고와 물리적 재고의 일치율을 높이고, 품목별 보류
+  사유를 명확히 관리합니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 2
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 3
+  investigative: 3
+  artistic: 1
+  social: 2
+  enterprising: 2
+  conventional: 5

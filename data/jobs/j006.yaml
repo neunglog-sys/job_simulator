@@ -1,0 +1,17 @@
+# J006 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J006_*.yaml
+code: j006
+title: 경리사무원
+description: 기업의 일상적인 거래 내역을 기록하고 증빙 서류를 관리하는 직무. 세금계산서와 영수증을 꼼꼼하게 대사하여 장부의 정확성을 확보하고 월말 마감 업무를 지원한다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 3
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 2
+  investigative: 2
+  artistic: 1
+  social: 2
+  enterprising: 2
+  conventional: 5

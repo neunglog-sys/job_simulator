@@ -1,0 +1,18 @@
+# J072 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J072_*.yaml
+code: j072
+title: 백엔드 개발 보조
+description: 서비스의 보이지 않는 서버 엔진과 데이터베이스를 설계하고 비즈니스 로직을 안정적으로 구축하는 직무. 시스템의 예외 상황을 방지하고 대용량 데이터 처리의 효율성을
+  극대화한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 5
+  communication: 3
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 3
+  investigative: 5
+  artistic: 1
+  social: 2
+  enterprising: 2
+  conventional: 4

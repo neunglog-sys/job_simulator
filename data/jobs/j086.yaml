@@ -1,0 +1,18 @@
+# J086 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J086_*.yaml
+code: j086
+title: 포장 작업자
+description: 완성된 제품을 안전하게 포장하고 출하 규격에 맞추어 분류하는 직무. 포장재 상태와 수량을 꼼꼼히 확인하고, 작업지시서에 명시된 포장 절차를 준수하여 물류 이동
+  중 파손을 예방한다.
+competencies:
+  situation_judgment: 2
+  problem_solving: 2
+  communication: 2
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 1
+  artistic: 1
+  social: 1
+  enterprising: 1
+  conventional: 4

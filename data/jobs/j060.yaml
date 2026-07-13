@@ -1,0 +1,18 @@
+# J060 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J060_*.yaml
+code: j060
+title: 강의운영 보조
+description: 실제 수업 현장에서 강사를 보조하여 강의가 차질 없이 진행되도록 지원하는 직무. 교안 및 교구 상태를 사전에 점검하고, 수업 중 돌발 상황이나 학습자들의 즉각적인
+  요청에 유연하게 대응한다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 3
+  communication: 4
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 3
+  investigative: 2
+  artistic: 1
+  social: 4
+  enterprising: 2
+  conventional: 4
