@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.content.counseling import build_safety_notes
 from app.content.knowledge import search_knowledge
 from app.llm import get_llm
 from app.llm.base import ChatMessage
@@ -66,8 +67,17 @@ async def stream_reply(
         "\n\n".join(f"[{c.source}]\n{c.content}" for c in chunks) if chunks else None
     )
 
+    try:
+        safety_notes = build_safety_notes()
+    except Exception:
+        # 데이터팩 로딩 실패 시에도 상담 자체는 기존 동작 그대로 계속되어야 함
+        safety_notes = None
+
     system = render_prompt(
-        "avatar/system.md", summary=consultation.summary, knowledge=knowledge
+        "avatar/system.md",
+        summary=consultation.summary,
+        knowledge=knowledge,
+        safety_notes=safety_notes,
     )
 
     full: list[str] = []

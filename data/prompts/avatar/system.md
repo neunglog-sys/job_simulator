@@ -39,3 +39,8 @@
 {{ knowledge }}
 - 위 자료에 없는 직무 세부 사항은 단정하지 말고 "체험에서 직접 확인해보자"로 유도하세요.
 {% endif %}
+
+{% if safety_notes|default(None) %}
+## 안전 규칙 요약 (반드시 준수)
+{{ safety_notes }}
+{% endif %}

@@ -6,6 +6,7 @@
 → 모든 행동 action_logs 적재 → 리포트 재료
 """
 
+import logging
 import random
 from typing import AsyncIterator
 
@@ -14,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
+from app.domains.scoring import aggregate
 from app.domains.scoring import service as scoring
 from app.domains.simulation import hints
 from app.domains.simulation import state_machine as sm
@@ -21,6 +23,8 @@ from app.llm import get_llm
 from app.llm.base import ChatMessage
 from app.llm.prompts import render_prompt
 from app.models import Message, NpcPersona, Scenario, Simulation, User
+
+logger = logging.getLogger(__name__)
 
 MEMORY_TURNS = 20
 SCORING_TURNS = 40  # 채점 대화록 상한 — 하루 종일 대화해도 채점 프롬프트가 무한 성장하지 않게
@@ -248,6 +252,38 @@ async def _transcript(session: AsyncSession, simulation_id: int) -> str:
     )
 
 
+async def _grade(
+    session: AsyncSession, simulation: Simulation, mission: str, task: dict, submission: str
+) -> dict:
+    """대화록 포함 채점 — 본편 과제·돌발 퀘스트 공용."""
+    transcript = await _transcript(session, simulation.id)
+    return await scoring.evaluate_task(mission, task, transcript, submission)
+
+
+def _envelope(
+    result: dict,
+    state: dict,
+    *,
+    advice: dict | None = None,
+    step_changed: dict | None = None,
+    completed: bool = False,
+    sudden_quest: dict | None = None,
+    is_quest: bool = False,
+    **extra,
+) -> dict:
+    """제출 응답 계약 — 라우터가 pop하는 키들의 단일 정의처 (본편·퀘스트 공용)."""
+    return {
+        **result,
+        "advice_card": advice,
+        "state": state,
+        "step_changed": step_changed,
+        "completed": completed,
+        "sudden_quest": sudden_quest,
+        "is_quest": is_quest,
+        **extra,
+    }
+
+
 def _public_quest(quest_def: dict) -> dict:
     """클라이언트용 퀘스트 정보 — 정답 힌트(hints)는 숨김."""
     task = quest_def["task"]
@@ -285,8 +321,7 @@ async def submit_task(
     if not task:
         raise HTTPException(status_code=400, detail="현재 스텝에 과제가 없음")
 
-    transcript = await _transcript(session, simulation.id)
-    result = await scoring.evaluate_task(step["mission"], task, transcript, submission)
+    result = await _grade(session, simulation, step["mission"], task, submission)
 
     attempts = dict(state.get("attempts") or {})
     attempts[step["id"]] = attempts.get(step["id"], 0) + 1
@@ -336,16 +371,20 @@ async def submit_task(
         {},
     )
     await session.commit()
+    if completed:
+        try:
+            await finalize_score(session, simulation, scenario)  # 백분위 모수 스냅샷
+        except Exception:  # noqa: BLE001 — 스냅샷 실패가 성공한 제출을 500으로 만들면 안 됨
+            logger.exception("점수 스냅샷 실패 (simulation=%d) — GET /score는 재집계로 동작", simulation.id)
 
-    return {
-        **result,
-        "advice_card": advice,
-        "state": simulation.state,
-        "step_changed": step_changed,
-        "completed": completed,
-        "sudden_quest": quest_fired,
-        "is_quest": False,
-    }
+    return _envelope(
+        result,
+        simulation.state,
+        advice=advice,
+        step_changed=step_changed,
+        completed=completed,
+        sudden_quest=quest_fired,
+    )
 
 
 QUEST_MAX_ATTEMPTS = 2  # 실패해도 진행 비차단 — 2회 미달이면 종료하고 리포트에만 반영
@@ -362,10 +401,9 @@ async def _submit_quest(
     """돌발 퀘스트 제출 채점 — 통과 or 2회 미달 시 퀘스트 종료 후 본편 복귀."""
     quest_def = scenario.sudden_quest
     qtask = quest_def["task"]
-    transcript = await _transcript(session, simulation.id)
     # 채점 기준점(mission)은 서사(intro)가 아니라 과제 지시문 — 루브릭이 흔들리지 않게
-    result = await scoring.evaluate_task(
-        qtask.get("mission") or qtask["prompt"], qtask, transcript, submission
+    result = await _grade(
+        session, simulation, qtask.get("mission") or qtask["prompt"], qtask, submission
     )
 
     quest["attempts"] = quest.get("attempts", 0) + 1
@@ -397,23 +435,43 @@ async def _submit_quest(
     )
     await session.commit()
 
-    return {
-        **result,
-        "advice_card": advice,
-        "state": simulation.state,
-        "step_changed": None,
-        "completed": False,
-        "sudden_quest": None,
-        "is_quest": True,
-        "quest_status": quest["status"],
+    return _envelope(
+        result,
+        simulation.state,
+        advice=advice,
+        is_quest=True,
+        quest_status=quest["status"],
+    )
+
+
+async def finalize_score(
+    session: AsyncSession, simulation: Simulation, scenario: Scenario
+) -> None:
+    """완료 시점 점수 스냅샷 — state['score']에 저장 (백분위 비교 모수가 됨).
+
+    호출 전에 반드시 로그가 커밋돼 있어야 함 (집계가 DB를 읽으므로).
+    """
+    score = await aggregate.simulation_score(session, simulation, scenario)
+    state = dict(simulation.state)
+    state["score"] = {
+        "total": score["total"],
+        "mission_avg": score["mission_avg"],
+        "competencies": score["competencies"],
     }
+    simulation.state = state
+    flag_modified(simulation, "state")
+    await session.commit()
 
 
 async def finish_simulation(
-    session: AsyncSession, simulation: Simulation
+    session: AsyncSession, simulation: Simulation, scenario: Scenario
 ) -> Simulation:
+    """중도 종료(포기) — 진짜 완주(__end__ 과제 통과)와 구분해 aborted 처리.
+
+    점수 스냅샷을 남기지 않으므로 백분위 모수(완주자 풀)를 오염시키지 않는다.
+    """
     _ensure_active(simulation)
-    simulation.status = "completed"
+    simulation.status = "aborted"
     await scoring.log_action(session, simulation.id, "finish", {}, {})
     await session.commit()
     await session.refresh(simulation)

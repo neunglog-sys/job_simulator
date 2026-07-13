@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import SessionFactory, get_session
 from app.core.deps import get_current_user, get_or_create_demo_user
+from app.domains.scoring import aggregate
 from app.domains.simulation import service
 from app.domains.simulation.schemas import SimulationCreate, SimulationOut
 from app.models import Job, Scenario, User
@@ -62,8 +63,29 @@ async def finish_simulation(
     user: User = Depends(get_current_user),
 ):
     simulation, scenario = await service.get_owned_simulation(session, simulation_id, user)
-    simulation = await service.finish_simulation(session, simulation)
+    simulation = await service.finish_simulation(session, simulation, scenario)
     return service.to_out(simulation, scenario)
+
+
+@router.get("/api/simulations/{simulation_id}/score")
+async def get_score(
+    simulation_id: int,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """정밀 점수제 집계 — 미션별 인정점수·시나리오 총점·역량 5종 + 백분위 뱃지.
+
+    진행 중이면 부분 집계. top_percent는 모수 30명 미만이면 null (프론트: 숨김).
+    """
+    simulation, scenario = await service.get_owned_simulation(session, simulation_id, user)
+    score = await aggregate.simulation_score(session, simulation, scenario)
+    # 백분위 비교값은 완주 스냅샷이 있으면 그것을 사용 — 모수(과거 스냅샷들)와 동일 기준
+    snapshot = (simulation.state.get("score") or {}).get("total")
+    percentile = await aggregate.scenario_percentile(
+        session, scenario.id, snapshot if snapshot is not None else score["total"],
+        exclude_simulation_id=simulation.id,
+    )
+    return {**score, "percentile": percentile}
 
 
 async def _ws_user(session: AsyncSession, user_id: int | None) -> User:
