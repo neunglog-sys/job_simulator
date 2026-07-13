@@ -16,3 +16,21 @@ interest_profile:
   social: 2
   enterprising: 3
   conventional: 4
+# 공식 매핑: K000007463 웹디자이너 (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: "전문대졸 이상 — 디자인/멀티미디어/컴퓨터그래픽 관련 전공 또는 전문교육기관 훈련, 포트폴리오 중요"
+  source_field: needKnwgCn
+  evidence_type: descriptive_text
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics:
+    median_annual_krw: 40000000
+    statistic_type: median
+    population: "재직자 약 30명 설문조사"
+    reference_year: 2025
+certifications:
+  - name: "웹디자인기능사(국가기술)"
+    tier: related
+  - name: "컴퓨터그래픽스운용기능사(국가기술)"
+    tier: related
+status: provisional

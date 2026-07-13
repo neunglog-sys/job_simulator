@@ -16,3 +16,18 @@ interest_profile:
   social: 2
   enterprising: 3
   conventional: 5
+# 공식 매핑: K000007550 통계사무원 (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: "전문대졸 이상 — 경영학/통계학/신문방송학/심리학/사회학 등 사회과학 전공 권장"
+  source_field: needKnwgCn
+  evidence_type: descriptive_text
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics:
+    median_annual_krw: 30000000
+    statistic_type: median
+    population: "재직자 약 30명 설문조사"
+    reference_year: 2023
+certifications:
+  []
+status: provisional
