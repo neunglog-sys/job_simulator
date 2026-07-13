@@ -6,6 +6,7 @@
 → 모든 행동 action_logs 적재 → 리포트 재료
 """
 
+import logging
 import random
 from typing import AsyncIterator
 
@@ -14,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
+from app.domains.scoring import aggregate
 from app.domains.scoring import service as scoring
 from app.domains.simulation import hints
 from app.domains.simulation import state_machine as sm
@@ -21,6 +23,8 @@ from app.llm import get_llm
 from app.llm.base import ChatMessage
 from app.llm.prompts import render_prompt
 from app.models import Message, NpcPersona, Scenario, Simulation, User
+
+logger = logging.getLogger(__name__)
 
 MEMORY_TURNS = 20
 SCORING_TURNS = 40  # 채점 대화록 상한 — 하루 종일 대화해도 채점 프롬프트가 무한 성장하지 않게
@@ -335,6 +339,11 @@ async def submit_task(
         {},
     )
     await session.commit()
+    if completed:
+        try:
+            await finalize_score(session, simulation, scenario)  # 백분위 모수 스냅샷
+        except Exception:  # noqa: BLE001 — 스냅샷 실패가 성공한 제출을 500으로 만들면 안 됨
+            logger.exception("점수 스냅샷 실패 (simulation=%d) — GET /score는 재집계로 동작", simulation.id)
 
     return {
         **result,
@@ -408,11 +417,34 @@ async def _submit_quest(
     }
 
 
+async def finalize_score(
+    session: AsyncSession, simulation: Simulation, scenario: Scenario
+) -> None:
+    """완료 시점 점수 스냅샷 — state['score']에 저장 (백분위 비교 모수가 됨).
+
+    호출 전에 반드시 로그가 커밋돼 있어야 함 (집계가 DB를 읽으므로).
+    """
+    score = await aggregate.simulation_score(session, simulation, scenario)
+    state = dict(simulation.state)
+    state["score"] = {
+        "total": score["total"],
+        "mission_avg": score["mission_avg"],
+        "competencies": score["competencies"],
+    }
+    simulation.state = state
+    flag_modified(simulation, "state")
+    await session.commit()
+
+
 async def finish_simulation(
-    session: AsyncSession, simulation: Simulation
+    session: AsyncSession, simulation: Simulation, scenario: Scenario
 ) -> Simulation:
+    """중도 종료(포기) — 진짜 완주(__end__ 과제 통과)와 구분해 aborted 처리.
+
+    점수 스냅샷을 남기지 않으므로 백분위 모수(완주자 풀)를 오염시키지 않는다.
+    """
     _ensure_active(simulation)
-    simulation.status = "completed"
+    simulation.status = "aborted"
     await scoring.log_action(session, simulation.id, "finish", {}, {})
     await session.commit()
     await session.refresh(simulation)
