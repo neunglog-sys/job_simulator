@@ -89,7 +89,9 @@ RANK_KEYWORDS = ["팀장", "지점장", "센터장", "점장", "소장", "원장
                  "요원", "형사", "경위", "경사", "순경"]
 # 성씨로 시작하지만 인명이 아닌 역할어 (오탐 방지)
 NAME_STOPWORDS = {"고령", "초보", "급한", "만취", "외국인", "신규", "기존", "블랙컨슈머", "의뢰부서",
-                  "기록관리자", "전문자격자", "전문", "담당", "타부서", "회계담당"}
+                  "기록관리자", "전문자격자", "전문", "담당", "타부서", "회계담당",
+                  "고객", "손님", "환자", "승객", "회원", "주민", "시민", "차주", "학생",
+                  "민원", "이용자", "투숙객", "보호자", "학부모", "의뢰인"}
 
 
 def split_npc_list(raw: str | None) -> list[str]:
@@ -119,7 +121,9 @@ _match_key = norm_role  # 원본 NPC 문자열 → 로스터 매칭 키 (괄호 
 
 
 def _looks_like_name(tok: str) -> bool:
-    return bool(re.fullmatch(r"[가-힣]{2,3}", tok)) and tok[0] in SURNAMES and tok not in NAME_STOPWORDS
+    if not (re.fullmatch(r"[가-힣]{2,3}", tok) and tok[0] in SURNAMES and tok not in NAME_STOPWORDS):
+        return False
+    return not any(tok.endswith(r) for r in RANK_KEYWORDS)  # '박팀장'=성씨+직급 → 인명 아님
 
 
 def parse_npc(raw: str) -> tuple[str, str, str]:
@@ -155,15 +159,47 @@ def make_npc_id(slug: str, idx: int) -> str:
     return f"npc_{slug}_{idx:02d}"
 
 
-def build_npc(raw: str, slug: str, idx: int) -> dict:
+# ── 인명 생성 (역할 라벨 NPC에 사람 이름 부여 — 팀장 승인, 재방출 시 결정적) ──
+_GEN_SURNAMES = list("김이박최정강조윤장임한오서신권황안송전홍유고문양손배백")
+_GEN_GIVEN = ["서준", "도윤", "하준", "지호", "예준", "시우", "하윤", "서연", "지우", "서현",
+              "지훈", "현우", "우진", "건우", "선우", "연우", "유진", "수아", "지아", "다은",
+              "채원", "가은", "윤서", "은채", "소율", "예린", "하은", "주원", "은호", "정우",
+              "민서", "수빈", "예은", "지민", "현서", "도현", "태오", "시윤", "하린", "지안"]
+# 이스터에그 — 각 담당의 첫 시나리오 대표 NPC(사수 우선)에 팀원 이름을 한 번씩
+EASTER_EGG = {"kts-01": "김태수", "ms-01": "모세종", "stn-01": "송태능",
+              "yg-01": "윤가연", "ys-01": "최영수", "jm-01": "장민수"}
+
+
+def gen_name(seed: str, used: set[str]) -> str:
+    """역할 라벨 NPC용 사람 이름 결정적 생성 — 같은 npc_id면 재방출해도 동일, 시나리오 내 유일."""
+    rng = random.Random(f"{seed}-name")
+    for _ in range(80):
+        n = rng.choice(_GEN_SURNAMES) + rng.choice(_GEN_GIVEN)
+        if n not in used:
+            used.add(n)
+            return n
+    n = rng.choice(_GEN_SURNAMES) + rng.choice(_GEN_GIVEN) + str(len(used) + 1)
+    used.add(n)
+    return n
+
+
+def build_npc(raw: str, slug: str, idx: int, used_names: set[str]) -> dict:
     """원본 NPC 문자열 → 정규화 NPC 엔트리 (고유정보 + 배치정보 통합, seed가 두 테이블로 분리).
 
+    인명이 없는 역할 라벨('원무팀장' 등)은 사람 이름을 생성하고 라벨을 role로 보존한다.
     responsibilities·appearance는 상위(build_scenario_doc)에서 등장 스텝을 알고 채운다.
     """
     name, role, rank = parse_npc(raw)
+    npc_id = make_npc_id(slug, idx)
+    # 첫 토큰이 사람 이름이 아니면(역할 라벨) 이름 생성, 라벨(name=head)을 역할로
+    if not _looks_like_name(name.split()[0] if name else ""):
+        role = name or role  # 원무팀장/고령 환자 등 라벨을 역할로
+        name = gen_name(npc_id, used_names)
+    else:
+        used_names.add(name)
     arch = ARCHETYPES[classify(raw)]
     return {
-        "npc_id": make_npc_id(slug, idx),
+        "npc_id": npc_id,
         "name": name,
         "role": role,
         "rank": rank or None,
@@ -367,11 +403,12 @@ def build_scenario_doc(
     # ── NPC 로스터: category.npc_roles + 모든 미션 NPC (괄호 인식 분리, 원본 dedup) ──
     npc_by_key: dict[str, dict] = {}
     roster: list[dict] = []
+    used_names: set[str] = set()  # 시나리오 내 이름 중복 방지 (생성 인명)
     for raw in split_npc_list(category.npc_roles) + [r for m in missions for r in split_npc_list(m.npc)]:
         key = _match_key(raw)
         if not key or key in npc_by_key:
             continue
-        entry = build_npc(raw, slug, len(roster) + 1)
+        entry = build_npc(raw, slug, len(roster) + 1, used_names)
         npc_by_key[key] = entry
         roster.append(entry)
     # 최소 3명 보장 — 빠진 아키타입 축을 기본 역할로 보충 (근거 없는 실존 NPC 창작은 아님)
@@ -380,9 +417,14 @@ def build_scenario_doc(
         if len(roster) >= 3:
             break
         if arch_key not in seen_arch:
-            entry = build_npc(ARCHETYPES[arch_key]["fallback_role"], slug, len(roster) + 1)
+            entry = build_npc(ARCHETYPES[arch_key]["fallback_role"], slug, len(roster) + 1, used_names)
             npc_by_key[_match_key(ARCHETYPES[arch_key]["fallback_role"])] = entry
             roster.append(entry)
+
+    # 이스터에그 — 각 담당 첫 시나리오의 사수(mentor) NPC에 팀원 이름 (없으면 첫 NPC)
+    if slug in EASTER_EGG:
+        target = next((e for e in roster if e["_arch"] == "mentor"), roster[0])
+        target["name"] = EASTER_EGG[slug]
 
     steps = [mission_to_step(m, f"m{i}", npc_by_key) for i, m in enumerate(daily, 1)]
     for i, step in enumerate(steps):

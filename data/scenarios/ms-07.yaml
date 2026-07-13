@@ -56,7 +56,7 @@ steps:
   type: 자료·정보 누락
   title: 자료·정보 누락
   mission: |-
-    매니저: "고객 주문에 알레르기 메모가 있는데 대상 식재료가 적혀 있지 않습니다."
+    안시윤: "고객 주문에 알레르기 메모가 있는데 대상 식재료가 적혀 있지 않습니다."
 
     조리를 시작하지 않고 알레르기 종류를 재확인해 안전한 대체안을 준비한다.
   npcs:
@@ -128,7 +128,7 @@ steps:
   type: 보고·인계
   title: 보고·인계
   mission: |-
-    마감근무자: "남은 재고와 폐기·예약주문을 다음 근무자에게 인계하세요."
+    신지안: "남은 재고와 폐기·예약주문을 다음 근무자에게 인계하세요."
 
     선입선출 기준으로 우선사용 재료와 폐기·해동·준비사항을 정리한다.
   npcs:
@@ -150,7 +150,7 @@ steps:
     on_pass: __end__
 sudden_quest:
   npc: npc_ms-07_04
-  intro: 위생관리자이(가) 다급하게 찾아왔다. "완성품 근처에서 이물질이 발견됐습니다. 제공 전에 조치하세요."
+  intro: 황소율이(가) 다급하게 찾아왔다. "완성품 근처에서 이물질이 발견됐습니다. 제공 전에 조치하세요."
   task:
     kind: choice
     prompt: |-
@@ -202,7 +202,7 @@ npcs:
     - m1
     - m3
 - npc_id: npc_ms-07_02
-  name: 매니저
+  name: 안시윤
   role: 매니저
   rank: 매니저
   personality:
@@ -225,7 +225,7 @@ npcs:
     available_steps:
     - m2
 - npc_id: npc_ms-07_03
-  name: 고객
+  name: 고건우
   role: 고객
   rank: null
   personality:
@@ -246,7 +246,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ms-07_04
-  name: 위생관리자
+  name: 황소율
   role: 위생관리자
   rank: null
   personality:
@@ -271,7 +271,7 @@ npcs:
     conditions:
     - quest_started
 - npc_id: npc_ms-07_05
-  name: 마감근무자
+  name: 신지안
   role: 마감근무자
   rank: null
   personality:

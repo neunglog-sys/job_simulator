@@ -13,7 +13,7 @@ steps:
   type: 정상업무
   title: 정상업무
   mission: |-
-    현장반장: "오늘 작업구간의 도면과 현장을 대조하고 시공준비 체크를 완료하세요."
+    안지아: "오늘 작업구간의 도면과 현장을 대조하고 시공준비 체크를 완료하세요."
 
     위치·치수·자재·작업범위·선행공정 완료 여부와 위험요인을 확인한다.
   npcs:
@@ -56,7 +56,7 @@ steps:
   type: 자료·정보 누락
   title: 자료·정보 누락
   mission: |-
-    공사담당: "설계변경 이야기는 들었지만 변경도면이 없습니다. 작업 전 조치하세요."
+    오현서: "설계변경 이야기는 들었지만 변경도면이 없습니다. 작업 전 조치하세요."
 
     공식 변경승인과 최신도면을 확인할 때까지 영향구간 작업을 보류한다.
   npcs:
@@ -90,7 +90,7 @@ steps:
   type: 우선순위 충돌
   title: 우선순위 충돌
   mission: |-
-    현장소장: "목공·배관·전기 작업이 같은 구간에 겹칩니다. 순서를 조정하세요."
+    서서연: "목공·배관·전기 작업이 같은 구간에 겹칩니다. 순서를 조정하세요."
 
     선행·후행관계와 재작업 위험, 안전동선을 기준으로 공종순서를 정한다.
   npcs:
@@ -128,7 +128,7 @@ steps:
   type: 보고·인계
   title: 보고·인계
   mission: |-
-    감리·운영 담당: "시공 완료 구간의 시험결과와 변경사항을 정리해 인계하세요."
+    손지안: "시공 완료 구간의 시험결과와 변경사항을 정리해 인계하세요."
 
     도면대비 시공결과·시험합격·미완료 보수·운전주의사항을 정리한다.
   npcs:
@@ -151,7 +151,7 @@ steps:
     on_pass: __end__
 sudden_quest:
   npc: npc_ms-10_03
-  intro: 안전담당이(가) 다급하게 찾아왔다. "천공 예정 위치에서 미확인 배관이 발견됐습니다."
+  intro: 홍하준이(가) 다급하게 찾아왔다. "천공 예정 위치에서 미확인 배관이 발견됐습니다."
   task:
     kind: choice
     prompt: |-
@@ -178,7 +178,7 @@ sudden_quest:
     type: 오류·안전위험
 npcs:
 - npc_id: npc_ms-10_01
-  name: 현장소장
+  name: 서서연
   role: 현장소장
   rank: 소장
   personality:
@@ -201,7 +201,7 @@ npcs:
     available_steps:
     - m3
 - npc_id: npc_ms-10_02
-  name: 반장
+  name: 백정우
   role: 반장
   rank: 반장
   personality:
@@ -222,7 +222,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ms-10_03
-  name: 안전담당
+  name: 홍하준
   role: 안전담당
   rank: null
   personality:
@@ -247,7 +247,7 @@ npcs:
     conditions:
     - quest_started
 - npc_id: npc_ms-10_04
-  name: 타 공종 담당
+  name: 홍지안
   role: 타 공종 담당
   rank: null
   personality:
@@ -268,7 +268,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ms-10_05
-  name: 현장반장
+  name: 안지아
   role: 현장반장
   rank: 반장
   personality:
@@ -291,7 +291,7 @@ npcs:
     available_steps:
     - m1
 - npc_id: npc_ms-10_06
-  name: 공사담당
+  name: 오현서
   role: 공사담당
   rank: null
   personality:
@@ -314,7 +314,7 @@ npcs:
     available_steps:
     - m2
 - npc_id: npc_ms-10_07
-  name: 감리·운영 담당
+  name: 손지안
   role: 감리·운영 담당
   rank: null
   personality:

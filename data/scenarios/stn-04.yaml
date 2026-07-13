@@ -13,7 +13,7 @@ steps:
   type: 정상업무
   title: 정상업무
   mission: |-
-    책임연구원: "신규 배터리 소재의 선행연구와 시험결과를 정리해 다음 실험 가설을 제안해 주세요."
+    유은채: "신규 배터리 소재의 선행연구와 시험결과를 정리해 다음 실험 가설을 제안해 주세요."
 
     과학·기술 조사분석 · 기본 판단 업무
   npcs:
@@ -56,7 +56,7 @@ steps:
   type: 자료·정보 누락
   title: 자료·정보 누락
   mission: |-
-    실험실 선임: "시료 분석을 시작하기 전에 라벨과 기록을 확인해 주세요. 일부 메타데이터가 비어 있습니다."
+    장지민: "시료 분석을 시작하기 전에 라벨과 기록을 확인해 주세요. 일부 메타데이터가 비어 있습니다."
 
     과학·기술 조사분석 · 필수 자료 누락 대응
   npcs:
@@ -90,7 +90,7 @@ steps:
   type: 우선순위 충돌
   title: 우선순위 충돌
   mission: |-
-    연구실 책임자: "장비 예약시간, 긴급 고객분석, 정기 품질검증이 겹쳤습니다. 데이터 신뢰성과 마감을 기준으로 순서를 정하세요."
+    윤예린: "장비 예약시간, 긴급 고객분석, 정기 품질검증이 겹쳤습니다. 데이터 신뢰성과 마감을 기준으로 순서를 정하세요."
 
     과학·기술 조사분석 · 업무 우선순위 조정
   npcs:
@@ -128,7 +128,7 @@ steps:
   type: 보고·인계
   title: 보고·인계
   mission: |-
-    책임연구원: "이번 조사 결과와 원자료를 다음 연구자가 재현할 수 있게 정리해 주세요."
+    유은채: "이번 조사 결과와 원자료를 다음 연구자가 재현할 수 있게 정리해 주세요."
 
     과학·기술 조사분석 · 결과 보고·인계
   npcs:
@@ -150,7 +150,7 @@ steps:
     on_pass: __end__
 sudden_quest:
   npc: npc_stn-04_01
-  intro: 책임연구원이(가) 다급하게 찾아왔다. "예상과 반대인 결과가 나왔습니다. 결과를 제외할지, 재검증할지 판단 근거를 정리해 주세요."
+  intro: 유은채이(가) 다급하게 찾아왔다. "예상과 반대인 결과가 나왔습니다. 결과를 제외할지, 재검증할지 판단 근거를 정리해 주세요."
   task:
     kind: choice
     prompt: |-
@@ -177,7 +177,7 @@ sudden_quest:
     type: 오류·안전위험
 npcs:
 - npc_id: npc_stn-04_01
-  name: 책임연구원
+  name: 유은채
   role: 책임연구원
   rank: null
   personality:
@@ -206,7 +206,7 @@ npcs:
     conditions:
     - quest_started
 - npc_id: npc_stn-04_02
-  name: 실험·분석 담당
+  name: 송다은
   role: 실험·분석 담당
   rank: null
   personality:
@@ -227,7 +227,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_stn-04_03
-  name: 현장조사 담당
+  name: 홍하은
   role: 현장조사 담당
   rank: null
   personality:
@@ -248,7 +248,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_stn-04_04
-  name: 품질·윤리 담당
+  name: 윤예은
   role: 품질·윤리 담당
   rank: null
   personality:
@@ -269,7 +269,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_stn-04_05
-  name: 의뢰기관 담당자
+  name: 최지안
   role: 의뢰기관 담당자
   rank: null
   personality:
@@ -290,7 +290,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_stn-04_06
-  name: 실험실 선임
+  name: 장지민
   role: 실험실 선임
   rank: 선임
   personality:
@@ -313,7 +313,7 @@ npcs:
     available_steps:
     - m2
 - npc_id: npc_stn-04_07
-  name: 연구실 책임자
+  name: 윤예린
   role: 연구실 책임자
   rank: null
   personality:

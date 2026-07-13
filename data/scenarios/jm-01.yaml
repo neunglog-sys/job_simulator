@@ -217,7 +217,7 @@ npcs:
     available_steps:
     - m1
 - npc_id: npc_jm-01_02
-  name: 김순태
+  name: 장민수
   role: 노선 동승 지도
   rank: 선임
   personality:

@@ -13,7 +13,7 @@ steps:
   type: 정상업무
   title: 정상업무
   mission: |-
-    생산팀장: "내일 생산계획과 검사계획을 작업지시서 기준으로 정리하세요."
+    윤주원: "내일 생산계획과 검사계획을 작업지시서 기준으로 정리하세요."
 
     자재·설비·납기를 확인해 생산순서와 검사시점을 배치한다.
   npcs:
@@ -56,7 +56,7 @@ steps:
   type: 자료·정보 누락
   title: 자료·정보 누락
   mission: |-
-    품질담당: "입고검사 성적서가 없는 자재가 라인 투입 대기 중입니다."
+    강수빈: "입고검사 성적서가 없는 자재가 라인 투입 대기 중입니다."
 
     자재 로트와 요구 성적서를 확인하고 투입을 보류한 뒤 보완 요청한다.
   npcs:
@@ -90,7 +90,7 @@ steps:
   type: 우선순위 충돌
   title: 우선순위 충돌
   mission: |-
-    생산팀장: "긴급주문을 넣으려면 정기생산을 멈춰야 합니다. 품질과 납기를 함께 검토하세요."
+    윤주원: "긴급주문을 넣으려면 정기생산을 멈춰야 합니다. 품질과 납기를 함께 검토하세요."
 
     라인전환 손실·검사능력·기존고객 지연을 비교해 대안을 제시한다.
   npcs:
@@ -128,7 +128,7 @@ steps:
   type: 보고·인계
   title: 보고·인계
   mission: |-
-    교대 생산관리자: "오늘 생산실적과 미완료·불량 이슈를 다음 교대에 넘기세요."
+    오지민: "오늘 생산실적과 미완료·불량 이슈를 다음 교대에 넘기세요."
 
     계획·실적 차이와 원인, 재공품 상태, 우선조치를 정리한다.
   npcs:
@@ -150,7 +150,7 @@ steps:
     on_pass: __end__
 sudden_quest:
   npc: npc_ms-05_05
-  intro: 품질팀장이(가) 다급하게 찾아왔다. "불량률이 평소 1%에서 8%로 올랐습니다. 출하 전에 조치하세요."
+  intro: 김민서이(가) 다급하게 찾아왔다. "불량률이 평소 1%에서 8%로 올랐습니다. 출하 전에 조치하세요."
   task:
     kind: choice
     prompt: |-
@@ -177,7 +177,7 @@ sudden_quest:
     type: 오류·안전위험
 npcs:
 - npc_id: npc_ms-05_01
-  name: 생산팀장
+  name: 윤주원
   role: 생산팀장
   rank: 팀장
   personality:
@@ -202,7 +202,7 @@ npcs:
     - m1
     - m3
 - npc_id: npc_ms-05_02
-  name: 라인리더
+  name: 홍태오
   role: 라인리더
   rank: null
   personality:
@@ -223,7 +223,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ms-05_03
-  name: 품질담당
+  name: 강수빈
   role: 품질담당
   rank: null
   personality:
@@ -246,7 +246,7 @@ npcs:
     available_steps:
     - m2
 - npc_id: npc_ms-05_04
-  name: 설비담당
+  name: 서연우
   role: 설비담당
   rank: null
   personality:
@@ -267,7 +267,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_ms-05_05
-  name: 품질팀장
+  name: 김민서
   role: 품질팀장
   rank: 팀장
   personality:
@@ -292,7 +292,7 @@ npcs:
     conditions:
     - quest_started
 - npc_id: npc_ms-05_06
-  name: 교대 생산관리자
+  name: 오지민
   role: 교대 생산관리자
   rank: null
   personality:

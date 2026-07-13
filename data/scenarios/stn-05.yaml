@@ -56,7 +56,7 @@ steps:
   type: 자료·정보 누락
   title: 자료·정보 누락
   mission: |-
-    상품 MD: "여름 기획상품 구성을 정해야 하는데 원가표와 재고회전 자료가 일부 빠져 있습니다. 확정할 수 있는 범위를 구분해 주세요."
+    최도윤: "여름 기획상품 구성을 정해야 하는데 원가표와 재고회전 자료가 일부 빠져 있습니다. 확정할 수 있는 범위를 구분해 주세요."
 
     서비스·상품·사업기획 보조 · 필수 자료 누락 대응
   npcs:
@@ -90,7 +90,7 @@ steps:
   type: 우선순위 충돌
   title: 우선순위 충돌
   mission: |-
-    게임 서비스 기획 팀장: "결제오류 수정, 신규 이벤트, 튜토리얼 개선을 한 스프린트에 다 넣어 달라는 요청입니다. 우선순위를 정해 보고하세요."
+    양선우: "결제오류 수정, 신규 이벤트, 튜토리얼 개선을 한 스프린트에 다 넣어 달라는 요청입니다. 우선순위를 정해 보고하세요."
 
     서비스·상품·사업기획 보조 · 업무 우선순위 조정
   npcs:
@@ -206,7 +206,7 @@ npcs:
     conditions:
     - quest_started
 - npc_id: npc_stn-05_02
-  name: 상품 MD
+  name: 최도윤
   role: 상품 MD
   rank: null
   personality:
@@ -229,7 +229,7 @@ npcs:
     available_steps:
     - m2
 - npc_id: npc_stn-05_03
-  name: 개발·디자인 담당
+  name: 장민서
   role: 개발·디자인 담당
   rank: null
   personality:
@@ -250,7 +250,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_stn-05_04
-  name: 운영·영업 담당
+  name: 고지민
   role: 운영·영업 담당
   rank: null
   personality:
@@ -271,7 +271,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_stn-05_05
-  name: 협력사·현지 파트너
+  name: 고수아
   role: 협력사·현지 파트너
   rank: null
   personality:
@@ -292,7 +292,7 @@ npcs:
     location: null
     available_steps: []
 - npc_id: npc_stn-05_06
-  name: 게임 서비스 기획 팀장
+  name: 양선우
   role: 게임 서비스 기획 팀장
   rank: 팀장
   personality:
