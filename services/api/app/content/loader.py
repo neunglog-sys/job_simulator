@@ -25,6 +25,7 @@ def load_jobs() -> list[dict]:
         missing = REQUIRED_JOB_KEYS - doc.keys()
         if missing:
             raise ValueError(f"data/jobs/{filename}: 필수 키 누락 {missing}")
+        doc.setdefault("interest_profile", {})  # 선택 필드 — 없으면 역량 점수만으로 추천
         jobs.append(doc)
     return jobs
 

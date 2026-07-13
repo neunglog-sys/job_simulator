@@ -1,0 +1,18 @@
+# J085 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J085_*.yaml
+code: j085
+title: 품질검사 보조
+description: 생산 라인에서 완성된 제품이나 반제품의 치수, 결함 여부를 검사하는 직무. 품질 기준서에 의거하여 불량 데이터를 기록하고, 이상 발생 시 즉각 보고하여 미검증
+  자재의 투입을 차단한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 4
+  communication: 3
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 4
+  investigative: 4
+  artistic: 1
+  social: 2
+  enterprising: 2
+  conventional: 5

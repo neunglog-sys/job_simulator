@@ -1,0 +1,18 @@
+# J005 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J005_*.yaml
+code: j005
+title: 비품·자산관리 보조
+description: 사내 비품의 재고를 파악하고 자산의 구매, 등록, 폐기 과정을 실무적으로 보조하는 직무입니다. 자산 목록과 실제 수량을 철저히 대조하고, 필요한 부서에 적시에
+  자원이 배정될 수 있도록 현장 중심의 지원을 제공합니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 2
+  communication: 3
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 4
+  investigative: 2
+  artistic: 1
+  social: 3
+  enterprising: 2
+  conventional: 5

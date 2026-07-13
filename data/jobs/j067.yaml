@@ -1,0 +1,18 @@
+# J067 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J067_*.yaml
+code: j067
+title: 웹콘텐츠 운영자
+description: 웹사이트에 노출되는 다양한 콘텐츠의 품질을 검증하고 편성 계획에 맞춰 안정적으로 게시하는 직무. 저작권이나 개인정보 등 법적 리스크를 사전에 차단하고 발생한 운영
+  이슈의 이력을 투명하게 관리한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 4
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 2
+  investigative: 3
+  artistic: 2
+  social: 3
+  enterprising: 3
+  conventional: 5

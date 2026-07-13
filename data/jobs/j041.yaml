@@ -1,0 +1,18 @@
+# J041 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J041_*.yaml
+code: j041
+title: 매출 리포트 담당
+description: 기업의 매출 데이터를 마감 기준에 맞춰 정확하게 집계하고 채널별 증감 원인을 분석하여 보고하는 직무. 수치적 정합성을 검증하고 단순 사실과 추정 원인을 명확히
+  구분하여 신뢰할 수 있는 리포트를 제공합니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 4
+  communication: 3
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 1
+  investigative: 4
+  artistic: 1
+  social: 2
+  enterprising: 3
+  conventional: 5

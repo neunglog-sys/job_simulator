@@ -1,0 +1,18 @@
+# J031 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J031_*.yaml
+code: j031
+title: 블로그·뉴스레터 운영자
+description: 블로그와 뉴스레터의 기획부터 발송까지의 전 과정을 관리하는 직무. 독자의 관심사에 맞춘 원고와 링크를 수집·편집하고, 발송 전 오탈자 및 수신거부 링크를 철저히
+  점검하여 신뢰성 높은 콘텐츠를 발행합니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 2
+  communication: 3
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 1
+  investigative: 3
+  artistic: 4
+  social: 3
+  enterprising: 2
+  conventional: 5

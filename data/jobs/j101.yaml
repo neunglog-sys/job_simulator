@@ -1,0 +1,18 @@
+# J101 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J101_*.yaml
+code: j101
+title: 배송운전 보조
+description: 노선버스나 열차, 택배 차량의 운행 전 상태를 점검하고 정해진 노선에 따라 승객과 화물을 안전하게 운송하는 직무입니다. 운행 중 발생하는 돌발 상황에 매뉴얼대로
+  신속하게 대처하며, 관제실 및 배차실과의 긴밀한 소통을 통해 정시성과 안전성을 동시에 확보합니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 4
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 1
+  artistic: 1
+  social: 2
+  enterprising: 2
+  conventional: 4

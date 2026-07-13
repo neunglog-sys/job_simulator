@@ -1,0 +1,18 @@
+# J026 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J026_*.yaml
+code: j026
+title: 퍼포먼스마케팅 보조
+description: 유료 광고 캠페인의 세팅과 집행 현황을 모니터링하고 광고 효율을 극대화하는 직무입니다. 예산 소진 상태와 추적 오류를 실시간으로 점검하여 광고비 낭비를 막고 성과를
+  보고합니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 4
+  communication: 3
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 1
+  investigative: 4
+  artistic: 2
+  social: 2
+  enterprising: 3
+  conventional: 5

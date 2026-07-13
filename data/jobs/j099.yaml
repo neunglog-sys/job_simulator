@@ -1,0 +1,18 @@
+# J099 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J099_*.yaml
+code: j099
+title: 소방점검 보조
+description: 화재 및 재난 현장에서 인명 구조와 진압 활동을 보조하고 소방 장비를 관리하는 직무입니다. 출동 지령에 맞춰 개인 안전 장비를 철저히 점검하고, 현장 도착 후
+  지휘관의 지시에 따라 신속하게 주민 대피와 소방용수 확보를 지원하며 활동 일지를 작성합니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 4
+  collaboration: 5
+  task_management: 4
+interest_profile:
+  realistic: 5
+  investigative: 3
+  artistic: 1
+  social: 4
+  enterprising: 3
+  conventional: 4

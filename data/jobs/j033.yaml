@@ -1,0 +1,18 @@
+# J033 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J033_*.yaml
+code: j033
+title: 콘텐츠 캘린더 담당
+description: 다양한 채널에서 진행되는 콘텐츠의 제작, 검수, 게시 일정을 통합적으로 조율하고 관리하는 직무. 작업 간의 선후 관계와 완충 시간을 계산하여 일정 충돌이나 지연을
+  방지하고, 변경 사항을 유관 부서에 신속히 공유합니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 3
+  collaboration: 5
+  task_management: 5
+interest_profile:
+  realistic: 1
+  investigative: 2
+  artistic: 2
+  social: 3
+  enterprising: 3
+  conventional: 5

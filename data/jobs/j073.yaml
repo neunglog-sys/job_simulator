@@ -1,0 +1,18 @@
+# J073 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J073_*.yaml
+code: j073
+title: 앱개발 보조
+description: 스마트폰 환경에 최적화된 모바일 애플리케이션을 개발하고 사용자 경험을 개선하는 직무. 다양한 모바일 기기의 OS 특성과 화면 해상도를 고려하여 안정적인 앱 서비스를
+  제공한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 4
+  communication: 3
+  collaboration: 4
+  task_management: 3
+interest_profile:
+  realistic: 3
+  investigative: 4
+  artistic: 3
+  social: 2
+  enterprising: 3
+  conventional: 3

@@ -1,0 +1,18 @@
+# J012 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J012_*.yaml
+code: j012
+title: 발주관리 담당
+description: 필요한 원부자재나 상품이 적기에 공급될 수 있도록 발주 프로세스 전반을 관리하는 직무. 협력사와의 납기 조율, 운송 스케줄 조정 및 돌발적인 배송 지연 상황에
+  대응하며 물류 흐름을 최적화한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 4
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 3
+  investigative: 2
+  artistic: 1
+  social: 3
+  enterprising: 4
+  conventional: 4

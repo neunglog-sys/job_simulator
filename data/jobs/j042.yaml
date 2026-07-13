@@ -1,0 +1,18 @@
+# J042 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J042_*.yaml
+code: j042
+title: 데이터 라벨링 관리
+description: 인공지능 및 데이터 분석에 활용될 데이터의 라벨링 기준을 수립하고, 작업 배정 및 검수 과정을 총괄하는 직무. 일관성 있는 가이드라인을 유지하고 민감 정보 노출과
+  편향을 방지하여 고품질 데이터를 확보합니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 4
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 2
+  investigative: 3
+  artistic: 1
+  social: 3
+  enterprising: 3
+  conventional: 5

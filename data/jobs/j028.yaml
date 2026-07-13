@@ -1,0 +1,18 @@
+# J028 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J028_*.yaml
+code: j028
+title: 시장조사 보조
+description: 시장 트렌드와 경쟁사 동향, 고객 데이터를 수집하고 정제하여 비즈니스 의사결정을 돕는 직무입니다. 주관적 해석을 배제하고 객관적인 사실과 수치에 기반한 비교 분석
+  보고서를 작성합니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 5
+  communication: 3
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 1
+  investigative: 5
+  artistic: 1
+  social: 2
+  enterprising: 2
+  conventional: 4

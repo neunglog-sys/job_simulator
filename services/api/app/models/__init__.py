@@ -75,6 +75,8 @@ class Job(Base):
     title: Mapped[str] = mapped_column(String(100))
     description: Mapped[str] = mapped_column(Text)
     competencies: Mapped[dict] = mapped_column(JSONB, default=dict)  # 역량 매트릭스
+    # RIASEC 흥미유형 중요도(1~5) — 사전 설문(Consultation.survey.profile)과의 매칭용, 없으면 역량 점수만 사용
+    interest_profile: Mapped[dict] = mapped_column(JSONB, default=dict)
 
     scenarios: Mapped[list["Scenario"]] = relationship(back_populates="job")
 

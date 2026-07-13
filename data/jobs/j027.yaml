@@ -1,0 +1,18 @@
+# J027 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J027_*.yaml
+code: j027
+title: 브랜드홍보 보조
+description: 브랜드의 가치를 높이기 위한 대외 홍보물을 작성하고 미디어 및 대중의 반응을 모니터링하는 직무입니다. 정확한 사실관계를 바탕으로 일관성 있는 브랜드 메시지를 배포하고
+  리스크를 관리합니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 3
+  communication: 5
+  collaboration: 3
+  task_management: 3
+interest_profile:
+  realistic: 1
+  investigative: 3
+  artistic: 3
+  social: 3
+  enterprising: 5
+  conventional: 3

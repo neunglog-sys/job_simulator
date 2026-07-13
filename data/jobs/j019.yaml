@@ -1,0 +1,18 @@
+# J019 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J019_*.yaml
+code: j019
+title: 출고관리 사무
+description: 출고 조건과 납기 우선순위를 고려하여 상차 순서와 출고 일정을 기획하고 실행하는 직무입니다. 한정된 상차장과 인력을 효율적으로 배분하여 긴급 화물과 정기 화물의
+  병목 현상을 해결합니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 5
+  communication: 3
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 3
+  investigative: 4
+  artistic: 1
+  social: 2
+  enterprising: 3
+  conventional: 4

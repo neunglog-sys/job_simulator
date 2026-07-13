@@ -1,0 +1,18 @@
+# J064 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J064_*.yaml
+code: j064
+title: 웹디자인 보조
+description: 웹사이트나 모바일 페이지의 UI 구성요소와 배너 등의 그래픽을 설계하고 제작하는 직무. 기획 의도와 웹 표준 규격에 맞추어 시안을 도출하며, 사용자 경험을 고려한
+  시각적 요소를 정교하게 구현한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 4
+  communication: 3
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 2
+  investigative: 3
+  artistic: 5
+  social: 2
+  enterprising: 3
+  conventional: 4
