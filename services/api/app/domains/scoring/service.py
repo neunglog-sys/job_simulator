@@ -137,6 +137,8 @@ def grade_structured(task: dict, submission: str | list) -> dict:
     picked = _parse_selection(submission, valid_keys)
 
     if kind == "choice":
+        if len(picked) != 1:  # 복수 선택을 조용히 0점 처리하지 않고 명시적 거부
+            raise HTTPException(status_code=400, detail="보기를 하나만 선택하세요")
         correct = answer.get("key")
         ok = picked == [correct]
         total = 100 if ok else 0

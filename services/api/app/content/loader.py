@@ -51,6 +51,9 @@ def _validate_task(task: dict, where: str) -> None:
         answer_keys = list(answer.get("keys") or [])
     if not answer_keys:
         raise ValueError(f"{where}: {kind} 과제에 정답(answer) 누락")
+    if kind == "order" and len(answer_keys) < 2:
+        # 항목 1개짜리 배열은 비교쌍이 없어 채점이 항상 0점 — 손편집 실수를 로드 시점에 차단
+        raise ValueError(f"{where}: order 과제는 정답 항목 2개 이상 필요")
     bad = [k for k in answer_keys if k not in set(keys)]
     if bad:
         raise ValueError(f"{where}: 정답 키가 보기에 없음 {bad}")
@@ -116,3 +119,17 @@ def load_competencies() -> list[dict]:
     path = Path(settings.data_dir) / "evaluation" / "competencies.yaml"
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)["competencies"]
+
+
+def load_job_scenario_map() -> dict[str, str]:
+    """추천 직무 code → 체험 시나리오 slug (map_jobs_to_scenarios 방출본, 사람 검수 우선).
+
+    파일이 없으면 빈 dict — 추천은 정상 동작하고 '바로 체험' 연결만 빠진다.
+    값이 null인 항목(체험 미연결 확정)은 걸러낸다.
+    """
+    path = Path(settings.data_dir) / "recommendation" / "job_scenario_map.yaml"
+    if not path.exists():
+        return {}
+    with open(path, encoding="utf-8") as f:
+        raw = yaml.safe_load(f) or {}
+    return {str(k): str(v) for k, v in raw.items() if v}
