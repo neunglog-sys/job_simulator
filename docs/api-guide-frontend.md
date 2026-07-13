@@ -24,7 +24,15 @@
 - **개발 편의**: 헤더를 아예 안 보내면 "데모 사용자"로 자동 처리됩니다 — 인증 UI 만들기 전에도 모든 API 테스트 가능.
 - OAuth(소셜 로그인)는 프로바이더 확정 후 추가 예정.
 
-## 2. AI 상담 (메인 화면)
+## 2. 메인 화면 — 내 것들 목록
+
+```
+GET /api/consultations   → 내 상담 목록 (최신순) — 이어가기 진입점
+GET /api/simulations     → 내 시뮬레이션 목록 {status: active=이어하기/completed=결과보기, current_step, total}
+GET /api/reports         → 내 리포트 목록
+```
+
+## 2-1. AI 상담
 
 ```
 POST /api/consultations                    → {id}  상담 세션 시작

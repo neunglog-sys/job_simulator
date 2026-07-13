@@ -1,16 +1,33 @@
 import json
 
 from fastapi import APIRouter, Depends
-from sse_starlette.sse import EventSourceResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sse_starlette.sse import EventSourceResponse
 
 from app.core.db import get_session
 from app.core.deps import get_current_user
 from app.domains.consultation import service
 from app.domains.consultation.schemas import ConsultationOut, MessageIn, MessageOut
-from app.models import User
+from app.models import Consultation, User
 
 router = APIRouter(prefix="/api/consultations", tags=["consultation"])
+
+
+@router.get("", response_model=list[ConsultationOut])
+async def list_consultations(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """내 상담 목록 (최신순) — 메인화면 이어가기 진입점."""
+    rows = (
+        await session.execute(
+            select(Consultation)
+            .where(Consultation.user_id == user.id)
+            .order_by(Consultation.id.desc())
+        )
+    ).scalars()
+    return list(rows)
 
 
 @router.post("", response_model=ConsultationOut, status_code=201)
