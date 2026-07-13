@@ -119,6 +119,7 @@ POST /api/simulations/{id}/finish       → 중도 포기 (aborted 처리)
 | `quest_result` | `{total, passed, ..., quest_status}` | `quest_status`가 `passed`/`failed`면 퀘스트 닫고 본편 복귀 (`active`면 재도전) |
 | `state_updated` | 선택지 결과 `{delta, state, step_changed}` | 상태 갱신 |
 | `simulation_completed` | 완주! | 결과 화면으로 이동 |
+| `coach_cards` | 미션 **통과 시 1회** — AI 코치 사후 리뷰 `{coach_message, cards[], retry_instruction}` | 하단 코치 말풍선(coach_message) + **우측 카드**(cards: 최대 3, card_type별 아이콘 — safety_stop/error_correction/requirement_check/better_expression/success). LLM 여건상 생략될 수 있으니 없어도 UI가 기다리지 말 것 |
 | `error` | `{detail}` | 토스트 등 |
 
 ⚠️ 퀘스트 진행 중 `task_submit`은 자동으로 **퀘스트 채점**으로 갑니다 (본편 과제 제출 불가).

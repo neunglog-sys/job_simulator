@@ -174,6 +174,7 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, user_id: int |
                         completed = result.pop("completed")
                         quest_fired = result.pop("sudden_quest")
                         is_quest = result.pop("is_quest")
+                        coach_cards = result.pop("coach", None)
                         if is_quest:
                             # 단일 프레임 계약: quest_status가 passed/failed면 퀘스트 종료·본편 복귀
                             await websocket.send_json({"type": "quest_result", **result})
@@ -189,6 +190,9 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, user_id: int |
                                 )
                             if completed:
                                 await websocket.send_json({"type": "simulation_completed"})
+                        if coach_cards:
+                            # AI 코치 사후 리뷰 — 통과한 제출물에 대해 완료당 1회
+                            await websocket.send_json({"type": "coach_cards", **coach_cards})
                     elif data.get("type") == "choice":
                         result = await service.submit_choice(
                             session, simulation, scenario, data.get("choice_id", "")

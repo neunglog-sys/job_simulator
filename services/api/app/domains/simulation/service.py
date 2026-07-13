@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
+from app.domains.coach import service as coach
 from app.domains.scoring import aggregate
 from app.domains.scoring import service as scoring
 from app.domains.simulation import hints
@@ -377,6 +378,14 @@ async def submit_task(
         except Exception:  # noqa: BLE001 — 스냅샷 실패가 성공한 제출을 500으로 만들면 안 됨
             logger.exception("점수 스냅샷 실패 (simulation=%d) — GET /score는 재집계로 동작", simulation.id)
 
+    # AI 코치: 미션 통과 시 완료당 1회, 제출물 사후 리뷰 (실패해도 진행 비차단)
+    coach_cards = None
+    if result["passed"]:
+        coach_cards = await coach.generate_cards(coach.build_vars(
+            simulation_id=simulation.id, scenario_slug=scenario.slug,
+            step=step, task=task, submission=submission, result=result, attempt=attempt_n,
+        ))
+
     return _envelope(
         result,
         simulation.state,
@@ -384,6 +393,7 @@ async def submit_task(
         step_changed=step_changed,
         completed=completed,
         sudden_quest=quest_fired,
+        coach=coach_cards,
     )
 
 
@@ -435,12 +445,22 @@ async def _submit_quest(
     )
     await session.commit()
 
+    coach_cards = None
+    if result["passed"]:
+        quest_step = {"id": "quest", "title": "돌발 퀘스트", "mission": quest_def.get("intro", "")}
+        coach_cards = await coach.generate_cards(coach.build_vars(
+            simulation_id=simulation.id, scenario_slug=scenario.slug,
+            step=quest_step, task=qtask, submission=submission, result=result,
+            attempt=quest["attempts"],
+        ))
+
     return _envelope(
         result,
         simulation.state,
         advice=advice,
         is_quest=True,
         quest_status=quest["status"],
+        coach=coach_cards,
     )
 
 
