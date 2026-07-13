@@ -15,14 +15,14 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-3.5-flash"
+    gemini_model: str = "gemini-3.5-flash"  # Vertex에선 global 엔드포인트 전용 (us-central1엔 없음)
     # Gemini 인증 모드 — 기본은 AI Studio(gemini_api_key).
     # GCP $300 크레딧(Vertex AI)으로 쓰려면 .env에:
     #   GOOGLE_GENAI_USE_VERTEXAI=true / GOOGLE_CLOUD_PROJECT=<프로젝트ID> / GOOGLE_CLOUD_LOCATION=us-central1
     #   + GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/gcp-key.json (서비스계정 JSON 경로)
     google_genai_use_vertexai: bool = False
     google_cloud_project: str = ""
-    google_cloud_location: str = "us-central1"
+    google_cloud_location: str = "global"  # gemini-3.5-flash가 global 전용이라 기본 global
 
     # 임베딩 (RAG) — Gemini로 통일. output_dimensionality로 doc_chunks 차원(1536) 유지
     # (마이그레이션 없이 기존 Vector(1536) 컬럼 재사용). 재임베딩 필요.
