@@ -43,6 +43,18 @@ def load_scenarios() -> list[dict]:
                         f"data/scenarios/{filename}: step '{step['id']}'의 전이 대상 "
                         f"'{tr['to']}'가 존재하지 않음"
                     )
+            task = step.get("task")
+            if task:
+                missing = {"prompt", "criteria", "on_pass"} - task.keys()
+                if missing:
+                    raise ValueError(
+                        f"data/scenarios/{filename}: step '{step['id']}' task 필수 키 누락 {missing}"
+                    )
+                if task["on_pass"] != "__end__" and task["on_pass"] not in step_ids:
+                    raise ValueError(
+                        f"data/scenarios/{filename}: step '{step['id']}'의 on_pass "
+                        f"'{task['on_pass']}'가 존재하지 않음"
+                    )
         scenarios.append(doc)
     return scenarios
 
