@@ -1,0 +1,700 @@
+schema_version: npc.job-override.v1
+job:
+  job_id: J086
+  job_name: 포장 작업자
+  family_id: F19
+  family_name: 생산·제조·조립
+  module: 작업순서·절차형
+review:
+  status: integrated_research
+  generated: true
+  human_review_required: false
+prompt_contract:
+  npc_visible:
+    work_targets:
+    - 작업지시서
+    - 부품
+    - 공정순서
+    - 불량기준
+    npc_roles:
+    - 라인리더
+    - 품질담당
+    - 설비담당
+    outputs:
+    - 작업체크표
+    - 불량기록표
+    forbidden:
+    - 플레이어를 채점하거나 점수·통과 여부를 말하지 않는다.
+    - 오류의 정답·모범답안·단계별 해설을 제공하지 않는다.
+    - 업무상 필요한 지시·사실·자료·권한 범위만 전달한다.
+  coach_private:
+    success_criteria:
+    - 목적·자료·기준·결과·다음액션 포함
+    failure_patterns:
+    - 추측 진행
+    - 질문 누락
+    - 산출물 혼동
+kb_stages:
+- chunk_id: J086-S1
+  stage_id: S1
+  name: 업무요청 이해
+  goal: 요청자의 목적, 결과물, 마감, 제한조건을 확인한다.
+  rag_chunk_text: '[포장 작업자/생산·제조·조립/작업순서·절차형] 업무요청 이해: 요청자의 목적, 결과물, 마감, 제한조건을 확인한다. 업무대상은 작업지시서, 부품, 공정순서, 불량기준. 주요상대/NPC는
+    라인리더, 품질담당, 설비담당. 핵심산출물은 작업체크표, 불량기록표. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 생산·제조·조립의 업무대상과 산출물을 벗어난
+    미션 생성 금지.'
+- chunk_id: J086-S2
+  stage_id: S2
+  name: 자료·현황 확인
+  goal: 업무대상 자료를 읽고 누락/불일치/위험요소를 표시한다.
+  rag_chunk_text: '[포장 작업자/생산·제조·조립/작업순서·절차형] 자료·현황 확인: 업무대상 자료를 읽고 누락/불일치/위험요소를 표시한다. 업무대상은 작업지시서, 부품, 공정순서, 불량기준. 주요상대/NPC는
+    라인리더, 품질담당, 설비담당. 핵심산출물은 작업체크표, 불량기록표. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 생산·제조·조립의 업무대상과 산출물을 벗어난
+    미션 생성 금지.'
+- chunk_id: J086-S3
+  stage_id: S3
+  name: 처리·제작·응대
+  goal: 직무별 기준에 맞춰 문서/응대/작업/산출물을 만든다.
+  rag_chunk_text: '[포장 작업자/생산·제조·조립/작업순서·절차형] 처리·제작·응대: 직무별 기준에 맞춰 문서/응대/작업/산출물을 만든다. 업무대상은 작업지시서, 부품, 공정순서, 불량기준. 주요상대/NPC는
+    라인리더, 품질담당, 설비담당. 핵심산출물은 작업체크표, 불량기록표. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 생산·제조·조립의 업무대상과 산출물을 벗어난
+    미션 생성 금지.'
+- chunk_id: J086-S4
+  stage_id: S4
+  name: 검수·판단
+  goal: 오류, 안전, 고객영향, 비용, 일정, 품질을 점검한다.
+  rag_chunk_text: '[포장 작업자/생산·제조·조립/작업순서·절차형] 검수·판단: 오류, 안전, 고객영향, 비용, 일정, 품질을 점검한다. 업무대상은 작업지시서, 부품, 공정순서, 불량기준. 주요상대/NPC는
+    라인리더, 품질담당, 설비담당. 핵심산출물은 작업체크표, 불량기록표. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 생산·제조·조립의 업무대상과 산출물을 벗어난
+    미션 생성 금지.'
+- chunk_id: J086-S5
+  stage_id: S5
+  name: 보고·인계
+  goal: 결과, 근거, 남은 이슈, 다음 액션을 공유한다.
+  rag_chunk_text: '[포장 작업자/생산·제조·조립/작업순서·절차형] 보고·인계: 결과, 근거, 남은 이슈, 다음 액션을 공유한다. 업무대상은 작업지시서, 부품, 공정순서, 불량기준. 주요상대/NPC는 라인리더,
+    품질담당, 설비담당. 핵심산출물은 작업체크표, 불량기록표. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 생산·제조·조립의 업무대상과 산출물을 벗어난 미션 생성
+    금지.'
+content_variants:
+- category: 생산·품질관리 사무
+  module: 절차·점검형
+  rag_status: 부분
+  workflow: 요구사항·규격 확인 → 자원·제약 파악 → 생산·검사계획 → 공정 모니터링 → 검사 → 부적합 격리 → 원인분석 → 재검·출하
+  npc_visible:
+    npc_roles:
+    - 생산팀장
+    - 라인리더
+    - 품질담당
+    - 설비담당
+    input_materials:
+    - 작업지시서
+    - 도면·규격
+    - 생산계획
+    - 검사표
+    outputs:
+    - 생산계획표
+    - 검사기록표
+    - 부적합보고서
+    - 시정조치표
+    sudden_events:
+    - 설비 고장
+    - 자재 불량
+    - 불량률 급증
+    - 검사장비 교정 만료
+  stages:
+  - stage_id: S1
+    name: 업무요청 이해
+    goal: 목적·결과물·마감·제한조건을 확인한다.
+    npc_visible:
+      materials:
+      - 작업지시서
+      - 도면·규격
+      - 생산계획
+      - 검사표
+      npc_roles:
+      - 생산팀장
+      - 라인리더
+      - 품질담당
+      - 설비담당
+      outputs:
+      - 생산계획표
+      - 검사기록표
+      - 부적합보고서
+      - 시정조치표
+      mission_candidate: 요청에서 목적·기한·산출물 찾기
+    coach_private:
+      success_criteria:
+      - 목적·기한·자료·기준 확인
+      failure_patterns:
+      - 질문 없이 추측
+  - stage_id: S2
+    name: 자료·현황 확인
+    goal: 업무자료를 읽고 누락·불일치·위험요소를 표시한다.
+    npc_visible:
+      materials:
+      - 작업지시서
+      - 도면·규격
+      - 생산계획
+      - 검사표
+      npc_roles:
+      - 생산팀장
+      - 라인리더
+      - 품질담당
+      - 설비담당
+      outputs:
+      - 생산계획표
+      - 검사기록표
+      - 부적합보고서
+      - 시정조치표
+      mission_candidate: 생산순서 결정
+    coach_private:
+      success_criteria:
+      - 기준 준수
+      - 핵심 오류·위험 우선 처리
+      failure_patterns:
+      - 순서 생략
+      - 임의판단
+      - 위험·오류 방치
+  - stage_id: S3
+    name: 처리·제작·작업
+    goal: 해당 중분류의 기준과 순서에 따라 결과물을 만든다.
+    npc_visible:
+      materials:
+      - 작업지시서
+      - 도면·규격
+      - 생산계획
+      - 검사표
+      npc_roles:
+      - 생산팀장
+      - 라인리더
+      - 품질담당
+      - 설비담당
+      outputs:
+      - 생산계획표
+      - 검사기록표
+      - 부적합보고서
+      - 시정조치표
+      mission_candidate: 이상추세 탐지
+    coach_private:
+      success_criteria:
+      - 기준 준수
+      - 핵심 오류·위험 우선 처리
+      failure_patterns:
+      - 순서 생략
+      - 임의판단
+      - 위험·오류 방치
+  - stage_id: S4
+    name: 검수·판단
+    goal: 오류·안전·비용·일정·품질을 기준과 대조한다.
+    npc_visible:
+      materials:
+      - 작업지시서
+      - 도면·규격
+      - 생산계획
+      - 검사표
+      npc_roles:
+      - 생산팀장
+      - 라인리더
+      - 품질담당
+      - 설비담당
+      outputs:
+      - 생산계획표
+      - 검사기록표
+      - 부적합보고서
+      - 시정조치표
+      mission_candidate: 격리·재작업 판단
+    coach_private:
+      success_criteria:
+      - 기준 준수
+      - 핵심 오류·위험 우선 처리
+      failure_patterns:
+      - 순서 생략
+      - 임의판단
+      - 위험·오류 방치
+  - stage_id: S5
+    name: 보고·인계
+    goal: 결과·근거·남은 이슈·다음 액션을 공유한다.
+    npc_visible:
+      materials:
+      - 작업지시서
+      - 도면·규격
+      - 생산계획
+      - 검사표
+      npc_roles:
+      - 생산팀장
+      - 라인리더
+      - 품질담당
+      - 설비담당
+      outputs:
+      - 생산계획표
+      - 검사기록표
+      - 부적합보고서
+      - 시정조치표
+      mission_candidate: 상황·조치·미해결사항을 3문장으로 보고
+    coach_private:
+      success_criteria:
+      - 사실
+      - 추정 구분
+      - 후속조치 명확
+      failure_patterns:
+      - 결과만 말하고 근거·다음액션 누락
+  missions:
+  - mission_id: MS-05-01
+    situation_type: 정상업무
+    difficulty: 보통
+    npc_visible:
+      npc: 생산팀장
+      request_line: 내일 생산계획과 검사계획을 작업지시서 기준으로 정리하세요.
+      materials:
+      - 주문량
+      - 납기
+      - BOM
+      - 설비가용시간
+      - 검사기준
+      user_mission: 자재·설비·납기를 확인해 생산순서와 검사시점을 배치한다.
+      outputs:
+      - 생산계획표
+      - 검사계획표
+      sudden_event: 핵심 설비가 오전 정기점검 예정
+    coach_private:
+      required_actions:
+      - 수요·납기 확인
+      - 자재·설비 제약
+      - 생산순서
+      - 검사포인트
+      - 승인 요청
+      success_criteria:
+      - 제약조건 반영
+      - 검사 누락 없음
+      - 계획근거 표시
+      failure_patterns:
+      - 납기만 보고 자재·설비·검사시간을 무시
+    scorer_private:
+      rag_link: F19 부분연결
+  - mission_id: MS-05-02
+    situation_type: 자료·정보 누락
+    difficulty: 보통
+    npc_visible:
+      npc: 품질담당
+      request_line: 입고검사 성적서가 없는 자재가 라인 투입 대기 중입니다.
+      materials:
+      - 입고목록
+      - 자재라벨
+      - 검사기준
+      - 공급자 문서함
+      user_mission: 자재 로트와 요구 성적서를 확인하고 투입을 보류한 뒤 보완 요청한다.
+      outputs:
+      - 자재보류표
+      - 성적서 요청
+      sudden_event: 생산팀이 납기 때문에 즉시 사용을 요구
+    coach_private:
+      required_actions:
+      - 로트 식별
+      - 필수검사 확인
+      - 격리표시
+      - 공급자·구매팀 문의
+      success_criteria:
+      - 미검증 자재 투입 차단
+      - 로트 추적 가능
+      failure_patterns:
+      - 외관이 정상이라는 이유로 투입
+    scorer_private:
+      rag_link: F19 부분연결
+  - mission_id: MS-05-03
+    situation_type: 우선순위 충돌
+    difficulty: 어려움
+    npc_visible:
+      npc: 생산팀장
+      request_line: 긴급주문을 넣으려면 정기생산을 멈춰야 합니다. 품질과 납기를 함께 검토하세요.
+      materials:
+      - 긴급주문 납기
+      - 전환시간
+      - 재공품
+      - 검사인력
+      - 고객우선순위
+      user_mission: 라인전환 손실·검사능력·기존고객 지연을 비교해 대안을 제시한다.
+      outputs:
+      - 변경영향표
+      - 생산순서 제안
+      sudden_event: 검사담당자가 교대시간 이후 부재
+    coach_private:
+      required_actions:
+      - 전환영향 계산
+      - 기존주문 영향
+      - 검사역량 확인
+      - 대안 2개 비교
+      success_criteria:
+      - 품질검사 유지
+      - 영향받는 주문·시간 명시
+      failure_patterns:
+      - 긴급주문만 반영하고 기존 재공품을 방치
+    scorer_private:
+      rag_link: F19 부분연결
+  - mission_id: MS-05-04
+    situation_type: 오류·안전위험
+    difficulty: 어려움
+    npc_visible:
+      npc: 품질팀장
+      request_line: 불량률이 평소 1%에서 8%로 올랐습니다. 출하 전에 조치하세요.
+      materials:
+      - 공정별 불량데이터
+      - 설비조건
+      - 자재로트
+      - 최근 변경이력
+      user_mission: 이상시점·공정·로트를 좁히고 부적합품을 격리하며 원인조사 계획을 세운다.
+      outputs:
+      - 부적합보고서
+      - 격리목록
+      - 조사계획
+      sudden_event: 검사장비 교정기한도 만료된 사실 발견
+    coach_private:
+      required_actions:
+      - 데이터 추세 확인
+      - 영향범위 설정
+      - 격리
+      - 임시조치
+      - 원인분석 요청
+      success_criteria:
+      - 출하 차단
+      - 증상과 원인 구분
+      - 영향로트 추적
+      failure_patterns:
+      - 평균값만 보고 이상시점을 놓치거나 원인 확정
+    scorer_private:
+      rag_link: F19 부분연결
+  - mission_id: MS-05-05
+    situation_type: 보고·인계
+    difficulty: 보통
+    npc_visible:
+      npc: 교대 생산관리자
+      request_line: 오늘 생산실적과 미완료·불량 이슈를 다음 교대에 넘기세요.
+      materials:
+      - 계획대비 실적
+      - 설비정지 기록
+      - 불량목록
+      - 재공품 위치
+      user_mission: 계획·실적 차이와 원인, 재공품 상태, 우선조치를 정리한다.
+      outputs:
+      - 교대인계표
+      sudden_event: 재검 결과가 교대 후에 나올 예정
+    coach_private:
+      required_actions:
+      - 수량 차이
+      - 설비·품질 원인
+      - 위치·로트
+      - 다음 작업순서
+      success_criteria:
+      - 수량·로트·위치·조치담당 명확
+      failure_patterns:
+      - 총 생산량만 전달하고 불량·재공 상태를 누락
+    scorer_private:
+      rag_link: F19 부분연결
+- category: 기계가공·금속가공 작업
+  module: 작업순서·절차형
+  rag_status: 부분
+  workflow: 도면·절차서 확인 → 안전·장비 점검 → 자재 전처리 → 조건 설정 → 가공·용접 → 치수·결함 검사 → 보수·재검 → 정리·기록
+  npc_visible:
+    npc_roles:
+    - 작업반장
+    - 품질검사자
+    - 안전담당
+    input_materials:
+    - 도면
+    - 작업지시서
+    - 용접절차서
+    - 검사기준
+    outputs:
+    - 작업체크표
+    - 치수·결함 검사표
+    - 보수기록
+    sudden_events:
+    - 가스 누출
+    - 장비 불안정
+    - 모재 오염
+    - 치수 불일치
+    - 균열
+  stages:
+  - stage_id: S1
+    name: 업무요청 이해
+    goal: 목적·결과물·마감·제한조건을 확인한다.
+    npc_visible:
+      materials:
+      - 도면
+      - 작업지시서
+      - 용접절차서
+      - 검사기준
+      npc_roles:
+      - 작업반장
+      - 품질검사자
+      - 안전담당
+      outputs:
+      - 작업체크표
+      - 치수·결함 검사표
+      - 보수기록
+      mission_candidate: 요청에서 목적·기한·산출물 찾기
+    coach_private:
+      success_criteria:
+      - 목적·기한·자료·기준 확인
+      failure_patterns:
+      - 질문 없이 추측
+  - stage_id: S2
+    name: 자료·현황 확인
+    goal: 업무자료를 읽고 누락·불일치·위험요소를 표시한다.
+    npc_visible:
+      materials:
+      - 도면
+      - 작업지시서
+      - 용접절차서
+      - 검사기준
+      npc_roles:
+      - 작업반장
+      - 품질검사자
+      - 안전담당
+      outputs:
+      - 작업체크표
+      - 치수·결함 검사표
+      - 보수기록
+      mission_candidate: 작업조건 찾기
+    coach_private:
+      success_criteria:
+      - 기준 준수
+      - 핵심 오류·위험 우선 처리
+      failure_patterns:
+      - 순서 생략
+      - 임의판단
+      - 위험·오류 방치
+  - stage_id: S3
+    name: 처리·제작·작업
+    goal: 해당 중분류의 기준과 순서에 따라 결과물을 만든다.
+    npc_visible:
+      materials:
+      - 도면
+      - 작업지시서
+      - 용접절차서
+      - 검사기준
+      npc_roles:
+      - 작업반장
+      - 품질검사자
+      - 안전담당
+      outputs:
+      - 작업체크표
+      - 치수·결함 검사표
+      - 보수기록
+      mission_candidate: 위험요인 탐지
+    coach_private:
+      success_criteria:
+      - 기준 준수
+      - 핵심 오류·위험 우선 처리
+      failure_patterns:
+      - 순서 생략
+      - 임의판단
+      - 위험·오류 방치
+  - stage_id: S4
+    name: 검수·판단
+    goal: 오류·안전·비용·일정·품질을 기준과 대조한다.
+    npc_visible:
+      materials:
+      - 도면
+      - 작업지시서
+      - 용접절차서
+      - 검사기준
+      npc_roles:
+      - 작업반장
+      - 품질검사자
+      - 안전담당
+      outputs:
+      - 작업체크표
+      - 치수·결함 검사표
+      - 보수기록
+      mission_candidate: 결함 원인 연결
+    coach_private:
+      success_criteria:
+      - 기준 준수
+      - 핵심 오류·위험 우선 처리
+      failure_patterns:
+      - 순서 생략
+      - 임의판단
+      - 위험·오류 방치
+  - stage_id: S5
+    name: 보고·인계
+    goal: 결과·근거·남은 이슈·다음 액션을 공유한다.
+    npc_visible:
+      materials:
+      - 도면
+      - 작업지시서
+      - 용접절차서
+      - 검사기준
+      npc_roles:
+      - 작업반장
+      - 품질검사자
+      - 안전담당
+      outputs:
+      - 작업체크표
+      - 치수·결함 검사표
+      - 보수기록
+      mission_candidate: 상황·조치·미해결사항을 3문장으로 보고
+    coach_private:
+      success_criteria:
+      - 사실
+      - 추정 구분
+      - 후속조치 명확
+      failure_patterns:
+      - 결과만 말하고 근거·다음액션 누락
+  missions:
+  - mission_id: MS-09-01
+    situation_type: 정상업무
+    difficulty: 보통
+    npc_visible:
+      npc: 작업반장
+      request_line: 도면과 작업지시서를 보고 가공·용접 준비 체크를 완료하세요.
+      materials:
+      - 도면
+      - 재질표
+      - 작업지시서
+      - 절차서
+      - 장비점검표
+      user_mission: 재질·치수·공차·이음형상·작업조건과 보호구·장비상태를 확인한다.
+      outputs:
+      - 작업준비 체크표
+      sudden_event: 현장 자재의 로트표시가 흐림
+    coach_private:
+      required_actions:
+      - 도면 해독
+      - 자재식별
+      - 조건확인
+      - 보호구·환기
+      - 승인
+      success_criteria:
+      - 도면·절차서 조건 일치
+      - 장비·보호구 확인
+      failure_patterns:
+      - 작업 경험만 믿고 절차서·재질을 확인하지 않음
+    scorer_private:
+      rag_link: F19 부분연결
+  - mission_id: MS-09-02
+    situation_type: 자료·정보 누락
+    difficulty: 보통
+    npc_visible:
+      npc: 품질검사자
+      request_line: 도면에는 공차가 있는데 검사기준서가 첨부되지 않았습니다.
+      materials:
+      - 도면
+      - 작업지시서
+      - 이전 검사기록
+      - 문서목록
+      user_mission: 최신 검사기준 존재 여부를 확인하고 작업·검사를 보류해 문서를 요청한다.
+      outputs:
+      - 문서누락 보고
+      - 기준서 요청
+      sudden_event: 납기 때문에 반장이 작업 진행을 요구
+    coach_private:
+      required_actions:
+      - 도면 버전
+      - 기준서 목록
+      - 이전본 사용금지
+      - 담당자 문의
+      success_criteria:
+      - 최신본 확보 전 임의검사 금지
+      failure_patterns:
+      - 이전 기준을 그대로 적용
+    scorer_private:
+      rag_link: F19 부분연결
+  - mission_id: MS-09-03
+    situation_type: 우선순위 충돌
+    difficulty: 어려움
+    npc_visible:
+      npc: 작업반장
+      request_line: 긴급 보수품과 정규 생산품이 같은 장비를 써야 합니다. 작업순서를 정하세요.
+      materials:
+      - 두 작업의 납기
+      - 셋업시간
+      - 재질
+      - 검사요건
+      - 장비상태
+      user_mission: 안전·셋업변경·납기·검사시간을 비교해 순서와 전환점검을 계획한다.
+      outputs:
+      - 작업배치표
+      - 전환점검표
+      sudden_event: 긴급품 재질이 기존과 다름
+    coach_private:
+      required_actions:
+      - 작업위험
+      - 셋업 영향
+      - 납기
+      - 검사 가능시간
+      - 변경승인
+      success_criteria:
+      - 전환 후 조건검증 포함
+      - 영향받는 납기 보고
+      failure_patterns:
+      - 긴급작업을 바로 끼워 넣고 장비조건 검증 생략
+    scorer_private:
+      rag_link: F19 부분연결
+  - mission_id: MS-09-04
+    situation_type: 오류·안전위험
+    difficulty: 어려움
+    npc_visible:
+      npc: 안전담당
+      request_line: 용접 중 가스냄새와 균열 의심이 동시에 발견됐습니다.
+      materials:
+      - 현장상태
+      - 가스차단 위치
+      - 비상절차
+      - 결함판정 기준
+      user_mission: 작업을 중지하고 가스위험을 통제한 뒤 제품을 격리해 검사 요청한다.
+      outputs:
+      - 비상조치 기록
+      - 결함검사 요청
+      sudden_event: 인접 작업자가 상황을 모르고 있음
+    coach_private:
+      required_actions:
+      - 작업중지
+      - 점화원 제거·대피
+      - 가스차단 담당 호출
+      - 제품격리
+      - 보고
+      success_criteria:
+      - 인명안전 우선
+      - 무자격 수리 금지
+      - 제품 추적
+      failure_patterns:
+      - 균열만 확인하거나 냄새를 무시하고 작업 지속
+    scorer_private:
+      rag_link: F19 부분연결
+  - mission_id: MS-09-05
+    situation_type: 보고·인계
+    difficulty: 보통
+    npc_visible:
+      npc: 품질검사자
+      request_line: 완료품의 치수·외관검사와 보수이력을 정리해 다음 공정에 인계하세요.
+      materials:
+      - 도면공차
+      - 측정값
+      - 외관사진
+      - 보수기록
+      - 제품로트
+      user_mission: 합격·보수·재검 항목을 기준과 대조하고 제품별 상태를 표시한다.
+      outputs:
+      - 검사성적서
+      - 공정인계표
+      sudden_event: 측정기 교정스티커가 만료됨
+    coach_private:
+      required_actions:
+      - 측정기 유효성
+      - 치수판정
+      - 결함·보수
+      - 재검
+      - 상태표시
+      success_criteria:
+      - 로트별 상태·근거·재검여부 명확
+      failure_patterns:
+      - 대표 샘플만 보고 전체 상태를 동일 처리
+    scorer_private:
+      rag_link: F19 부분연결
+provenance:
+  excel:
+  - file: 입문직무_RAG_KB_v5_정리본.xlsx
+    sheet: 01_직무마스터
+    rows: job_id=J086
+  - file: 입문직무_RAG_KB_v5_정리본.xlsx
+    sheet: 02_RAG프로세스
+    rows: job_id=J086
+  - file: 팀통합_8모듈_조사자료_표준화완료.xlsx
+    sheet: 01_연결맵/02_단계별프로세스/05_상황별미션
+    rows: job_id=J086
+  research_sources: []

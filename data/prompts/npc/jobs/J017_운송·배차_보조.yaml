@@ -1,0 +1,416 @@
+schema_version: npc.job-override.v1
+job:
+  job_id: J017
+  job_name: 운송·배차 보조
+  family_id: F04
+  family_name: 무역·물류사무
+  module: 절차·점검형
+review:
+  status: integrated_research
+  generated: true
+  human_review_required: false
+prompt_contract:
+  npc_visible:
+    work_targets:
+    - 출고지시서
+    - 운송장
+    - 재고
+    - 배차표
+    - 수출입서류
+    npc_roles:
+    - 물류팀장
+    - 운송사
+    - 창고담당
+    - 고객사
+    outputs:
+    - 출고체크표
+    - 운송장검토표
+    - 배차확인표
+    forbidden:
+    - 플레이어를 채점하거나 점수·통과 여부를 말하지 않는다.
+    - 오류의 정답·모범답안·단계별 해설을 제공하지 않는다.
+    - 업무상 필요한 지시·사실·자료·권한 범위만 전달한다.
+  coach_private:
+    success_criteria:
+    - 목적·자료·기준·결과·다음액션 포함
+    failure_patterns:
+    - 추측 진행
+    - 질문 누락
+    - 산출물 혼동
+kb_stages:
+- chunk_id: J017-S1
+  stage_id: S1
+  name: 업무요청 이해
+  goal: 요청자의 목적, 결과물, 마감, 제한조건을 확인한다.
+  rag_chunk_text: '[운송·배차 보조/무역·물류사무/절차·점검형] 업무요청 이해: 요청자의 목적, 결과물, 마감, 제한조건을 확인한다. 업무대상은 출고지시서, 운송장, 재고, 배차표, 수출입서류. 주요상대/NPC는
+    물류팀장, 운송사, 창고담당, 고객사. 핵심산출물은 출고체크표, 운송장검토표, 배차확인표. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 무역·물류사무의 업무대상과
+    산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J017-S2
+  stage_id: S2
+  name: 자료·현황 확인
+  goal: 업무대상 자료를 읽고 누락/불일치/위험요소를 표시한다.
+  rag_chunk_text: '[운송·배차 보조/무역·물류사무/절차·점검형] 자료·현황 확인: 업무대상 자료를 읽고 누락/불일치/위험요소를 표시한다. 업무대상은 출고지시서, 운송장, 재고, 배차표, 수출입서류. 주요상대/NPC는
+    물류팀장, 운송사, 창고담당, 고객사. 핵심산출물은 출고체크표, 운송장검토표, 배차확인표. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 무역·물류사무의 업무대상과
+    산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J017-S3
+  stage_id: S3
+  name: 처리·제작·응대
+  goal: 직무별 기준에 맞춰 문서/응대/작업/산출물을 만든다.
+  rag_chunk_text: '[운송·배차 보조/무역·물류사무/절차·점검형] 처리·제작·응대: 직무별 기준에 맞춰 문서/응대/작업/산출물을 만든다. 업무대상은 출고지시서, 운송장, 재고, 배차표, 수출입서류. 주요상대/NPC는
+    물류팀장, 운송사, 창고담당, 고객사. 핵심산출물은 출고체크표, 운송장검토표, 배차확인표. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 무역·물류사무의 업무대상과
+    산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J017-S4
+  stage_id: S4
+  name: 검수·판단
+  goal: 오류, 안전, 고객영향, 비용, 일정, 품질을 점검한다.
+  rag_chunk_text: '[운송·배차 보조/무역·물류사무/절차·점검형] 검수·판단: 오류, 안전, 고객영향, 비용, 일정, 품질을 점검한다. 업무대상은 출고지시서, 운송장, 재고, 배차표, 수출입서류. 주요상대/NPC는
+    물류팀장, 운송사, 창고담당, 고객사. 핵심산출물은 출고체크표, 운송장검토표, 배차확인표. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 무역·물류사무의 업무대상과
+    산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J017-S5
+  stage_id: S5
+  name: 보고·인계
+  goal: 결과, 근거, 남은 이슈, 다음 액션을 공유한다.
+  rag_chunk_text: '[운송·배차 보조/무역·물류사무/절차·점검형] 보고·인계: 결과, 근거, 남은 이슈, 다음 액션을 공유한다. 업무대상은 출고지시서, 운송장, 재고, 배차표, 수출입서류. 주요상대/NPC는
+    물류팀장, 운송사, 창고담당, 고객사. 핵심산출물은 출고체크표, 운송장검토표, 배차확인표. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 무역·물류사무의 업무대상과
+    산출물을 벗어난 미션 생성 금지.'
+content_variants:
+- category: 무역·물류·운송 사무
+  module: 절차·점검형
+  rag_status: 직접
+  workflow: 주문·화물조건 확인 → 규제·재고 확인 → 운송·통관 계획 → 서류 검수 → 상태 추적 → 예외 조정 → 납품·비용 정산
+  npc_visible:
+    npc_roles:
+    - 물류팀장
+    - 운송사
+    - 창고담당
+    - 고객사
+    - 협력사
+    input_materials:
+    - 출고지시서
+    - 운송장
+    - 재고
+    - 배차표
+    - 수출입서류
+    - 견적서
+    outputs:
+    - 출고체크표
+    - 운송장검토표
+    - 배차확인표
+    - 납기확인표
+    sudden_events:
+    - 통관 보류
+    - 운송 지연
+    - 파손
+    - 오배송
+    - 재고 차이
+  stages:
+  - stage_id: S1
+    name: 업무요청 이해
+    goal: 목적·결과물·마감·제한조건을 확인한다.
+    npc_visible:
+      materials:
+      - 출고지시서
+      - 운송장
+      - 재고
+      - 배차표
+      - 수출입서류
+      - 견적서
+      npc_roles:
+      - 물류팀장
+      - 운송사
+      - 창고담당
+      - 고객사
+      - 협력사
+      outputs:
+      - 출고체크표
+      - 운송장검토표
+      - 배차확인표
+      - 납기확인표
+      mission_candidate: 요청에서 목적·기한·산출물 찾기
+    coach_private:
+      success_criteria:
+      - 목적·기한·자료·기준 확인
+      failure_patterns:
+      - 질문 없이 추측
+  - stage_id: S2
+    name: 자료·현황 확인
+    goal: 업무자료를 읽고 누락·불일치·위험요소를 표시한다.
+    npc_visible:
+      materials:
+      - 출고지시서
+      - 운송장
+      - 재고
+      - 배차표
+      - 수출입서류
+      - 견적서
+      npc_roles:
+      - 물류팀장
+      - 운송사
+      - 창고담당
+      - 고객사
+      - 협력사
+      outputs:
+      - 출고체크표
+      - 운송장검토표
+      - 배차확인표
+      - 납기확인표
+      mission_candidate: 서류 불일치 탐지
+    coach_private:
+      success_criteria:
+      - 기준 준수
+      - 핵심 오류·위험 우선 처리
+      failure_patterns:
+      - 순서 생략
+      - 임의판단
+      - 위험·오류 방치
+  - stage_id: S3
+    name: 처리·제작·작업
+    goal: 해당 중분류의 기준과 순서에 따라 결과물을 만든다.
+    npc_visible:
+      materials:
+      - 출고지시서
+      - 운송장
+      - 재고
+      - 배차표
+      - 수출입서류
+      - 견적서
+      npc_roles:
+      - 물류팀장
+      - 운송사
+      - 창고담당
+      - 고객사
+      - 협력사
+      outputs:
+      - 출고체크표
+      - 운송장검토표
+      - 배차확인표
+      - 납기확인표
+      mission_candidate: 경로·운송수단 선택
+    coach_private:
+      success_criteria:
+      - 기준 준수
+      - 핵심 오류·위험 우선 처리
+      failure_patterns:
+      - 순서 생략
+      - 임의판단
+      - 위험·오류 방치
+  - stage_id: S4
+    name: 검수·판단
+    goal: 오류·안전·비용·일정·품질을 기준과 대조한다.
+    npc_visible:
+      materials:
+      - 출고지시서
+      - 운송장
+      - 재고
+      - 배차표
+      - 수출입서류
+      - 견적서
+      npc_roles:
+      - 물류팀장
+      - 운송사
+      - 창고담당
+      - 고객사
+      - 협력사
+      outputs:
+      - 출고체크표
+      - 운송장검토표
+      - 배차확인표
+      - 납기확인표
+      mission_candidate: 지연 대응
+    coach_private:
+      success_criteria:
+      - 기준 준수
+      - 핵심 오류·위험 우선 처리
+      failure_patterns:
+      - 순서 생략
+      - 임의판단
+      - 위험·오류 방치
+  - stage_id: S5
+    name: 보고·인계
+    goal: 결과·근거·남은 이슈·다음 액션을 공유한다.
+    npc_visible:
+      materials:
+      - 출고지시서
+      - 운송장
+      - 재고
+      - 배차표
+      - 수출입서류
+      - 견적서
+      npc_roles:
+      - 물류팀장
+      - 운송사
+      - 창고담당
+      - 고객사
+      - 협력사
+      outputs:
+      - 출고체크표
+      - 운송장검토표
+      - 배차확인표
+      - 납기확인표
+      mission_candidate: 상황·조치·미해결사항을 3문장으로 보고
+    coach_private:
+      success_criteria:
+      - 사실
+      - 추정 구분
+      - 후속조치 명확
+      failure_patterns:
+      - 결과만 말하고 근거·다음액션 누락
+  missions:
+  - mission_id: MS-04-01
+    situation_type: 정상업무
+    difficulty: 보통
+    npc_visible:
+      npc: 물류팀장
+      request_line: 오늘 출고 8건의 출고지시서와 운송장을 확인해 배차확인표를 완성하세요.
+      materials:
+      - 출고지시서
+      - 운송장
+      - 재고표
+      - 배차표
+      - 납기
+      user_mission: 품목·수량·주소·차량·상차시간을 대조하고 출고 가능 여부를 표시한다.
+      outputs:
+      - 출고체크표
+      - 배차확인표
+      sudden_event: 1건의 납품지가 최근 변경됨
+    coach_private:
+      required_actions:
+      - 출고조건 확인
+      - 재고 대조
+      - 운송장 검수
+      - 배차시간 확인
+      - 승인 요청
+      success_criteria:
+      - 8건 전수대조
+      - 주소·수량·납기 일치
+      failure_patterns:
+      - 재고만 보고 차량·주소·납기를 확인하지 않음
+    scorer_private:
+      rag_link: F04+F03 직접연결
+  - mission_id: MS-04-02
+    situation_type: 자료·정보 누락
+    difficulty: 보통
+    npc_visible:
+      npc: 수출입 사수
+      request_line: 수입신고 전 인보이스와 패킹리스트의 불일치를 찾아 보완 요청하세요.
+      materials:
+      - 인보이스
+      - 패킹리스트
+      - 계약서
+      - 품목정보
+      user_mission: 품명·수량·중량·금액·거래조건을 문서 간 대조한다.
+      outputs:
+      - 서류불일치표
+      - 보완요청 메일
+      sudden_event: 공급자와 시차 때문에 답변이 내일 도착
+    coach_private:
+      required_actions:
+      - 문서 버전 확인
+      - 필드별 대조
+      - 불일치 표시
+      - 공급자 문의안 작성
+      success_criteria:
+      - 불일치 위치·원문값·요청값 명시
+      failure_patterns:
+      - 임의로 문서 값을 고치거나 한 문서만 기준으로 삼음
+    scorer_private:
+      rag_link: F04+F03 직접연결
+  - mission_id: MS-04-03
+    situation_type: 우선순위 충돌
+    difficulty: 어려움
+    npc_visible:
+      npc: 물류팀장
+      request_line: 긴급 항공출고와 정기 해상출고가 같은 인력·상차장을 사용합니다. 배치안을 정하세요.
+      materials:
+      - 두 주문의 납기
+      - 비용
+      - 화물조건
+      - 인력·상차장 시간
+      user_mission: 납기위약·운임·화물특성·대체시간을 비교해 작업순서를 정한다.
+      outputs:
+      - 배치계획표
+      - 비용·위험 비교표
+      sudden_event: 항공화물 포장이 아직 완료되지 않음
+    coach_private:
+      required_actions:
+      - 절대납기 계산
+      - 화물제약 확인
+      - 대체슬롯 검토
+      - 비용영향 보고
+      success_criteria:
+      - 긴급출고의 근거와 정기출고 지연대책 포함
+      failure_patterns:
+      - 긴급이라는 말만 듣고 비용·제약 확인 없이 변경
+    scorer_private:
+      rag_link: F04+F03 직접연결
+  - mission_id: MS-04-04
+    situation_type: 오류·안전위험
+    difficulty: 어려움
+    npc_visible:
+      npc: 관세업무 사수
+      request_line: 세관에서 품목분류 확인 요청이 왔습니다. 화물을 임의 출고하지 말고 대응자료를 정리하세요.
+      materials:
+      - 보류통지
+      - 제품사양서
+      - 인보이스
+      - 기존 분류근거
+      user_mission: 보류사유와 필요한 자료를 확인해 전문담당자 검토용 패킷을 만든다.
+      outputs:
+      - 통관보류 대응표
+      - 자료패킷
+      sudden_event: 고객사가 납기보장을 요구함
+    coach_private:
+      required_actions:
+      - 출고보류 확인
+      - 요청사항 분해
+      - 제품근거 수집
+      - 전문담당자 보고
+      success_criteria:
+      - 보류 유지
+      - 근거 출처 연결
+      - 최종 품목분류는 전문담당자에게 이관
+      failure_patterns:
+      - 사용자가 임의로 품목코드를 확정
+    scorer_private:
+      rag_link: F04+F03 직접연결
+  - mission_id: MS-04-05
+    situation_type: 보고·인계
+    difficulty: 보통
+    npc_visible:
+      npc: 고객사 담당자
+      request_line: 차량 고장으로 납품이 늦어집니다. 현재상황과 대체안을 고객에게 보고하세요.
+      materials:
+      - 차량위치
+      - 고장접수
+      - 대체차량 ETA
+      - 고객 납기
+      user_mission: 확정사실·예상시간·대체안·다음 업데이트 시점을 구분해 전달한다.
+      outputs:
+      - 지연보고 메시지
+      - 대체운송안
+      sudden_event: 대체차량 적재용량이 20% 부족
+    coach_private:
+      required_actions:
+      - 지연범위 확인
+      - 대체차량 검토
+      - 고객영향 계산
+      - 업데이트 시점 약속
+      success_criteria:
+      - 사실과 예상 구분
+      - 책임회피 없이 다음 조치 명시
+      failure_patterns:
+      - 막연히 늦는다고만 하거나 확정되지 않은 시간을 약속
+    scorer_private:
+      rag_link: F04+F03 직접연결
+provenance:
+  excel:
+  - file: 입문직무_RAG_KB_v5_정리본.xlsx
+    sheet: 01_직무마스터
+    rows: job_id=J017
+  - file: 입문직무_RAG_KB_v5_정리본.xlsx
+    sheet: 02_RAG프로세스
+    rows: job_id=J017
+  - file: 팀통합_8모듈_조사자료_표준화완료.xlsx
+    sheet: 01_연결맵/02_단계별프로세스/05_상황별미션
+    rows: job_id=J017
+  research_sources: []

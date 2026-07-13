@@ -1,0 +1,283 @@
+schema_version: npc.job-override.v1
+job:
+  job_id: J092
+  job_name: 청소관리 작업자
+  family_id: F21
+  family_name: 청소·객실관리
+  module: 작업순서·절차형
+review:
+  status: researched_needs_human_review
+  generated: true
+  human_review_required: true
+prompt_contract:
+  npc_visible:
+    work_targets:
+    - 객실
+    - 구역
+    - 비품
+    - 청소순서
+    - 점검표
+    npc_roles:
+    - 하우스키핑 리더
+    - 고객
+    - 프론트
+    outputs:
+    - 청소완료표
+    - 비품보충표
+    - 이상보고
+    forbidden:
+    - 플레이어를 채점하거나 점수·통과 여부를 말하지 않는다.
+    - 오류의 정답·모범답안·단계별 해설을 제공하지 않는다.
+    - 업무상 필요한 지시·사실·자료·권한 범위만 전달한다.
+  coach_private:
+    success_criteria:
+    - 목적·자료·기준·결과·다음액션 포함
+    failure_patterns:
+    - 추측 진행
+    - 질문 누락
+    - 산출물 혼동
+kb_stages:
+- chunk_id: J092-S1
+  stage_id: S1
+  name: 업무요청 이해
+  goal: 요청자의 목적, 결과물, 마감, 제한조건을 확인한다.
+  rag_chunk_text: '[청소관리 작업자/청소·객실관리/작업순서·절차형] 업무요청 이해: 요청자의 목적, 결과물, 마감, 제한조건을 확인한다. 업무대상은 객실/구역, 비품, 청소순서, 점검표. 주요상대/NPC는
+    하우스키핑 리더, 고객, 프론트. 핵심산출물은 청소완료표, 비품보충표, 이상보고. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 청소·객실관리의 업무대상과 산출물을
+    벗어난 미션 생성 금지.'
+- chunk_id: J092-S2
+  stage_id: S2
+  name: 자료·현황 확인
+  goal: 업무대상 자료를 읽고 누락/불일치/위험요소를 표시한다.
+  rag_chunk_text: '[청소관리 작업자/청소·객실관리/작업순서·절차형] 자료·현황 확인: 업무대상 자료를 읽고 누락/불일치/위험요소를 표시한다. 업무대상은 객실/구역, 비품, 청소순서, 점검표. 주요상대/NPC는
+    하우스키핑 리더, 고객, 프론트. 핵심산출물은 청소완료표, 비품보충표, 이상보고. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 청소·객실관리의 업무대상과 산출물을
+    벗어난 미션 생성 금지.'
+- chunk_id: J092-S3
+  stage_id: S3
+  name: 처리·제작·응대
+  goal: 직무별 기준에 맞춰 문서/응대/작업/산출물을 만든다.
+  rag_chunk_text: '[청소관리 작업자/청소·객실관리/작업순서·절차형] 처리·제작·응대: 직무별 기준에 맞춰 문서/응대/작업/산출물을 만든다. 업무대상은 객실/구역, 비품, 청소순서, 점검표. 주요상대/NPC는
+    하우스키핑 리더, 고객, 프론트. 핵심산출물은 청소완료표, 비품보충표, 이상보고. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 청소·객실관리의 업무대상과 산출물을
+    벗어난 미션 생성 금지.'
+- chunk_id: J092-S4
+  stage_id: S4
+  name: 검수·판단
+  goal: 오류, 안전, 고객영향, 비용, 일정, 품질을 점검한다.
+  rag_chunk_text: '[청소관리 작업자/청소·객실관리/작업순서·절차형] 검수·판단: 오류, 안전, 고객영향, 비용, 일정, 품질을 점검한다. 업무대상은 객실/구역, 비품, 청소순서, 점검표. 주요상대/NPC는
+    하우스키핑 리더, 고객, 프론트. 핵심산출물은 청소완료표, 비품보충표, 이상보고. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 청소·객실관리의 업무대상과 산출물을
+    벗어난 미션 생성 금지.'
+- chunk_id: J092-S5
+  stage_id: S5
+  name: 보고·인계
+  goal: 결과, 근거, 남은 이슈, 다음 액션을 공유한다.
+  rag_chunk_text: '[청소관리 작업자/청소·객실관리/작업순서·절차형] 보고·인계: 결과, 근거, 남은 이슈, 다음 액션을 공유한다. 업무대상은 객실/구역, 비품, 청소순서, 점검표. 주요상대/NPC는 하우스키핑
+    리더, 고객, 프론트. 핵심산출물은 청소완료표, 비품보충표, 이상보고. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 청소·객실관리의 업무대상과 산출물을 벗어난
+    미션 생성 금지.'
+content_variants:
+- category: 구역별 청소·폐기물 분리·위험표시·완료점검
+  module: null
+  rag_status: researched
+  workflow: 구역·오염·출입·안전조건 확인 → 도구·약품·보호구·표지 확인 → 위에서 아래·청결에서 오염 순으로 작업 → 젖은바닥·날카로운물체·약품노출 점검 → 완료구역과 위험·시설이상 보고
+  npc_visible:
+    npc_roles:
+    - role: 미화 반장
+      instruction_scope: 구역·순서·품질·안전 지시
+    - role: 시설관리 직원
+      instruction_scope: 누수·파손·출입제한 전달
+    - role: 건물 이용자
+      instruction_scope: 오염·통행·시설 문의
+    input_materials: &id001
+    - 구역배정표
+    - 오염상태
+    - 청소도구·약품
+    - 폐기물 기준
+    - 위험표지
+    - 점검표
+    outputs: &id002
+    - 구역청소 완료표
+    - 소모품 기록
+    - 위험·파손 보고
+    - 폐기물 처리기록
+    sudden_events: &id003
+    - 표지 없이 물청소
+    - 세제를 임의 혼합
+    - 주사침·유리를 맨손 수거
+    constraints:
+    - 화학제품은 라벨·MSDS·희석 기준을 확인하고 임의 혼합하지 않는다.
+    - 주사침·혈액·파손 유리·분실물은 맨손으로 처리하지 않고 정해진 절차로 인계한다.
+  stages:
+  - stage_id: S1
+    name: 구역·오염·출입·안전조건 확인
+    goal: 구역·오염·출입·안전조건 확인
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 미화 반장
+      - 시설관리 직원
+      - 건물 이용자
+      outputs: *id002
+      mission_candidate: 구역·오염·출입·안전조건 확인
+    coach_private:
+      success_criteria: &id004
+      - 경고표지 설치
+      - 보호구·희석기준 준수
+      - 폐기물 분리
+      - 위험물 맨손처리 금지
+      failure_patterns: *id003
+  - stage_id: S2
+    name: 도구·약품·보호구·표지 확인
+    goal: 도구·약품·보호구·표지 확인
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 미화 반장
+      - 시설관리 직원
+      - 건물 이용자
+      outputs: *id002
+      mission_candidate: 도구·약품·보호구·표지 확인
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  - stage_id: S3
+    name: 위에서 아래·청결에서 오염 순으로 작업
+    goal: 위에서 아래·청결에서 오염 순으로 작업
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 미화 반장
+      - 시설관리 직원
+      - 건물 이용자
+      outputs: *id002
+      mission_candidate: 위에서 아래·청결에서 오염 순으로 작업
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  - stage_id: S4
+    name: 젖은바닥·날카로운물체·약품노출 점검
+    goal: 젖은바닥·날카로운물체·약품노출 점검
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 미화 반장
+      - 시설관리 직원
+      - 건물 이용자
+      outputs: *id002
+      mission_candidate: 젖은바닥·날카로운물체·약품노출 점검
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  - stage_id: S5
+    name: 완료구역과 위험·시설이상 보고
+    goal: 완료구역과 위험·시설이상 보고
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 미화 반장
+      - 시설관리 직원
+      - 건물 이용자
+      outputs: *id002
+      mission_candidate: 완료구역과 위험·시설이상 보고
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  missions:
+  - mission_id: null
+    situation_type: 정상업무
+    difficulty: 보통
+    npc_visible:
+      npc: 미화 반장
+      request_line: 구역·오염·출입·안전조건 확인 업무를 진행해 주세요. 구역·순서·품질·안전 지시 기준을 확인하세요.
+      materials: *id001
+      user_mission: 구역·오염·출입·안전조건 확인
+      outputs: *id002
+      sudden_event: 표지 없이 물청소
+    coach_private:
+      required_actions:
+      - 구역·오염·출입·안전조건 확인
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 자료·정보 누락
+    difficulty: 어려움
+    npc_visible:
+      npc: 시설관리 직원
+      request_line: 도구·약품·보호구·표지 확인 업무를 진행해 주세요. 누수·파손·출입제한 전달 기준을 확인하세요.
+      materials: *id001
+      user_mission: 도구·약품·보호구·표지 확인
+      outputs: *id002
+      sudden_event: 세제를 임의 혼합
+    coach_private:
+      required_actions:
+      - 도구·약품·보호구·표지 확인
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 우선순위 충돌
+    difficulty: 어려움
+    npc_visible:
+      npc: 건물 이용자
+      request_line: 위에서 아래·청결에서 오염 순으로 작업 업무를 진행해 주세요. 오염·통행·시설 문의 기준을 확인하세요.
+      materials: *id001
+      user_mission: 위에서 아래·청결에서 오염 순으로 작업
+      outputs: *id002
+      sudden_event: 주사침·유리를 맨손 수거
+    coach_private:
+      required_actions:
+      - 위에서 아래·청결에서 오염 순으로 작업
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 오류·안전위험
+    difficulty: 어려움
+    npc_visible:
+      npc: 미화 반장
+      request_line: 젖은바닥·날카로운물체·약품노출 점검 업무를 진행해 주세요. 구역·순서·품질·안전 지시 기준을 확인하세요.
+      materials: *id001
+      user_mission: 젖은바닥·날카로운물체·약품노출 점검
+      outputs: *id002
+      sudden_event: 표지 없이 물청소
+    coach_private:
+      required_actions:
+      - 젖은바닥·날카로운물체·약품노출 점검
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 보고·인계
+    difficulty: 보통
+    npc_visible:
+      npc: 시설관리 직원
+      request_line: 완료구역과 위험·시설이상 보고 업무를 진행해 주세요. 누수·파손·출입제한 전달 기준을 확인하세요.
+      materials: *id001
+      user_mission: 완료구역과 위험·시설이상 보고
+      outputs: *id002
+      sudden_event: 세제를 임의 혼합
+    coach_private:
+      required_actions:
+      - 완료구역과 위험·시설이상 보고
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+provenance:
+  excel:
+  - file: 입문직무_RAG_KB_v5_정리본.xlsx
+    sheet: 01_직무마스터
+    rows: job_id=J092
+  - file: 입문직무_RAG_KB_v5_정리본.xlsx
+    sheet: 02_RAG프로세스
+    rows: job_id=J092
+  - file: 팀통합_8모듈_조사자료_표준화완료.xlsx
+    sheet: 01_연결맵/02_단계별프로세스/05_상황별미션
+    rows: job_id=J092
+  research_sources:
+  - source_id: KOSHA-CLEANING
+    title: 건물 청소 업무 안전수칙
+    url: https://www.kosha.or.kr/ebook/fcatalog/access/ecatalogt.jsp?Dir=614&callmode=normal&catimage=&eclang=ko&start=0&um=s
+    publisher: 한국산업안전보건공단

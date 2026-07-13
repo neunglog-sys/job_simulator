@@ -1,4 +1,3 @@
-import json
 from typing import AsyncIterator
 
 from google import genai
@@ -36,14 +35,8 @@ class GeminiProvider:
         )
         if json_schema:
             config.response_mime_type = "application/json"
-            # 스키마는 프롬프트에 명시해 강제 (genai 스키마 객체 변환 대신 단순화)
-            messages = messages + [
-                ChatMessage(
-                    role="user",
-                    content="반드시 다음 JSON 스키마에 맞는 JSON만 출력:\n"
-                    + json.dumps(json_schema, ensure_ascii=False),
-                )
-            ]
+            # google-genai의 네이티브 JSON Schema 구조화 출력을 사용한다.
+            config.response_json_schema = json_schema
         try:
             res = await self._client.aio.models.generate_content(
                 model=self._model,
