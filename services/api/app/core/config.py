@@ -17,8 +17,10 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.5-flash"
 
-    # 임베딩 (RAG) — doc_chunks.embedding 차원(1536)과 맞아야 함
-    embedding_model: str = "text-embedding-3-small"
+    # 임베딩 (RAG) — Gemini로 통일. output_dimensionality로 doc_chunks 차원(1536) 유지
+    # (마이그레이션 없이 기존 Vector(1536) 컬럼 재사용). 재임베딩 필요.
+    embedding_model: str = "gemini-embedding-001"
+    embedding_dim: int = 1536
 
     # TTS — OPENAI_API_KEY 없으면 mock(비프음 WAV)으로 폴백
     tts_model: str = "tts-1"

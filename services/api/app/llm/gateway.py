@@ -45,12 +45,18 @@ def _select_provider() -> LLMProvider:
 
 
 def _select_embedding_provider() -> LLMProvider:
-    """임베딩 프로바이더 — 차원(1536) 문제로 openai 고정, 키 없으면 mock."""
-    if settings.openai_api_key:
-        from app.llm.providers.openai_provider import OpenAIProvider
-        return OpenAIProvider()
+    """임베딩 = Gemini(gemini-embedding-001 @1536)로 통일. 키 없으면 mock.
+
+    OpenAI 임베딩과 벡터 공간이 다르므로 섞으면 안 됨 — 코퍼스·질의 모두 Gemini로
+    통일하고, 프로바이더 전환 시에는 반드시 재임베딩한다(load_research).
+    """
+    if settings.gemini_api_key:
+        from app.llm.providers.gemini_provider import GeminiProvider
+        return GeminiProvider()
     from app.llm.providers.mock_provider import MockProvider
-    logger.warning("OPENAI_API_KEY 없음 → 임베딩 mock 사용 (검색 순위 무의미)")
+    logger.warning(
+        "GEMINI_API_KEY 없음 → 임베딩 mock 사용 (검색 순위 무의미). 키 설정 후 재임베딩 필요."
+    )
     return MockProvider()
 
 
