@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
+from app.content.knowledge import search_knowledge
 from app.domains.coach import service as coach
 from app.domains.scoring import aggregate
 from app.domains.scoring import service as scoring
@@ -29,6 +30,8 @@ logger = logging.getLogger(__name__)
 
 MEMORY_TURNS = 20
 SCORING_TURNS = 40  # 채점 대화록 상한 — 하루 종일 대화해도 채점 프롬프트가 무한 성장하지 않게
+RAG_TOP_K = 3
+RAG_MAX_DISTANCE = 0.4  # Gemini 임베딩은 거리대가 좁음(관련 ~0.2, 무관 ~0.28) — eval로 재튜닝 대상
 
 
 async def create_simulation(
@@ -159,6 +162,13 @@ async def stream_npc_chat(
         )
         for m in history
     ]
+    # RAG: 발화와 관련된 직무 지식을 NPC 프롬프트에 주입 (Gemini 임베딩, doc_chunks)
+    chunks = await search_knowledge(
+        session, user_text, top_k=RAG_TOP_K, max_distance=RAG_MAX_DISTANCE
+    )
+    knowledge = (
+        "\n\n".join(f"[{c.source}]\n{c.content}" for c in chunks) if chunks else None
+    )
     system = render_prompt(
         "npc/system.md",
         persona_prompt=persona.system_prompt,
@@ -166,7 +176,7 @@ async def stream_npc_chat(
         name=persona.name,
         rank=persona.rank,
         state=simulation.state,
-        knowledge=None,  # TODO: RAG(doc_chunks) 연동 시 주입
+        knowledge=knowledge,
     )
 
     full: list[str] = []

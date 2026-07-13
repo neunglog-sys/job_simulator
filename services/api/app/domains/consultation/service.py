@@ -15,7 +15,7 @@ from app.models import Consultation, Message, User
 
 MEMORY_TURNS = 20  # 컨텍스트에 넣는 최근 메시지 수
 RAG_TOP_K = 3
-RAG_MAX_DISTANCE = 0.65  # 관련도 컷오프 — 잡담에 직무 지식이 끼어들지 않게
+RAG_MAX_DISTANCE = 0.4  # Gemini 임베딩 거리대(관련 ~0.2·무관 ~0.28)에 맞춤 — 잡담에 직무 지식이 끼어들지 않게
 
 
 async def create_consultation(session: AsyncSession, user: User) -> Consultation:
