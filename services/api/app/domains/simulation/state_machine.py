@@ -68,6 +68,19 @@ def resolve_transitions(steps: list[dict], current_id: str, state: dict) -> str:
 END = "__end__"  # task.on_pass 특수값 — 시뮬레이션 완료
 
 
+def public_task(task: dict) -> dict:
+    """클라이언트에 보낼 과제 정보 — 정답(answer·hints)은 숨김. 본편·퀘스트 공용."""
+    out = {
+        "kind": task.get("kind", "write"),
+        "prompt": task["prompt"],
+        "criteria": task["criteria"],  # 평가 기준 공개 = 미션 체크리스트 역할
+        "pass_score": task.get("pass_score", 70),
+    }
+    if task.get("options"):  # 선택·배열형 보기 (표시 순서는 빌드 시 결정적 셔플)
+        out["options"] = [{"key": o["key"], "label": o["label"]} for o in task["options"]]
+    return out
+
+
 def public_step(step: dict) -> dict:
     """클라이언트에 보낼 스텝 정보 — 선택지의 effects(정답 힌트)는 숨김."""
     task = step.get("task")
@@ -80,13 +93,5 @@ def public_step(step: dict) -> dict:
         "choices": [
             {"id": c["id"], "text": c["text"]} for c in step.get("choices", [])
         ],
-        "task": (
-            {
-                "prompt": task["prompt"],
-                "criteria": task["criteria"],  # 평가 기준 공개 = 미션 체크리스트 역할
-                "pass_score": task.get("pass_score", 70),
-            }
-            if task
-            else None
-        ),
+        "task": public_task(task) if task else None,
     }

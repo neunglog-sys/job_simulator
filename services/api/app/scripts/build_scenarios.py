@@ -12,6 +12,7 @@
 
 import asyncio
 import logging
+import random
 import re
 
 from sqlalchemy import delete, select
@@ -148,6 +149,122 @@ def mission_npcs(raw: str | None) -> list[str]:
     return [norm_role(r) for r in (raw or "").split(",") if norm_role(r)]
 
 
+# ── 라이트 메커니즘 조립 (팀장 방침: 사용자에게 문서 작성을 시키지 않는다) ──
+# 조사 시트의 구현형태(impl_form) 의도를 상황유형별 인터랙션으로 구현:
+#   정상업무        체크리스트+선택   → checklist (필요한 행동 모두 고르기)
+#   자료·정보 누락  오류탐지+질문     → choice    (문제 있는 행동 골라내기)
+#   우선순위 충돌   우선순위 배열+보고 → order     (올바른 순서로 배열)
+#   오류·안전위험   돌발대응 분기     → choice    (첫 대응 고르기)
+#   보고·인계       요약작성+AI 대화  → write     (유일한 서술형 — 짧은 인계 보고)
+# 정답 = 행동순서(action_steps), 오답 = 실패패턴(failure_patterns) — 전부 조사 데이터 조립,
+# 데이터가 모자라면 write로 폴백 (진행이 막히는 것보다 서술형이 낫다).
+
+CIRCLED_RE = re.compile(r"[①②③④⑤⑥⑦⑧⑨⑩⑪⑫]")
+ORDER_ITEM_CAP = 4  # 배열 항목 수 상한 — 라이트하게
+
+
+def split_action_steps(raw: str | None) -> list[str]:
+    """'① A ② B ...' → ["A", "B", ...]. 마커가 없으면 빈 목록 (write 폴백 신호)."""
+    return [p.strip(" ·,;") for p in CIRCLED_RE.split(raw or "") if p.strip(" ·,;")]
+
+
+def split_failures(raw: str | None) -> list[str]:
+    return [p.strip() for p in (raw or "").split(",") if p.strip()]
+
+
+def _make_options(entries: list[tuple[str, str]], seed: str) -> tuple[list[dict], dict]:
+    """(label, tag) 목록 → 결정적 셔플 후 key 부여. → (options, tag별 key 목록).
+
+    셔플 시드는 mission_code — 재변환해도 보기 순서가 흔들리지 않게 (멱등).
+    """
+    shuffled = list(entries)
+    random.Random(seed).shuffle(shuffled)
+    options, by_tag = [], {}
+    for i, (label, tag) in enumerate(shuffled):
+        key = chr(ord("a") + i)
+        options.append({"key": key, "label": label})
+        by_tag.setdefault(tag, []).append(key)
+    return options, by_tag
+
+
+def _base_task(m: TeamMission, kind: str, prompt: str, criteria: list[str]) -> dict:
+    return {
+        "kind": kind,
+        "prompt": prompt,
+        "criteria": criteria,
+        "pass_score": 70,
+        "hints": {
+            "warning": (m.failure_patterns or "")[:200] or None,
+            "answer_guide": m.action_steps,  # 3차 힌트 = 정답 골격 공개 (팀 결정)
+        },
+        # on_pass는 조립 후 체인 연결
+    }
+
+
+def build_task(m: TeamMission) -> dict:
+    """미션 1건 → 과제. 상황유형별 라이트 메커니즘, 데이터 부족 시 write 폴백."""
+    steps = split_action_steps(m.action_steps)
+    fails = split_failures(m.failure_patterns)
+    seed = m.mission_code or (m.mission or "")[:40]
+    # 보기 문구 중복은 정답 판별을 깨므로 제거 (동일 문구가 정답·오답 양쪽에 오는 경우 방지)
+    fails = [f for f in fails if f not in set(steps)]
+    situation = m.situation_type or ""
+
+    if situation == "정상업무" and len(steps) >= 2 and fails:
+        entries = [(s, "o") for s in steps[:5]] + [(f, "x") for f in fails[:2]]
+        options, by_tag = _make_options(entries, seed)
+        task = _base_task(
+            m, "checklist",
+            f"{m.mission}\n\n아래 보기에서 이 업무에 필요한 행동을 모두 선택하세요.",
+            ["필요한 행동을 빠짐없이 골랐는가"],
+        )
+        return {**task, "options": options, "answer": {"keys": by_tag["o"]}}
+
+    if situation == "자료·정보 누락" and len(steps) >= 2 and fails:
+        entries = [(s, "o") for s in steps[:3]] + [(fails[0], "x")]
+        options, by_tag = _make_options(entries, seed)
+        task = _base_task(
+            m, "choice",
+            f"{m.mission}\n\n아래 행동 중 문제가 있는 것 하나를 골라내세요.",
+            ["문제 있는 행동을 정확히 찾아냈는가"],
+        )
+        return {**task, "options": options, "answer": {"key": by_tag["x"][0]}}
+
+    if situation == "우선순위 충돌" and len(steps) >= 3:
+        items = steps[:ORDER_ITEM_CAP]
+        if len(set(items)) == len(items):  # 중복 문구면 순서 정답이 모호 — write 폴백
+            entries = [(s, str(i)) for i, s in enumerate(items)]
+            options, by_tag = _make_options(entries, seed)
+            answer = [by_tag[str(i)][0] for i in range(len(items))]
+            if [o["key"] for o in options] == answer:  # 셔플 결과가 정답 순서면 정답 유출 — 한 칸 회전
+                options = options[1:] + options[:1]
+            task = _base_task(
+                m, "order",
+                f"{m.mission}\n\n아래 항목을 올바른 처리 순서대로 배열해 제출하세요.",
+                ["업무 처리 순서를 올바르게 판단했는가"],
+            )
+            return {**task, "options": options, "answer": {"keys": answer}}
+
+    if situation == "오류·안전위험" and steps and len(fails) + len(steps) - 1 >= 2:
+        wrong = fails[:2] + steps[1:]  # 오답: 실패패턴 우선, 모자라면 '나중 단계' (첫 대응으론 오답)
+        entries = [(steps[0], "o")] + [(w, "x") for w in wrong[:3]]
+        options, by_tag = _make_options(entries, seed)
+        task = _base_task(
+            m, "choice",
+            f"{m.mission}\n\n아래 보기 중 지금 가장 먼저 해야 할 대응을 하나 고르세요.",
+            ["가장 먼저 할 대응을 올바르게 판단했는가"],
+        )
+        return {**task, "options": options, "answer": {"key": by_tag["o"][0]}}
+
+    # 보고·인계 + 데이터 부족 폴백 — 유일한 서술형 (짧은 보고)
+    task = _base_task(
+        m, "write",
+        f"{m.mission}\n\n제출 산출물: {m.outputs}" if m.outputs else (m.mission or ""),
+        split_criteria(m.success_criteria, m.failure_patterns),
+    )
+    return task
+
+
 def mission_to_step(m: TeamMission, step_id: str) -> dict:
     npcs = mission_npcs(m.npc)
     npc = npcs[0] if npcs else ""
@@ -160,19 +277,7 @@ def mission_to_step(m: TeamMission, step_id: str) -> dict:
         ),
         "npcs": npcs,
         "guide": f"제공 자료: {m.materials}" if m.materials else None,
-        "task": {
-            "prompt": (
-                (f"{m.mission}\n\n제출 산출물: {m.outputs}" if m.outputs else (m.mission or ""))
-                + "\n\n💡 길게 쓰지 않아도 돼요 — 핵심만 담아 3~5문장이면 충분합니다."
-            ),
-            "criteria": split_criteria(m.success_criteria, m.failure_patterns),
-            "pass_score": 70,
-            "hints": {
-                "warning": (m.failure_patterns or "")[:200] or None,
-                "answer_guide": m.action_steps,
-            },
-            # on_pass는 조립 후 체인 연결
-        },
+        "task": build_task(m),
     }
 
 
