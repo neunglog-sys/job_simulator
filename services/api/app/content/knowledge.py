@@ -116,3 +116,62 @@ async def search_knowledge(
         stmt = stmt.where(distance < max_distance)
     stmt = stmt.order_by(distance).limit(top_k)
     return list((await session.execute(stmt)).scalars())
+
+
+# ── KB v5 스테이지 인지 검색 (미션 RAG) ──────────────────────────────
+# kb-v5 청크의 source 가 'kb-v5/<job_code>-<stage_id>' 라 job·stage 를 소스로 특정.
+# (나중에 doc_chunks 에 job/stage/module 컬럼을 두면 조인 없이 단일테이블 필터로 정리 가능)
+
+
+async def get_stage_chunk(
+    session: AsyncSession, job_code: str, stage_id: str
+) -> DocChunk | None:
+    """결정적 조회 — 특정 직무·단계의 지식 청크 (임베딩 불필요).
+
+    미션 엔진이 '직무 J의 단계 S' NPC/힌트를 그라운딩할 때의 기본 경로.
+    """
+    return (
+        await session.execute(
+            select(DocChunk).where(DocChunk.source == f"kb-v5/{job_code}-{stage_id}")
+        )
+    ).scalar_one_or_none()
+
+
+async def get_job_chunks(session: AsyncSession, job_code: str) -> list[DocChunk]:
+    """직무의 전체 단계 청크(S1~S5)를 순서대로 — 결정적, 임베딩 불필요."""
+    return list(
+        (
+            await session.execute(
+                select(DocChunk)
+                .where(DocChunk.source.like(f"kb-v5/{job_code}-%"))
+                .order_by(DocChunk.source)
+            )
+        ).scalars()
+    )
+
+
+async def search_job_stage(
+    session: AsyncSession,
+    query: str,
+    *,
+    job_code: str | None = None,
+    stage_id: str | None = None,
+    top_k: int = 3,
+    max_distance: float | None = None,
+) -> list[tuple[DocChunk, float]]:
+    """스코프(직무/단계) 안에서 시맨틱 검색 → (청크, 코사인거리) 목록.
+
+    스코핑(직무/단계 필터)은 지금도 정확히 작동한다. 순위(거리)는 임베딩이
+    실제(OpenAI)일 때만 의미가 있다 — mock 임베딩에서는 거리가 ~1.0 노이즈.
+    """
+    [qvec] = await get_llm().embed([query])
+    distance = DocChunk.embedding.cosine_distance(qvec)
+    stmt = select(DocChunk, distance)
+    if job_code and stage_id:
+        stmt = stmt.where(DocChunk.source == f"kb-v5/{job_code}-{stage_id}")
+    elif job_code:
+        stmt = stmt.where(DocChunk.source.like(f"kb-v5/{job_code}-%"))
+    if max_distance is not None:
+        stmt = stmt.where(distance < max_distance)
+    stmt = stmt.order_by(distance).limit(top_k)
+    return [(row[0], row[1]) for row in (await session.execute(stmt)).all()]
