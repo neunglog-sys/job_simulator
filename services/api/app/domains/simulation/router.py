@@ -9,7 +9,7 @@ from app.core.deps import get_current_user, get_or_create_demo_user
 from app.domains.scoring import aggregate
 from app.domains.simulation import service
 from app.domains.simulation.schemas import SimulationCreate, SimulationOut
-from app.models import Job, Scenario, User
+from app.models import Job, Scenario, Simulation, User
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,35 @@ async def list_scenarios(session: AsyncSession = Depends(get_session)):
     return [
         {"slug": slug, "title": title, "module": module, "job_code": code, "job_title": jtitle}
         for slug, title, module, code, jtitle in rows
+    ]
+
+
+@router.get("/api/simulations")
+async def list_simulations(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """내 시뮬레이션 목록 (최신순) — 메인화면 이어하기·체험 기록용."""
+    rows = (
+        await session.execute(
+            select(Simulation, Scenario)
+            .join(Scenario, Simulation.scenario_id == Scenario.id)
+            .where(Simulation.user_id == user.id)
+            .order_by(Simulation.id.desc())
+        )
+    ).all()
+    return [
+        {
+            "id": sim.id,
+            "scenario_slug": sc.slug,
+            "scenario_title": sc.title,
+            "module": sc.module,
+            "status": sim.status,  # active=이어하기 / completed=결과 보기 / aborted
+            "current_step": sim.state.get("step"),
+            "total": (sim.state.get("score") or {}).get("total"),  # 완주 시에만
+            "created_at": sim.created_at.isoformat(),
+        }
+        for sim, sc in rows
     ]
 
 
@@ -145,6 +174,7 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, user_id: int |
                         completed = result.pop("completed")
                         quest_fired = result.pop("sudden_quest")
                         is_quest = result.pop("is_quest")
+                        coach_cards = result.pop("coach", None)
                         if is_quest:
                             # 단일 프레임 계약: quest_status가 passed/failed면 퀘스트 종료·본편 복귀
                             await websocket.send_json({"type": "quest_result", **result})
@@ -160,6 +190,9 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, user_id: int |
                                 )
                             if completed:
                                 await websocket.send_json({"type": "simulation_completed"})
+                        if coach_cards:
+                            # AI 코치 사후 리뷰 — 통과한 제출물에 대해 완료당 1회
+                            await websocket.send_json({"type": "coach_cards", **coach_cards})
                     elif data.get("type") == "choice":
                         result = await service.submit_choice(
                             session, simulation, scenario, data.get("choice_id", "")

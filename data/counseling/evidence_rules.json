@@ -1,0 +1,132 @@
+{
+  "scale": "0-100 (PR#7 라이브 게이트는 현재 이 스케일을 직접 소비하지 않음 — adapter가 변환. §counseling_process.md 참고)",
+  "principles": [
+    "구체적 행동 사례(behavior_example)가 있는 진술은 강한 근거로 취급한다.",
+    "결과와 이유가 함께 제시되면 신뢰도를 가산한다.",
+    "막연한 자기평가('그냥 잘하는 것 같아요')는 중간 신뢰도로 취급하고 후속 질문을 유도한다.",
+    "가정형 답변('그런 상황이면 아마...')은 약한 근거로 취급한다.",
+    "LLM이 대화에서 간접 추론한 내용은 반드시 '가설'로만 저장하고 확정 값으로 승격하지 않는다.",
+    "사용자가 직접 확인/수정한 내용은 강한 근거로 취급한다.",
+    "미션 수행 중 관찰된 행동은 대화 근거와 분리된 별도 source_type으로 저장한다.",
+    "상반된 근거가 나오면 기존 근거를 삭제하지 않고 두 근거를 모두 보존한다(모순 표시만 추가)."
+  ],
+  "rules": [
+    {
+      "rule_id": "EV-CONV-EXPLICIT-001",
+      "source_type": "conversation_explicit",
+      "base_confidence": 60,
+      "required_elements": [
+        "behavior_example"
+      ],
+      "confidence_bonus": [
+        {
+          "when": "reason_included",
+          "amount": 15
+        },
+        {
+          "when": "specific_outcome_included",
+          "amount": 10
+        }
+      ],
+      "confidence_penalty": [
+        {
+          "when": "hypothetical_phrasing",
+          "amount": -20
+        },
+        {
+          "when": "single_word_answer",
+          "amount": -15
+        }
+      ]
+    },
+    {
+      "rule_id": "EV-CONV-INFERRED-001",
+      "source_type": "conversation_inferred",
+      "base_confidence": 30,
+      "required_elements": [],
+      "confidence_bonus": [
+        {
+          "when": "consistent_with_prior_evidence",
+          "amount": 10
+        }
+      ],
+      "confidence_penalty": [
+        {
+          "when": "vague_self_assessment",
+          "amount": -10
+        },
+        {
+          "when": "contradicts_prior_evidence",
+          "amount": -15
+        }
+      ]
+    },
+    {
+      "rule_id": "EV-USER-CONFIRMED-001",
+      "source_type": "user_confirmed",
+      "base_confidence": 85,
+      "required_elements": [
+        "user_explicit_confirmation"
+      ],
+      "confidence_bonus": [
+        {
+          "when": "user_added_detail_on_confirm",
+          "amount": 5
+        }
+      ],
+      "confidence_penalty": [
+        {
+          "when": "user_partially_disagreed",
+          "amount": -25
+        }
+      ]
+    },
+    {
+      "rule_id": "EV-OFFICIAL-001",
+      "source_type": "official_assessment",
+      "base_confidence": 90,
+      "required_elements": [
+        "assessment_name",
+        "result_summary_from_user"
+      ],
+      "confidence_bonus": [],
+      "confidence_penalty": [
+        {
+          "when": "user_unsure_of_result_details",
+          "amount": -20
+        }
+      ]
+    },
+    {
+      "rule_id": "EV-MISSION-OBS-001",
+      "source_type": "mission_observation",
+      "base_confidence": 50,
+      "required_elements": [
+        "mission_code",
+        "situation_outcome"
+      ],
+      "confidence_bonus": [
+        {
+          "when": "repeated_across_missions",
+          "amount": 10
+        }
+      ],
+      "confidence_penalty": [
+        {
+          "when": "single_mission_only",
+          "amount": -10
+        }
+      ]
+    },
+    {
+      "rule_id": "EV-MANUAL-001",
+      "source_type": "manual_input",
+      "base_confidence": 70,
+      "required_elements": [
+        "field_name"
+      ],
+      "confidence_bonus": [],
+      "confidence_penalty": []
+    }
+  ]
+}
