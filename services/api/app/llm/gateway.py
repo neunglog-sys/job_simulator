@@ -24,7 +24,8 @@ def _select_provider() -> LLMProvider:
 
     has_key = {
         "openai": bool(settings.openai_api_key),
-        "gemini": bool(settings.gemini_api_key),
+        # Vertex 모드는 api_key 대신 서비스계정으로 인증 → gemini 사용 가능으로 간주
+        "gemini": bool(settings.gemini_api_key) or settings.google_genai_use_vertexai,
     }
     choice = settings.llm_provider
     if choice != "mock" and not has_key.get(choice, False):
@@ -50,12 +51,12 @@ def _select_embedding_provider() -> LLMProvider:
     OpenAI 임베딩과 벡터 공간이 다르므로 섞으면 안 됨 — 코퍼스·질의 모두 Gemini로
     통일하고, 프로바이더 전환 시에는 반드시 재임베딩한다(load_research).
     """
-    if settings.gemini_api_key:
+    if settings.gemini_api_key or settings.google_genai_use_vertexai:
         from app.llm.providers.gemini_provider import GeminiProvider
         return GeminiProvider()
     from app.llm.providers.mock_provider import MockProvider
     logger.warning(
-        "GEMINI_API_KEY 없음 → 임베딩 mock 사용 (검색 순위 무의미). 키 설정 후 재임베딩 필요."
+        "GEMINI 인증(API키 또는 Vertex) 없음 → 임베딩 mock 사용 (검색 순위 무의미)."
     )
     return MockProvider()
 

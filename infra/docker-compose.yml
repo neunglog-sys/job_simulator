@@ -17,6 +17,7 @@ services:
     volumes:
       - ../data:/app/data:ro
       - ../storage:/app/storage
+      - ../secrets:/app/secrets:ro  # GCP 서비스계정 JSON(Vertex AI)용 — 없으면 빈 디렉토리(무해)
     depends_on:
       redis:
         condition: service_healthy
