@@ -2,7 +2,7 @@
 
 import logging
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -68,6 +68,16 @@ async def seed_content(session: AsyncSession) -> None:
         scenario_id = (
             await session.execute(select(Scenario.id).where(Scenario.slug == sc["slug"]))
         ).scalar_one()
+
+        # YAML에서 사라진(이름 변경·삭제된) 페르소나는 제거 — build 경로처럼 roster를 교체.
+        # (upsert만 하면 stale 페르소나가 영구 잔존하고, step이 옛 이름을 참조하면 404)
+        current_names = [npc["name"] for npc in sc["npcs"]]
+        await session.execute(
+            delete(NpcPersona).where(
+                NpcPersona.scenario_id == scenario_id,
+                NpcPersona.name.notin_(current_names),
+            )
+        )
 
         for npc in sc["npcs"]:
             stmt = insert(NpcPersona).values(

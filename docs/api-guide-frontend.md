@@ -87,7 +87,7 @@ GET /api/scenarios
 
 ```
 POST /api/simulations  {scenario_slug}  → 시뮬레이션 생성 (아래 응답 구조)
-WS   /ws/simulations/{id}?user_id=<선택>
+WS   /ws/simulations/{id}?token=<JWT>   (WS는 헤더 불가라 토큰을 쿼리로. 없으면 데모 사용자)
 GET  /api/simulations/{id}              → 상태 복원 (새로고침 대응)
 POST /api/simulations/{id}/finish       → 중도 포기 (aborted 처리)
 ```

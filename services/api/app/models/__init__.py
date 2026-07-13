@@ -61,7 +61,7 @@ class Message(TimestampMixin, Base):
     simulation_id: Mapped[int | None] = mapped_column(
         ForeignKey("simulations.id"), index=True
     )
-    role: Mapped[str] = mapped_column(String(16))  # user|assistant|npc:{name}
+    role: Mapped[str] = mapped_column(String(64))  # user|assistant|npc:{name} (이름 길이 여유)
     content: Mapped[str] = mapped_column(EncryptedText)  # 대화 내용 (암호화)
 
 

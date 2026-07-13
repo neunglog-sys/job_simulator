@@ -20,7 +20,7 @@ from app.domains.consultation.service import get_owned_consultation, list_messag
 from app.llm import get_llm
 from app.llm.base import ChatMessage
 from app.llm.prompts import render_prompt
-from app.models import Consultation, Job, Recommendation, User
+from app.models import Consultation, Job, Recommendation, Scenario, User
 
 logger = logging.getLogger(__name__)
 
@@ -186,14 +186,19 @@ async def create_recommendation(
         jobs, key=lambda j: _score_job(j, scores, interest_profile), reverse=True
     )[:TOP_N]
     scenario_map = load_job_scenario_map()  # 적성 → 체험 연결: 추천 직무의 근접 시나리오
+    # 매핑 slug가 실제 존재하는 시나리오인지 확인 — 시나리오 rename/삭제로 map이 뒤처지면
+    # '바로 체험하기'가 404 나거나 stale slug가 추천에 박제되므로, 존재하는 것만 남긴다.
+    live_slugs = set((await session.execute(select(Scenario.slug))).scalars())
     results = [
         {
             "job_code": job.code,
             "job_title": job.title,
             "score": _score_job(job, scores, interest_profile),
             "reason": _build_reason(job, scores, names, interest_profile),
-            # 프론트 '바로 체험하기' 버튼용 — 매핑 없으면 null (버튼 숨김)
-            "scenario_slug": scenario_map.get(job.code),
+            # 프론트 '바로 체험하기' 버튼용 — 매핑 없거나 시나리오 부재면 null (버튼 숨김)
+            "scenario_slug": (
+                slug if (slug := scenario_map.get(job.code)) in live_slugs else None
+            ),
         }
         for job in ranked
     ]

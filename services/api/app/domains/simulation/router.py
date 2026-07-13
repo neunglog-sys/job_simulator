@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import SessionFactory, get_session
-from app.core.deps import get_current_user, get_or_create_demo_user
+from app.core.deps import get_current_user, resolve_user
 from app.domains.scoring import aggregate
 from app.domains.simulation import service
 from app.domains.simulation.schemas import SimulationCreate, SimulationOut
@@ -117,20 +117,12 @@ async def get_score(
     return {**score, "percentile": percentile}
 
 
-async def _ws_user(session: AsyncSession, user_id: int | None) -> User:
-    """WS용 사용자 조회 — 쿼리 파라미터 user_id, 없으면 데모 사용자 (deps와 동일 정책)."""
-    if user_id is not None:
-        user = await session.get(User, user_id)
-        if user is None:
-            raise HTTPException(status_code=401, detail="존재하지 않는 사용자")
-        return user
-    return await get_or_create_demo_user(session)
-
-
 @router.websocket("/ws/simulations/{simulation_id}")
-async def simulation_ws(websocket: WebSocket, simulation_id: int, user_id: int | None = None):
+async def simulation_ws(websocket: WebSocket, simulation_id: int, token: str | None = None):
     """NPC 자유 대화 + 선택지 제출 채널.
 
+    인증: 쿼리스트링 ?token=<JWT> (WS는 헤더 불가). 없으면 데모 사용자. 원시 user_id는
+    더 이상 받지 않는다 — 토큰 없이 임의 사용자 사칭이 가능했기 때문 (deps.resolve_user 공유).
     수신: {"type":"chat","npc":"김민지","content":"..."} | {"type":"choice","choice_id":"..."}
     송신: {"type":"session"...} → {"type":"token"...}* → {"type":"npc_reply"...}
           / {"type":"state_updated"...} / {"type":"step_changed"...} / {"type":"error"...}
@@ -138,7 +130,7 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, user_id: int |
     await websocket.accept()
     try:
         async with SessionFactory() as session:
-            user = await _ws_user(session, user_id)
+            user = await resolve_user(session, token=token)
             simulation, scenario = await service.get_owned_simulation(
                 session, simulation_id, user
             )

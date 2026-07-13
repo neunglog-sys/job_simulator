@@ -153,6 +153,35 @@ def test_grade_rejects_invalid_keys():
         grade_structured(task, "a,b")  # 단일 선택에 복수 제출 — 조용한 0점 대신 400
 
 
+def test_grade_malformed_task_raises_500_not_dead_end():
+    # 보기·정답 누락(손상 과제)은 무한 400 dead-end 대신 서버오류로 시끄럽게
+    import pytest
+    from fastapi import HTTPException
+    broken = {"kind": "choice", "pass_score": 70, "criteria": ["판단"],
+              "options": [], "answer": {}}
+    with pytest.raises(HTTPException) as ei:
+        grade_structured(broken, "a")
+    assert ei.value.status_code == 500
+
+
+def test_public_state_masks_pending_quest():
+    from app.domains.simulation.service import public_state
+    masked = public_state({"step": "m1", "quest": {"status": "pending", "attempts": 0}})
+    assert masked["quest"]["status"] == "none"  # 미발동 퀘스트 존재를 숨김
+    # 발동 후(active)는 재접속 UX 위해 노출
+    active = public_state({"step": "m1", "quest": {"status": "active", "attempts": 1}})
+    assert active["quest"]["status"] == "active"
+
+
+def test_resolve_step_heals_dangling_step():
+    from types import SimpleNamespace
+    from app.domains.simulation.service import _resolve_step
+    scenario = SimpleNamespace(slug="x", steps=[{"id": "m1", "title": "t", "mission": "m"}])
+    state = {"step": "m9"}  # 재생성으로 사라진 스텝
+    step = _resolve_step(scenario, state)
+    assert step["id"] == "m1" and state["step"] == "m1"  # 첫 스텝으로 복구
+
+
 def test_validate_task_rejects_single_item_order():
     # 항목 1개짜리 order는 비교쌍이 없어 항상 0점 — 손편집 실수를 로드 시점에 차단
     import pytest

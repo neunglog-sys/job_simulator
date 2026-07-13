@@ -30,7 +30,9 @@ def load_jobs() -> list[dict]:
     return jobs
 
 
-RULE_TASK_KINDS = {"choice", "checklist", "order"}  # scoring.RULE_KINDS와 동일 (임포트 순환 방지)
+# 룰(결정적) 채점 과제 종류의 단일 정의처 — scoring.grade_structured가 여기서 임포트.
+# (content/loader는 app.core.config만 의존하는 경량 모듈이라 순환 없음)
+RULE_KINDS = {"choice", "checklist", "order"}
 
 
 def _validate_task(task: dict, where: str) -> None:
@@ -38,7 +40,7 @@ def _validate_task(task: dict, where: str) -> None:
     kind = task.get("kind", "write")
     if kind == "write":
         return
-    if kind not in RULE_TASK_KINDS:
+    if kind not in RULE_KINDS:
         raise ValueError(f"{where}: 알 수 없는 task kind '{kind}'")
     options = task.get("options") or []
     keys = [o.get("key") for o in options]
@@ -65,7 +67,16 @@ def validate_scenario(doc: dict, source: str) -> None:
     if missing:
         raise ValueError(f"{source}: 필수 키 누락 {missing}")
     step_ids = {s["id"] for s in doc["steps"]}
+    npc_names = {n["name"] for n in doc.get("npcs", [])}
     for step in doc["steps"]:
+        # 엔진이 하드 인덱싱하는 키 — 없으면 런타임에 KeyError로 500 나므로 로드 시점에 차단
+        step_missing = {"id", "title", "mission"} - step.keys()
+        if step_missing:
+            raise ValueError(f"{source}: step '{step.get('id', '?')}' 필수 키 누락 {step_missing}")
+        # 스텝 NPC는 페르소나 목록에 있어야 대화 가능 — 손편집 rename 시 404 dead-end 방지
+        bad_npcs = [n for n in step.get("npcs", []) if n not in npc_names]
+        if bad_npcs:
+            raise ValueError(f"{source}: step '{step['id']}'의 NPC {bad_npcs}의 페르소나 없음")
         for tr in step.get("transitions", []):
             if tr["to"] not in step_ids:
                 raise ValueError(
@@ -97,7 +108,6 @@ def validate_scenario(doc: dict, source: str) -> None:
         if qt_missing:
             raise ValueError(f"{source}: sudden_quest.task 필수 키 누락 {qt_missing}")
         _validate_task(quest["task"], f"{source}: sudden_quest")
-        npc_names = {n["name"] for n in doc["npcs"]}
         if quest["npc"] not in npc_names:
             raise ValueError(f"{source}: sudden_quest NPC '{quest['npc']}'의 페르소나 없음")
 
