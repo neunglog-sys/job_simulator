@@ -194,9 +194,10 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 과학·기술 조사분석 · 기본 판단 업무
-  - 과학·기술 조사분석 · 결과 보고·인계
-  - 과학·기술 조사분석 · 오류·위험 검증
+  - 문헌검토표
+  - 가설·검증안
+  - 연구보고서
+  - 데이터·코드 패키지
   appearance:
     location: null
     available_steps:
@@ -307,7 +308,8 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 과학·기술 조사분석 · 필수 자료 누락 대응
+  - 시료점검표
+  - 사용보류 목록
   appearance:
     location: null
     available_steps:
@@ -330,7 +332,8 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 과학·기술 조사분석 · 업무 우선순위 조정
+  - 실험 우선순위표
+  - 예약조정안
   appearance:
     location: null
     available_steps:

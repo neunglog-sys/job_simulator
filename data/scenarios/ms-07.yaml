@@ -194,8 +194,10 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 수량·신선도·유통기한·보관온도를 확인하고 조리순서에 맞춰 준비한다
-  - 마감·조리시간·설비공유·품질유지시간을 고려해 병렬작업을 계획한다
+  - 식재료 준비표
+  - 검수기록
+  - 조리순서표
+  - 역할분담표
   appearance:
     location: null
     available_steps:
@@ -219,7 +221,8 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 조리를 시작하지 않고 알레르기 종류를 재확인해 안전한 대체안을 준비한다
+  - 알레르기 확인표
+  - 대체메뉴안
   appearance:
     location: null
     available_steps:
@@ -263,7 +266,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 영향범위를 격리하고 제공을 중단한 뒤 원인조사와 재제조 여부를 결정한다
+  - 이물사고 기록
+  - 폐기·재제조 결정표
   appearance:
     location: null
     available_steps:
@@ -288,7 +292,7 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 선입선출 기준으로 우선사용 재료와 폐기·해동·준비사항을 정리한다
+  - 주방인계표
   appearance:
     location: null
     available_steps:

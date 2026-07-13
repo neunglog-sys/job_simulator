@@ -203,8 +203,10 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - '출무 신고부터 차량 인수까지 점검 항목을 올바른 순서로 완수하고, 임시 '
-  - 비상정차 직후 돌발 4단계(인지·판단 → 초동 안전조치 → 보고·협조 →
+  - 출무 점검 체크리스트 완수본
+  - 서행구간 확인 메모
+  - 돌발대응 분기 선택 기록(조치 시각 포함)
+  - 관제 보고문
   appearance:
     location: null
     available_steps:
@@ -230,7 +232,8 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - '정시성 압박 속에서 미완료 항목의 처리 우선순위를 배열하고, ''제동시험 '
+  - 우선순위 배열표(근거 규정 포함)
+  - 관제 지연 보고문
   appearance:
     location: null
     available_steps:
@@ -253,7 +256,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - '운전명령서를 전일 승무일지·관제 통보와 대조해 누락된 임시 서행 명령을 '
+  - 누락 명령 질의 메모
+  - 정정된 서행구간 확인표
   appearance:
     location: null
     available_steps:
@@ -297,7 +301,9 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 흩어진 기록을 6하원칙으로 재구성해 승무일지·이례상황 보고서를 작성하고,
+  - 승무일지 기재분
+  - 이례상황 보고서
+  - 정비 의뢰서
   appearance:
     location: null
     available_steps:

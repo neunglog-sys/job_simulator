@@ -194,8 +194,10 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 회의 목적·시간·장소·참석자·필요자료를 확인하고 준비상태를 점검한다
-  - 잘못된 수신범위·구버전 첨부·개인정보 포함 여부를 확인하고 발송을 보류한
+  - 회의준비 체크리스트
+  - 안내메시지
+  - 발송검수표
+  - 수정메일
   appearance:
     location: null
     available_steps:
@@ -263,7 +265,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 수신처·시행일·근거·붙임·담당연락처 누락을 찾아 보완 요청한다
+  - 공문검수표
+  - 보완요청
   appearance:
     location: null
     available_steps:
@@ -286,7 +289,8 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 긴급도·중요도·대체가능성을 비교해 직접 처리와 협조 요청을 나눈다
+  - 우선순위표
+  - 협조요청안
   appearance:
     location: null
     available_steps:
@@ -309,7 +313,7 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 완료·결재중·보완대기·미착수로 구분하고 다음 행동을 정리한다
+  - 업무인계표
   appearance:
     location: null
     available_steps:

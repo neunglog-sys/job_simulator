@@ -194,9 +194,10 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 서비스·상품·사업기획 보조 · 기본 판단 업무
-  - 서비스·상품·사업기획 보조 · 결과 보고·인계
-  - 서비스·상품·사업기획 보조 · 오류·위험 검증
+  - 문제정의서
+  - 개선안
+  - KPI 초안
+  - 기획서
   appearance:
     location: null
     available_steps:
@@ -223,7 +224,9 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 서비스·상품·사업기획 보조 · 필수 자료 누락 대응
+  - 상품검토표
+  - 보완 요청
+  - 임시 후보군
   appearance:
     location: null
     available_steps:
@@ -309,7 +312,9 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 서비스·상품·사업기획 보조 · 업무 우선순위 조정
+  - 우선순위표
+  - 스프린트 제안
+  - 제외근거
   appearance:
     location: null
     available_steps:

@@ -195,7 +195,8 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 선행·후행관계와 재작업 위험, 안전동선을 기준으로 공종순서를 정한다
+  - 공종조정표
+  - 간섭도
   appearance:
     location: null
     available_steps:
@@ -239,7 +240,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 작업을 중지하고 구역을 통제해 배관 종류와 도면 불일치를 확인한다
+  - 위험발견 보고서
+  - 작업재개 승인요청
   appearance:
     location: null
     available_steps:
@@ -285,7 +287,7 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 위치·치수·자재·작업범위·선행공정 완료 여부와 위험요인을 확인한다
+  - 시공준비 체크표
   appearance:
     location: null
     available_steps:
@@ -308,7 +310,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 공식 변경승인과 최신도면을 확인할 때까지 영향구간 작업을 보류한다
+  - 작업보류표
+  - 변경도면 요청
   appearance:
     location: null
     available_steps:
@@ -331,7 +334,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 도면대비 시공결과·시험합격·미완료 보수·운전주의사항을 정리한다
+  - 준공검사표
+  - 변경·운영 인계서
   appearance:
     location: null
     available_steps:

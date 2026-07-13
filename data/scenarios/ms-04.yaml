@@ -195,8 +195,10 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 품목·수량·주소·차량·상차시간을 대조하고 출고 가능 여부를 표시한다
-  - 납기위약·운임·화물특성·대체시간을 비교해 작업순서를 정한다
+  - 출고체크표
+  - 배차확인표
+  - 배치계획표
+  - 비용·위험 비교표
   appearance:
     location: null
     available_steps:
@@ -304,7 +306,8 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 품명·수량·중량·금액·거래조건을 문서 간 대조한다
+  - 서류불일치표
+  - 보완요청 메일
   appearance:
     location: null
     available_steps:
@@ -327,7 +330,8 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 보류사유와 필요한 자료를 확인해 전문담당자 검토용 패킷을 만든다
+  - 통관보류 대응표
+  - 자료패킷
   appearance:
     location: null
     available_steps:
@@ -352,7 +356,8 @@ npcs:
   - 아니 그게 무슨 말이에요?
   - 빨리 좀 처리해줘요.
   responsibilities:
-  - 확정사실·예상시간·대체안·다음 업데이트 시점을 구분해 전달한다
+  - 지연보고 메시지
+  - 대체운송안
   appearance:
     location: null
     available_steps:

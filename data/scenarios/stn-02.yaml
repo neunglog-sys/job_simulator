@@ -215,7 +215,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 행사·전시·콘텐츠 기획 · 업무 우선순위 조정
+  - 조정된 런시트
+  - 협조 요청안
   appearance:
     location: null
     available_steps:
@@ -322,7 +323,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 행사·전시·콘텐츠 기획 · 기본 판단 업무
+  - 전시 구성안
+  - 동선 초안
   appearance:
     location: null
     available_steps:
@@ -345,8 +347,10 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 행사·전시·콘텐츠 기획 · 필수 자료 누락 대응
-  - 행사·전시·콘텐츠 기획 · 결과 보고·인계
+  - 현장답사 체크리스트
+  - 확인질문
+  - 결과보고서
+  - 정산체크표
   appearance:
     location: null
     available_steps:
@@ -370,7 +374,9 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 행사·전시·콘텐츠 기획 · 오류·위험 검증
+  - 최종점검표
+  - 보완요청
+  - 개장 승인요청
   appearance:
     location: null
     available_steps:

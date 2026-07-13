@@ -356,10 +356,15 @@ def build_task(m: TeamMission) -> dict:
     return task
 
 
-def _short_duty(mission: str | None) -> str:
-    """미션 문장 → 담당업무 한 줄 (첫 절, 40자)."""
-    text = re.split(r"[.\n]", mission or "")[0].strip()
-    return text[:40]
+def _duties_of(m: TeamMission) -> list[str]:
+    """미션 → 담당업무 목록 (짧은 명사구). 조사의 산출물(outputs)이 이미 깔끔한 구라 우선 사용.
+
+    산출물이 없으면 미션 첫 절을 문장 경계에서 자른다 (중간 잘림 방지).
+    """
+    if m.outputs:
+        return [d for d in split_npc_list(m.outputs) if d][:3]  # 괄호 안 콤마로 안 쪼개짐
+    clause = re.split(r"[.\n,]", m.mission or "")[0].strip()
+    return [clause] if clause else []
 
 
 def mission_to_step(m: TeamMission, step_id: str, npc_by_key: dict) -> dict:
@@ -421,11 +426,6 @@ def build_scenario_doc(
             npc_by_key[_match_key(ARCHETYPES[arch_key]["fallback_role"])] = entry
             roster.append(entry)
 
-    # 이스터에그 — 각 담당 첫 시나리오의 사수(mentor) NPC에 팀원 이름 (없으면 첫 NPC)
-    if slug in EASTER_EGG:
-        target = next((e for e in roster if e["_arch"] == "mentor"), roster[0])
-        target["name"] = EASTER_EGG[slug]
-
     steps = [mission_to_step(m, f"m{i}", npc_by_key) for i, m in enumerate(daily, 1)]
     for i, step in enumerate(steps):
         step["task"]["on_pass"] = steps[i + 1]["id"] if i + 1 < len(steps) else "__end__"
@@ -454,10 +454,18 @@ def build_scenario_doc(
             appears.setdefault(nid, []).append(step["id"])
     if quest:
         appears.setdefault(quest["npc"], []).append("quest")
+
+    # 이스터에그 — 각 담당 첫 시나리오에서 실제로 등장하는(만날 수 있는) 사수 NPC에 팀원 이름
+    if slug in EASTER_EGG:
+        reachable = [e for e in roster if appears.get(e["npc_id"])]
+        target = next((e for e in reachable if e["_arch"] == "mentor"), None) \
+            or (reachable[0] if reachable else roster[0])
+        target["name"] = EASTER_EGG[slug]
+
     for e in roster:
         step_ids = appears.get(e["npc_id"], [])
-        duties = [_short_duty(step_mission[s].mission) for s in step_ids if s in step_mission]
-        e["responsibilities"] = list(dict.fromkeys(d for d in duties if d))[:4]
+        duties = [d for s in step_ids if s in step_mission for d in _duties_of(step_mission[s])]
+        e["responsibilities"] = list(dict.fromkeys(duties))[:4]  # 중복 제거, 최대 4개
         e["appearance"] = {"location": None, "available_steps": step_ids}
         if quest and e["npc_id"] == quest["npc"]:
             e["appearance"]["conditions"] = ["quest_started"]

@@ -194,7 +194,7 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 생물 안전·작업자 안전·약제조건을 비교해 급수·차광·방역 순서를 정한다
+  - 폭염대응 작업표
   appearance:
     location: null
     available_steps:
@@ -217,7 +217,7 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 환경값과 개체 행동·섭취상태를 확인하고 급이 가능 여부를 표시한다
+  - 환경·개체 점검표
   appearance:
     location: null
     available_steps:
@@ -261,7 +261,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 로그 누락인지 실제 미관수인지 센서·토양·설비 상태로 교차확인한다
+  - 관수확인표
+  - 조치보고
   appearance:
     location: null
     available_steps:
@@ -284,7 +285,8 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 실제 환경위험을 확인하고 비상환기·구역보호·설비담당 호출을 수행한다
+  - 비상조치 기록
+  - 설비장애 보고
   appearance:
     location: null
     available_steps:
@@ -309,7 +311,7 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 개체별 상태·금지행동·재확인 시각과 설비 위험을 인계한다
+  - 교대인계서
   appearance:
     location: null
     available_steps:

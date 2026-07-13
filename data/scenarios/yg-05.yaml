@@ -199,8 +199,10 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 속보·예약 게시 3건·생방송 큐 변경 요청을 마감·영향도·검증 상태·승인
-  - '당일 정정·운영 이슈를 수정 사유·범위·버전·재발 방지 기준으로 요약한 '
+  - 우선순위 조정안
+  - 변경된 콘텐츠 캘린더(안)
+  - 보고 메모
+  - 인계서(변경 이력 요약)
   appearance:
     location: null
     available_steps:
@@ -226,7 +228,9 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 기사 초안의 사실 주장 문장별로 출처를 대조해 출처 누락·단일 출처·수치
+  - 검증 기록(문장별 출처 매칭표)
+  - 제외·오류 목록
+  - 확인 질문 목록
   appearance:
     location: null
     available_steps:
@@ -270,7 +274,9 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 샘플 라벨 30건을 라벨링 가이드와 대조해 합격·불합격을 판정하고 불일치
+  - QA 결과(합격·불합격 판정표)
+  - 제외·오류 목록
+  - 라벨 일치도 요약
   appearance:
     location: null
     available_steps:
@@ -314,7 +320,9 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 게시 직전 콘텐츠에서 저작권 미확인 이미지와 인터뷰이 개인정보(전화번호)
+  - 게시 전 점검 결과(위험 목록)
+  - 보류·수정 요청 기록
+  - 백업 확인 기록
   appearance:
     location: null
     available_steps:

@@ -200,7 +200,8 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 요구사항 명세와 데이터 명세·장비 규격을 대조해 누락된 라벨 기준과 센서
+  - 요구사항 확인 결과서(누락·모순 표시)
+  - 담당자별 질문 목록
   appearance:
     location: null
     available_steps:
@@ -223,7 +224,8 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 학습 완료 모델의 평가표를 SLA 기준 수치와 항목별로 대조해 통과·미달
+  - 항목별 판정 체크리스트(분석모델 확인 결과)
+  - 미달 항목 원인 메모
   appearance:
     location: null
     available_steps:
@@ -246,8 +248,10 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 드리프트 경고 확인·펌웨어 테스트·주간 보고·신규 문의 대응 네 가지 업
-  - 야간 서버 지연 장애의 접수부터 복구까지를 원인·영향·조치로 구분해 요약
+  - 우선순위 배열 보고서(근거 포함)
+  - 드리프트 경고 1차 확인 기록
+  - 장애·사고 기록(타임라인)
+  - RCA 요약
   appearance:
     location: null
     available_steps:
@@ -273,7 +277,9 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 배포 전 점검 중 학습 데이터의 개인정보 노출과 백업 없는 모델 덮어쓰기
+  - 배포 전 점검 체크리스트 수행 기록
+  - 결함·위험 목록(개인정보 노출·롤백 부재)
+  - 사고 보고서 초안
   appearance:
     location: null
     available_steps:

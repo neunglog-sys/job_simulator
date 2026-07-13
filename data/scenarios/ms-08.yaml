@@ -195,7 +195,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 안전하게 중단 가능한 지점·소요시간·고객영향을 확인해 일정과 안내를 조정
+  - 일정조정표
+  - 고객안내 문구
   appearance:
     location: null
     available_steps:
@@ -218,7 +219,7 @@ npcs:
   - 아니 그게 무슨 말이에요?
   - 빨리 좀 처리해줘요.
   responsibilities:
-  - 완료내용·주의사항·금지행동·이상 시 연락기준을 쉬운 말로 안내한다
+  - 사후관리 안내서
   appearance:
     location: null
     available_steps:
@@ -241,7 +242,8 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 작업을 중단하고 상태를 확인해 세척·안정·전문기관 안내 여부를 결정한다
+  - 이상반응 보고서
+  - 사후안내
   appearance:
     location: null
     available_steps:
@@ -266,7 +268,8 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 희망결과·과거시술·알레르기·피부/행동상태를 확인하고 동의를 받는다
+  - 상담·동의서
+  - 서비스 계획
   appearance:
     location: null
     available_steps:
@@ -289,7 +292,8 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 미기재 정보를 확인하고 현재 행동상태를 관찰해 서비스 가능 여부를 판단한
+  - 사전상태 기록
+  - 보호자동의
   appearance:
     location: null
     available_steps:

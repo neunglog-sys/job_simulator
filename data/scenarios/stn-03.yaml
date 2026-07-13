@@ -194,9 +194,10 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 데이터·CRM·매출 분석 · 업무 우선순위 조정
-  - 데이터·CRM·매출 분석 · 결과 보고·인계
-  - 데이터·CRM·매출 분석 · 오류·위험 검증
+  - 우선순위표
+  - 분석 일정안
+  - 인사이트 보고서
+  - 재현패키지
   appearance:
     location: null
     available_steps:
@@ -265,7 +266,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 데이터·CRM·매출 분석 · 필수 자료 누락 대응
+  - 데이터 품질표
+  - 결합 전 확인질문
   appearance:
     location: null
     available_steps:
@@ -309,7 +311,8 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 데이터·CRM·매출 분석 · 기본 판단 업무
+  - 고객군별 재구매 분석표
+  - 인사이트 3개
   appearance:
     location: null
     available_steps:

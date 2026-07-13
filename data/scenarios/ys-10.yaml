@@ -202,9 +202,10 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 일지와 경보이력을 대조해 누락·불일치 항목을 찾아내고, 임의로 채우지 말
-  - '당일 결과를 완료/진행중/미결·주의 구조로 요약해 교대 인수인계 일지를 '
-  - 수배전반·냉각펌프·비상발전기 등 6개 설비를 점검순서대로 돌며 전압·전류
+  - 누락·불일치 항목 목록+질문 목록
+  - 정비요청서 초안
+  - 교대 인수인계 일지
+  - 브리핑 요약
   appearance:
     location: null
     available_steps:
@@ -231,7 +232,8 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 4건을 안전위험·설비영향·긴급도 기준으로 배열하고, 뒤로 미룬 요청의 담
+  - 우선순위 배열표(근거 포함)
+  - 지연 통보·보고 메모
   appearance:
     location: null
     available_steps:
@@ -254,7 +256,8 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 현장에서 작업허가서 미게시와 차단기 미차단(검전 결과 활선) 상태를 확인
+  - 안전확인 체크리스트
+  - 작업중지·조치 보고 기록
   appearance:
     location: null
     available_steps:
@@ -298,7 +301,8 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - '당일 결과를 완료/진행중/미결·주의 구조로 요약해 교대 인수인계 일지를 '
+  - 교대 인수인계 일지
+  - 브리핑 요약
   appearance:
     location: null
     available_steps:

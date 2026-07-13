@@ -204,8 +204,10 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - '근무명령을 확인하고 장비점검표를 완성한 뒤 격식에 맞게 근무투입 신고를 '
-  - 4건의 상황을 인명·경계·보고·행정 기준으로 우선순위를 배열하고 각 건의
+  - 완료된 장비점검표
+  - 투입신고 문구(초소·시간·이상유무 포함)
+  - 우선순위 배열표(1~4순위+근거)
+  - 구두보고 문안
   appearance:
     location: null
     available_steps:
@@ -229,7 +231,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 야간 초소에서 접근하는 미상 인원에 대해 수하 절차를 단계 순서대로 수행
+  - 수하 단계별 수행 선택 기록
+  - 육하원칙 무전보고 문안
   appearance:
     location: null
     available_steps:
@@ -254,7 +257,9 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 근무 중 특이사항 3건을 육하원칙으로 상황일지에 요약 기록하고 교대자 인
+  - 상황일지 기록 3건
+  - 인수인계 서명
+  - 장비 반납 대장 기재
   appearance:
     location: null
     available_steps:
@@ -298,7 +303,9 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - '전일 상황일지와 무전 메모를 시간순 대조해 누락 기록 3건을 찾아내고, '
+  - 누락항목 목록(3건)
+  - 확인 질문 기록
+  - 정정 사유가 명시된 상황일지
   appearance:
     location: null
     available_steps:

@@ -194,8 +194,9 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 재질·치수·공차·이음형상·작업조건과 보호구·장비상태를 확인한다
-  - 안전·셋업변경·납기·검사시간을 비교해 순서와 전환점검을 계획한다
+  - 작업준비 체크표
+  - 작업배치표
+  - 전환점검표
   appearance:
     location: null
     available_steps:
@@ -219,8 +220,10 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 최신 검사기준 존재 여부를 확인하고 작업·검사를 보류해 문서를 요청한다
-  - 합격·보수·재검 항목을 기준과 대조하고 제품별 상태를 표시한다
+  - 문서누락 보고
+  - 기준서 요청
+  - 검사성적서
+  - 공정인계표
   appearance:
     location: null
     available_steps:
@@ -244,7 +247,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 작업을 중지하고 가스위험을 통제한 뒤 제품을 격리해 검사 요청한다
+  - 비상조치 기록
+  - 결함검사 요청
   appearance:
     location: null
     available_steps:

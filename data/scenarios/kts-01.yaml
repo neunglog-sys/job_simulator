@@ -181,7 +181,7 @@ sudden_quest:
     type: 오류·안전위험
 npcs:
 - npc_id: npc_kts-01_01
-  name: 정하윤
+  name: 김태수
   role: 원무팀장
   rank: 팀장
   personality:
@@ -198,9 +198,10 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 예약 명단과 신분을 대조해 5명을 구분 접수하고 초진 2명에게 문진표 작
-  - '대기 6명의 처리 순서를 응급·예약·접수순 기준으로 배열하고 순서 변경 '
-  - 당일 접수 기록을 정리하고 미결 2건의 사유·후속 조치를 명시한 인계 노
+  - 접수 완료 대장
+  - 문진표 안내 기록
+  - 우선순위 배열표(근거 포함)
+  - 대기 안내 문구
   appearance:
     location: null
     available_steps:
@@ -225,7 +226,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 문진표 3장에서 누락·모순 항목을 찾아 환자에게 정중히 보완 확인하고 간
+  - 보완 완료 문진표
+  - 누락 항목 목록
   appearance:
     location: null
     available_steps:
@@ -248,7 +250,8 @@ npcs:
   - 아니 그게 무슨 말이에요?
   - 빨리 좀 처리해줘요.
   responsibilities:
-  - 비급여 사전고지 누락 항의에 단계 매뉴얼로 대응하고 확인 결과에 따라 처
+  - 민원 대응 기록(시간·내용·조치)
+  - 인계 보고
   appearance:
     location: null
     available_steps:
@@ -256,7 +259,7 @@ npcs:
     conditions:
     - quest_started
 - npc_id: npc_kts-01_04
-  name: 김태수
+  name: 임우진
   role: 약사
   rank: null
   personality:

@@ -280,7 +280,8 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 거래일·금액·사용처를 대사하고 계정과목과 증빙상태를 기록한다
+  - 비용정산표
+  - 증빙누락 목록
   appearance:
     location: null
     available_steps:
@@ -303,7 +304,8 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 실제 거래 여부와 발급·수취 상태를 확인하고 거래처에 보완 요청한다
+  - 증빙확인표
+  - 거래처 요청메일
   appearance:
     location: null
     available_steps:
@@ -326,8 +328,10 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 지급기한·오류영향·승인 선행조건을 기준으로 업무를 분할하고 보고한다
-  - 완료금액·차이·미확인 원인·다음 조치를 수치와 함께 보고한다
+  - 처리계획표
+  - 중간보고 메시지
+  - 마감요약
+  - 미결항목표
   appearance:
     location: null
     available_steps:
@@ -351,7 +355,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 거래일·발주번호·공급내역을 비교해 중복지급 또는 정상 분할지급을 판단한다
+  - 중복검토표
+  - 지급보류 요청
   appearance:
     location: null
     available_steps:

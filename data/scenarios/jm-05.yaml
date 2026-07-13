@@ -209,8 +209,10 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - 크레인 작업 전 일상점검 체크리스트를 순서대로 수행하고, 각 항목의 정상
-  - 철골 인양 중 신호수 무전이 두절되는 돌발상황에서 대응 분기를 선택한다
+  - 완료된 점검 체크리스트
+  - 이상 항목 보고 문장(복명복창 형식)
+  - 돌발대응 분기 선택 결과(4단계)
+  - 돌발상황 보고서(시각·조치 포함)
   appearance:
     location: null
     available_steps:
@@ -236,7 +238,9 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 서류 4종을 교차 검토해 누락·불일치 3건(관제권 내인데 승인 공란, 계
+  - 누락·불일치 목록(3건)
+  - 팀장 확인 질문 3개
+  - 비행 가능/보류 판단 결과
   appearance:
     location: null
     available_steps:
@@ -280,7 +284,9 @@ npcs:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
   responsibilities:
-  - '하루 작업을 요약해 양중작업일지·돌발상황 보고서·인수인계서를 작성하고, '
+  - 양중작업일지
+  - 4단계 구조 돌발상황 보고서
+  - 인수인계서
   appearance:
     location: null
     available_steps:
@@ -303,7 +309,8 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - '잔여 작업 5건을 안전 기준으로 우선순위 배열하고, 순간풍속 15m/s '
+  - 우선순위 배열표(5건)
+  - 작업 중지 건의문(법 조항 근거 포함)
   appearance:
     location: null
     available_steps:

@@ -197,9 +197,10 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 오픈 체크리스트를 완료하고 입고 전표와 전산·실물 재고를 삼자 대조해 불
-  - '동시 발생 4건의 처리 순서를 원칙 기준으로 배열하고 지원 요청 여부를 '
-  - 정산 차액의 원인을 영수증·POS 대조로 찾아내고 마감 체크리스트와 인계
+  - 완료 체크리스트
+  - 재고 불일치 보고서
+  - 우선순위 배열표
+  - 처리·회신 기록
   appearance:
     location: null
     available_steps:
@@ -245,7 +246,8 @@ npcs:
   - 아니 그게 무슨 말이에요?
   - 빨리 좀 처리해줘요.
   responsibilities:
-  - 정보가 없는 선물 요청에서 질문으로 니즈(받는 분·상황·예산·취향)를 파
+  - 니즈 파악 메모
+  - 후보 상품 목록
   appearance:
     location: null
     available_steps:
@@ -268,7 +270,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 영수증 없는 개봉 상품 환불 요구에 규정 기반 대응을 하고 고성·위협 시
+  - 민원 대응 기록
+  - 인계 보고
   appearance:
     location: null
     available_steps:

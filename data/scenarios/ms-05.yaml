@@ -194,8 +194,10 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 자재·설비·납기를 확인해 생산순서와 검사시점을 배치한다
-  - 라인전환 손실·검사능력·기존고객 지연을 비교해 대안을 제시한다
+  - 생산계획표
+  - 검사계획표
+  - 변경영향표
+  - 생산순서 제안
   appearance:
     location: null
     available_steps:
@@ -240,7 +242,8 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 자재 로트와 요구 성적서를 확인하고 투입을 보류한 뒤 보완 요청한다
+  - 자재보류표
+  - 성적서 요청
   appearance:
     location: null
     available_steps:
@@ -284,7 +287,9 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 이상시점·공정·로트를 좁히고 부적합품을 격리하며 원인조사 계획을 세운다
+  - 부적합보고서
+  - 격리목록
+  - 조사계획
   appearance:
     location: null
     available_steps:
@@ -309,7 +314,7 @@ npcs:
   - 정확히 뭐가 필요하세요?
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
-  - 계획·실적 차이와 원인, 재공품 상태, 우선조치를 정리한다
+  - 교대인계표
   appearance:
     location: null
     available_steps:
