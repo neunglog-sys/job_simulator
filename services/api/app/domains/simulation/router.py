@@ -1,17 +1,38 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import SessionFactory, get_session
 from app.core.deps import get_current_user, get_or_create_demo_user
 from app.domains.simulation import service
 from app.domains.simulation.schemas import SimulationCreate, SimulationOut
-from app.models import User
+from app.models import Job, Scenario, User
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["simulation"])
+
+
+@router.get("/api/scenarios")
+async def list_scenarios(session: AsyncSession = Depends(get_session)):
+    """시나리오 목록 — 프론트 맵 화면용 (module로 배경 세트 선택).
+
+    필요한 컬럼만 조회 (steps 등 대형 JSONB 제외). 돌발 퀘스트 보유 여부는
+    서프라이즈 스포일러라 노출하지 않는다.
+    """
+    rows = (
+        await session.execute(
+            select(Scenario.slug, Scenario.title, Scenario.module, Job.code, Job.title)
+            .join(Job, Scenario.job_id == Job.id)
+            .order_by(Scenario.slug)
+        )
+    ).all()
+    return [
+        {"slug": slug, "title": title, "module": module, "job_code": code, "job_title": jtitle}
+        for slug, title, module, code, jtitle in rows
+    ]
 
 
 @router.post("/api/simulations", response_model=SimulationOut, status_code=201)
@@ -100,13 +121,23 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, user_id: int |
                         )
                         step_changed = result.pop("step_changed")
                         completed = result.pop("completed")
-                        await websocket.send_json({"type": "task_result", **result})
-                        if step_changed:
-                            await websocket.send_json(
-                                {"type": "step_changed", "step": step_changed}
-                            )
-                        if completed:
-                            await websocket.send_json({"type": "simulation_completed"})
+                        quest_fired = result.pop("sudden_quest")
+                        is_quest = result.pop("is_quest")
+                        if is_quest:
+                            # 단일 프레임 계약: quest_status가 passed/failed면 퀘스트 종료·본편 복귀
+                            await websocket.send_json({"type": "quest_result", **result})
+                        else:
+                            await websocket.send_json({"type": "task_result", **result})
+                            if step_changed:
+                                await websocket.send_json(
+                                    {"type": "step_changed", "step": step_changed}
+                                )
+                            if quest_fired:
+                                await websocket.send_json(
+                                    {"type": "sudden_quest", **quest_fired}
+                                )
+                            if completed:
+                                await websocket.send_json({"type": "simulation_completed"})
                     elif data.get("type") == "choice":
                         result = await service.submit_choice(
                             session, simulation, scenario, data.get("choice_id", "")

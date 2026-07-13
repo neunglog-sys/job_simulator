@@ -1,10 +1,12 @@
-"""가상 회사 직무 시뮬레이션 — 설계서 §6-② 루프.
+"""가상 회사 직무 시뮬레이션 — 하루 일과형 + 돌발 퀘스트.
 
 [자유 대화] NPC 페르소나 + 현재 상태값 → LLM 스트리밍 → scoring이 delta 평가
-[행동]     선택지 제출 → YAML effects 룰 적용
-→ 상태 갱신 → 전이 조건 충족 시 다음 스텝 → action_logs 적재
+[과제 제출] AI 채점 → 통과 시 다음 스텝 / 미달 시 힌트 3단계(조언 카드)
+[돌발 퀘스트] 스텝 전환 시 확률 발동(마지막 전환에서 미발동이면 강제) — 실패해도 진행 비차단
+→ 모든 행동 action_logs 적재 → 리포트 재료
 """
 
+import random
 from typing import AsyncIterator
 
 from fastapi import HTTPException
@@ -13,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.domains.scoring import service as scoring
+from app.domains.simulation import hints
 from app.domains.simulation import state_machine as sm
 from app.llm import get_llm
 from app.llm.base import ChatMessage
@@ -20,6 +23,7 @@ from app.llm.prompts import render_prompt
 from app.models import Message, NpcPersona, Scenario, Simulation, User
 
 MEMORY_TURNS = 20
+SCORING_TURNS = 40  # 채점 대화록 상한 — 하루 종일 대화해도 채점 프롬프트가 무한 성장하지 않게
 
 
 async def create_simulation(
@@ -31,7 +35,12 @@ async def create_simulation(
     if scenario is None:
         raise HTTPException(status_code=404, detail=f"시나리오 없음: {scenario_slug}")
 
-    state = {"step": scenario.steps[0]["id"], **scenario.initial_state}
+    state = {
+        "step": scenario.steps[0]["id"],
+        "attempts": {},  # 스텝별 과제 제출 횟수 → 힌트 단계·리포트 재료
+        "quest": {"status": "pending" if scenario.sudden_quest else "none", "attempts": 0},
+        **scenario.initial_state,
+    }
     simulation = Simulation(user_id=user.id, scenario_id=scenario.id, state=state)
     session.add(simulation)
     await session.commit()
@@ -51,12 +60,18 @@ async def get_owned_simulation(
 
 def to_out(simulation: Simulation, scenario: Scenario) -> dict:
     step = sm.find_step(scenario.steps, simulation.state["step"])
+    public_state = dict(simulation.state)
+    quest = public_state.get("quest")
+    if isinstance(quest, dict) and quest.get("status") == "pending":
+        # 돌발 퀘스트는 서프라이즈 — 발동 전에는 존재를 숨김 (active부터는 재접속 UX 위해 노출)
+        public_state["quest"] = {"status": "none", "attempts": 0}
     return {
         "id": simulation.id,
         "scenario_slug": scenario.slug,
         "scenario_title": scenario.title,
+        "module": scenario.module,  # 프론트 배경 8세트 선택용
         "status": simulation.status,
-        "state": simulation.state,
+        "state": public_state,
         "step": sm.public_step(step),
         "created_at": simulation.created_at,
     }
@@ -73,10 +88,17 @@ async def _update_state(
     scenario: Scenario,
     deltas: dict,
 ) -> tuple[dict, str | None]:
-    """delta 적용 + 전이 평가 → (새 상태, 바뀐 스텝 id 또는 None)."""
+    """delta 적용 + 전이 평가 → (새 상태, 바뀐 스텝 id 또는 None).
+
+    돌발 퀘스트 진행 중에는 상태값 누적만 하고 스텝 전이는 보류 —
+    퀘스트 중 대화/선택으로 본편 스텝이 몰래 넘어가는 것을 방지.
+    """
     prev_step = simulation.state["step"]
     new_state = sm.apply_deltas(simulation.state, deltas)
-    new_step = sm.resolve_transitions(scenario.steps, prev_step, new_state)
+    quest_active = (simulation.state.get("quest") or {}).get("status") == "active"
+    new_step = (
+        prev_step if quest_active else sm.resolve_transitions(scenario.steps, prev_step, new_state)
+    )
     new_state["step"] = new_step
     simulation.state = new_state
     flag_modified(simulation, "state")  # JSONB 전체 교체 감지
@@ -94,7 +116,11 @@ async def stream_npc_chat(
     """NPC 대화 처리 — ("token", str) 조각들 후 ("final", dict) 하나를 yield."""
     _ensure_active(simulation)
     step = sm.find_step(scenario.steps, simulation.state["step"])
-    if npc_name not in step.get("npcs", []):
+    allowed = set(step.get("npcs", []))
+    quest = simulation.state.get("quest") or {}
+    if quest.get("status") == "active" and scenario.sudden_quest:
+        allowed.add(scenario.sudden_quest.get("npc"))  # 퀘스트 NPC와도 대화 가능
+    if npc_name not in allowed:
         raise HTTPException(status_code=400, detail=f"현재 스텝에 없는 NPC: {npc_name}")
 
     persona = (
@@ -204,47 +230,94 @@ async def submit_choice(
     }
 
 
+async def _transcript(session: AsyncSession, simulation_id: int) -> str:
+    """대화에서 실제로 정보를 수집했는지 채점에 반영하기 위한 대화록."""
+    history = list(
+        (
+            await session.execute(
+                select(Message)
+                .where(Message.simulation_id == simulation_id)
+                .order_by(Message.id)
+            )
+        ).scalars()
+    )
+    return "\n".join(
+        f"{'사용자' if m.role == 'user' else m.role}: {m.content}"
+        for m in history[-SCORING_TURNS:]
+    )
+
+
+def _public_quest(quest_def: dict) -> dict:
+    """클라이언트용 퀘스트 정보 — 정답 힌트(hints)는 숨김."""
+    task = quest_def["task"]
+    return {
+        "npc": quest_def.get("npc"),
+        "intro": quest_def.get("intro"),
+        "task": {
+            "prompt": task["prompt"],
+            "criteria": task["criteria"],
+            "pass_score": task.get("pass_score", 70),
+        },
+    }
+
+
 async def submit_task(
     session: AsyncSession,
     simulation: Simulation,
     scenario: Scenario,
     submission: str,
 ) -> dict:
-    """과제 제출 — AI 채점 → 통과 시 다음 스텝(마지막이면 완료), 미달 시 피드백."""
+    """과제 제출 — AI 채점 → 통과 시 다음 스텝 / 미달 시 조언 카드(힌트 3단계).
+
+    돌발 퀘스트가 활성 상태면 제출은 퀘스트 채점으로 라우팅된다.
+    스텝 전환 성공 시 돌발 퀘스트 발동을 판정한다 (시뮬레이션당 1회 보장).
+    """
     _ensure_active(simulation)
-    step = sm.find_step(scenario.steps, simulation.state["step"])
+    state = dict(simulation.state)
+    quest = dict(state.get("quest") or {"status": "none", "attempts": 0})
+
+    if quest.get("status") == "active":
+        return await _submit_quest(session, simulation, scenario, submission, state, quest)
+
+    step = sm.find_step(scenario.steps, state["step"])
     task = step.get("task")
     if not task:
         raise HTTPException(status_code=400, detail="현재 스텝에 과제가 없음")
 
-    # 대화에서 실제로 정보를 수집했는지 채점에 반영하기 위해 대화록 제공
-    history = list(
-        (
-            await session.execute(
-                select(Message)
-                .where(Message.simulation_id == simulation.id)
-                .order_by(Message.id)
-            )
-        ).scalars()
-    )
-    transcript = "\n".join(
-        f"{'사용자' if m.role == 'user' else m.role}: {m.content}" for m in history
-    )
-
+    transcript = await _transcript(session, simulation.id)
     result = await scoring.evaluate_task(step["mission"], task, transcript, submission)
 
+    attempts = dict(state.get("attempts") or {})
+    attempts[step["id"]] = attempts.get(step["id"], 0) + 1
+    attempt_n = attempts[step["id"]]
+
+    advice = None
     step_changed = None
     completed = False
+    quest_fired = None
+
     if result["passed"]:
         if task["on_pass"] == sm.END:
             simulation.status = "completed"
             completed = True
         else:
-            new_state = dict(simulation.state)
-            new_state["step"] = task["on_pass"]
-            simulation.state = new_state
-            flag_modified(simulation, "state")
-            step_changed = sm.public_step(sm.find_step(scenario.steps, task["on_pass"]))
+            next_id = task["on_pass"]
+            state["step"] = next_id
+            next_step = sm.find_step(scenario.steps, next_id)
+            step_changed = sm.public_step(next_step)
+            # 돌발 퀘스트 발동 판정 (전환 시점 확률 50%, 종착 스텝 진입까지 미발동이면 강제)
+            if scenario.sudden_quest and hints.should_fire_quest(
+                next_step, quest.get("status", "none"), random.random()
+            ):
+                quest = {"status": "active", "attempts": 0}
+                quest_fired = _public_quest(scenario.sudden_quest)
+    else:
+        advice = hints.advice_card(task, attempt_n, result["scores"], result["feedback"])
+
+    state["attempts"] = attempts
+    state["quest"] = quest
+    simulation.state = state
+    flag_modified(simulation, "state")
 
     await scoring.log_action(
         session,
@@ -252,10 +325,12 @@ async def submit_task(
         "task_submit",
         {
             "step": step["id"],
+            "attempt": attempt_n,
             "submission": submission,
             "total": result["total"],
             "passed": result["passed"],
             "feedback": result["feedback"],
+            "hint_level": advice["level"] if advice else 0,
         },
         {},
     )
@@ -263,9 +338,73 @@ async def submit_task(
 
     return {
         **result,
+        "advice_card": advice,
         "state": simulation.state,
         "step_changed": step_changed,
         "completed": completed,
+        "sudden_quest": quest_fired,
+        "is_quest": False,
+    }
+
+
+QUEST_MAX_ATTEMPTS = 2  # 실패해도 진행 비차단 — 2회 미달이면 종료하고 리포트에만 반영
+
+
+async def _submit_quest(
+    session: AsyncSession,
+    simulation: Simulation,
+    scenario: Scenario,
+    submission: str,
+    state: dict,
+    quest: dict,
+) -> dict:
+    """돌발 퀘스트 제출 채점 — 통과 or 2회 미달 시 퀘스트 종료 후 본편 복귀."""
+    quest_def = scenario.sudden_quest
+    qtask = quest_def["task"]
+    transcript = await _transcript(session, simulation.id)
+    # 채점 기준점(mission)은 서사(intro)가 아니라 과제 지시문 — 루브릭이 흔들리지 않게
+    result = await scoring.evaluate_task(
+        qtask.get("mission") or qtask["prompt"], qtask, transcript, submission
+    )
+
+    quest["attempts"] = quest.get("attempts", 0) + 1
+    advice = None
+    if result["passed"]:
+        quest["status"] = "passed"
+    elif quest["attempts"] >= QUEST_MAX_ATTEMPTS:
+        quest["status"] = "failed"
+    else:
+        advice = hints.advice_card(qtask, quest["attempts"], result["scores"], result["feedback"])
+
+    state["quest"] = quest
+    simulation.state = state
+    flag_modified(simulation, "state")
+
+    await scoring.log_action(
+        session,
+        simulation.id,
+        "quest_submit",
+        {
+            "attempt": quest["attempts"],
+            "submission": submission,
+            "total": result["total"],
+            "passed": result["passed"],
+            "feedback": result["feedback"],
+            "quest_status": quest["status"],
+        },
+        {},
+    )
+    await session.commit()
+
+    return {
+        **result,
+        "advice_card": advice,
+        "state": simulation.state,
+        "step_changed": None,
+        "completed": False,
+        "sudden_quest": None,
+        "is_quest": True,
+        "quest_status": quest["status"],
     }
 
 

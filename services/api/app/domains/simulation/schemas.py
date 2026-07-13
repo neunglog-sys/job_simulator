@@ -27,6 +27,7 @@ class SimulationOut(BaseModel):
     id: int
     scenario_slug: str
     scenario_title: str
+    module: str | None = None
     status: str
     state: dict
     step: StepOut

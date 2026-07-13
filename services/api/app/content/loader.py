@@ -55,6 +55,31 @@ def load_scenarios() -> list[dict]:
                         f"data/scenarios/{filename}: step '{step['id']}'의 on_pass "
                         f"'{task['on_pass']}'가 존재하지 않음"
                     )
+        reserved = {"step", "attempts", "quest"} & set(doc.get("initial_state", {}))
+        if reserved:
+            raise ValueError(
+                f"data/scenarios/{filename}: initial_state에 예약 키 사용 불가 {reserved}"
+            )
+        quest = doc.get("sudden_quest")
+        if quest:
+            if len(doc["steps"]) < 2:
+                raise ValueError(
+                    f"data/scenarios/{filename}: sudden_quest는 스텝 2개 이상 필요 "
+                    "(스텝 전환 시점에 발동하므로)"
+                )
+            missing = {"npc", "task"} - quest.keys()
+            if missing:
+                raise ValueError(f"data/scenarios/{filename}: sudden_quest 필수 키 누락 {missing}")
+            q_missing = {"prompt", "criteria"} - quest["task"].keys()
+            if q_missing:
+                raise ValueError(
+                    f"data/scenarios/{filename}: sudden_quest.task 필수 키 누락 {q_missing}"
+                )
+            npc_names = {n["name"] for n in doc["npcs"]}
+            if quest["npc"] not in npc_names:
+                raise ValueError(
+                    f"data/scenarios/{filename}: sudden_quest NPC '{quest['npc']}'의 페르소나 없음"
+                )
         scenarios.append(doc)
     return scenarios
 
