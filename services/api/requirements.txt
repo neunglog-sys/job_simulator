@@ -16,6 +16,7 @@ pyjwt
 email-validator
 reportlab
 pytest
+pytest-asyncio
 cryptography
 ruff
 openpyxl

@@ -77,6 +77,13 @@ class Job(Base):
     competencies: Mapped[dict] = mapped_column(JSONB, default=dict)  # 역량 매트릭스
     # RIASEC 흥미유형 중요도(1~5) — 사전 설문(Consultation.survey.profile)과의 매칭용, 없으면 역량 점수만 사용
     interest_profile: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # 아래 4개는 배치1 조사 필드(선택) — docs/jobs/batch1_mapping_candidates.md 참고.
+    # 미조사 직무는 전부 NULL/빈 리스트.
+    education_requirement: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    salary: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    certifications: Mapped[list] = mapped_column(JSONB, default=list)
+    # provisional|team_review|not_found|cross_check_required — app.content.loader.VALID_JOB_STATUS
+    status: Mapped[str | None] = mapped_column(String(30), nullable=True)
 
     scenarios: Mapped[list["Scenario"]] = relationship(back_populates="job")
 
@@ -121,6 +128,7 @@ class Recommendation(TimestampMixin, Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     consultation_id: Mapped[int] = mapped_column(ForeignKey("consultations.id"))
     results: Mapped[list] = mapped_column(JSONB, default=list)  # [{job_code, score, reason}]
+    feedback: Mapped[str | None] = mapped_column(String(20), nullable=True)  # "helpful" | "not_helpful"
 
 
 class Simulation(TimestampMixin, Base):

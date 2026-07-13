@@ -4,6 +4,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.domains.consultation.survey import (
+    _load,
     avatar_lines,
     profile_summary,
     public_items,
@@ -56,3 +57,22 @@ def test_avatar_lines_follow_script():
 def test_profile_summary_top_two():
     summary = profile_summary({"realistic": 90, "social": 70, "artistic": 10})
     assert "실행" in summary and "소통" in summary
+
+
+@pytest.mark.parametrize(
+    "dim", ["realistic", "investigative", "artistic", "social", "enterprising", "conventional"]
+)
+def test_score_answers_normalizes_despite_uneven_item_coverage(dim):
+    """일부 차원(특히 enterprising)은 전용 선택지가 있는 문항 수가 다른 차원보다 적어
+    원점수 총합이 구조적으로 낮다. score_answers는 문항별 '해당 차원 최고 획득치' 합계 대비로
+    정규화하므로, 매 문항에서 그 차원 점수가 가장 높은 선택지를 고른 사용자는 문항 노출 빈도와
+    무관하게 100점에 도달해야 한다 — 이게 깨지면 문항 설계 편향이 점수에 그대로 새는 것."""
+    items = _load()["items"]
+    answers = {
+        item["id"]: max(
+            item["options"], key=lambda o: o.get("dimension_scores", {}).get(dim, 0)
+        )["key"]
+        for item in items
+    }
+    profile = score_answers(answers)
+    assert profile[dim] == 100
