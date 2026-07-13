@@ -17,7 +17,7 @@ steps:
 
     데이터·CRM·매출 분석 · 기본 판단 업무
   npcs:
-  - CRM 분석 팀장
+  - npc_stn-03_06
   guide: '제공 자료: 고객거래 데이터, 고객등급 기준, 재구매 정의, 캠페인 이력'
   task:
     kind: checklist
@@ -60,7 +60,7 @@ steps:
 
     데이터·CRM·매출 분석 · 필수 자료 누락 대응
   npcs:
-  - 데이터 엔지니어
+  - npc_stn-03_04
   guide: '제공 자료: 매출 CSV, CRM 추출본, 데이터 사전, 일부 중복 고객ID, 타임존 정보 누락'
   task:
     kind: choice
@@ -94,7 +94,7 @@ steps:
 
     데이터·CRM·매출 분석 · 업무 우선순위 조정
   npcs:
-  - 분석 팀장
+  - npc_stn-03_01
   guide: '제공 자료: 요청 3건의 마감, 영향범위, 데이터 준비상태, 예상소요, 의사결정 시점'
   task:
     kind: order
@@ -132,7 +132,7 @@ steps:
 
     데이터·CRM·매출 분석 · 결과 보고·인계
   npcs:
-  - 분석 팀장
+  - npc_stn-03_01
   guide: '제공 자료: 최종 데이터, 쿼리·코드, 차트, 지표정의, 업데이트 일정'
   task:
     kind: write
@@ -149,7 +149,7 @@ steps:
       answer_guide: ① 결과·한계 요약 ② 지표정의 연결 ③ 코드·경로 정리 ④ 갱신순서·검수 ⑤ 담당·문의처
     on_pass: __end__
 sudden_quest:
-  npc: 분석 팀장
+  npc: npc_stn-03_01
   intro: 분석 팀장이(가) 다급하게 찾아왔다. "매출이 40% 급증한 결과가 나왔습니다. 보고 전에 실제 변화인지 집계오류인지 검증해 주세요."
   task:
     kind: choice
@@ -176,35 +176,141 @@ sudden_quest:
       key: c
     type: 오류·안전위험
 npcs:
-- name: 분석 팀장
-  rank: 분석 팀장
-  personality: 승인·보고를 받는 책임자. 꼼꼼하고 근거를 요구하며, 형식을 갖춘 보고에는 협조적이다.
-  system_prompt: 당신은 '데이터·CRM·매출 분석' 현장의 분석 팀장이며 사용자의 보고·승인 라인입니다. 업무 지시를 내리고 결과 보고를 받습니다. 보고가 두루뭉술하면
-    '근거가 뭐예요?', '우선순위 기준은요?'라고 되묻고, 사실·근거·다음 조치가 갖춰진 보고에는 명확히 승인해줍니다. 사용자가 확인 없이 단정하면 지적합니다. 말투는 단정하고
-    짧게.
-- name: CRM 담당
-  rank: CRM 담당
-  personality: 협업 부서의 담당자. 자기 영역 정보를 갖고 있고 요청이 명확하면 협조한다.
-  system_prompt: 당신은 '데이터·CRM·매출 분석' 현장에서 사용자와 협업하는 CRM 담당입니다. 당신 영역의 정보(자료, 일정, 현황)는 사용자가 명확히 요청해야 공유합니다.
-    요청이 애매하면 '정확히 뭐가 필요하세요?'라고 되묻습니다. 말투는 사무적이지만 우호적.
-- name: 영업·마케팅 담당
-  rank: 영업·마케팅 담당
-  personality: 협업 부서의 담당자. 자기 영역 정보를 갖고 있고 요청이 명확하면 협조한다.
-  system_prompt: 당신은 '데이터·CRM·매출 분석' 현장에서 사용자와 협업하는 영업·마케팅 담당입니다. 당신 영역의 정보(자료, 일정, 현황)는 사용자가 명확히 요청해야
-    공유합니다. 요청이 애매하면 '정확히 뭐가 필요하세요?'라고 되묻습니다. 말투는 사무적이지만 우호적.
-- name: 데이터 엔지니어
-  rank: 데이터 엔지니어
-  personality: 협업 부서의 담당자. 자기 영역 정보를 갖고 있고 요청이 명확하면 협조한다.
-  system_prompt: 당신은 '데이터·CRM·매출 분석' 현장에서 사용자와 협업하는 데이터 엔지니어입니다. 당신 영역의 정보(자료, 일정, 현황)는 사용자가 명확히 요청해야
-    공유합니다. 요청이 애매하면 '정확히 뭐가 필요하세요?'라고 되묻습니다. 말투는 사무적이지만 우호적.
-- name: 의사결정자
-  rank: 의사결정자
-  personality: 협업 부서의 담당자. 자기 영역 정보를 갖고 있고 요청이 명확하면 협조한다.
-  system_prompt: 당신은 '데이터·CRM·매출 분석' 현장에서 사용자와 협업하는 의사결정자입니다. 당신 영역의 정보(자료, 일정, 현황)는 사용자가 명확히 요청해야 공유합니다.
-    요청이 애매하면 '정확히 뭐가 필요하세요?'라고 되묻습니다. 말투는 사무적이지만 우호적.
-- name: CRM 분석 팀장
-  rank: CRM 분석 팀장
-  personality: 승인·보고를 받는 책임자. 꼼꼼하고 근거를 요구하며, 형식을 갖춘 보고에는 협조적이다.
-  system_prompt: 당신은 '데이터·CRM·매출 분석' 현장의 CRM 분석 팀장이며 사용자의 보고·승인 라인입니다. 업무 지시를 내리고 결과 보고를 받습니다. 보고가 두루뭉술하면
-    '근거가 뭐예요?', '우선순위 기준은요?'라고 되묻고, 사실·근거·다음 조치가 갖춰진 보고에는 명확히 승인해줍니다. 사용자가 확인 없이 단정하면 지적합니다. 말투는 단정하고
-    짧게.
+- npc_id: npc_stn-03_01
+  name: 분석 팀장
+  role: 분석 팀장
+  rank: 팀장
+  personality:
+  - 승인·보고를 받는 책임자
+  - 꼼꼼하고 근거를 요구한다
+  - 형식을 갖춘 보고엔 협조적
+  likes:
+  - 사실·근거·다음 조치가 갖춰진 보고
+  - 우선순위 기준이 분명한 판단
+  dislikes:
+  - 두루뭉술한 보고
+  - 확인 없는 단정
+  speech_habits:
+  - 근거가 뭐예요?
+  - 우선순위 기준은요?
+  responsibilities:
+  - 데이터·CRM·매출 분석 · 업무 우선순위 조정
+  - 데이터·CRM·매출 분석 · 결과 보고·인계
+  - 데이터·CRM·매출 분석 · 오류·위험 검증
+  appearance:
+    location: null
+    available_steps:
+    - m3
+    - m4
+    - quest
+    conditions:
+    - quest_started
+- npc_id: npc_stn-03_02
+  name: CRM 담당
+  role: CRM 담당
+  rank: null
+  personality:
+  - 협업 부서 담당자
+  - 자기 영역 정보를 갖고 있다
+  - 요청이 명확하면 협조적
+  likes:
+  - 명확한 요청
+  - 필요한 것이 특정된 협조 요청
+  dislikes:
+  - 애매한 요청
+  - 떠넘기는 태도
+  speech_habits:
+  - 정확히 뭐가 필요하세요?
+  - 그건 제 담당은 아닌데, 확인해볼게요.
+  responsibilities: []
+  appearance:
+    location: null
+    available_steps: []
+- npc_id: npc_stn-03_03
+  name: 영업·마케팅 담당
+  role: 영업·마케팅 담당
+  rank: null
+  personality:
+  - 협업 부서 담당자
+  - 자기 영역 정보를 갖고 있다
+  - 요청이 명확하면 협조적
+  likes:
+  - 명확한 요청
+  - 필요한 것이 특정된 협조 요청
+  dislikes:
+  - 애매한 요청
+  - 떠넘기는 태도
+  speech_habits:
+  - 정확히 뭐가 필요하세요?
+  - 그건 제 담당은 아닌데, 확인해볼게요.
+  responsibilities: []
+  appearance:
+    location: null
+    available_steps: []
+- npc_id: npc_stn-03_04
+  name: 데이터 엔지니어
+  role: 데이터 엔지니어
+  rank: null
+  personality:
+  - 협업 부서 담당자
+  - 자기 영역 정보를 갖고 있다
+  - 요청이 명확하면 협조적
+  likes:
+  - 명확한 요청
+  - 필요한 것이 특정된 협조 요청
+  dislikes:
+  - 애매한 요청
+  - 떠넘기는 태도
+  speech_habits:
+  - 정확히 뭐가 필요하세요?
+  - 그건 제 담당은 아닌데, 확인해볼게요.
+  responsibilities:
+  - 데이터·CRM·매출 분석 · 필수 자료 누락 대응
+  appearance:
+    location: null
+    available_steps:
+    - m2
+- npc_id: npc_stn-03_05
+  name: 의사결정자
+  role: 의사결정자
+  rank: null
+  personality:
+  - 협업 부서 담당자
+  - 자기 영역 정보를 갖고 있다
+  - 요청이 명확하면 협조적
+  likes:
+  - 명확한 요청
+  - 필요한 것이 특정된 협조 요청
+  dislikes:
+  - 애매한 요청
+  - 떠넘기는 태도
+  speech_habits:
+  - 정확히 뭐가 필요하세요?
+  - 그건 제 담당은 아닌데, 확인해볼게요.
+  responsibilities: []
+  appearance:
+    location: null
+    available_steps: []
+- npc_id: npc_stn-03_06
+  name: CRM 분석 팀장
+  role: CRM 분석 팀장
+  rank: 팀장
+  personality:
+  - 승인·보고를 받는 책임자
+  - 꼼꼼하고 근거를 요구한다
+  - 형식을 갖춘 보고엔 협조적
+  likes:
+  - 사실·근거·다음 조치가 갖춰진 보고
+  - 우선순위 기준이 분명한 판단
+  dislikes:
+  - 두루뭉술한 보고
+  - 확인 없는 단정
+  speech_habits:
+  - 근거가 뭐예요?
+  - 우선순위 기준은요?
+  responsibilities:
+  - 데이터·CRM·매출 분석 · 기본 판단 업무
+  appearance:
+    location: null
+    available_steps:
+    - m1

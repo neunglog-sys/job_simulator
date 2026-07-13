@@ -67,16 +67,22 @@ def validate_scenario(doc: dict, source: str) -> None:
     if missing:
         raise ValueError(f"{source}: 필수 키 누락 {missing}")
     step_ids = {s["id"] for s in doc["steps"]}
-    npc_names = {n["name"] for n in doc.get("npcs", [])}
+    # NPC는 npc_id로 참조 (이름 아님) — 고유정보·배치정보 최소 키 검증
+    npc_ids = set()
+    for n in doc.get("npcs", []):
+        n_missing = {"npc_id", "name", "role"} - n.keys()
+        if n_missing:
+            raise ValueError(f"{source}: npc '{n.get('npc_id', '?')}' 필수 키 누락 {n_missing}")
+        npc_ids.add(n["npc_id"])
     for step in doc["steps"]:
         # 엔진이 하드 인덱싱하는 키 — 없으면 런타임에 KeyError로 500 나므로 로드 시점에 차단
         step_missing = {"id", "title", "mission"} - step.keys()
         if step_missing:
             raise ValueError(f"{source}: step '{step.get('id', '?')}' 필수 키 누락 {step_missing}")
-        # 스텝 NPC는 페르소나 목록에 있어야 대화 가능 — 손편집 rename 시 404 dead-end 방지
-        bad_npcs = [n for n in step.get("npcs", []) if n not in npc_names]
+        # 스텝 NPC는 npc_id로 로스터에 있어야 대화 가능 — 손편집 오참조 시 404 dead-end 방지
+        bad_npcs = [n for n in step.get("npcs", []) if n not in npc_ids]
         if bad_npcs:
-            raise ValueError(f"{source}: step '{step['id']}'의 NPC {bad_npcs}의 페르소나 없음")
+            raise ValueError(f"{source}: step '{step['id']}'의 NPC {bad_npcs}가 로스터에 없음")
         for tr in step.get("transitions", []):
             if tr["to"] not in step_ids:
                 raise ValueError(
@@ -108,8 +114,8 @@ def validate_scenario(doc: dict, source: str) -> None:
         if qt_missing:
             raise ValueError(f"{source}: sudden_quest.task 필수 키 누락 {qt_missing}")
         _validate_task(quest["task"], f"{source}: sudden_quest")
-        if quest["npc"] not in npc_names:
-            raise ValueError(f"{source}: sudden_quest NPC '{quest['npc']}'의 페르소나 없음")
+        if quest["npc"] not in npc_ids:
+            raise ValueError(f"{source}: sudden_quest NPC '{quest['npc']}'가 로스터에 없음")
 
 
 def load_scenarios() -> list[dict]:

@@ -72,7 +72,7 @@ async def create_simulation(
     user: User = Depends(get_current_user),
 ):
     simulation, scenario = await service.create_simulation(session, user, body.scenario_slug)
-    return service.to_out(simulation, scenario)
+    return await service.to_out(session, simulation, scenario)
 
 
 @router.get("/api/simulations/{simulation_id}", response_model=SimulationOut)
@@ -82,7 +82,7 @@ async def get_simulation(
     user: User = Depends(get_current_user),
 ):
     simulation, scenario = await service.get_owned_simulation(session, simulation_id, user)
-    return service.to_out(simulation, scenario)
+    return await service.to_out(session, simulation, scenario)
 
 
 @router.post("/api/simulations/{simulation_id}/finish", response_model=SimulationOut)
@@ -93,7 +93,7 @@ async def finish_simulation(
 ):
     simulation, scenario = await service.get_owned_simulation(session, simulation_id, user)
     simulation = await service.finish_simulation(session, simulation, scenario)
-    return service.to_out(simulation, scenario)
+    return await service.to_out(session, simulation, scenario)
 
 
 @router.get("/api/simulations/{simulation_id}/score")
@@ -135,7 +135,7 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, token: str | N
                 session, simulation_id, user
             )
             await websocket.send_json(
-                {"type": "session", **_jsonable(service.to_out(simulation, scenario))}
+                {"type": "session", **_jsonable(await service.to_out(session, simulation, scenario))}
             )
 
         while True:

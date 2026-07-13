@@ -7,8 +7,10 @@ from app.scripts.build_scenarios import (
     classify,
     mission_npcs,
     norm_role,
+    parse_npc,
     split_action_steps,
     split_criteria,
+    split_npc_list,
 )
 
 
@@ -29,6 +31,24 @@ def test_norm_role_strips_parenthetical():
 def test_mission_npcs_comma_split():
     assert mission_npcs("원무팀장, 수간호사(선임)") == ["원무팀장", "수간호사"]
     assert mission_npcs(None) == []
+
+
+def test_split_npc_list_ignores_commas_inside_parens():
+    # 괄호 안 콤마로 NPC가 쪼개지던 유령 페르소나 버그 방지
+    raw = "정미래 안전관리자(돌발상황·아차사고 접수, 야간 근무 기사), 박정도 반장"
+    assert split_npc_list(raw) == ["정미래 안전관리자(돌발상황·아차사고 접수, 야간 근무 기사)", "박정도 반장"]
+
+
+def test_parse_npc_named_vs_role_only():
+    # 인명 있는 형태: 이름/역할/직급 분리
+    name, role, rank = parse_npc("김민석 팀장(경위, 지구대 순찰팀장)")
+    assert name == "김민석" and rank == "팀장" and "순찰팀장" in role
+    # 역할 라벨만 있는 형태: 이름=라벨, 직급 추출
+    name, role, rank = parse_npc("원무팀장")
+    assert name == "원무팀장" and rank == "팀장"
+    # 성씨로 시작하는 역할어는 이름으로 오인하지 않음 (stopword)
+    name, _, _ = parse_npc("고령 환자(보호자 동반)")
+    assert name != "고령"
 
 
 def test_split_criteria_failure_never_truncated():

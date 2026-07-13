@@ -61,7 +61,9 @@ class Message(TimestampMixin, Base):
     simulation_id: Mapped[int | None] = mapped_column(
         ForeignKey("simulations.id"), index=True
     )
-    role: Mapped[str] = mapped_column(String(64))  # user|assistant|npc:{name} (이름 길이 여유)
+    role: Mapped[str] = mapped_column(String(64))  # user | assistant | npc
+    # role=='npc'일 때 말한 NPC 식별자 (이름 아님 — 길이·표시와 무관하게 안정 참조). 소프트 참조.
+    npc_id: Mapped[str | None] = mapped_column(String(64), index=True)
     content: Mapped[str] = mapped_column(EncryptedText)  # 대화 내용 (암호화)
 
 
@@ -97,21 +99,45 @@ class Scenario(Base):
     sudden_quest: Mapped[dict | None] = mapped_column(JSONB)
 
     job: Mapped[Job] = relationship(back_populates="scenarios")
-    npc_personas: Mapped[list["NpcPersona"]] = relationship(back_populates="scenario")
+    placements: Mapped[list["NpcPlacement"]] = relationship(back_populates="scenario")
 
 
-class NpcPersona(Base):
-    __tablename__ = "npc_personas"
-    __table_args__ = (UniqueConstraint("scenario_id", "name"),)
+class Npc(Base):
+    """NPC 고유정보 (시나리오 무관) — 프롬프트 '재료' 필드만 저장, 완성 프롬프트는 코드가 조립.
+
+    대화 저장/식별은 npc_id로 (이름 길이 무관). 화면 표시는 name + 배치정보(role/rank).
+    같은 NPC를 여러 시나리오에서 재사용 가능(placements로 배치).
+    """
+
+    __tablename__ = "npcs"
+
+    npc_id: Mapped[str] = mapped_column(String(64), primary_key=True)  # 예: npc_jm-01_01
+    name: Mapped[str] = mapped_column(String(50))
+    personality: Mapped[list] = mapped_column(JSONB, default=list)
+    likes: Mapped[list] = mapped_column(JSONB, default=list)
+    dislikes: Mapped[list] = mapped_column(JSONB, default=list)
+    speech_habits: Mapped[list] = mapped_column(JSONB, default=list)
+
+    placements: Mapped[list["NpcPlacement"]] = relationship(back_populates="npc")
+
+
+class NpcPlacement(Base):
+    """시나리오별 NPC 배치 — 같은 사람이 시나리오마다 역할·담당업무·등장이 달라질 수 있음."""
+
+    __tablename__ = "npc_placements"
+    __table_args__ = (UniqueConstraint("scenario_id", "npc_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     scenario_id: Mapped[int] = mapped_column(ForeignKey("scenarios.id"))
-    name: Mapped[str] = mapped_column(String(50))
-    rank: Mapped[str] = mapped_column(String(50))  # 직급
-    personality: Mapped[str] = mapped_column(Text)
-    system_prompt: Mapped[str] = mapped_column(Text)
+    npc_id: Mapped[str] = mapped_column(ForeignKey("npcs.npc_id"), index=True)
+    role: Mapped[str] = mapped_column(String(80))  # 역할 (안전관리자 등)
+    rank: Mapped[str | None] = mapped_column(String(50))  # 직급·직책
+    responsibilities: Mapped[list] = mapped_column(JSONB, default=list)
+    # {location, available_steps:[step_id], conditions:[...]} — 엔진이 등장 판단에 사용, 프롬프트엔 location만
+    appearance: Mapped[dict] = mapped_column(JSONB, default=dict)
 
-    scenario: Mapped[Scenario] = relationship(back_populates="npc_personas")
+    scenario: Mapped[Scenario] = relationship(back_populates="placements")
+    npc: Mapped[Npc] = relationship(back_populates="placements")
 
 
 class Recommendation(TimestampMixin, Base):

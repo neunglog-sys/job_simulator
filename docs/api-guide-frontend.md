@@ -101,7 +101,7 @@ POST /api/simulations/{id}/finish       → 중도 포기 (aborted 처리)
   "step": {
     "id": "m1", "type": "정상업무", "title": "...", 
     "mission": "원무팀장: \"오전 예약 명단이야...\"\n\n예약 명단과...",  ← NPC 대사 포함
-    "npcs": ["원무팀장"],          ← 이 스텝에서 대화 가능한 NPC
+    "npcs": ["npc_kts-01_01"],     ← 이 스텝에서 대화 가능한 NPC의 **npc_id** (이름 아님)
     "guide": "제공 자료: ...",     ← 기본 조언 카드 / 자료 패널
     "choices": [],                 ← 있으면 선택지 버튼
     "task": {
@@ -111,9 +111,14 @@ POST /api/simulations/{id}/finish       → 중도 포기 (aborted 처리)
       "pass_score": 70,
       "options": [{"key":"a","label":"..."}, ...]  ← kind가 choice/checklist/order일 때만
     }
-  }
+  },
+  "npcs": [                        ← 시나리오 NPC 표시정보 (step.npcs의 npc_id를 여기서 이름 조회)
+    {"npc_id": "npc_kts-01_01", "name": "원무팀장", "role": "원무 접수", "rank": "팀장"}
+  ]
 }
 ```
+
+> **NPC는 npc_id로 참조**합니다. `step.npcs`는 npc_id 목록이고, 이름·역할·직급은 최상위 `npcs`에서 조회하세요. 대화를 걸 때도(WS `chat`) `npc`에 **npc_id**를 넣습니다. (이름을 식별자로 쓰지 않음 — 길이·중복 무관하게 안정적)
 
 ### 과제 유형(`task.kind`) — UI 분기
 
@@ -133,7 +138,7 @@ POST /api/simulations/{id}/finish       → 중도 포기 (aborted 처리)
 ### WS 보내기 (클라이언트 → 서버)
 | 타입 | 페이로드 | 용도 |
 |---|---|---|
-| `chat` | `{type:"chat", npc:"원무팀장", content:"..."}` | NPC 대화 |
+| `chat` | `{type:"chat", npc:"npc_kts-01_01", content:"..."}` — `npc`는 **npc_id** | NPC 대화 |
 | `task_submit` | `{type:"task_submit", content:...}` — `content`는 서술형이면 텍스트, 선택·배열형이면 key 배열(`["a","c"]`)/콤마 문자열 | 과제/퀘스트 제출 |
 | `choice` | `{type:"choice", choice_id:"postpone"}` | 선택지 |
 
@@ -142,10 +147,10 @@ POST /api/simulations/{id}/finish       → 중도 포기 (aborted 처리)
 |---|---|---|
 | `session` | 접속 직후 현재 상태 전체 | 화면 초기화/복원 |
 | `token` | `{text}` NPC 응답 조각 | 말풍선에 이어붙이기 |
-| `npc_reply` | `{npc, content, delta, state, step_changed}` | 응답 확정, 상태 게이지 갱신 |
+| `npc_reply` | `{npc, name, content, delta, state, step_changed}` — `npc`=npc_id, `name`=표시 이름 | 응답 확정, 상태 게이지 갱신 |
 | `task_result` | 채점: `{total, passed, scores[], feedback, advice_card, state}` | 결과 표시. **advice_card**(level 1~3, title, content)가 있으면 = 미달 → **AI조언카드 UI** |
 | `step_changed` | `{step}` 다음 스텝 정보 | 미션 패널 교체 |
-| `sudden_quest` | ⚡ `{npc, intro, task}` | **돌발 퀘스트 연출** (인트로 → 퀘스트 과제 패널) |
+| `sudden_quest` | ⚡ `{npc, npc_name, intro, task}` — `npc`=npc_id, `npc_name`=표시 이름 | **돌발 퀘스트 연출** (인트로 → 퀘스트 과제 패널) |
 | `quest_result` | `{total, passed, ..., quest_status}` | `quest_status`가 `passed`/`failed`면 퀘스트 닫고 본편 복귀 (`active`면 재도전) |
 | `state_updated` | 선택지 결과 `{delta, state, step_changed}` | 상태 갱신 |
 | `simulation_completed` | 완주! | 결과 화면으로 이동 |
