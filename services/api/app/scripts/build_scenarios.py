@@ -125,8 +125,8 @@ def build_personas(category: str, work_flow: str, roles: list[str]) -> list[dict
 
 
 def split_criteria(success: str | None, failure: str | None) -> list[str]:
-    """성공기준 문장 → 채점 criteria 목록 (성공 2 + 실수방지 1 = 최대 3개 — 라이트 난이도)."""
-    items = [c.strip() for c in (success or "").split(",") if c.strip()][:2]
+    """성공기준 문장 → 채점 criteria 목록 (쉼표 분리, 2~5개). 서술형(write) 과제 전용."""
+    items = [c.strip() for c in (success or "").split(",") if c.strip()][:4]
     if not items:
         items = ["미션 요구사항을 충족했는가"]
     if failure:  # 실패패턴 기준은 잘리지 않게 마지막에 보장 삽입
@@ -164,8 +164,10 @@ ORDER_ITEM_CAP = 4  # 배열 항목 수 상한 — 라이트하게
 
 
 def split_action_steps(raw: str | None) -> list[str]:
-    """'① A ② B ...' → ["A", "B", ...]. 마커가 없으면 빈 목록 (write 폴백 신호)."""
-    return [p.strip(" ·,;") for p in CIRCLED_RE.split(raw or "") if p.strip(" ·,;")]
+    """'① A ② B ...' → ["A", "B", ...]. 원문자 마커가 없으면 빈 목록 (write 폴백 신호)."""
+    if not raw or not CIRCLED_RE.search(raw):
+        return []
+    return [p.strip(" ·,;") for p in CIRCLED_RE.split(raw) if p.strip(" ·,;")]
 
 
 def split_failures(raw: str | None) -> list[str]:

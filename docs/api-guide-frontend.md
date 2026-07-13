@@ -100,16 +100,37 @@ POST /api/simulations/{id}/finish       → 중도 포기 (aborted 처리)
     "npcs": ["원무팀장"],          ← 이 스텝에서 대화 가능한 NPC
     "guide": "제공 자료: ...",     ← 기본 조언 카드 / 자료 패널
     "choices": [],                 ← 있으면 선택지 버튼
-    "task": {"prompt": "...", "criteria": [...], "pass_score": 70}  ← 과제 제출 패널
+    "task": {
+      "kind": "checklist",         ← 과제 유형 (아래 표 참고) — UI 분기의 핵심
+      "prompt": "...",
+      "criteria": [...],
+      "pass_score": 70,
+      "options": [{"key":"a","label":"..."}, ...]  ← kind가 choice/checklist/order일 때만
+    }
   }
 }
 ```
+
+### 과제 유형(`task.kind`) — UI 분기
+
+산출물 부담을 줄이기 위해 대부분의 과제는 **클릭·선택·배열**로 답합니다. `options`가 있으면 그 보기로 UI를 그리고, 제출은 **선택한 key 배열**(또는 콤마 문자열)을 `content`로 보냅니다.
+
+| kind | 화면 | 제출 `content` | 예 |
+|---|---|---|---|
+| `write` | 텍스트 입력 (기존과 동일, 서술형) | 제출물 텍스트 | `"당일 마감... 미결 2건 인계"` |
+| `choice` | 라디오(단일 선택) | 고른 key 1개 | `["b"]` 또는 `"b"` |
+| `checklist` | 체크박스(복수 선택) | 고른 key들 | `["a","c","d"]` |
+| `order` | 드래그 정렬(전체 배열) | 배열한 전체 key 순서 | `["c","a","b","d"]` |
+
+- `choice`/`checklist`/`order`는 **즉시 룰 채점**(LLM 없음) → `task_result`가 바로 옵니다. 코치 카드는 서술형에서만 옵니다.
+- `order`는 반드시 **모든 보기**를 배열해 제출해야 합니다(부분 제출 400).
+- 정답은 서버에만 있고 `options`엔 없습니다 — 보기 순서는 스포일러 방지로 섞여 있습니다.
 
 ### WS 보내기 (클라이언트 → 서버)
 | 타입 | 페이로드 | 용도 |
 |---|---|---|
 | `chat` | `{type:"chat", npc:"원무팀장", content:"..."}` | NPC 대화 |
-| `task_submit` | `{type:"task_submit", content:"제출물 텍스트"}` | 과제/퀘스트 제출 |
+| `task_submit` | `{type:"task_submit", content:...}` — `content`는 서술형이면 텍스트, 선택·배열형이면 key 배열(`["a","c"]`)/콤마 문자열 | 과제/퀘스트 제출 |
 | `choice` | `{type:"choice", choice_id:"postpone"}` | 선택지 |
 
 ### WS 받기 (서버 → 클라이언트) — 프레임 순서대로 처리
