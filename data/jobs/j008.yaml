@@ -16,3 +16,33 @@ interest_profile:
   social: 2
   enterprising: 2
   conventional: 5
+# 공식 매핑: K000007487 회계사무원 — 임금 교차검토 필요 (j007과 동일 원본, docs/jobs/batch1_mapping_candidates.md 교차확인 메모)
+education_requirement:
+  value: "전문대졸 이상(회계관련 학과)"
+  source_field: needKnwgCn
+  evidence_type: descriptive_text
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics:
+    median_annual_krw: 66000000
+    statistic_type: median
+    population: "재직자 약 30명 설문조사"
+    reference_year: 2025
+    cross_check_flag: true
+    cross_check_note: "j007과 동일 원본 — 동일하게 교차확인 대상."
+certifications:
+  - name: "AT《Accounting Technician》(국가공인 민간)"
+    tier: related
+  - name: "ERP정보관리사《물류/생산/인사/회계》(국가공인 민간)"
+    tier: related
+  - name: "세무회계(국가공인 민간)"
+    tier: related
+  - name: "원가분석사(국가공인 민간)"
+    tier: related
+  - name: "재경관리사(국가공인 민간)"
+    tier: related
+  - name: "전산회계운용사 1,2,3급(국가기술)"
+    tier: related
+  - name: "회계관리(국가공인 민간)"
+    tier: related
+status: cross_check_required

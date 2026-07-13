@@ -16,3 +16,14 @@ interest_profile:
   social: 3
   enterprising: 4
   conventional: 4
+# 공식 매핑: K000006768 자재구매사무원 — 팀 검수 승인(권장안), 상세조사 데이터 없음.
+# j011과 동일 공식 코드이나 프로젝트 내 별개 직무로 독립 기록 (docs/jobs/batch1_mapping_review.md #5)
+education_requirement:
+  value: null
+  note: "edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null — 임금 조사 대상 아님."
+certifications: []
+status: not_found
