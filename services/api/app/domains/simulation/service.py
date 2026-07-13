@@ -24,7 +24,7 @@ from app.domains.simulation import state_machine as sm
 from app.llm import get_llm
 from app.llm.base import ChatMessage
 from app.llm.prompts import render_prompt
-from app.models import Message, NpcPersona, Scenario, Simulation, User
+from app.models import Job, Message, Npc, NpcPlacement, Scenario, Simulation, User
 
 logger = logging.getLogger(__name__)
 
@@ -44,10 +44,10 @@ async def create_simulation(
         raise HTTPException(status_code=404, detail=f"시나리오 없음: {scenario_slug}")
 
     state = {
+        **scenario.initial_state,  # 먼저 펼치고, 엔진 예약 키가 항상 이긴다 (clobber 방지)
         "step": scenario.steps[0]["id"],
         "attempts": {},  # 스텝별 과제 제출 횟수 → 힌트 단계·리포트 재료
         "quest": {"status": "pending" if scenario.sudden_quest else "none", "attempts": 0},
-        **scenario.initial_state,
     }
     simulation = Simulation(user_id=user.id, scenario_id=scenario.id, state=state)
     session.add(simulation)
@@ -66,21 +66,75 @@ async def get_owned_simulation(
     return simulation, scenario
 
 
-def to_out(simulation: Simulation, scenario: Scenario) -> dict:
-    step = sm.find_step(scenario.steps, simulation.state["step"])
-    public_state = dict(simulation.state)
-    quest = public_state.get("quest")
+async def npc_map(session: AsyncSession, scenario_id: int) -> dict[str, dict]:
+    """npc_id → 조립용 필드 dict (고유정보 npcs + 배치정보 placements 조인).
+
+    이름은 npc_id로만 참조하므로, 표시·프롬프트·대화록에서 npc_id를 사람이 읽는 이름으로
+    바꿀 때 이 맵을 쓴다.
+    """
+    rows = (
+        await session.execute(
+            select(Npc, NpcPlacement)
+            .join(NpcPlacement, NpcPlacement.npc_id == Npc.npc_id)
+            .where(NpcPlacement.scenario_id == scenario_id)
+        )
+    ).all()
+    return {
+        npc.npc_id: {
+            "npc_id": npc.npc_id, "name": npc.name, "role": pl.role, "rank": pl.rank,
+            "personality": npc.personality or [], "likes": npc.likes or [],
+            "dislikes": npc.dislikes or [], "speech_habits": npc.speech_habits or [],
+            "responsibilities": pl.responsibilities or [],
+        }
+        for npc, pl in rows
+    }
+
+
+def _public_npcs(roster: dict[str, dict]) -> list[dict]:
+    """클라이언트 표시용 NPC 목록 — 프롬프트 재료(성격·선호 등)는 빼고 표시 필드만."""
+    return [
+        {"npc_id": v["npc_id"], "name": v["name"], "role": v["role"], "rank": v["rank"]}
+        for v in roster.values()
+    ]
+
+
+def public_state(state: dict) -> dict:
+    """클라이언트로 나가는 state — 미발동 돌발 퀘스트는 서프라이즈라 숨김.
+
+    to_out뿐 아니라 WS의 npc_reply/state_updated/task_result 프레임도 전부 이걸 거쳐야
+    한다 (raw state를 흘리면 quest.status=='pending'으로 존재가 스포일러됨).
+    active부터는 재접속 UX 위해 노출.
+    """
+    out = dict(state)
+    quest = out.get("quest")
     if isinstance(quest, dict) and quest.get("status") == "pending":
-        # 돌발 퀘스트는 서프라이즈 — 발동 전에는 존재를 숨김 (active부터는 재접속 UX 위해 노출)
-        public_state["quest"] = {"status": "none", "attempts": 0}
+        out["quest"] = {"status": "none", "attempts": 0}
+    return out
+
+
+def _resolve_step(scenario: Scenario, state: dict) -> dict:
+    """state['step']이 시나리오 재생성으로 사라졌으면 첫 스텝으로 복구 (영구 브릭 방지)."""
+    step_ids = {s["id"] for s in scenario.steps}
+    if state["step"] not in step_ids:
+        logger.warning(
+            "스텝 '%s'가 시나리오 %s에 없음 — 첫 스텝으로 복구", state["step"], scenario.slug
+        )
+        state["step"] = scenario.steps[0]["id"]
+    return sm.find_step(scenario.steps, state["step"])
+
+
+async def to_out(session: AsyncSession, simulation: Simulation, scenario: Scenario) -> dict:
+    step = _resolve_step(scenario, simulation.state)
+    roster = await npc_map(session, scenario.id)
     return {
         "id": simulation.id,
         "scenario_slug": scenario.slug,
         "scenario_title": scenario.title,
         "module": scenario.module,  # 프론트 배경 8세트 선택용
         "status": simulation.status,
-        "state": public_state,
+        "state": public_state(simulation.state),
         "step": sm.public_step(step),
+        "npcs": _public_npcs(roster),  # 시나리오 NPC 표시정보 (step.npcs는 npc_id 목록)
         "created_at": simulation.created_at,
     }
 
@@ -114,38 +168,41 @@ async def _update_state(
     return new_state, (new_step if new_step != prev_step else None)
 
 
+def _speaker(m: Message, roster: dict[str, dict]) -> str:
+    """대화록·문맥에 표시할 화자 이름 — npc_id를 사람이 읽는 이름으로."""
+    if m.role == "user":
+        return "사용자"
+    info = roster.get(m.npc_id or "")
+    return info["name"] if info else "NPC"
+
+
 async def stream_npc_chat(
     session: AsyncSession,
     simulation: Simulation,
     scenario: Scenario,
-    npc_name: str,
+    npc_id: str,
     user_text: str,
 ) -> AsyncIterator[tuple[str, object]]:
-    """NPC 대화 처리 — ("token", str) 조각들 후 ("final", dict) 하나를 yield."""
+    """NPC 대화 처리 — ("token", str) 조각들 후 ("final", dict) 하나를 yield. npc_id로 지목."""
     _ensure_active(simulation)
-    step = sm.find_step(scenario.steps, simulation.state["step"])
+    step = _resolve_step(scenario, simulation.state)
     allowed = set(step.get("npcs", []))
     quest = simulation.state.get("quest") or {}
     if quest.get("status") == "active" and scenario.sudden_quest:
         allowed.add(scenario.sudden_quest.get("npc"))  # 퀘스트 NPC와도 대화 가능
-    if npc_name not in allowed:
-        raise HTTPException(status_code=400, detail=f"현재 스텝에 없는 NPC: {npc_name}")
+    if npc_id not in allowed:
+        raise HTTPException(status_code=400, detail=f"현재 스텝에 없는 NPC: {npc_id}")
 
-    persona = (
-        await session.execute(
-            select(NpcPersona).where(
-                NpcPersona.scenario_id == scenario.id, NpcPersona.name == npc_name
-            )
-        )
-    ).scalar_one_or_none()
+    roster = await npc_map(session, scenario.id)
+    persona = roster.get(npc_id)
     if persona is None:
-        raise HTTPException(status_code=404, detail=f"NPC 페르소나 없음: {npc_name}")
+        raise HTTPException(status_code=404, detail=f"NPC 없음: {npc_id}")
 
     # 사용자 발화 저장
     session.add(Message(simulation_id=simulation.id, role="user", content=user_text))
     await session.commit()
 
-    # 최근 대화 + NPC 시스템 프롬프트
+    # 최근 대화 + NPC 시스템 프롬프트 (화자는 npc_id → 이름으로 표시)
     history = list(
         (
             await session.execute(
@@ -158,23 +215,30 @@ async def stream_npc_chat(
     context = [
         ChatMessage(
             role="user" if m.role == "user" else "assistant",
-            content=m.content if m.role == "user" else f"[{m.role}] {m.content}",
+            content=m.content if m.role == "user" else f"[{_speaker(m, roster)}] {m.content}",
         )
         for m in history
     ]
-    # RAG: 발화와 관련된 직무 지식을 NPC 프롬프트에 주입 (Gemini 임베딩, doc_chunks)
+    # RAG: 발화 관련 직무 지식을 NPC 프롬프트에 주입 (Gemini 임베딩, doc_chunks).
+    # 반드시 이 시나리오 직무로 스코프 — 안 그러면 다른 직무의 지식이 끼어들어(거리 컷 안에)
+    # NPC가 엉뚱한 업무를 근거로 답한다. 매칭 지식이 없으면 주입 없음(안전).
+    job = await session.get(Job, scenario.job_id)
     chunks = await search_knowledge(
-        session, user_text, top_k=RAG_TOP_K, max_distance=RAG_MAX_DISTANCE
+        session, user_text, job_code=(job.code if job else None),
+        top_k=RAG_TOP_K, max_distance=RAG_MAX_DISTANCE,
     )
     knowledge = (
         "\n\n".join(f"[{c.source}]\n{c.content}" for c in chunks) if chunks else None
     )
+    # 프롬프트는 코드 템플릿이 구조화 필드를 조립 (system_prompt 통짜 저장 안 함)
     system = render_prompt(
         "npc/system.md",
-        persona_prompt=persona.system_prompt,
+        scenario_title=scenario.title,
         mission=step["mission"],
-        name=persona.name,
-        rank=persona.rank,
+        name=persona["name"], role=persona["role"], rank=persona["rank"],
+        personality=persona["personality"], likes=persona["likes"],
+        dislikes=persona["dislikes"], speech_habits=persona["speech_habits"],
+        responsibilities=persona["responsibilities"],
         state=simulation.state,
         knowledge=knowledge,
     )
@@ -186,29 +250,38 @@ async def stream_npc_chat(
         yield ("token", chunk)
     npc_reply = "".join(full)
 
+    # 사용자가 이미 스트림으로 본 답변이므로 먼저 확정 저장한다 — 이후 평가가 실패해도
+    # 대화록(채점·NPC 기억의 근거)이 사용자가 본 것과 어긋나지 않게.
     session.add(
-        Message(simulation_id=simulation.id, role=f"npc:{npc_name}", content=npc_reply)
-    )
-
-    # 발언 영향 평가 → 상태 갱신 → 전이
-    deltas, reason = await scoring.evaluate_chat(step["mission"], user_text, npc_reply)
-    new_state, changed_step = await _update_state(session, simulation, scenario, deltas)
-    await scoring.log_action(
-        session,
-        simulation.id,
-        "chat",
-        {"npc": npc_name, "user_text": user_text, "reason": reason},
-        deltas,
+        Message(simulation_id=simulation.id, role="npc", npc_id=npc_id, content=npc_reply)
     )
     await session.commit()
+
+    # 발언 영향 평가 → 상태 갱신 → 전이. LLM 평가는 실패할 수 있으므로(실키 오류/JSON 파싱)
+    # best-effort: 실패해도 대화는 유지하고 상태 전이만 생략, 소켓은 정상 final 프레임으로 종료.
+    deltas: dict = {}
+    changed_step = None
+    new_state = dict(simulation.state)
+    try:
+        deltas, reason = await scoring.evaluate_chat(step["mission"], user_text, npc_reply)
+        new_state, changed_step = await _update_state(session, simulation, scenario, deltas)
+        await scoring.log_action(
+            session, simulation.id, "chat",
+            {"npc": npc_id, "user_text": user_text, "reason": reason}, deltas,
+        )
+        await session.commit()
+    except Exception:  # noqa: BLE001 — 평가 실패가 확정된 대화를 되돌리거나 소켓을 죽이면 안 됨
+        await session.rollback()
+        logger.exception("발언 영향 평가 실패 (simulation=%d) — 대화 유지, 전이 생략", simulation.id)
 
     yield (
         "final",
         {
-            "npc": npc_name,
+            "npc": npc_id,
+            "name": persona["name"],
             "content": npc_reply,
             "delta": deltas,
-            "state": new_state,
+            "state": public_state(new_state),
             "step_changed": (
                 sm.public_step(sm.find_step(scenario.steps, changed_step))
                 if changed_step
@@ -226,7 +299,7 @@ async def submit_choice(
 ) -> dict:
     """선택지 제출 — 룰 기반 effects 적용."""
     _ensure_active(simulation)
-    step = sm.find_step(scenario.steps, simulation.state["step"])
+    step = _resolve_step(scenario, simulation.state)
     effects = scoring.choice_effects(step, choice_id)
 
     new_state, changed_step = await _update_state(session, simulation, scenario, effects)
@@ -237,7 +310,7 @@ async def submit_choice(
 
     return {
         "delta": effects,
-        "state": new_state,
+        "state": public_state(new_state),
         "step_changed": (
             sm.public_step(sm.find_step(scenario.steps, changed_step))
             if changed_step
@@ -246,30 +319,31 @@ async def submit_choice(
     }
 
 
-async def _transcript(session: AsyncSession, simulation_id: int) -> str:
-    """대화에서 실제로 정보를 수집했는지 채점에 반영하기 위한 대화록."""
+async def _transcript(session: AsyncSession, simulation: Simulation, scenario: Scenario) -> str:
+    """대화에서 실제로 정보를 수집했는지 채점에 반영하기 위한 대화록 (npc_id→이름 표시)."""
+    roster = await npc_map(session, scenario.id)
     history = list(
         (
             await session.execute(
                 select(Message)
-                .where(Message.simulation_id == simulation_id)
+                .where(Message.simulation_id == simulation.id)
                 .order_by(Message.id)
             )
         ).scalars()
     )
     return "\n".join(
-        f"{'사용자' if m.role == 'user' else m.role}: {m.content}"
-        for m in history[-SCORING_TURNS:]
+        f"{_speaker(m, roster)}: {m.content}" for m in history[-SCORING_TURNS:]
     )
 
 
 async def _grade(
-    session: AsyncSession, simulation: Simulation, mission: str, task: dict, submission: str | list
+    session: AsyncSession, simulation: Simulation, scenario: Scenario,
+    mission: str, task: dict, submission: str | list,
 ) -> dict:
     """채점 라우팅 — 선택·배열형은 룰 채점(결정적), 서술형은 대화록 포함 LLM 채점."""
     if task.get("kind") in scoring.RULE_KINDS:
         return scoring.grade_structured(task, submission)
-    transcript = await _transcript(session, simulation.id)
+    transcript = await _transcript(session, simulation, scenario)
     return await scoring.evaluate_task(mission, task, transcript, str(submission))
 
 
@@ -288,7 +362,7 @@ def _envelope(
     return {
         **result,
         "advice_card": advice,
-        "state": state,
+        "state": public_state(state),  # 미발동 퀘스트 스포일러 마스킹
         "step_changed": step_changed,
         "completed": completed,
         "sudden_quest": sudden_quest,
@@ -297,10 +371,11 @@ def _envelope(
     }
 
 
-def _public_quest(quest_def: dict) -> dict:
-    """클라이언트용 퀘스트 정보 — 정답(hints·answer)은 숨김."""
+def _public_quest(quest_def: dict, npc_name: str | None = None) -> dict:
+    """클라이언트용 퀘스트 정보 — 정답(hints·answer)은 숨김. npc는 npc_id + 표시 이름."""
     return {
-        "npc": quest_def.get("npc"),
+        "npc": quest_def.get("npc"),  # npc_id
+        "npc_name": npc_name,
         "intro": quest_def.get("intro"),
         "task": sm.public_task(quest_def["task"]),
     }
@@ -324,12 +399,12 @@ async def submit_task(
     if quest.get("status") == "active":
         return await _submit_quest(session, simulation, scenario, submission, state, quest)
 
-    step = sm.find_step(scenario.steps, state["step"])
+    step = _resolve_step(scenario, state)
     task = step.get("task")
     if not task:
         raise HTTPException(status_code=400, detail="현재 스텝에 과제가 없음")
 
-    result = await _grade(session, simulation, step["mission"], task, submission)
+    result = await _grade(session, simulation, scenario, step["mission"], task, submission)
 
     attempts = dict(state.get("attempts") or {})
     attempts[step["id"]] = attempts.get(step["id"], 0) + 1
@@ -354,7 +429,9 @@ async def submit_task(
                 next_step, quest.get("status", "none"), random.random()
             ):
                 quest = {"status": "active", "attempts": 0}
-                quest_fired = _public_quest(scenario.sudden_quest)
+                q_roster = await npc_map(session, scenario.id)
+                q_name = (q_roster.get(scenario.sudden_quest.get("npc")) or {}).get("name")
+                quest_fired = _public_quest(scenario.sudden_quest, q_name)
     else:
         advice = hints.advice_card(task, attempt_n, result["scores"], result["feedback"])
 
@@ -420,7 +497,7 @@ async def _submit_quest(
     qtask = quest_def["task"]
     # 채점 기준점(mission)은 서사(intro)가 아니라 과제 지시문 — 루브릭이 흔들리지 않게
     result = await _grade(
-        session, simulation, qtask.get("mission") or qtask["prompt"], qtask, submission
+        session, simulation, scenario, qtask.get("mission") or qtask["prompt"], qtask, submission
     )
 
     quest["attempts"] = quest.get("attempts", 0) + 1

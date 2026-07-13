@@ -25,7 +25,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.content.loader import validate_scenario, yaml_scenario_slugs
 from app.core.config import settings
 from app.domains.scoring.aggregate import TYPE_COMPETENCY
-from app.models import Job, NpcPersona, Scenario, TeamCategory, TeamMission, TeamRepMission
+from app.models import (
+    Job,
+    Npc,
+    NpcPlacement,
+    Scenario,
+    TeamCategory,
+    TeamMission,
+    TeamRepMission,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,97 +43,138 @@ TYPE_ORDER = list(TYPE_COMPETENCY)
 # 모듈 공통 시작 상태값 — npc 프롬프트 템플릿이 참조하는 3개 키 고정
 INITIAL_STATE = {"trust": 50, "schedule_stability": 70, "requirement_clarity": 20}
 
-# ── NPC 아키타입 (역할명 키워드 분류 → 규칙 뼈대) ─────────────────────
+# ── NPC 아키타입 (역할 키워드 분류 → 성격·선호·불호·말버릇 재료) ───────────
+# system_prompt 통짜 대신 '재료' 배열만 — 완성 프롬프트는 코드 템플릿(npc/system.md)이 조립.
 ARCHETYPES = {
     "mentor": {
-        "keywords": ["사수", "선임", "수석", "시니어", "반장", "주임", "베테랑"],
-        "personality": "경험 많고 실무에 밝다. 물어보면 절차와 기준을 알려주지만 답을 대신 정해주지는 않는다.",
-        "prompt": (
-            "당신은 '{category}' 현장의 {role}이며 신입인 사용자의 사수입니다. "
-            "업무 흐름({work_flow})을 훤히 알고 있고, 사용자가 구체적으로 물어보면 "
-            "절차·기준·주의점을 알려줍니다. 묻지 않은 것을 먼저 다 알려주지 않으며, "
-            "사용자가 고민 없이 결정하면 '그렇게 하면 어떻게 될 것 같아요?'라고 되묻습니다. "
-            "정답을 통째로 불러주지 않습니다. 말투는 간결하고 현장감 있게."
-        ),
+        "keywords": ["사수", "선임", "수석", "시니어", "반장", "주임", "베테랑", "지도", "기장"],
+        "personality": ["경험 많고 실무에 밝다", "차분하고 원칙적", "후배를 챙기되 답을 대신 정해주지 않는다"],
+        "likes": ["구체적으로 파고드는 질문", "스스로 고민한 흔적"],
+        "dislikes": ["고민 없이 결정부터 하는 태도", "정답만 떠먹여 달라는 요구"],
+        "speech_habits": ["그렇게 하면 어떻게 될 것 같아요?", "핵심부터 봅시다."],
+        "fallback_role": "선임 사수",
     },
     "supervisor": {
         "keywords": ["팀장", "과장", "부장", "점장", "지점장", "소장", "원장", "센터장",
-                     "실장", "매니저", "지휘관", "당직", "기관장", "책임"],
-        "personality": "승인·보고를 받는 책임자. 꼼꼼하고 근거를 요구하며, 형식을 갖춘 보고에는 협조적이다.",
-        "prompt": (
-            "당신은 '{category}' 현장의 {role}이며 사용자의 보고·승인 라인입니다. "
-            "업무 지시를 내리고 결과 보고를 받습니다. 보고가 두루뭉술하면 '근거가 뭐예요?', "
-            "'우선순위 기준은요?'라고 되묻고, 사실·근거·다음 조치가 갖춰진 보고에는 명확히 "
-            "승인해줍니다. 사용자가 확인 없이 단정하면 지적합니다. 말투는 단정하고 짧게."
-        ),
+                     "실장", "매니저", "지휘관", "당직", "기관장", "책임", "차장", "관제"],
+        "personality": ["승인·보고를 받는 책임자", "꼼꼼하고 근거를 요구한다", "형식을 갖춘 보고엔 협조적"],
+        "likes": ["사실·근거·다음 조치가 갖춰진 보고", "우선순위 기준이 분명한 판단"],
+        "dislikes": ["두루뭉술한 보고", "확인 없는 단정"],
+        "speech_habits": ["근거가 뭐예요?", "우선순위 기준은요?"],
+        "fallback_role": "담당 팀장",
     },
     "counterpart": {
         "keywords": ["고객", "환자", "민원", "회원", "승객", "학부모", "보호자", "투숙객",
-                     "이용자", "의뢰", "차주", "임차인", "구매", "손님", "시민"],
-        "personality": "응대 대상. 자신의 요구와 상황은 잘 알지만 내부 절차는 모르며, 응대 태도에 민감하게 반응한다.",
-        "prompt": (
-            "당신은 '{category}' 현장에서 사용자가 응대해야 하는 {role}입니다. "
-            "당신의 요구사항·상황 정보는 사용자가 정중히 물어봐야 조금씩 말해줍니다. "
-            "성의 있게 응대하면 협조적으로 변하고, 성의 없거나 절차만 따지면 불만을 표현합니다. "
-            "내부 규정·기술 용어는 모릅니다. 실제 사람처럼 자연스럽게 말하세요."
-        ),
+                     "이용자", "의뢰", "차주", "임차인", "구매", "손님", "시민", "주민"],
+        "personality": ["응대 대상", "자기 요구와 상황은 잘 알지만 내부 절차는 모른다", "응대 태도에 민감"],
+        "likes": ["성의 있고 공감하는 응대", "쉬운 말로 풀어주는 설명"],
+        "dislikes": ["절차만 따지는 태도", "성의 없는 응대"],
+        "speech_habits": ["아니 그게 무슨 말이에요?", "빨리 좀 처리해줘요."],
+        "fallback_role": "방문 고객",
     },
     "colleague": {  # 분류 실패 시 기본값
         "keywords": [],
-        "personality": "협업 부서의 담당자. 자기 영역 정보를 갖고 있고 요청이 명확하면 협조한다.",
-        "prompt": (
-            "당신은 '{category}' 현장에서 사용자와 협업하는 {role}입니다. "
-            "당신 영역의 정보(자료, 일정, 현황)는 사용자가 명확히 요청해야 공유합니다. "
-            "요청이 애매하면 '정확히 뭐가 필요하세요?'라고 되묻습니다. 말투는 사무적이지만 우호적."
-        ),
+        "personality": ["협업 부서 담당자", "자기 영역 정보를 갖고 있다", "요청이 명확하면 협조적"],
+        "likes": ["명확한 요청", "필요한 것이 특정된 협조 요청"],
+        "dislikes": ["애매한 요청", "떠넘기는 태도"],
+        "speech_habits": ["정확히 뭐가 필요하세요?", "그건 제 담당은 아닌데, 확인해볼게요."],
+        "fallback_role": "협업 담당자",
     },
 }
 
+# ── 원본 NPC 문자열 파싱 (이름/역할/직급 분리) ──────────────────────────
+SURNAMES = set("김이박최정강조윤장임한오서신권황안송류전홍고문양손배백허남심노하곽성차주우구원태")
+RANK_KEYWORDS = ["팀장", "지점장", "센터장", "점장", "소장", "원장", "실장", "부장", "과장", "차장",
+                 "대리", "반장", "주임", "선임", "수석", "매니저", "기관사", "관제사", "정비원",
+                 "요원", "형사", "경위", "경사", "순경"]
+# 성씨로 시작하지만 인명이 아닌 역할어 (오탐 방지)
+NAME_STOPWORDS = {"고령", "초보", "급한", "만취", "외국인", "신규", "기존", "블랙컨슈머", "의뢰부서",
+                  "기록관리자", "전문자격자", "전문", "담당", "타부서", "회계담당"}
 
-def norm_role(role: str) -> str:
-    """NPC 역할명 정규화 — 괄호 설명 제거. 페르소나 등록과 미션 참조 양쪽에 동일 적용."""
-    return re.sub(r"\(.*?\)", "", role or "").strip()
+
+def split_npc_list(raw: str | None) -> list[str]:
+    """콤마로 NPC를 분리하되 괄호 안 콤마는 무시 — '정미래 안전관리자(…, 야간)'가 쪼개지던 버그 방지."""
+    out, depth, cur = [], 0, ""
+    for ch in raw or "":
+        if ch in "(（":
+            depth += 1
+        elif ch in ")）":
+            depth = max(0, depth - 1)
+        if ch == "," and depth == 0:
+            out.append(cur)
+            cur = ""
+        else:
+            cur += ch
+    if cur.strip():
+        out.append(cur)
+    return [x.strip() for x in out if x.strip()]
 
 
-def classify(role: str) -> str:
+def norm_role(raw: str) -> str:
+    """NPC 문자열에서 괄호 설명 제거 — 원본→매칭 키 정규화 (표시·참조 양쪽 동일)."""
+    return re.sub(r"\(.*?\)", "", raw or "").strip()
+
+
+_match_key = norm_role  # 원본 NPC 문자열 → 로스터 매칭 키 (괄호 무시)
+
+
+def _looks_like_name(tok: str) -> bool:
+    return bool(re.fullmatch(r"[가-힣]{2,3}", tok)) and tok[0] in SURNAMES and tok not in NAME_STOPWORDS
+
+
+def parse_npc(raw: str) -> tuple[str, str, str]:
+    """원본 NPC 문자열 → (name, role, rank).
+
+    '김민석 팀장(경위, 지구대 순찰팀장)' → ('김민석', '지구대 순찰팀장', '팀장')
+    '원무팀장'                          → ('원무팀장', '원무팀장', '팀장')  # 인명 없는 역할 라벨
+    """
+    raw = raw.strip()
+    head = raw.split("(", 1)[0].strip() if "(" in raw else raw
+    paren = raw.split("(", 1)[1].rstrip("） )").strip() if "(" in raw else ""
+    tokens = head.split()
+
+    name, rest = head, head
+    if len(tokens) >= 2 and _looks_like_name(tokens[0]):
+        name, rest = tokens[0], " ".join(tokens[1:])
+
+    rank = next((r for r in RANK_KEYWORDS if r in head), "")
+    # 역할: 괄호 설명 중 가장 서술적인(긴) 조각을 우선 — 첫 조각은 직급인 경우가 많음
+    # ('경위, 지구대 순찰팀장' → '지구대 순찰팀장'). 괄호 없으면 이름 뗀 나머지, 그것도 없으면 라벨
+    role = max((p.strip() for p in paren.split(",")), key=len) if paren else (rest or head)
+    return name, role.strip(), rank
+
+
+def classify(raw: str) -> str:
     for key in ("supervisor", "mentor", "counterpart"):  # 직급 키워드 우선 ('고객지원 팀장'=상사)
-        if any(k in role for k in ARCHETYPES[key]["keywords"]):
+        if any(k in raw for k in ARCHETYPES[key]["keywords"]):
             return key
     return "colleague"
 
 
-def build_personas(category: str, work_flow: str, roles: list[str]) -> list[dict]:
-    """역할명 목록 → 페르소나 (최소 3명 보장: 사수·상사·응대상대 축)."""
-    personas, seen_types = [], set()
-    for role in roles:
-        arch_key = classify(role)
-        arch = ARCHETYPES[arch_key]
-        seen_types.add(arch_key)
-        personas.append({
-            "name": role,
-            "rank": role,
-            "personality": arch["personality"],
-            "system_prompt": arch["prompt"].format(
-                category=category, role=role, work_flow=(work_flow or "")[:200]
-            ),
-        })
-    # 조사에 실존하는 NPC가 3명 이상이면 그대로 사용 (근거 없는 가공 NPC 주입 금지).
-    # 3명 미만일 때만 빠진 축을 기본 역할로 보충 — '최소 3명' 지시 충족용 최후 수단
-    fallback = {"mentor": "선임 사수", "supervisor": "담당 팀장", "counterpart": "방문 고객"}
-    for arch_key, default_role in fallback.items():
-        if len(personas) >= 3:
-            break
-        if arch_key not in seen_types:
-            arch = ARCHETYPES[arch_key]
-            personas.append({
-                "name": default_role,
-                "rank": default_role,
-                "personality": arch["personality"],
-                "system_prompt": arch["prompt"].format(
-                    category=category, role=default_role, work_flow=(work_flow or "")[:200]
-                ),
-            })
-    return personas
+def make_npc_id(slug: str, idx: int) -> str:
+    return f"npc_{slug}_{idx:02d}"
+
+
+def build_npc(raw: str, slug: str, idx: int) -> dict:
+    """원본 NPC 문자열 → 정규화 NPC 엔트리 (고유정보 + 배치정보 통합, seed가 두 테이블로 분리).
+
+    responsibilities·appearance는 상위(build_scenario_doc)에서 등장 스텝을 알고 채운다.
+    """
+    name, role, rank = parse_npc(raw)
+    arch = ARCHETYPES[classify(raw)]
+    return {
+        "npc_id": make_npc_id(slug, idx),
+        "name": name,
+        "role": role,
+        "rank": rank or None,
+        "personality": list(arch["personality"]),
+        "likes": list(arch["likes"]),
+        "dislikes": list(arch["dislikes"]),
+        "speech_habits": list(arch["speech_habits"]),
+        "responsibilities": [],   # build_scenario_doc에서 등장 스텝 미션으로 채움
+        "appearance": {},         # build_scenario_doc에서 available_steps 채움
+        "_arch": classify(raw),   # 폴백 보충 판단용 (emit 전 제거)
+    }
 
 
 def split_criteria(success: str | None, failure: str | None) -> list[str]:
@@ -149,8 +198,8 @@ def slug_for(missions: list[TeamMission], category_no: int, owner: str | None) -
 
 
 def mission_npcs(raw: str | None) -> list[str]:
-    """미션 NPC 필드 파싱 — 콤마 분리 + 괄호 정규화 (페르소나 이름과 동일 규칙)."""
-    return [norm_role(r) for r in (raw or "").split(",") if norm_role(r)]
+    """미션 NPC 필드 파싱 — 괄호 인식 분리 + 정규화 (괄호 안 콤마로 안 쪼개짐)."""
+    return [norm_role(r) for r in split_npc_list(raw) if norm_role(r)]
 
 
 # ── 라이트 메커니즘 조립 (팀장 방침: 사용자에게 문서 작성을 시키지 않는다) ──
@@ -271,26 +320,38 @@ def build_task(m: TeamMission) -> dict:
     return task
 
 
-def mission_to_step(m: TeamMission, step_id: str) -> dict:
-    npcs = mission_npcs(m.npc)
-    npc = npcs[0] if npcs else ""
+def _short_duty(mission: str | None) -> str:
+    """미션 문장 → 담당업무 한 줄 (첫 절, 40자)."""
+    text = re.split(r"[.\n]", mission or "")[0].strip()
+    return text[:40]
+
+
+def mission_to_step(m: TeamMission, step_id: str, npc_by_key: dict) -> dict:
+    """미션 1건 → 스텝. npcs는 npc_id 목록(이름 아님) — npc_by_key로 원본→npc 매핑."""
+    ids, first_name = [], ""
+    for raw in split_npc_list(m.npc):
+        e = npc_by_key.get(_match_key(raw))
+        if e and e["npc_id"] not in ids:
+            ids.append(e["npc_id"])
+            first_name = first_name or e["name"]
     return {
         "id": step_id,
         "type": m.situation_type,
         "title": m.situation_type or "업무 미션",
         "mission": (
-            f'{npc}: "{m.npc_line}"\n\n{m.mission}' if m.npc_line else (m.mission or "")
+            f'{first_name}: "{m.npc_line}"\n\n{m.mission}'
+            if (m.npc_line and first_name) else (m.mission or "")
         ),
-        "npcs": npcs,
+        "npcs": ids,
         "guide": f"제공 자료: {m.materials}" if m.materials else None,
         "task": build_task(m),
     }
 
 
 def build_scenario_doc(
-    category: TeamCategory, missions: list[TeamMission], rep_codes: set[str]
+    category: TeamCategory, missions: list[TeamMission], rep_codes: set[str], slug: str
 ) -> dict | None:
-    """중분류 1개 → 시나리오 문서. 미션 부족 등은 None (스킵, 로그)."""
+    """중분류 1개 → 시나리오 문서 (NPC 정규화: npc_id 참조 + 고유/배치 필드). 미션 부족은 None."""
     if not missions:
         logger.warning("스킵 %s: 미션 없음", category.category)
         return None
@@ -303,47 +364,72 @@ def build_scenario_doc(
     order = {t: i for i, t in enumerate(TYPE_ORDER)}
     daily.sort(key=lambda m: order.get(m.situation_type, 99))
 
-    steps = [mission_to_step(m, f"m{i}") for i, m in enumerate(daily, 1)]
+    # ── NPC 로스터: category.npc_roles + 모든 미션 NPC (괄호 인식 분리, 원본 dedup) ──
+    npc_by_key: dict[str, dict] = {}
+    roster: list[dict] = []
+    for raw in split_npc_list(category.npc_roles) + [r for m in missions for r in split_npc_list(m.npc)]:
+        key = _match_key(raw)
+        if not key or key in npc_by_key:
+            continue
+        entry = build_npc(raw, slug, len(roster) + 1)
+        npc_by_key[key] = entry
+        roster.append(entry)
+    # 최소 3명 보장 — 빠진 아키타입 축을 기본 역할로 보충 (근거 없는 실존 NPC 창작은 아님)
+    seen_arch = {e["_arch"] for e in roster}
+    for arch_key in ("mentor", "supervisor", "counterpart"):
+        if len(roster) >= 3:
+            break
+        if arch_key not in seen_arch:
+            entry = build_npc(ARCHETYPES[arch_key]["fallback_role"], slug, len(roster) + 1)
+            npc_by_key[_match_key(ARCHETYPES[arch_key]["fallback_role"])] = entry
+            roster.append(entry)
+
+    steps = [mission_to_step(m, f"m{i}", npc_by_key) for i, m in enumerate(daily, 1)]
     for i, step in enumerate(steps):
         step["task"]["on_pass"] = steps[i + 1]["id"] if i + 1 < len(steps) else "__end__"
+        if not step["npcs"]:  # 매칭 실패 시 첫 NPC로 보정 (스텝은 반드시 대화 상대 필요)
+            step["npcs"] = [roster[0]["npc_id"]]
 
+    step_mission = {f"m{i}": m for i, m in enumerate(daily, 1)}
     quest = None
     if rep and len(steps) >= 2:  # 스텝 1개면 전환이 없어 발동 불가 — 퀘스트 생략
         q = rep[0]
-        q_npcs = mission_npcs(q.npc)
-        q_npc = q_npcs[0] if q_npcs else ""
+        q_ids = mission_to_step(q, "quest", npc_by_key)["npcs"]
+        q_npc = q_ids[0] if q_ids else roster[0]["npc_id"]
+        q_name = next((e["name"] for e in roster if e["npc_id"] == q_npc), "")
         quest = {
             "npc": q_npc,
-            "intro": f'{q_npc}이(가) 다급하게 찾아왔다. "{q.npc_line}"' if q.npc_line
+            "intro": f'{q_name}이(가) 다급하게 찾아왔다. "{q.npc_line}"' if q.npc_line
                      else "예상치 못한 상황이 발생했다.",
-            "task": {**mission_to_step(q, "quest")["task"], "type": q.situation_type},
+            "task": {**build_task(q), "type": q.situation_type},
         }
+        step_mission["quest"] = q
 
-    # NPC: 연결맵 역할 + 미션 등장 NPC 합집합 (최소 3명 아키타입 보장)
-    roles: list[str] = []
-    for src in [category.npc_roles or ""] + [m.npc or "" for m in missions]:
-        for r in src.split(","):
-            r = norm_role(r)
-            if r and r not in roles:
-                roles.append(r)
-    personas = build_personas(category.category, category.work_flow, roles)
-
-    # 스텝·퀘스트가 참조하는 NPC가 페르소나에 없으면 미션 진행 불가 — 보정
-    persona_names = {p["name"] for p in personas}
+    # 담당업무·등장 채우기 — NPC가 등장하는 스텝의 미션에서 파생
+    appears: dict[str, list[str]] = {}
     for step in steps:
-        step["npcs"] = [n for n in step["npcs"] if n in persona_names] or [personas[0]["name"]]
-    if quest and quest["npc"] not in persona_names:
-        quest["npc"] = personas[0]["name"]
+        for nid in step["npcs"]:
+            appears.setdefault(nid, []).append(step["id"])
+    if quest:
+        appears.setdefault(quest["npc"], []).append("quest")
+    for e in roster:
+        step_ids = appears.get(e["npc_id"], [])
+        duties = [_short_duty(step_mission[s].mission) for s in step_ids if s in step_mission]
+        e["responsibilities"] = list(dict.fromkeys(d for d in duties if d))[:4]
+        e["appearance"] = {"location": None, "available_steps": step_ids}
+        if quest and e["npc_id"] == quest["npc"]:
+            e["appearance"]["conditions"] = ["quest_started"]
+        e.pop("_arch", None)
 
     return {
-        "job": None,  # main()에서 slug로 설정 (변환 시나리오의 job 코드 = slug 규칙)
-        "slug": None,  # main()에서 결정
+        "job": None,   # main()에서 slug로 설정
+        "slug": slug,
         "title": f"{category.category} — 신입의 하루",
         "module": category.module,
         "initial_state": dict(INITIAL_STATE),
         "steps": steps,
         "sudden_quest": quest,
-        "npcs": personas,
+        "npcs": roster,
     }
 
 
@@ -388,10 +474,28 @@ async def upsert_scenario(
         await session.execute(select(Scenario.id).where(Scenario.slug == doc["slug"]))
     ).scalar_one()
 
-    # 페르소나는 통째로 교체 (변환본은 항상 최신 조사 기준)
-    await session.execute(delete(NpcPersona).where(NpcPersona.scenario_id == scenario_id))
+    # NPC는 통째로 교체 (변환본은 항상 최신 조사 기준). 고유정보=npcs, 배치정보=npc_placements.
+    await session.execute(
+        delete(NpcPlacement).where(NpcPlacement.scenario_id == scenario_id)
+    )
     for p in doc["npcs"]:
-        session.add(NpcPersona(scenario_id=scenario_id, **p))
+        await session.execute(
+            insert(Npc).values(
+                npc_id=p["npc_id"], name=p["name"],
+                personality=p["personality"], likes=p["likes"],
+                dislikes=p["dislikes"], speech_habits=p["speech_habits"],
+            ).on_conflict_do_update(
+                index_elements=[Npc.npc_id],
+                set_={"name": p["name"], "personality": p["personality"],
+                      "likes": p["likes"], "dislikes": p["dislikes"],
+                      "speech_habits": p["speech_habits"]},
+            )
+        )
+        session.add(NpcPlacement(
+            scenario_id=scenario_id, npc_id=p["npc_id"], role=p["role"],
+            rank=p.get("rank"), responsibilities=p["responsibilities"],
+            appearance=p["appearance"],
+        ))
 
 
 async def build_all_docs(session: AsyncSession) -> list[tuple[TeamCategory, dict]]:
@@ -417,15 +521,13 @@ async def build_all_docs(session: AsyncSession) -> list[tuple[TeamCategory, dict
                 )
             ).scalars()
         )
-        doc = build_scenario_doc(cat, missions, rep_codes)
+        slug = slug_for(missions, cat.no or cat.id, cat.owner)  # npc_id 생성에 필요 — 먼저 계산
+        if slug in used_slugs:  # 조용한 덮어쓰기 방지 — 데이터 문제를 즉시 드러냄
+            raise ValueError(f"slug 충돌: '{slug}' ← {cat.category} vs {used_slugs[slug]}")
+        used_slugs[slug] = cat.category
+        doc = build_scenario_doc(cat, missions, rep_codes, slug)
         if doc is None:
             continue
-        doc["slug"] = slug_for(missions, cat.no or cat.id, cat.owner)
-        if doc["slug"] in used_slugs:  # 조용한 덮어쓰기 방지 — 데이터 문제를 즉시 드러냄
-            raise ValueError(
-                f"slug 충돌: '{doc['slug']}' ← {cat.category} vs {used_slugs[doc['slug']]}"
-            )
-        used_slugs[doc["slug"]] = cat.category
         doc["job"] = doc["slug"]  # 변환 시나리오의 job 코드 = slug
         validate_scenario(doc, f"변환:{cat.category}")
         docs.append((cat, doc))

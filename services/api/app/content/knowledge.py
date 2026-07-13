@@ -57,7 +57,11 @@ async def ingest_knowledge(session: AsyncSession) -> None:
             continue
         source = f"{job_code}/{path.name}"
         text = path.read_text(encoding="utf-8")
-        file_hash = hashlib.sha256(text.encode()).hexdigest()
+        # 스킵 키에 임베딩 프로바이더를 포함 — mock으로 먼저 적재된 뒤 실키(Gemini)로 바뀌면
+        # 텍스트가 같아도 프로바이더가 달라 재임베딩된다. (안 그러면 mock 벡터가 영구 잔존해
+        # 실키 질의와 거리 ~1.0 → RAG가 조용히 죽음)
+        provider = get_llm().embedder.name
+        file_hash = hashlib.sha256(f"{provider}\n{text}".encode()).hexdigest()
 
         existing_hash = (
             await session.execute(

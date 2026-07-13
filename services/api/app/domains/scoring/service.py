@@ -7,10 +7,13 @@
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.content.loader import RULE_KINDS
 from app.llm import get_llm
 from app.llm.base import ChatMessage
 from app.llm.prompts import render_prompt
 from app.models import ActionLog
+
+__all__ = ["RULE_KINDS"]  # 재노출 — 기존 scoring.RULE_KINDS 참조 유지
 
 CHAT_DELTA_LIMIT = 10
 STATE_KEYS = ["trust", "schedule_stability", "requirement_clarity"]
@@ -101,9 +104,6 @@ async def evaluate_task(
     }
 
 
-# 룰 채점 과제 종류 — LLM 없이 결정적으로 채점 (라이트 메커니즘: 클릭·선택·배열)
-RULE_KINDS = {"choice", "checklist", "order"}
-
 CHECKLIST_WRONG_PENALTY = 30  # 오답 1개 선택당 감점
 
 
@@ -134,6 +134,15 @@ def grade_structured(task: dict, submission: str | list) -> dict:
     kind = task["kind"]
     answer = task.get("answer") or {}
     valid_keys = {o["key"] for o in task.get("options", [])}
+    # 손상된 과제(보기·정답 누락)는 사용자를 무한 400 dead-end에 빠뜨리는 대신 서버 오류로
+    # 시끄럽게 드러낸다 — 로드 검증을 우회한 DB 행이 있으면 콘텐츠 문제로 잡히게.
+    answer_keys = ([answer["key"]] if "key" in answer else []) if kind == "choice" \
+        else list(answer.get("keys") or [])
+    if not valid_keys or not answer_keys:
+        raise HTTPException(
+            status_code=500,
+            detail=f"과제 설정 오류: '{kind}' 보기 또는 정답 누락 (시나리오 데이터 점검 필요)",
+        )
     picked = _parse_selection(submission, valid_keys)
 
     if kind == "choice":

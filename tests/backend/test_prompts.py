@@ -112,13 +112,20 @@ def test_report_prompt_with_performance():
 def test_npc_system_is_instruction_only_and_renders():
     out = render_prompt(
         "npc/system.md",
-        persona_prompt="당신은 총무팀장입니다. 해야 할 업무와 마감을 지시합니다.",
+        scenario_title="총무·행정·사무보조 — 신입의 하루",
         mission="워크숍 자료 준비",
         name="박연나",
+        role="총무 담당",
         rank="과장",
+        personality=["꼼꼼함", "원칙적"],
+        likes=["명확한 보고"],
+        dislikes=["확인 없는 단정"],
+        speech_habits=["근거가 뭐예요?"],
+        responsibilities=["워크숍 준비 총괄"],
         state={"trust": 50, "schedule_stability": 60, "requirement_clarity": 40},
         knowledge=None,
     )
+    assert "박연나" in out and "총무 담당" in out  # 필드 조립 확인
     assert "지시·요청·질문·사실 확인" in out
     assert "사용자의 답을 채점" in out
     assert "힌트를 제공하지 않습니다" in out
