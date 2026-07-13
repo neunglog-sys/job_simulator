@@ -11,7 +11,16 @@ class GeminiProvider:
     name = "gemini"
 
     def __init__(self) -> None:
-        self._client = genai.Client(api_key=settings.gemini_api_key)
+        if settings.google_genai_use_vertexai:
+            # Vertex AI (GCP $300 크레딧) — 인증은 GOOGLE_APPLICATION_CREDENTIALS(서비스계정 JSON)
+            self._client = genai.Client(
+                vertexai=True,
+                project=settings.google_cloud_project or None,
+                location=settings.google_cloud_location or None,
+            )
+        else:
+            # Google AI Studio — API 키
+            self._client = genai.Client(api_key=settings.gemini_api_key)
         self._model = settings.gemini_model
 
     @staticmethod

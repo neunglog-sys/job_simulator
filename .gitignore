@@ -38,3 +38,8 @@ storage/reports/*
 # Local tooling / personal scratch
 .claude/
 personal/
+
+# GCP 서비스계정 키 (Vertex AI) — 절대 커밋 금지
+secrets/
+*service-account*.json
+*gcp*key*.json
