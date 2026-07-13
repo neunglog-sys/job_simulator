@@ -8,6 +8,7 @@ from app.domains.recommendation.service import (
     _build_reason,
     _interest_match,
     _score_job,
+    is_recommendable,
 )
 
 
@@ -35,6 +36,12 @@ def test_missing_scores_use_neutral():
 
 def test_empty_weights_neutral():
     assert _score_job(_job({}), {"a": 100}) == NEUTRAL_SCORE
+
+
+def test_is_recommendable_excludes_empty_competency_jobs():
+    # 게임 시나리오 전용 '플레이용' 직무(competencies:{})는 추천 후보가 아니어야 함
+    assert is_recommendable(_job({"a": 5})) is True
+    assert is_recommendable(_job({})) is False
 
 
 def test_build_reason_picks_top_competencies():

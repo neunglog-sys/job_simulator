@@ -104,6 +104,16 @@ def _interest_match(job_profile: dict[str, int], user_profile: dict[str, int]) -
     return round(max(dot / (job_norm * user_norm), 0) * 100)
 
 
+def is_recommendable(job: Job) -> bool:
+    """추천 후보 자격 — 역량 가중치가 있어야 점수를 매길 수 있다.
+
+    빈 competencies는 NEUTRAL_SCORE만 받아 진짜 추천이 아니므로 후보에서 제외한다.
+    게임 시나리오 전용으로 생성된 '플레이용' 직무(build_scenarios YAML 방출)가
+    추천 상위에 섞이던 오염을 막는다. slug==code 관례에 의존하지 않는 판별.
+    """
+    return bool(job.competencies)
+
+
 def _score_job(job: Job, scores: dict[str, int], interest_profile: dict[str, int] | None = None) -> int:
     """직무 역량 중요도(1~5) 가중 평균 → 0~100 적합도. 사전 설문이 있으면 흥미유형 매칭을 보조 신호로 blend."""
     competency_score = _weighted_avg(job.competencies, scores)
@@ -171,7 +181,7 @@ async def create_recommendation(
     names = {c["key"]: c["name"] for c in load_competencies()}
     interest_profile: dict[str, int] = (consultation.survey or {}).get("profile") or {}
 
-    jobs = list((await session.execute(select(Job))).scalars())
+    jobs = [j for j in (await session.execute(select(Job))).scalars() if is_recommendable(j)]
     ranked = sorted(
         jobs, key=lambda j: _score_job(j, scores, interest_profile), reverse=True
     )[:TOP_N]
