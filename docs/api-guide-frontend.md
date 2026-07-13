@@ -64,11 +64,15 @@ const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
 
 ```
 POST /api/recommendations  {consultation_id}
-  → 201 {results: [{job_code, job_title, score, reason}]}   상위 3개
+  → 201 {results: [{job_code, job_title, score, reason, scenario_slug}]}   상위 3개
   → 409 적성 파악 부족 — body.detail에:
        {reason: "aptitude_unclear", interim_conclusion, followup_questions[], message}
        → 상담 화면으로 돌려보내고 followup_questions로 대화 이어가기 (기획 확정 UX)
 ```
+
+- **scenario_slug** = 이 직무와 가장 가까운 체험 시나리오 → **"바로 체험하기" 버튼**을 달아
+  `POST /api/simulations {scenario_slug}`로 곧장 게임 시작 (적성 → 체험 연결).
+  null이면 버튼 숨김 (연결 안 된 직무).
 
 ## 4. 맵 화면 — 시나리오 선택
 

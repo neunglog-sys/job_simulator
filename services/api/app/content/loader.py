@@ -116,3 +116,17 @@ def load_competencies() -> list[dict]:
     path = Path(settings.data_dir) / "evaluation" / "competencies.yaml"
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)["competencies"]
+
+
+def load_job_scenario_map() -> dict[str, str]:
+    """추천 직무 code → 체험 시나리오 slug (map_jobs_to_scenarios 방출본, 사람 검수 우선).
+
+    파일이 없으면 빈 dict — 추천은 정상 동작하고 '바로 체험' 연결만 빠진다.
+    값이 null인 항목(체험 미연결 확정)은 걸러낸다.
+    """
+    path = Path(settings.data_dir) / "recommendation" / "job_scenario_map.yaml"
+    if not path.exists():
+        return {}
+    with open(path, encoding="utf-8") as f:
+        raw = yaml.safe_load(f) or {}
+    return {str(k): str(v) for k, v in raw.items() if v}

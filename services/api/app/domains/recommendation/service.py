@@ -14,7 +14,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.content.loader import load_competencies
+from app.content.loader import load_competencies, load_job_scenario_map
 from app.domains.consultation import survey
 from app.domains.consultation.service import get_owned_consultation, list_messages
 from app.llm import get_llm
@@ -185,12 +185,15 @@ async def create_recommendation(
     ranked = sorted(
         jobs, key=lambda j: _score_job(j, scores, interest_profile), reverse=True
     )[:TOP_N]
+    scenario_map = load_job_scenario_map()  # 적성 → 체험 연결: 추천 직무의 근접 시나리오
     results = [
         {
             "job_code": job.code,
             "job_title": job.title,
             "score": _score_job(job, scores, interest_profile),
             "reason": _build_reason(job, scores, names, interest_profile),
+            # 프론트 '바로 체험하기' 버튼용 — 매핑 없으면 null (버튼 숨김)
+            "scenario_slug": scenario_map.get(job.code),
         }
         for job in ranked
     ]
