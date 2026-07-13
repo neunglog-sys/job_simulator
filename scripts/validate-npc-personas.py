@@ -22,10 +22,29 @@ INCIDENT_MARKERS = (
     "돌발 연출 힌트:",
     "- 돌발 연출 힌트:",
 )
+F03_REQUIRED_LABELS = (
+    "역할",
+    "성격",
+    "가치관",
+    "말버릇",
+    "말투",
+    "담당 업무",
+    "신입 대응",
+    "잘했을 때",
+    "실수했을 때",
+    "무리한 요구",
+    "권한 경계",
+    "반응 원칙",
+)
 
 
 def find_kb_workbook() -> Path:
-    for path in ROOT.glob("*.xlsx"):
+    candidates = [
+        *ROOT.glob("*.xlsx"),
+        *(ROOT / "data" / "research").glob("*.xlsx"),
+        *(ROOT / "docs").glob("*.xlsx"),
+    ]
+    for path in candidates:
         if path.name.startswith("~$"):
             continue
         try:
@@ -111,6 +130,15 @@ def validate_file(path: Path, family: dict) -> list[str]:
             errors.append(f"NPC {index} 프롬프트가 300자 미만: {len(prompt)}자")
         if "당신" not in prompt:
             errors.append(f"NPC {index} 2인칭 역할 선언 누락")
+        field_positions: list[int] = []
+        for label in F03_REQUIRED_LABELS:
+            match = re.search(rf"^- \*\*{re.escape(label)}\*\*", prompt, re.MULTILINE)
+            if not match:
+                errors.append(f"NPC {index} F03 필수 필드 누락: {label}")
+            else:
+                field_positions.append(match.start())
+        if field_positions != sorted(field_positions):
+            errors.append(f"NPC {index} F03 필수 필드 순서 불일치")
         has_quoted_example = bool(re.search(r'["“‘][^"”’]{4,}["”’]', prompt))
         if not has_quoted_example and not any(
             token in prompt for token in ("말투", "어투", "예:", "예시")
@@ -193,10 +221,19 @@ def validate_file(path: Path, family: dict) -> list[str]:
             errors.append(f"NPC {index} 지시 중심 역할 경계 누락")
         if "사용자의 답을 채점하거나 오류 원인을 설명" not in prompt:
             errors.append(f"NPC {index} 채점·교정 금지 규칙 누락")
-        if "자연스러운 직장 존댓말" not in prompt or "모욕·반말" not in prompt:
-            errors.append(f"NPC {index} 존댓말·상호존중 규칙 누락")
-        if "이름·직급 뒤에 ‘님’을 붙여" not in prompt or "낮춰 부르는" not in prompt:
-            errors.append(f"NPC {index} 존중 호칭 규칙 누락")
+        honorific_contract = (
+            "자연스러운 직장 존댓말" in prompt
+            and "모욕·반말" in prompt
+            and "이름·직급 뒤에 ‘님’을 붙여" in prompt
+            and "낮춰 부르는" in prompt
+        )
+        casual_contract = (
+            "편한 반말" in prompt
+            and "모욕·비하·인신공격" in prompt
+            and "지나친 하대" in prompt
+        )
+        if not honorific_contract and not casual_contract:
+            errors.append(f"NPC {index} 존댓말/현장 반말 상호존중 계약 누락")
         if "유자격자 또는 현장 관리자에게 보고·이관" not in prompt:
             errors.append(f"NPC {index} 위험 작업 이관 규칙 누락")
 
