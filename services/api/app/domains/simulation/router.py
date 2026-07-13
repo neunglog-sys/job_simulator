@@ -1,11 +1,10 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import SessionFactory, get_session
-from app.core.deps import DEMO_EMAIL, get_current_user
+from app.core.deps import get_current_user, get_or_create_demo_user
 from app.domains.simulation import service
 from app.domains.simulation.schemas import SimulationCreate, SimulationOut
 from app.models import User
@@ -53,15 +52,7 @@ async def _ws_user(session: AsyncSession, user_id: int | None) -> User:
         if user is None:
             raise HTTPException(status_code=401, detail="존재하지 않는 사용자")
         return user
-    user = (
-        await session.execute(select(User).where(User.email == DEMO_EMAIL))
-    ).scalar_one_or_none()
-    if user is None:
-        user = User(email=DEMO_EMAIL, name="데모 사용자")
-        session.add(user)
-        await session.commit()
-        await session.refresh(user)
-    return user
+    return await get_or_create_demo_user(session)
 
 
 @router.websocket("/ws/simulations/{simulation_id}")
