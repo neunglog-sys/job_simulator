@@ -30,6 +30,32 @@ def load_jobs() -> list[dict]:
     return jobs
 
 
+RULE_TASK_KINDS = {"choice", "checklist", "order"}  # scoring.RULE_KINDS와 동일 (임포트 순환 방지)
+
+
+def _validate_task(task: dict, where: str) -> None:
+    """과제 공통 검증 — 선택·배열형(kind)은 보기(options)·정답(answer) 정합성까지."""
+    kind = task.get("kind", "write")
+    if kind == "write":
+        return
+    if kind not in RULE_TASK_KINDS:
+        raise ValueError(f"{where}: 알 수 없는 task kind '{kind}'")
+    options = task.get("options") or []
+    keys = [o.get("key") for o in options]
+    if len(options) < 2 or len(set(keys)) != len(keys):
+        raise ValueError(f"{where}: {kind} 과제는 중복 없는 보기 2개 이상 필요")
+    answer = task.get("answer") or {}
+    if kind == "choice":
+        answer_keys = [answer["key"]] if "key" in answer else []
+    else:
+        answer_keys = list(answer.get("keys") or [])
+    if not answer_keys:
+        raise ValueError(f"{where}: {kind} 과제에 정답(answer) 누락")
+    bad = [k for k in answer_keys if k not in set(keys)]
+    if bad:
+        raise ValueError(f"{where}: 정답 키가 보기에 없음 {bad}")
+
+
 def validate_scenario(doc: dict, source: str) -> None:
     """시나리오 문서 구조 검증 — YAML 시드와 변환 스크립트(build_scenarios) 공용."""
     missing = REQUIRED_SCENARIO_KEYS - doc.keys()
@@ -51,6 +77,7 @@ def validate_scenario(doc: dict, source: str) -> None:
                 raise ValueError(
                     f"{source}: step '{step['id']}'의 on_pass '{task['on_pass']}'가 존재하지 않음"
                 )
+            _validate_task(task, f"{source}: step '{step['id']}'")
     reserved = {"step", "attempts", "quest"} & set(doc.get("initial_state", {}))
     if reserved:
         raise ValueError(f"{source}: initial_state에 예약 키 사용 불가 {reserved}")
@@ -66,6 +93,7 @@ def validate_scenario(doc: dict, source: str) -> None:
         qt_missing = {"prompt", "criteria"} - quest["task"].keys()
         if qt_missing:
             raise ValueError(f"{source}: sudden_quest.task 필수 키 누락 {qt_missing}")
+        _validate_task(quest["task"], f"{source}: sudden_quest")
         npc_names = {n["name"] for n in doc["npcs"]}
         if quest["npc"] not in npc_names:
             raise ValueError(f"{source}: sudden_quest NPC '{quest['npc']}'의 페르소나 없음")

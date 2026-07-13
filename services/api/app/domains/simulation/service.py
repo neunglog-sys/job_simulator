@@ -264,11 +264,13 @@ async def _transcript(session: AsyncSession, simulation_id: int) -> str:
 
 
 async def _grade(
-    session: AsyncSession, simulation: Simulation, mission: str, task: dict, submission: str
+    session: AsyncSession, simulation: Simulation, mission: str, task: dict, submission: str | list
 ) -> dict:
-    """대화록 포함 채점 — 본편 과제·돌발 퀘스트 공용."""
+    """채점 라우팅 — 선택·배열형은 룰 채점(결정적), 서술형은 대화록 포함 LLM 채점."""
+    if task.get("kind") in scoring.RULE_KINDS:
+        return scoring.grade_structured(task, submission)
     transcript = await _transcript(session, simulation.id)
-    return await scoring.evaluate_task(mission, task, transcript, submission)
+    return await scoring.evaluate_task(mission, task, transcript, str(submission))
 
 
 def _envelope(
@@ -296,16 +298,11 @@ def _envelope(
 
 
 def _public_quest(quest_def: dict) -> dict:
-    """클라이언트용 퀘스트 정보 — 정답 힌트(hints)는 숨김."""
-    task = quest_def["task"]
+    """클라이언트용 퀘스트 정보 — 정답(hints·answer)은 숨김."""
     return {
         "npc": quest_def.get("npc"),
         "intro": quest_def.get("intro"),
-        "task": {
-            "prompt": task["prompt"],
-            "criteria": task["criteria"],
-            "pass_score": task.get("pass_score", 70),
-        },
+        "task": sm.public_task(quest_def["task"]),
     }
 
 
@@ -313,9 +310,9 @@ async def submit_task(
     session: AsyncSession,
     simulation: Simulation,
     scenario: Scenario,
-    submission: str,
+    submission: str | list,
 ) -> dict:
-    """과제 제출 — AI 채점 → 통과 시 다음 스텝 / 미달 시 조언 카드(힌트 3단계).
+    """과제 제출 — 채점(룰 또는 AI) → 통과 시 다음 스텝 / 미달 시 조언 카드(힌트 3단계).
 
     돌발 퀘스트가 활성 상태면 제출은 퀘스트 채점으로 라우팅된다.
     스텝 전환 성공 시 돌발 퀘스트 발동을 판정한다 (시뮬레이션당 1회 보장).
@@ -388,9 +385,9 @@ async def submit_task(
         except Exception:  # noqa: BLE001 — 스냅샷 실패가 성공한 제출을 500으로 만들면 안 됨
             logger.exception("점수 스냅샷 실패 (simulation=%d) — GET /score는 재집계로 동작", simulation.id)
 
-    # AI 코치: 미션 통과 시 완료당 1회, 제출물 사후 리뷰 (실패해도 진행 비차단)
+    # AI 코치: 서술형 통과 시 완료당 1회, 제출물 사후 리뷰 (선택·배열형은 리뷰할 글이 없음)
     coach_cards = None
-    if result["passed"]:
+    if result["passed"] and task.get("kind") not in scoring.RULE_KINDS:
         coach_cards = await coach.generate_cards(coach.build_vars(
             simulation_id=simulation.id, scenario_slug=scenario.slug,
             step=step, task=task, submission=submission, result=result, attempt=attempt_n,
@@ -456,7 +453,7 @@ async def _submit_quest(
     await session.commit()
 
     coach_cards = None
-    if result["passed"]:
+    if result["passed"] and qtask.get("kind") not in scoring.RULE_KINDS:
         quest_step = {"id": "quest", "title": "돌발 퀘스트", "mission": quest_def.get("intro", "")}
         coach_cards = await coach.generate_cards(coach.build_vars(
             simulation_id=simulation.id, scenario_slug=scenario.slug,

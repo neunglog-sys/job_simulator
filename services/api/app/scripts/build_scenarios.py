@@ -12,13 +12,18 @@
 
 import asyncio
 import logging
+import random
 import re
+import sys
+from pathlib import Path
 
+import yaml
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.content.loader import validate_scenario, yaml_scenario_slugs
+from app.core.config import settings
 from app.domains.scoring.aggregate import TYPE_COMPETENCY
 from app.models import Job, NpcPersona, Scenario, TeamCategory, TeamMission, TeamRepMission
 
@@ -124,7 +129,7 @@ def build_personas(category: str, work_flow: str, roles: list[str]) -> list[dict
 
 
 def split_criteria(success: str | None, failure: str | None) -> list[str]:
-    """성공기준 문장 → 채점 criteria 목록 (쉼표 분리, 2~5개)."""
+    """성공기준 문장 → 채점 criteria 목록 (쉼표 분리, 2~5개). 서술형(write) 과제 전용."""
     items = [c.strip() for c in (success or "").split(",") if c.strip()][:4]
     if not items:
         items = ["미션 요구사항을 충족했는가"]
@@ -148,6 +153,124 @@ def mission_npcs(raw: str | None) -> list[str]:
     return [norm_role(r) for r in (raw or "").split(",") if norm_role(r)]
 
 
+# ── 라이트 메커니즘 조립 (팀장 방침: 사용자에게 문서 작성을 시키지 않는다) ──
+# 조사 시트의 구현형태(impl_form) 의도를 상황유형별 인터랙션으로 구현:
+#   정상업무        체크리스트+선택   → checklist (필요한 행동 모두 고르기)
+#   자료·정보 누락  오류탐지+질문     → choice    (문제 있는 행동 골라내기)
+#   우선순위 충돌   우선순위 배열+보고 → order     (올바른 순서로 배열)
+#   오류·안전위험   돌발대응 분기     → choice    (첫 대응 고르기)
+#   보고·인계       요약작성+AI 대화  → write     (유일한 서술형 — 짧은 인계 보고)
+# 정답 = 행동순서(action_steps), 오답 = 실패패턴(failure_patterns) — 전부 조사 데이터 조립,
+# 데이터가 모자라면 write로 폴백 (진행이 막히는 것보다 서술형이 낫다).
+
+CIRCLED_RE = re.compile(r"[①②③④⑤⑥⑦⑧⑨⑩⑪⑫]")
+ORDER_ITEM_CAP = 4  # 배열 항목 수 상한 — 라이트하게
+
+
+def split_action_steps(raw: str | None) -> list[str]:
+    """'① A ② B ...' → ["A", "B", ...]. 원문자 마커가 없으면 빈 목록 (write 폴백 신호)."""
+    if not raw or not CIRCLED_RE.search(raw):
+        return []
+    return [p.strip(" ·,;") for p in CIRCLED_RE.split(raw) if p.strip(" ·,;")]
+
+
+def split_failures(raw: str | None) -> list[str]:
+    return [p.strip() for p in (raw or "").split(",") if p.strip()]
+
+
+def _make_options(entries: list[tuple[str, str]], seed: str) -> tuple[list[dict], dict]:
+    """(label, tag) 목록 → 결정적 셔플 후 key 부여. → (options, tag별 key 목록).
+
+    셔플 시드는 mission_code — 재변환해도 보기 순서가 흔들리지 않게 (멱등).
+    """
+    shuffled = list(entries)
+    random.Random(seed).shuffle(shuffled)
+    options, by_tag = [], {}
+    for i, (label, tag) in enumerate(shuffled):
+        key = chr(ord("a") + i)
+        options.append({"key": key, "label": label})
+        by_tag.setdefault(tag, []).append(key)
+    return options, by_tag
+
+
+def _base_task(m: TeamMission, kind: str, prompt: str, criteria: list[str]) -> dict:
+    return {
+        "kind": kind,
+        "prompt": prompt,
+        "criteria": criteria,
+        "pass_score": 70,
+        "hints": {
+            "warning": (m.failure_patterns or "")[:200] or None,
+            "answer_guide": m.action_steps,  # 3차 힌트 = 정답 골격 공개 (팀 결정)
+        },
+        # on_pass는 조립 후 체인 연결
+    }
+
+
+def build_task(m: TeamMission) -> dict:
+    """미션 1건 → 과제. 상황유형별 라이트 메커니즘, 데이터 부족 시 write 폴백."""
+    steps = split_action_steps(m.action_steps)
+    fails = split_failures(m.failure_patterns)
+    seed = m.mission_code or (m.mission or "")[:40]
+    # 보기 문구 중복은 정답 판별을 깨므로 제거 (동일 문구가 정답·오답 양쪽에 오는 경우 방지)
+    fails = [f for f in fails if f not in set(steps)]
+    situation = m.situation_type or ""
+
+    if situation == "정상업무" and len(steps) >= 2 and fails:
+        entries = [(s, "o") for s in steps[:5]] + [(f, "x") for f in fails[:2]]
+        options, by_tag = _make_options(entries, seed)
+        task = _base_task(
+            m, "checklist",
+            f"{m.mission}\n\n아래 보기에서 이 업무에 필요한 행동을 모두 선택하세요.",
+            ["필요한 행동을 빠짐없이 골랐는가"],
+        )
+        return {**task, "options": options, "answer": {"keys": by_tag["o"]}}
+
+    if situation == "자료·정보 누락" and len(steps) >= 2 and fails:
+        entries = [(s, "o") for s in steps[:3]] + [(fails[0], "x")]
+        options, by_tag = _make_options(entries, seed)
+        task = _base_task(
+            m, "choice",
+            f"{m.mission}\n\n아래 행동 중 문제가 있는 것 하나를 골라내세요.",
+            ["문제 있는 행동을 정확히 찾아냈는가"],
+        )
+        return {**task, "options": options, "answer": {"key": by_tag["x"][0]}}
+
+    if situation == "우선순위 충돌" and len(steps) >= 3:
+        items = steps[:ORDER_ITEM_CAP]
+        if len(set(items)) == len(items):  # 중복 문구면 순서 정답이 모호 — write 폴백
+            entries = [(s, str(i)) for i, s in enumerate(items)]
+            options, by_tag = _make_options(entries, seed)
+            answer = [by_tag[str(i)][0] for i in range(len(items))]
+            if [o["key"] for o in options] == answer:  # 셔플 결과가 정답 순서면 정답 유출 — 한 칸 회전
+                options = options[1:] + options[:1]
+            task = _base_task(
+                m, "order",
+                f"{m.mission}\n\n아래 항목을 올바른 처리 순서대로 배열해 제출하세요.",
+                ["업무 처리 순서를 올바르게 판단했는가"],
+            )
+            return {**task, "options": options, "answer": {"keys": answer}}
+
+    if situation == "오류·안전위험" and steps and len(fails) + len(steps) - 1 >= 2:
+        wrong = fails[:2] + steps[1:]  # 오답: 실패패턴 우선, 모자라면 '나중 단계' (첫 대응으론 오답)
+        entries = [(steps[0], "o")] + [(w, "x") for w in wrong[:3]]
+        options, by_tag = _make_options(entries, seed)
+        task = _base_task(
+            m, "choice",
+            f"{m.mission}\n\n아래 보기 중 지금 가장 먼저 해야 할 대응을 하나 고르세요.",
+            ["가장 먼저 할 대응을 올바르게 판단했는가"],
+        )
+        return {**task, "options": options, "answer": {"key": by_tag["o"][0]}}
+
+    # 보고·인계 + 데이터 부족 폴백 — 유일한 서술형 (짧은 보고)
+    task = _base_task(
+        m, "write",
+        f"{m.mission}\n\n제출 산출물: {m.outputs}" if m.outputs else (m.mission or ""),
+        split_criteria(m.success_criteria, m.failure_patterns),
+    )
+    return task
+
+
 def mission_to_step(m: TeamMission, step_id: str) -> dict:
     npcs = mission_npcs(m.npc)
     npc = npcs[0] if npcs else ""
@@ -160,16 +283,7 @@ def mission_to_step(m: TeamMission, step_id: str) -> dict:
         ),
         "npcs": npcs,
         "guide": f"제공 자료: {m.materials}" if m.materials else None,
-        "task": {
-            "prompt": f"{m.mission}\n\n제출 산출물: {m.outputs}" if m.outputs else m.mission,
-            "criteria": split_criteria(m.success_criteria, m.failure_patterns),
-            "pass_score": 70,
-            "hints": {
-                "warning": (m.failure_patterns or "")[:200] or None,
-                "answer_guide": m.action_steps,
-            },
-            # on_pass는 조립 후 체인 연결
-        },
+        "task": build_task(m),
     }
 
 
@@ -280,46 +394,55 @@ async def upsert_scenario(
         session.add(NpcPersona(scenario_id=scenario_id, **p))
 
 
+async def build_all_docs(session: AsyncSession) -> list[tuple[TeamCategory, dict]]:
+    """모든 팀 중분류 → (category, doc) 목록. slug·job 배정과 충돌·구조 검증 완료.
+
+    DB 적재(main)와 YAML 방출(emit_yaml)이 공유하는 단일 문서 생성 경로.
+    """
+    categories = list(
+        (await session.execute(select(TeamCategory).order_by(TeamCategory.id))).scalars()
+    )
+    rep_codes = set(
+        (await session.execute(select(TeamRepMission.mission_code))).scalars()
+    )
+    used_slugs: dict[str, str] = {}
+    docs: list[tuple[TeamCategory, dict]] = []
+    for cat in categories:
+        missions = list(
+            (
+                await session.execute(
+                    select(TeamMission)
+                    .where(TeamMission.category == cat.category)
+                    .order_by(TeamMission.id)
+                )
+            ).scalars()
+        )
+        doc = build_scenario_doc(cat, missions, rep_codes)
+        if doc is None:
+            continue
+        doc["slug"] = slug_for(missions, cat.no or cat.id, cat.owner)
+        if doc["slug"] in used_slugs:  # 조용한 덮어쓰기 방지 — 데이터 문제를 즉시 드러냄
+            raise ValueError(
+                f"slug 충돌: '{doc['slug']}' ← {cat.category} vs {used_slugs[doc['slug']]}"
+            )
+        used_slugs[doc["slug"]] = cat.category
+        doc["job"] = doc["slug"]  # 변환 시나리오의 job 코드 = slug
+        validate_scenario(doc, f"변환:{cat.category}")
+        docs.append((cat, doc))
+    return docs
+
+
 async def main() -> None:
     from app.core.db import SessionFactory
 
     protected = yaml_scenario_slugs()  # 사람 검수 YAML이 소유한 slug는 건드리지 않음
-    used_slugs: dict[str, str] = {}
     built = skipped = 0
-
     async with SessionFactory() as session:
-        categories = list(
-            (await session.execute(select(TeamCategory).order_by(TeamCategory.id))).scalars()
-        )
-        rep_codes = set(
-            (await session.execute(select(TeamRepMission.mission_code))).scalars()
-        )
-        for cat in categories:
-            missions = list(
-                (
-                    await session.execute(
-                        select(TeamMission)
-                        .where(TeamMission.category == cat.category)
-                        .order_by(TeamMission.id)
-                    )
-                ).scalars()
-            )
-            doc = build_scenario_doc(cat, missions, rep_codes)
-            if doc is None:
-                skipped += 1
-                continue
-            doc["slug"] = slug_for(missions, cat.no or cat.id, cat.owner)
-            if doc["slug"] in used_slugs:  # 조용한 덮어쓰기 방지 — 데이터 문제를 즉시 드러냄
-                raise ValueError(
-                    f"slug 충돌: '{doc['slug']}' ← {cat.category} vs {used_slugs[doc['slug']]}"
-                )
-            used_slugs[doc["slug"]] = cat.category
+        for cat, doc in await build_all_docs(session):
             if doc["slug"] in protected:
                 logger.info("스킵 %s: 검수 YAML(%s)이 우선", cat.category, doc["slug"])
                 skipped += 1
                 continue
-            doc["job"] = doc["slug"]  # 변환 시나리오의 job 코드 = slug
-            validate_scenario(doc, f"변환:{cat.category}")
             await upsert_scenario(
                 session, doc,
                 job_code=doc["slug"], job_title=cat.category, description=cat.work_flow,
@@ -330,5 +453,108 @@ async def main() -> None:
     print(f"시나리오 변환 완료: 생성/갱신 {built}건, 스킵 {skipped}건 (검수 YAML 보호 포함)")
 
 
+# ── YAML 방출 (커밋·검수용 소스 파일 생성) ────────────────────────────
+AUTO_GEN_MARKER = "# AUTO-GENERATED by build_scenarios emit"
+_AUTO_GEN_HEADER = (
+    f"{AUTO_GEN_MARKER} — 조사 데이터(team_*)에서 자동 생성.\n"
+    "# 손으로 편집하려면 위 줄을 지우세요 — 그러면 재생성에서 이 파일을 보호합니다.\n"
+)
+
+
+class _BlockDumper(yaml.SafeDumper):
+    """여러 줄 문자열은 리터럴 블록(|)으로 — 사람이 읽고 편집하기 좋게."""
+
+
+def _str_representer(dumper: yaml.Dumper, data: str):
+    style = "|" if "\n" in data.strip() else None
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data, style=style)
+
+
+_BlockDumper.add_representer(str, _str_representer)
+
+
+def _dump_yaml(doc: dict) -> str:
+    return yaml.dump(
+        doc, Dumper=_BlockDumper, allow_unicode=True, sort_keys=False,
+        default_flow_style=False, width=100,
+    )
+
+
+def _write_protected(write_path: Path, body: str, check_path: Path | None = None) -> bool:
+    """마커가 있는(=자동 생성) 파일만 덮어씀. 손편집·미표시 파일은 보호. → 썼으면 True.
+
+    check_path: 손편집 여부를 확인할 기존 파일 위치 (컨테이너 data/가 읽기전용이라
+    쓰기는 write_path(임시)로, 검사는 실제 data/의 check_path로 분리 가능).
+    """
+    check = check_path or write_path
+    if check.exists() and AUTO_GEN_MARKER not in check.read_text(encoding="utf-8"):
+        logger.warning("보호: %s 는 손편집본 — 건너뜀", check.name)
+        return False
+    write_path.write_text(_AUTO_GEN_HEADER + body, encoding="utf-8")
+    return True
+
+
+def scenario_to_yaml_doc(doc: dict) -> dict:
+    """내부 doc → data/scenarios YAML 키 순서 (loader REQUIRED_SCENARIO_KEYS 정합)."""
+    return {
+        "job": doc["job"],
+        "slug": doc["slug"],
+        "title": doc["title"],
+        "module": doc["module"],
+        "initial_state": doc["initial_state"],
+        "steps": doc["steps"],
+        "sudden_quest": doc["sudden_quest"],
+        "npcs": doc["npcs"],
+    }
+
+
+def job_to_yaml_doc(cat: TeamCategory, slug: str) -> dict:
+    """시나리오가 참조할 최소 직무 문서 — 신규 배포 seed가 job FK를 찾게."""
+    return {
+        "code": slug,
+        "title": cat.category,
+        "description": (cat.work_flow or cat.category or "")[:2000],
+        "competencies": {},  # 추천 대상이 아닌 '플레이용' 직무 — 역량 매칭은 비움
+    }
+
+
+async def emit_yaml(out_base: str | None = None) -> None:
+    """40개 시나리오를 data/scenarios/*.yaml + data/jobs/*.yaml 로 방출 (커밋용).
+
+    out_base 미지정 시 settings.data_dir. 컨테이너의 data/가 읽기전용이면
+    쓰기 가능한 경로를 인자로 줘서 방출 후 호스트로 복사한다.
+    """
+    from app.core.db import SessionFactory
+
+    base = Path(out_base) if out_base else Path(settings.data_dir)
+    real = Path(settings.data_dir)  # 손편집 보호 검사는 항상 실제 data/ 기준
+    scen_dir, jobs_dir = base / "scenarios", base / "jobs"
+    scen_dir.mkdir(parents=True, exist_ok=True)
+    jobs_dir.mkdir(parents=True, exist_ok=True)
+
+    wrote = protected_cnt = 0
+    async with SessionFactory() as session:
+        docs = await build_all_docs(session)
+    for cat, doc in docs:
+        slug = doc["slug"]
+        s_ok = _write_protected(
+            scen_dir / f"{slug}.yaml", _dump_yaml(scenario_to_yaml_doc(doc)),
+            check_path=real / "scenarios" / f"{slug}.yaml",
+        )
+        j_ok = _write_protected(
+            jobs_dir / f"{slug}.yaml", _dump_yaml(job_to_yaml_doc(cat, slug)),
+            check_path=real / "jobs" / f"{slug}.yaml",
+        )
+        wrote += 1 if (s_ok or j_ok) else 0
+        protected_cnt += 1 if not s_ok else 0
+
+    print(
+        f"YAML 방출 완료: 시나리오 {len(docs)}개 대상, 기록 {wrote}개, "
+        f"보호(손편집) {protected_cnt}개 → data/scenarios/, data/jobs/"
+    )
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    cmd = sys.argv[1] if len(sys.argv) > 1 else "db"
+    out = sys.argv[2] if len(sys.argv) > 2 else None
+    asyncio.run(emit_yaml(out) if cmd == "emit" else main())

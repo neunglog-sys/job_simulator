@@ -101,6 +101,75 @@ async def evaluate_task(
     }
 
 
+# 룰 채점 과제 종류 — LLM 없이 결정적으로 채점 (라이트 메커니즘: 클릭·선택·배열)
+RULE_KINDS = {"choice", "checklist", "order"}
+
+CHECKLIST_WRONG_PENALTY = 30  # 오답 1개 선택당 감점
+
+
+def _parse_selection(submission: str | list, valid_keys: set[str]) -> list[str]:
+    """제출값 → 보기 key 목록. 문자열 "a,c" 와 JSON 배열 ["a","c"] 둘 다 허용."""
+    if isinstance(submission, list):
+        picked = [str(s).strip() for s in submission]
+    else:
+        picked = [p.strip() for p in str(submission or "").split(",")]
+    picked = [p for p in picked if p]
+    if not picked:
+        raise HTTPException(status_code=400, detail="보기를 선택해 제출하세요")
+    unknown = [p for p in picked if p not in valid_keys]
+    if unknown:
+        raise HTTPException(status_code=400, detail=f"존재하지 않는 보기: {unknown}")
+    if len(set(picked)) != len(picked):
+        raise HTTPException(status_code=400, detail="같은 보기를 중복 선택할 수 없음")
+    return picked
+
+
+def grade_structured(task: dict, submission: str | list) -> dict:
+    """선택형·배열형 과제 룰 채점 — evaluate_task와 동일한 응답 계약.
+
+    kind=choice     정답 1개 선택 (맞으면 100, 틀리면 0)
+    kind=checklist  필요한 행동 모두 고르기 (정답 적중률 - 오답 감점)
+    kind=order      올바른 순서로 배열 (쌍별 순서 일치율 — 인접 교환 정도는 통과)
+    """
+    kind = task["kind"]
+    answer = task.get("answer") or {}
+    valid_keys = {o["key"] for o in task.get("options", [])}
+    picked = _parse_selection(submission, valid_keys)
+
+    if kind == "choice":
+        correct = answer.get("key")
+        ok = picked == [correct]
+        total = 100 if ok else 0
+        comment = "정확한 판단이에요." if ok else "상황을 다시 떠올려보고 다른 보기를 검토해보세요."
+    elif kind == "checklist":
+        correct = set(answer.get("keys") or [])
+        hit = correct & set(picked)
+        wrong = set(picked) - correct
+        total = round(100 * len(hit) / max(1, len(correct))) - CHECKLIST_WRONG_PENALTY * len(wrong)
+        comment = f"필요한 행동 {len(correct)}개 중 {len(hit)}개를 골랐어요."
+        if wrong:
+            comment += f" 골라선 안 되는 행동이 {len(wrong)}개 섞여 있어요."
+    else:  # order
+        correct = list(answer.get("keys") or [])
+        if set(picked) != set(correct):
+            raise HTTPException(status_code=400, detail="모든 항목을 순서대로 배열해 제출하세요")
+        pos = {k: i for i, k in enumerate(picked)}
+        pairs = [(a, b) for i, a in enumerate(correct) for b in correct[i + 1:]]
+        concordant = sum(1 for a, b in pairs if pos[a] < pos[b])
+        total = round(100 * concordant / max(1, len(pairs)))
+        comment = f"순서 판단 {concordant}/{len(pairs)} 일치."
+
+    total = max(0, min(100, total))
+    passed = total >= task.get("pass_score", 70)
+    criterion = (task.get("criteria") or ["상황에 맞는 판단을 했는가"])[0]
+    return {
+        "scores": [{"criterion": criterion, "score": total, "comment": comment}],
+        "total": total,
+        "feedback": comment if not passed else "좋아요, 상황에 맞는 판단이었어요.",
+        "passed": passed,
+    }
+
+
 def choice_effects(step: dict, choice_id: str) -> dict:
     """선택지의 룰 기반 effects 조회."""
     for choice in step.get("choices", []):
