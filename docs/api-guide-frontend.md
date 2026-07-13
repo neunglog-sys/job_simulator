@@ -24,13 +24,26 @@
 - **개발 편의**: 헤더를 아예 안 보내면 "데모 사용자"로 자동 처리됩니다 — 인증 UI 만들기 전에도 모든 API 테스트 가능.
 - OAuth(소셜 로그인)는 프로바이더 확정 후 추가 예정.
 
-## 2. AI 상담 (메인 화면)
+## 2. 메인 화면 — 내 것들 목록
+
+```
+GET /api/consultations   → 내 상담 목록 (최신순) — 이어가기 진입점
+GET /api/simulations     → 내 시뮬레이션 목록 {status: active=이어하기/completed=결과보기, current_step, total}
+GET /api/reports         → 내 리포트 목록
+```
+
+## 2-1. AI 상담 — 흐름: 사전 설문(5지선다) → 자유대화
 
 ```
 POST /api/consultations                    → {id}  상담 세션 시작
-POST /api/consultations/{id}/messages      → SSE 스트림 (아래 참고)
+GET  /api/consultations/{id}/survey        → {items: [{id, text, options:[{key,label}]}]}  설문 문항
+POST /api/consultations/{id}/survey        → {answers: {"SV-001":"a", ...}}  전 문항 필수
+     응답: {profile, avatar_lines: [대사 3개]}
+     → avatar_lines를 아바타 말풍선으로 순서대로 표시한 뒤 자유대화 UI로 전환
+POST /api/consultations/{id}/messages      → SSE 스트림 (아래 참고) — 아바타가 설문 결과를 알고 대화함
 GET  /api/consultations/{id}/messages      → 대화 이력 (새로고침 복원용)
 ```
+- 문항 수는 데이터 파일에 따름 (현재 샘플 5개 → 세종님 콘텐츠 완성 시 35개). 페이징·진행바는 프론트 재량
 
 ### SSE 받기 (아바타 응답이 타자 치듯 흘러옴)
 
@@ -111,6 +124,7 @@ POST /api/simulations/{id}/finish       → 중도 포기 (aborted 처리)
 | `quest_result` | `{total, passed, ..., quest_status}` | `quest_status`가 `passed`/`failed`면 퀘스트 닫고 본편 복귀 (`active`면 재도전) |
 | `state_updated` | 선택지 결과 `{delta, state, step_changed}` | 상태 갱신 |
 | `simulation_completed` | 완주! | 결과 화면으로 이동 |
+| `coach_cards` | 미션 **통과 시 1회** — AI 코치 사후 리뷰 `{coach_message, cards[], retry_instruction}` | 하단 코치 말풍선(coach_message) + **우측 카드**(cards: 최대 3, card_type별 아이콘 — safety_stop/error_correction/requirement_check/better_expression/success). LLM 여건상 생략될 수 있으니 없어도 UI가 기다리지 말 것 |
 | `error` | `{detail}` | 토스트 등 |
 
 ⚠️ 퀘스트 진행 중 `task_submit`은 자동으로 **퀘스트 채점**으로 갑니다 (본편 과제 제출 불가).
