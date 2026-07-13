@@ -51,6 +51,9 @@ def _validate_task(task: dict, where: str) -> None:
         answer_keys = list(answer.get("keys") or [])
     if not answer_keys:
         raise ValueError(f"{where}: {kind} 과제에 정답(answer) 누락")
+    if kind == "order" and len(answer_keys) < 2:
+        # 항목 1개짜리 배열은 비교쌍이 없어 채점이 항상 0점 — 손편집 실수를 로드 시점에 차단
+        raise ValueError(f"{where}: order 과제는 정답 항목 2개 이상 필요")
     bad = [k for k in answer_keys if k not in set(keys)]
     if bad:
         raise ValueError(f"{where}: 정답 키가 보기에 없음 {bad}")

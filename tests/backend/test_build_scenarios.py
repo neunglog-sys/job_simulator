@@ -143,8 +143,22 @@ def test_grade_rejects_invalid_keys():
     import pytest
     from fastapi import HTTPException
     task = {"kind": "choice", "pass_score": 70, "criteria": ["판단"],
-            "options": [{"key": "a", "label": "A"}], "answer": {"key": "a"}}
+            "options": [{"key": "a", "label": "A"}, {"key": "b", "label": "B"}],
+            "answer": {"key": "a"}}
     with pytest.raises(HTTPException):
         grade_structured(task, "z")  # 없는 보기
     with pytest.raises(HTTPException):
         grade_structured(task, "")  # 빈 제출
+    with pytest.raises(HTTPException):
+        grade_structured(task, "a,b")  # 단일 선택에 복수 제출 — 조용한 0점 대신 400
+
+
+def test_validate_task_rejects_single_item_order():
+    # 항목 1개짜리 order는 비교쌍이 없어 항상 0점 — 손편집 실수를 로드 시점에 차단
+    import pytest
+    from app.content.loader import _validate_task
+    task = {"kind": "order", "prompt": "p", "criteria": ["c"], "on_pass": "__end__",
+            "options": [{"key": "a", "label": "A"}, {"key": "b", "label": "B"}],
+            "answer": {"keys": ["a"]}}
+    with pytest.raises(ValueError, match="2개 이상"):
+        _validate_task(task, "테스트")
