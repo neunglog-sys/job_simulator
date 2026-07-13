@@ -1,0 +1,282 @@
+schema_version: npc.job-override.v1
+job:
+  job_id: J022
+  job_name: 인사총무 보조
+  family_id: F05
+  family_name: 인사·채용·교육운영
+  module: 대인응대형
+review:
+  status: researched_needs_human_review
+  generated: true
+  human_review_required: true
+prompt_contract:
+  npc_visible:
+    work_targets:
+    - 지원자 정보
+    - 면접 일정
+    - 교육 일정
+    - 근태자료
+    npc_roles:
+    - 지원자
+    - 면접관
+    - 교육생
+    - 강사
+    outputs:
+    - 면접일정표
+    - 안내메일
+    - 교육운영 체크리스트
+    forbidden:
+    - 플레이어를 채점하거나 점수·통과 여부를 말하지 않는다.
+    - 오류의 정답·모범답안·단계별 해설을 제공하지 않는다.
+    - 업무상 필요한 지시·사실·자료·권한 범위만 전달한다.
+  coach_private:
+    success_criteria:
+    - 목적·자료·기준·결과·다음액션 포함
+    failure_patterns:
+    - 추측 진행
+    - 질문 누락
+    - 산출물 혼동
+kb_stages:
+- chunk_id: J022-S1
+  stage_id: S1
+  name: 업무요청 이해
+  goal: 요청자의 목적, 결과물, 마감, 제한조건을 확인한다.
+  rag_chunk_text: '[인사총무 보조/인사·채용·교육운영/대인응대형] 업무요청 이해: 요청자의 목적, 결과물, 마감, 제한조건을 확인한다. 업무대상은 지원자 정보, 면접 일정, 교육 일정, 근태자료. 주요상대/NPC는
+    지원자, 면접관, 교육생, 강사. 핵심산출물은 면접일정표, 안내메일, 교육운영 체크리스트. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 인사·채용·교육운영의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J022-S2
+  stage_id: S2
+  name: 자료·현황 확인
+  goal: 업무대상 자료를 읽고 누락/불일치/위험요소를 표시한다.
+  rag_chunk_text: '[인사총무 보조/인사·채용·교육운영/대인응대형] 자료·현황 확인: 업무대상 자료를 읽고 누락/불일치/위험요소를 표시한다. 업무대상은 지원자 정보, 면접 일정, 교육 일정, 근태자료. 주요상대/NPC는
+    지원자, 면접관, 교육생, 강사. 핵심산출물은 면접일정표, 안내메일, 교육운영 체크리스트. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 인사·채용·교육운영의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J022-S3
+  stage_id: S3
+  name: 처리·제작·응대
+  goal: 직무별 기준에 맞춰 문서/응대/작업/산출물을 만든다.
+  rag_chunk_text: '[인사총무 보조/인사·채용·교육운영/대인응대형] 처리·제작·응대: 직무별 기준에 맞춰 문서/응대/작업/산출물을 만든다. 업무대상은 지원자 정보, 면접 일정, 교육 일정, 근태자료. 주요상대/NPC는
+    지원자, 면접관, 교육생, 강사. 핵심산출물은 면접일정표, 안내메일, 교육운영 체크리스트. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 인사·채용·교육운영의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J022-S4
+  stage_id: S4
+  name: 검수·판단
+  goal: 오류, 안전, 고객영향, 비용, 일정, 품질을 점검한다.
+  rag_chunk_text: '[인사총무 보조/인사·채용·교육운영/대인응대형] 검수·판단: 오류, 안전, 고객영향, 비용, 일정, 품질을 점검한다. 업무대상은 지원자 정보, 면접 일정, 교육 일정, 근태자료. 주요상대/NPC는
+    지원자, 면접관, 교육생, 강사. 핵심산출물은 면접일정표, 안내메일, 교육운영 체크리스트. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 인사·채용·교육운영의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J022-S5
+  stage_id: S5
+  name: 보고·인계
+  goal: 결과, 근거, 남은 이슈, 다음 액션을 공유한다.
+  rag_chunk_text: '[인사총무 보조/인사·채용·교육운영/대인응대형] 보고·인계: 결과, 근거, 남은 이슈, 다음 액션을 공유한다. 업무대상은 지원자 정보, 면접 일정, 교육 일정, 근태자료. 주요상대/NPC는
+    지원자, 면접관, 교육생, 강사. 핵심산출물은 면접일정표, 안내메일, 교육운영 체크리스트. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 인사·채용·교육운영의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+content_variants:
+- category: 인사와 총무 요청의 접수·분류·문서처리 보조
+  module: null
+  rag_status: researched
+  workflow: 요청 목적과 권한 확인 → 규정·증빙·담당자 확인 → 요청 분류와 초안 작성 → 민감정보·규정예외 점검 → 처리결과와 미결건 인계
+  npc_visible:
+    npc_roles:
+    - role: 인사총무 팀장
+      instruction_scope: 우선순위·담당자·처리기한 지시
+    - role: 부서 담당자
+      instruction_scope: 인사·총무 요청과 증빙 전달
+    - role: 임직원
+      instruction_scope: 증명서·복리후생·비품 문의
+    input_materials: &id001
+    - 인사요청서
+    - 조직도
+    - 사내규정
+    - 비품요청
+    - 증명서 신청
+    outputs: &id002
+    - 요청 접수대장
+    - 처리현황표
+    - 안내문 초안
+    - 인계 메모
+    sudden_events: &id003
+    - 규정 예외를 구두 승인
+    - 민감 문서를 공용 폴더에 공개
+    - 인사와 총무 요청 혼동
+    constraints:
+    - 지원자·교육생·근태 개인정보는 업무 목적에 필요한 최소 범위만 취급한다.
+    - 채용 합격, 징계, 임금·근태 예외는 권한자가 결정하며 NPC가 대신 확정하지 않는다.
+  stages:
+  - stage_id: S1
+    name: 요청 목적과 권한 확인
+    goal: 요청 목적과 권한 확인
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 인사총무 팀장
+      - 부서 담당자
+      - 임직원
+      outputs: *id002
+      mission_candidate: 요청 목적과 권한 확인
+    coach_private:
+      success_criteria: &id004
+      - 요청별 담당과 기한 명시
+      - 규정 근거 확인
+      - 민감정보 접근 제한
+      - 인사 판단은 담당자 이관
+      failure_patterns: *id003
+  - stage_id: S2
+    name: 규정·증빙·담당자 확인
+    goal: 규정·증빙·담당자 확인
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 인사총무 팀장
+      - 부서 담당자
+      - 임직원
+      outputs: *id002
+      mission_candidate: 규정·증빙·담당자 확인
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  - stage_id: S3
+    name: 요청 분류와 초안 작성
+    goal: 요청 분류와 초안 작성
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 인사총무 팀장
+      - 부서 담당자
+      - 임직원
+      outputs: *id002
+      mission_candidate: 요청 분류와 초안 작성
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  - stage_id: S4
+    name: 민감정보·규정예외 점검
+    goal: 민감정보·규정예외 점검
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 인사총무 팀장
+      - 부서 담당자
+      - 임직원
+      outputs: *id002
+      mission_candidate: 민감정보·규정예외 점검
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  - stage_id: S5
+    name: 처리결과와 미결건 인계
+    goal: 처리결과와 미결건 인계
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 인사총무 팀장
+      - 부서 담당자
+      - 임직원
+      outputs: *id002
+      mission_candidate: 처리결과와 미결건 인계
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  missions:
+  - mission_id: null
+    situation_type: 정상업무
+    difficulty: 보통
+    npc_visible:
+      npc: 인사총무 팀장
+      request_line: 요청 목적과 권한 확인 업무를 진행해 주세요. 우선순위·담당자·처리기한 지시 기준을 확인하세요.
+      materials: *id001
+      user_mission: 요청 목적과 권한 확인
+      outputs: *id002
+      sudden_event: 규정 예외를 구두 승인
+    coach_private:
+      required_actions:
+      - 요청 목적과 권한 확인
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 자료·정보 누락
+    difficulty: 어려움
+    npc_visible:
+      npc: 부서 담당자
+      request_line: 규정·증빙·담당자 확인 업무를 진행해 주세요. 인사·총무 요청과 증빙 전달 기준을 확인하세요.
+      materials: *id001
+      user_mission: 규정·증빙·담당자 확인
+      outputs: *id002
+      sudden_event: 민감 문서를 공용 폴더에 공개
+    coach_private:
+      required_actions:
+      - 규정·증빙·담당자 확인
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 우선순위 충돌
+    difficulty: 어려움
+    npc_visible:
+      npc: 임직원
+      request_line: 요청 분류와 초안 작성 업무를 진행해 주세요. 증명서·복리후생·비품 문의 기준을 확인하세요.
+      materials: *id001
+      user_mission: 요청 분류와 초안 작성
+      outputs: *id002
+      sudden_event: 인사와 총무 요청 혼동
+    coach_private:
+      required_actions:
+      - 요청 분류와 초안 작성
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 오류·안전위험
+    difficulty: 어려움
+    npc_visible:
+      npc: 인사총무 팀장
+      request_line: 민감정보·규정예외 점검 업무를 진행해 주세요. 우선순위·담당자·처리기한 지시 기준을 확인하세요.
+      materials: *id001
+      user_mission: 민감정보·규정예외 점검
+      outputs: *id002
+      sudden_event: 규정 예외를 구두 승인
+    coach_private:
+      required_actions:
+      - 민감정보·규정예외 점검
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 보고·인계
+    difficulty: 보통
+    npc_visible:
+      npc: 부서 담당자
+      request_line: 처리결과와 미결건 인계 업무를 진행해 주세요. 인사·총무 요청과 증빙 전달 기준을 확인하세요.
+      materials: *id001
+      user_mission: 처리결과와 미결건 인계
+      outputs: *id002
+      sudden_event: 민감 문서를 공용 폴더에 공개
+    coach_private:
+      required_actions:
+      - 처리결과와 미결건 인계
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+provenance:
+  excel:
+  - file: 입문직무_RAG_KB_v5_정리본.xlsx
+    sheet: 01_직무마스터
+    rows: job_id=J022
+  - file: 입문직무_RAG_KB_v5_정리본.xlsx
+    sheet: 02_RAG프로세스
+    rows: job_id=J022
+  - file: 팀통합_8모듈_조사자료_표준화완료.xlsx
+    sheet: 01_연결맵/02_단계별프로세스/05_상황별미션
+    rows: job_id=J022
+  research_sources:
+  - source_id: NCS-HR
+    title: 인사기획·인력채용·교육훈련운영 요구능력단위 사례
+    url: https://www.ncs.go.kr/blind/bl04/RecrtNotifDetail.do?recrtNo=20260708093252
+    publisher: 한국산업인력공단 NCS 공정채용

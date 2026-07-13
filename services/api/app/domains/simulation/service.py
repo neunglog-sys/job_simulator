@@ -169,7 +169,8 @@ async def stream_npc_chat(
     )
 
     full: list[str] = []
-    async for chunk in get_llm().chat_stream(context, system=system):
+    # NPC는 사실 그라운딩과 역할 일관성을 우선하므로 창의성을 낮게 유지한다.
+    async for chunk in get_llm().chat_stream(context, system=system, temperature=0.3):
         full.append(chunk)
         yield ("token", chunk)
     npc_reply = "".join(full)
