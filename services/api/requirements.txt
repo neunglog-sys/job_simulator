@@ -18,3 +18,4 @@ reportlab
 pytest
 cryptography
 ruff
+openpyxl

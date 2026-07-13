@@ -157,6 +157,201 @@ class Report(TimestampMixin, Base):
     pdf_path: Mapped[str | None] = mapped_column(String(255))
 
 
+# ─────────────────────────────────────────────────────────────
+# 조사자료 원천 테이블 — 팀 조사 엑셀(data/research/*.xlsx) 적재.
+# 적재: docker compose exec api python -m app.scripts.load_research
+# ─────────────────────────────────────────────────────────────
+
+
+class KbJob(Base):
+    """입문직무 RAG KB v5 · 01_직무마스터 (103개 직무)."""
+
+    __tablename__ = "kb_jobs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    job_code: Mapped[str] = mapped_column(String(10), unique=True)  # J001
+    family_id: Mapped[str] = mapped_column(String(10), index=True)  # F01
+    job_group: Mapped[str] = mapped_column(String(100))  # 직무군
+    title: Mapped[str] = mapped_column(String(100))  # 세부직무
+    module: Mapped[str] = mapped_column(String(30), index=True)  # 8모듈
+    priority: Mapped[str | None] = mapped_column(String(30))  # 우선순위(MVP핵심 등)
+    in_use: Mapped[str | None] = mapped_column(String(5))  # 사용여부 Y/N
+    entry_level: Mapped[str | None] = mapped_column(String(30))  # 입문수준
+    interest_type: Mapped[str | None] = mapped_column(String(30))  # 흥미유형(Holland)
+    work_targets: Mapped[str | None] = mapped_column(Text)  # 업무대상
+    npc_roles: Mapped[str | None] = mapped_column(Text)  # 주요상대 NPC
+    outputs: Mapped[str | None] = mapped_column(Text)  # 핵심산출물
+    first_scenario: Mapped[str | None] = mapped_column(Text)  # 첫본업 시나리오
+    process_flow: Mapped[str | None] = mapped_column(Text)  # 프로세스
+    main_mission: Mapped[str | None] = mapped_column(Text)  # 대표미션명
+    mission_steps: Mapped[str | None] = mapped_column(Text)  # 미션수행단계
+    success_criteria: Mapped[str | None] = mapped_column(Text)
+    failure_patterns: Mapped[str | None] = mapped_column(Text)
+    grade: Mapped[str | None] = mapped_column(String(5))  # 검증등급
+    sources: Mapped[str | None] = mapped_column(Text)  # 근거자료
+
+
+class KbStage(Base):
+    """입문직무 RAG KB v5 · 02_RAG프로세스 (103 job × 5단계 = 515청크).
+
+    벡터 검색용 텍스트는 doc_chunks(source='kb-v5/...')에 별도 임베딩 적재.
+    """
+
+    __tablename__ = "kb_stages"
+    __table_args__ = (UniqueConstraint("job_code", "stage_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    chunk_code: Mapped[str] = mapped_column(String(15), unique=True)  # J001-S1
+    job_code: Mapped[str] = mapped_column(String(10), index=True)
+    title: Mapped[str] = mapped_column(String(100))  # 세부직무
+    family_id: Mapped[str | None] = mapped_column(String(10))
+    job_group: Mapped[str | None] = mapped_column(String(100))
+    module: Mapped[str | None] = mapped_column(String(30))
+    stage_id: Mapped[str] = mapped_column(String(5))  # S1~S5
+    stage_name: Mapped[str | None] = mapped_column(String(100))
+    stage_goal: Mapped[str | None] = mapped_column(Text)
+    work_targets: Mapped[str | None] = mapped_column(Text)
+    npc_roles: Mapped[str | None] = mapped_column(Text)
+    outputs: Mapped[str | None] = mapped_column(Text)
+    mission_candidate: Mapped[str | None] = mapped_column(Text)
+    success_criteria: Mapped[str | None] = mapped_column(Text)
+    failure_patterns: Mapped[str | None] = mapped_column(Text)
+    grade: Mapped[str | None] = mapped_column(String(5))
+    sources: Mapped[str | None] = mapped_column(Text)
+    chunk_text: Mapped[str | None] = mapped_column(Text)  # RAG_chunk_text
+
+
+class CommonProcess(Base):
+    """입문직무 RAG KB v5 · 03_공통프로세스 (첫출근 온보딩 공통 단계)."""
+
+    __tablename__ = "common_processes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    process_code: Mapped[str] = mapped_column(String(20), unique=True)  # D-3, Day1-01
+    division: Mapped[str | None] = mapped_column(String(30))  # 프로세스구분
+    section: Mapped[str | None] = mapped_column(String(30))  # 구간
+    stage_name: Mapped[str | None] = mapped_column(String(100))
+    stage_goal: Mapped[str | None] = mapped_column(Text)
+    npc_roles: Mapped[str | None] = mapped_column(Text)
+    materials: Mapped[str | None] = mapped_column(Text)  # 확인자료
+    outputs: Mapped[str | None] = mapped_column(Text)
+    success_criteria: Mapped[str | None] = mapped_column(Text)
+    failure_patterns: Mapped[str | None] = mapped_column(Text)
+    sources: Mapped[str | None] = mapped_column(Text)
+
+
+class TeamCategory(Base):
+    """팀통합 8모듈 조사 · 01_연결맵 (중분류 40개) — 시트 컬럼 1:1."""
+
+    __tablename__ = "team_categories"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    owner: Mapped[str | None] = mapped_column(String(20))  # 담당자
+    no: Mapped[int | None] = mapped_column(Integer)
+    module: Mapped[str] = mapped_column(String(30), index=True)  # 담당모듈
+    category: Mapped[str] = mapped_column(String(60), unique=True)  # 프로젝트 중분류
+    ledger_rows: Mapped[str | None] = mapped_column(String(20))  # 원장 CSV행수
+    ledger_job_kinds: Mapped[str | None] = mapped_column(String(20))  # 원장 세부직종수
+    rag_status: Mapped[str | None] = mapped_column(String(10))  # RAG상태
+    rag_family: Mapped[str | None] = mapped_column(String(100))
+    rag_job_count: Mapped[str | None] = mapped_column(String(10))
+    rag_job_ids: Mapped[str | None] = mapped_column(String(100))
+    rag_jobs: Mapped[str | None] = mapped_column(Text)  # RAG 세부직무
+    work_flow: Mapped[str | None] = mapped_column(Text)  # 공통 업무흐름
+    npc_roles: Mapped[str | None] = mapped_column(Text)  # 주요 NPC
+    inputs: Mapped[str | None] = mapped_column(Text)  # 입력자료
+    outputs: Mapped[str | None] = mapped_column(Text)  # 핵심산출물
+    mission_candidates: Mapped[str | None] = mapped_column(Text)  # 미션후보
+    sudden_events: Mapped[str | None] = mapped_column(Text)  # 돌발상황
+    memo: Mapped[str | None] = mapped_column(Text)  # 연결·보강 메모
+
+
+class TeamJobEvidence(Base):
+    """팀통합 8모듈 조사 · 04_근거_세부직업 — 시트 컬럼 1:1."""
+
+    __tablename__ = "team_job_evidence"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    owner: Mapped[str | None] = mapped_column(String(20))  # 담당자
+    no: Mapped[int | None] = mapped_column(Integer)
+    module: Mapped[str | None] = mapped_column(String(30))
+    category: Mapped[str] = mapped_column(String(60), unique=True)  # 중분류
+    assigned_jobs: Mapped[str | None] = mapped_column(Text)  # 팀 배정 세부직업
+    ledger_jobs: Mapped[str | None] = mapped_column(Text)  # 원장 세부직종 목록
+    standard_tasks: Mapped[str | None] = mapped_column(Text)  # 대표 표준업무 TOP10
+    core_competencies: Mapped[str | None] = mapped_column(Text)  # 핵심직무능력 요약
+    evidence_files: Mapped[str | None] = mapped_column(Text)  # 근거 파일
+    review_memo: Mapped[str | None] = mapped_column(Text)  # 검수 메모
+
+
+class TeamStage(Base):
+    """팀통합 8모듈 조사 · 02_단계별프로세스 (중분류 × S1~S5 ≈ 200행)."""
+
+    __tablename__ = "team_stages"
+    __table_args__ = (UniqueConstraint("category", "stage_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    owner: Mapped[str | None] = mapped_column(String(20))
+    category: Mapped[str] = mapped_column(String(60), index=True)
+    module: Mapped[str | None] = mapped_column(String(30))
+    stage_id: Mapped[str] = mapped_column(String(5))  # S1~S5
+    stage_name: Mapped[str | None] = mapped_column(String(100))
+    stage_goal: Mapped[str | None] = mapped_column(Text)
+    materials: Mapped[str | None] = mapped_column(Text)  # 확인자료
+    npc_roles: Mapped[str | None] = mapped_column(Text)
+    outputs: Mapped[str | None] = mapped_column(Text)
+    mission_candidate: Mapped[str | None] = mapped_column(Text)
+    success_criteria: Mapped[str | None] = mapped_column(Text)
+    failure_patterns: Mapped[str | None] = mapped_column(Text)
+
+
+class TeamMission(Base):
+    """팀통합 8모듈 조사 · 05_상황별미션 (≈200행) — 대표미션은 team_rep_missions 별도."""
+
+    __tablename__ = "team_missions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    owner: Mapped[str | None] = mapped_column(String(20))
+    mission_code: Mapped[str] = mapped_column(String(20), unique=True)  # KTS-01-01
+    module: Mapped[str | None] = mapped_column(String(30), index=True)
+    category: Mapped[str] = mapped_column(String(60), index=True)
+    situation_type: Mapped[str | None] = mapped_column(String(30))  # 정상업무 등 5유형
+    difficulty: Mapped[str | None] = mapped_column(String(10))
+    npc: Mapped[str | None] = mapped_column(Text)
+    npc_line: Mapped[str | None] = mapped_column(Text)  # NPC 요청 대사
+    materials: Mapped[str | None] = mapped_column(Text)  # 제공자료
+    mission: Mapped[str | None] = mapped_column(Text)  # 사용자 미션
+    action_steps: Mapped[str | None] = mapped_column(Text)  # 필수 행동순서
+    outputs: Mapped[str | None] = mapped_column(Text)  # 제출 산출물
+    success_criteria: Mapped[str | None] = mapped_column(Text)
+    failure_patterns: Mapped[str | None] = mapped_column(Text)
+    extra_event: Mapped[str | None] = mapped_column(Text)  # 추가 돌발상황
+    rag_link: Mapped[str | None] = mapped_column(String(100))  # RAG 연결
+    minutes: Mapped[int | None] = mapped_column(Integer)  # 예상시간(분)
+    impl_form: Mapped[str | None] = mapped_column(String(50))  # 구현형태
+
+
+class TeamRepMission(Base):
+    """팀통합 8모듈 조사 · 06_대표미션 — 시트 컬럼 1:1."""
+
+    __tablename__ = "team_rep_missions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    owner: Mapped[str | None] = mapped_column(String(20))  # 담당자
+    priority: Mapped[str | None] = mapped_column(String(20))  # 우선순위
+    mission_code: Mapped[str] = mapped_column(String(20), unique=True)  # mission_id
+    module: Mapped[str | None] = mapped_column(String(30))
+    category: Mapped[str | None] = mapped_column(String(60), index=True)
+    situation: Mapped[str | None] = mapped_column(Text)  # 선정 상황
+    npc: Mapped[str | None] = mapped_column(Text)
+    core_mission: Mapped[str | None] = mapped_column(Text)  # 핵심 미션
+    user_actions: Mapped[str | None] = mapped_column(Text)  # 사용자 선택·행동
+    outputs: Mapped[str | None] = mapped_column(Text)  # 산출물
+    eval_focus: Mapped[str | None] = mapped_column(Text)  # 평가핵심
+    rag_status: Mapped[str | None] = mapped_column(String(100))  # RAG 상태
+    reason: Mapped[str | None] = mapped_column(Text)  # 선정 이유
+
+
 class DocChunk(Base):
     """RAG용 문서 청크 (pgvector) — data/knowledge/<job_code>/*.md 적재."""
 
