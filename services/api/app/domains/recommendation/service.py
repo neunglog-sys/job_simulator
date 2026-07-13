@@ -213,9 +213,21 @@ async def create_recommendation(
     await session.commit()
     await session.refresh(recommendation)
     logger.info(
-        "추천 생성: consultation=%d, top=%s",
+        "추천 생성: consultation=%d, breakdown=%s",
         consultation.id,
-        [r["job_code"] for r in results],
+        [
+            {
+                "job_code": job.code,
+                "competency_score": _weighted_avg(job.competencies, scores) or NEUTRAL_SCORE,
+                "interest_score": (
+                    _interest_match(job.interest_profile, interest_profile)
+                    if interest_profile
+                    else None
+                ),
+                "blended_score": result["score"],
+            }
+            for job, result in zip(ranked, results)
+        ],
     )
     return recommendation
 
@@ -226,4 +238,14 @@ async def get_recommendation(
     rec = await session.get(Recommendation, recommendation_id)
     if rec is None or rec.user_id != user.id:
         raise HTTPException(status_code=404, detail="추천 결과를 찾을 수 없음")
+    return rec
+
+
+async def set_recommendation_feedback(
+    session: AsyncSession, recommendation_id: int, user: User, feedback: str
+) -> Recommendation:
+    rec = await get_recommendation(session, recommendation_id, user)
+    rec.feedback = feedback
+    await session.commit()
+    await session.refresh(rec)
     return rec

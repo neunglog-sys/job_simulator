@@ -23,6 +23,10 @@ async def seed_content(session: AsyncSession) -> None:
             description=job["description"],
             competencies=job["competencies"],
             interest_profile=job.get("interest_profile", {}),
+            education_requirement=job.get("education_requirement"),
+            salary=job.get("salary"),
+            certifications=job.get("certifications", []),
+            status=job.get("status"),
         )
         stmt = stmt.on_conflict_do_update(
             index_elements=[Job.code],
@@ -31,6 +35,10 @@ async def seed_content(session: AsyncSession) -> None:
                 "description": stmt.excluded.description,
                 "competencies": stmt.excluded.competencies,
                 "interest_profile": stmt.excluded.interest_profile,
+                "education_requirement": stmt.excluded.education_requirement,
+                "salary": stmt.excluded.salary,
+                "certifications": stmt.excluded.certifications,
+                "status": stmt.excluded.status,
             },
         )
         await session.execute(stmt)

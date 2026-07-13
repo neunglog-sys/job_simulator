@@ -4,7 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import get_session
 from app.core.deps import get_current_user
 from app.domains.recommendation import service
-from app.domains.recommendation.schemas import RecommendationOut, RecommendationRequest
+from app.domains.recommendation.schemas import (
+    RecommendationFeedbackRequest,
+    RecommendationOut,
+    RecommendationRequest,
+)
 from app.models import User
 
 router = APIRouter(prefix="/api/recommendations", tags=["recommendation"])
@@ -27,3 +31,16 @@ async def get_recommendation(
     user: User = Depends(get_current_user),
 ):
     return await service.get_recommendation(session, recommendation_id, user)
+
+
+@router.patch("/{recommendation_id}/feedback", response_model=RecommendationOut)
+async def set_recommendation_feedback(
+    recommendation_id: int,
+    body: RecommendationFeedbackRequest,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """추천 결과에 대한 사용자 피드백(도움됨/안됨) 기록. 향후 스코어링 튜닝 근거로 사용."""
+    return await service.set_recommendation_feedback(
+        session, recommendation_id, user, body.feedback
+    )
