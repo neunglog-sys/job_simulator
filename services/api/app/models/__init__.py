@@ -87,8 +87,11 @@ class Scenario(Base):
     job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"))
     slug: Mapped[str] = mapped_column(String(80), unique=True)
     title: Mapped[str] = mapped_column(String(200))
+    module: Mapped[str | None] = mapped_column(String(30), index=True)  # 8모듈 — 프론트 배경 선택
     initial_state: Mapped[dict] = mapped_column(JSONB, default=dict)
     steps: Mapped[list] = mapped_column(JSONB, default=list)
+    # 돌발 퀘스트 (대표미션) — {npc, intro, task:{prompt, criteria, pass_score}} / 없으면 미발동
+    sudden_quest: Mapped[dict | None] = mapped_column(JSONB)
 
     job: Mapped[Job] = relationship(back_populates="scenarios")
     npc_personas: Mapped[list["NpcPersona"]] = relationship(back_populates="scenario")

@@ -17,6 +17,9 @@ def _env() -> Environment:
     )
 
 
-def render_prompt(name: str, **variables) -> str:
-    """예: render_prompt("avatar/system.md", summary=None)"""
-    return _env().get_template(name).render(**variables)
+def render_prompt(_template: str, **variables) -> str:
+    """예: render_prompt("avatar/system.md", summary=None)
+
+    첫 인자는 언더스코어 이름 — 템플릿 변수(name 등)와 충돌 방지.
+    """
+    return _env().get_template(_template).render(**variables)

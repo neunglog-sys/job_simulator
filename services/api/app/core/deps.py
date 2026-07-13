@@ -37,7 +37,12 @@ async def get_current_user(
             raise HTTPException(status_code=401, detail="존재하지 않는 사용자")
         return user
 
-    # 3) 데모 사용자 get-or-create (개발 편의) — 이메일은 암호화 저장이라 해시로 조회
+    # 3) 데모 사용자 get-or-create (개발 편의)
+    return await get_or_create_demo_user(session)
+
+
+async def get_or_create_demo_user(session: AsyncSession) -> User:
+    """이메일은 암호화 저장이라 반드시 email_hash로 조회 (WS 등 공용)."""
     user = (
         await session.execute(select(User).where(User.email_hash == email_hash(DEMO_EMAIL)))
     ).scalar_one_or_none()
