@@ -7,7 +7,8 @@ import yaml
 from app.core.config import settings
 
 REQUIRED_JOB_KEYS = {"code", "title", "description", "competencies"}
-REQUIRED_SCENARIO_KEYS = {"job", "slug", "title", "initial_state", "steps", "npcs"}
+# NPC 실데이터는 data/npcs/*.yaml로 분리 — 시나리오엔 npc_id 참조만
+REQUIRED_SCENARIO_KEYS = {"job", "slug", "title", "initial_state", "steps"}
 
 # 배치1 조사 필드(education_requirement/salary/certifications/status)는 선택 필드 —
 # docs/jobs/batch1_mapping_candidates.md 참고. 값이 있을 때만 아래 회귀 규칙을 검증한다.
@@ -90,19 +91,25 @@ def _validate_task(task: dict, where: str) -> None:
         raise ValueError(f"{where}: 정답 키가 보기에 없음 {bad}")
 
 
-def validate_scenario(doc: dict, source: str) -> None:
-    """시나리오 문서 구조 검증 — YAML 시드와 변환 스크립트(build_scenarios) 공용."""
+def validate_npcs(npc_ids: list[dict], source: str) -> set[str]:
+    """NPC 엔트리 목록 검증 → npc_id 집합. data/npcs 파일과 build 내부 doc 공용."""
+    ids = set()
+    for n in npc_ids:
+        n_missing = {"npc_id", "name", "role"} - n.keys()
+        if n_missing:
+            raise ValueError(f"{source}: npc '{n.get('npc_id', '?')}' 필수 키 누락 {n_missing}")
+        if n["npc_id"] in ids:
+            raise ValueError(f"{source}: 중복 npc_id '{n['npc_id']}'")
+        ids.add(n["npc_id"])
+    return ids
+
+
+def validate_scenario(doc: dict, source: str, npc_ids: set[str]) -> None:
+    """시나리오 구조 검증 — npc_ids는 짝 NPC 파일(또는 build 내부 doc)에서 온 유효 id 집합."""
     missing = REQUIRED_SCENARIO_KEYS - doc.keys()
     if missing:
         raise ValueError(f"{source}: 필수 키 누락 {missing}")
     step_ids = {s["id"] for s in doc["steps"]}
-    # NPC는 npc_id로 참조 (이름 아님) — 고유정보·배치정보 최소 키 검증
-    npc_ids = set()
-    for n in doc.get("npcs", []):
-        n_missing = {"npc_id", "name", "role"} - n.keys()
-        if n_missing:
-            raise ValueError(f"{source}: npc '{n.get('npc_id', '?')}' 필수 키 누락 {n_missing}")
-        npc_ids.add(n["npc_id"])
     for step in doc["steps"]:
         # 엔진이 하드 인덱싱하는 키 — 없으면 런타임에 KeyError로 500 나므로 로드 시점에 차단
         step_missing = {"id", "title", "mission"} - step.keys()
@@ -147,12 +154,29 @@ def validate_scenario(doc: dict, source: str) -> None:
             raise ValueError(f"{source}: sudden_quest NPC '{quest['npc']}'가 로스터에 없음")
 
 
-def load_scenarios() -> list[dict]:
+def load_npcs() -> dict[str, list[dict]]:
+    """data/npcs/*.yaml → {scenario_id: [npc, ...]} — NPC 실데이터의 단일 원본."""
+    out: dict[str, list[dict]] = {}
+    for filename, doc in _load_yaml_dir("npcs"):
+        sid = doc.get("scenario_id")
+        if not sid:
+            raise ValueError(f"data/npcs/{filename}: scenario_id 누락")
+        validate_npcs(doc.get("npcs", []), f"data/npcs/{filename}")
+        out[sid] = doc.get("npcs", [])
+    return out
+
+
+def load_scenarios() -> tuple[list[dict], dict[str, list[dict]]]:
+    """시나리오 + NPC를 짝지어 로드·교차검증 → (scenarios, {slug: npcs})."""
+    npcs_by_slug = load_npcs()
     scenarios = []
     for filename, doc in _load_yaml_dir("scenarios"):
-        validate_scenario(doc, f"data/scenarios/{filename}")
+        slug = doc.get("slug")
+        npcs = npcs_by_slug.get(slug, [])
+        npc_ids = validate_npcs(npcs, f"data/npcs/{slug}.yaml")
+        validate_scenario(doc, f"data/scenarios/{filename}", npc_ids)
         scenarios.append(doc)
-    return scenarios
+    return scenarios, npcs_by_slug
 
 
 def yaml_scenario_slugs() -> set[str]:

@@ -22,7 +22,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.content.loader import validate_scenario, yaml_scenario_slugs
+from app.content.loader import validate_npcs, validate_scenario, yaml_scenario_slugs
 from app.core.config import settings
 from app.domains.scoring.aggregate import TYPE_COMPETENCY
 from app.models import (
@@ -579,7 +579,8 @@ async def build_all_docs(session: AsyncSession) -> list[tuple[TeamCategory, dict
         if doc is None:
             continue
         doc["job"] = doc["slug"]  # 변환 시나리오의 job 코드 = slug
-        validate_scenario(doc, f"변환:{cat.category}")
+        npc_ids = validate_npcs(doc["npcs"], f"변환:{cat.category}")
+        validate_scenario(doc, f"변환:{cat.category}", npc_ids)
         docs.append((cat, doc))
     return docs
 
@@ -647,7 +648,7 @@ def _write_protected(write_path: Path, body: str, check_path: Path | None = None
 
 
 def scenario_to_yaml_doc(doc: dict) -> dict:
-    """내부 doc → data/scenarios YAML 키 순서 (loader REQUIRED_SCENARIO_KEYS 정합)."""
+    """내부 doc → data/scenarios YAML (steps는 npc_id만 참조, NPC 실데이터는 npcs 파일로 분리)."""
     return {
         "job": doc["job"],
         "slug": doc["slug"],
@@ -656,8 +657,12 @@ def scenario_to_yaml_doc(doc: dict) -> dict:
         "initial_state": doc["initial_state"],
         "steps": doc["steps"],
         "sudden_quest": doc["sudden_quest"],
-        "npcs": doc["npcs"],
     }
+
+
+def npc_to_yaml_doc(doc: dict) -> dict:
+    """내부 doc → data/npcs YAML (NPC 실데이터의 단일 원본). scenario_id로 배치 연결."""
+    return {"scenario_id": doc["slug"], "npcs": doc["npcs"]}
 
 
 def job_to_yaml_doc(cat: TeamCategory, slug: str) -> dict:
@@ -680,9 +685,9 @@ async def emit_yaml(out_base: str | None = None) -> None:
 
     base = Path(out_base) if out_base else Path(settings.data_dir)
     real = Path(settings.data_dir)  # 손편집 보호 검사는 항상 실제 data/ 기준
-    scen_dir, jobs_dir = base / "scenarios", base / "jobs"
-    scen_dir.mkdir(parents=True, exist_ok=True)
-    jobs_dir.mkdir(parents=True, exist_ok=True)
+    scen_dir, jobs_dir, npc_dir = base / "scenarios", base / "jobs", base / "npcs"
+    for d in (scen_dir, jobs_dir, npc_dir):
+        d.mkdir(parents=True, exist_ok=True)
 
     wrote = protected_cnt = 0
     async with SessionFactory() as session:
@@ -693,16 +698,21 @@ async def emit_yaml(out_base: str | None = None) -> None:
             scen_dir / f"{slug}.yaml", _dump_yaml(scenario_to_yaml_doc(doc)),
             check_path=real / "scenarios" / f"{slug}.yaml",
         )
+        # NPC 실데이터는 별도 파일(단일 원본) — 사람이 검수·수정하는 곳
+        n_ok = _write_protected(
+            npc_dir / f"{slug}.yaml", _dump_yaml(npc_to_yaml_doc(doc)),
+            check_path=real / "npcs" / f"{slug}.yaml",
+        )
         j_ok = _write_protected(
             jobs_dir / f"{slug}.yaml", _dump_yaml(job_to_yaml_doc(cat, slug)),
             check_path=real / "jobs" / f"{slug}.yaml",
         )
-        wrote += 1 if (s_ok or j_ok) else 0
-        protected_cnt += 1 if not s_ok else 0
+        wrote += 1 if (s_ok or n_ok or j_ok) else 0
+        protected_cnt += 1 if not n_ok else 0
 
     print(
-        f"YAML 방출 완료: 시나리오 {len(docs)}개 대상, 기록 {wrote}개, "
-        f"보호(손편집) {protected_cnt}개 → data/scenarios/, data/jobs/"
+        f"YAML 방출 완료: 시나리오 {len(docs)}개, 기록 {wrote}개, "
+        f"보호(손편집) {protected_cnt}개 → data/scenarios/, data/npcs/, data/jobs/"
     )
 
 
