@@ -1,0 +1,17 @@
+# J084 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J084_*.yaml
+code: j084
+title: 생산조립 작업자
+description: 작업지시서와 도면에 따라 부품을 조립하고 가공하는 직무. 안전 수칙을 준수하며 설비를 조작하고, 생산 과정에서 발생하는 불량품을 격리하여 고품질의 완제품을 생산한다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 3
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 2
+  artistic: 1
+  social: 2
+  enterprising: 2
+  conventional: 4

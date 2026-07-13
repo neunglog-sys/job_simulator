@@ -1,0 +1,18 @@
+# J061 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J061_*.yaml
+code: j061
+title: 튜터·멘토 운영 보조
+description: 학습을 돕는 튜터와 멘토들이 원활하게 활동할 수 있도록 선발, 교육, 매칭을 지원하는 직무. 멘토링 활동 기록을 모니터링하고 가이드라인을 배포하여 교육 서비스의
+  품질을 표준화한다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 4
+  collaboration: 5
+  task_management: 4
+interest_profile:
+  realistic: 1
+  investigative: 2
+  artistic: 1
+  social: 4
+  enterprising: 4
+  conventional: 4

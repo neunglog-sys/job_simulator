@@ -1,0 +1,18 @@
+# J102 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J102_*.yaml
+code: j102
+title: 운반·하역 작업자
+description: 크레인이나 드론 등 중장비 및 특수장비를 조종하여 현장의 자재를 안전하게 인양하고 하역하는 직무입니다. 풍속과 정격하중 등 작업 환경을 실시간으로 분석하고, 신호수와의
+  무전 소통 및 법적 기준 검토를 통해 낙하 사고를 예방하는 정밀한 작업을 수행합니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 3
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 5
+  investigative: 3
+  artistic: 1
+  social: 1
+  enterprising: 2
+  conventional: 4

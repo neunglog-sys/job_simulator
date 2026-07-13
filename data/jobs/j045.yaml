@@ -1,0 +1,18 @@
+# J045 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J045_*.yaml
+code: j045
+title: 온라인 CS 담당
+description: 온라인 채널을 통해 유입되는 고객의 문의와 불만을 신속하게 해결하는 직무. 주문, 환불, 교환 등의 절차를 명확히 안내하고 유관 부서와의 긴밀한 협업을 통해 고객
+  만족도를 높이는 역할을 수행합니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 4
+  communication: 4
+  collaboration: 4
+  task_management: 3
+interest_profile:
+  realistic: 1
+  investigative: 3
+  artistic: 1
+  social: 4
+  enterprising: 2
+  conventional: 4

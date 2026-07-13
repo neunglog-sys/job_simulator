@@ -1,0 +1,18 @@
+# J004 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J004_*.yaml
+code: j004
+title: 문서관리 담당
+description: 기업의 중요 기록물과 문서를 체계적으로 분류, 이관, 보존하고 보안 규정에 따라 관리하는 직무입니다. 민감 정보의 유출을 방지하고, 누구나 필요한 문서를 신속하게
+  찾아 활용할 수 있도록 메타데이터를 정교하게 검수합니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 4
+  communication: 3
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 2
+  investigative: 4
+  artistic: 1
+  social: 2
+  enterprising: 2
+  conventional: 5

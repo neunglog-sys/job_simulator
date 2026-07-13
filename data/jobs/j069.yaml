@@ -1,0 +1,18 @@
+# J069 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J069_*.yaml
+code: j069
+title: 게시판·공지 관리 담당
+description: 공식 게시판과 공지사항을 관리하며 사용자의 피드백과 오류 신고에 실시간으로 대응하는 직무. 긴급한 이슈나 예약 게시 변경 요청이 발생했을 때 우선순위를 판단하여
+  신속하게 조율한다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 3
+  communication: 4
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 1
+  investigative: 2
+  artistic: 2
+  social: 4
+  enterprising: 3
+  conventional: 4

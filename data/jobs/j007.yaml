@@ -1,0 +1,18 @@
+# J007 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J007_*.yaml
+code: j007
+title: 회계보조
+description: 회계 부서의 원활한 운영을 위해 전반적인 전표 입력과 기초 자료 검토를 보조하는 직무. 거래처와의 이견을 조율하고 누락된 증빙을 확인하여 회계 데이터의 신뢰성을
+  높인다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 4
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 1
+  investigative: 3
+  artistic: 1
+  social: 3
+  enterprising: 2
+  conventional: 5

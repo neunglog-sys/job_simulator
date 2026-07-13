@@ -1,0 +1,18 @@
+# J095 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J095_*.yaml
+code: j095
+title: 전기점검 보조
+description: 수배전반, 비상발전기 등 전기 설비의 안전성과 작동 상태를 전문적으로 진단하고 점검하는 직무. 일일 순찰과 법정 검사 일정을 체계적으로 관리하며, 이상 경보 발생
+  시 철저한 안전조치와 신속한 보고를 통해 사고를 예방합니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 3
+  communication: 4
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 4
+  investigative: 4
+  artistic: 1
+  social: 2
+  enterprising: 3
+  conventional: 5

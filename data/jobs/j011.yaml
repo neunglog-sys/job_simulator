@@ -1,0 +1,18 @@
+# J011 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J011_*.yaml
+code: j011
+title: 구매사무 보조
+description: 구매 부서의 원활한 운영을 위해 각종 행정 업무와 서류 처리를 지원하는 직무. 발주서 및 견적서의 데이터를 꼼꼼히 대조하고, 일상적인 재고 현황과 납기를 확인하여
+  기록하는 역할을 수행한다.
+competencies:
+  situation_judgment: 2
+  problem_solving: 2
+  communication: 3
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 2
+  investigative: 2
+  artistic: 1
+  social: 2
+  enterprising: 2
+  conventional: 5

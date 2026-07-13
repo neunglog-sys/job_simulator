@@ -19,6 +19,11 @@ def _load() -> dict:
         return json.load(f)
 
 
+def dimension_labels() -> dict[str, str]:
+    """차원 키 → 한글 이름 (예: realistic → 현장·실행형). 추천 근거 문구 조립용."""
+    return {key: dim["name"] for key, dim in _load()["dimensions"].items()}
+
+
 def public_items() -> list[dict]:
     """클라이언트용 문항 — 선택지의 차원 점수(정답지)는 숨김."""
     return [

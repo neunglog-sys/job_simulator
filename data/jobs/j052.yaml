@@ -1,0 +1,18 @@
+# J052 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J052_*.yaml
+code: j052
+title: B2B 영업 보조
+description: 기업 간 거래(B2B) 과정에서 제안서 작성, 견적 산출, 고객사 요구사항 정리를 보조하는 직무. 비즈니스 고객의 니즈를 명확히 파악하여 매끄러운 거래가 성사되도록
+  영업 담당자를 밀착 지원한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 4
+  communication: 4
+  collaboration: 4
+  task_management: 3
+interest_profile:
+  realistic: 1
+  investigative: 3
+  artistic: 1
+  social: 3
+  enterprising: 4
+  conventional: 4

@@ -1,0 +1,18 @@
+# J024 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J024_*.yaml
+code: j024
+title: 면접일정 조율 담당
+description: 다수의 면접관과 지원자들의 일정을 조율하여 최적의 면접 타임테이블을 확정하는 직무입니다. 회의실 예약 현황과 참석자들의 가용 시간을 실시간으로 파악하고, 일정
+  변경이나 노쇼 등 변수가 발생했을 때 신속하고 매끄럽게 재조율합니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 5
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 1
+  investigative: 1
+  artistic: 1
+  social: 4
+  enterprising: 3
+  conventional: 4

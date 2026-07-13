@@ -1,0 +1,18 @@
+# J053 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J053_*.yaml
+code: j053
+title: 렌탈·구독 상담 보조
+description: 렌탈 및 구독 서비스를 이용하려는 고객에게 알맞은 요금제와 상품을 추천하고 가입 절차를 돕는 직무. 정기적인 계약 규정과 혜택을 명확히 설명하고, 해지나 변경
+  등 까다로운 불만 사항에 유연하게 대응한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 5
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 2
+  investigative: 2
+  artistic: 1
+  social: 5
+  enterprising: 4
+  conventional: 4

@@ -1,0 +1,18 @@
+# J047 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J047_*.yaml
+code: j047
+title: 클레임 처리 보조
+description: 고객의 불만과 클레임 사안을 접수하고 규정에 따라 신속하게 중재하는 직무. 감정이 격해진 고객을 차분하게 진정시키고, 정확한 사실 관계 파악을 통해 합리적인 보상
+  및 해결 방안을 제시합니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 5
+  collaboration: 3
+  task_management: 3
+interest_profile:
+  realistic: 1
+  investigative: 3
+  artistic: 1
+  social: 4
+  enterprising: 4
+  conventional: 3

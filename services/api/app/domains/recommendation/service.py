@@ -2,16 +2,20 @@
 
 1. 상담 대화 전체를 LLM에 넣어 역량 점수·관심사·강점·요약을 JSON으로 추출
 2. 직무별 역량 매트릭스(data/jobs)와 가중 평균으로 적합도 계산 (룰 기반 — 결정적)
-3. 상위 3개 직무 + 근거를 recommendations 테이블에 저장
+3. 사전 설문(RIASEC 흥미유형, Consultation.survey.profile)이 있으면 직무별 흥미유형
+   가중치(Job.interest_profile)와 매칭해 역량 점수에 보조 신호로 blend (7:3)
+4. 상위 3개 직무 + 근거를 recommendations 테이블에 저장
 """
 
 import logging
+import math
 
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.content.loader import load_competencies
+from app.domains.consultation import survey
 from app.domains.consultation.service import get_owned_consultation, list_messages
 from app.llm import get_llm
 from app.llm.base import ChatMessage
@@ -23,6 +27,7 @@ logger = logging.getLogger(__name__)
 TOP_N = 3
 NEUTRAL_SCORE = 50  # 근거 부족 시 중립값
 APTITUDE_CLARITY_MIN = 50  # 미달 시 추천 대신 추가 상담 유도 (중간 게이트)
+INTEREST_WEIGHT = 0.3  # 흥미유형 매칭 반영 비중 (역량 점수가 주 신호, 설문은 보조 신호)
 
 
 def _extraction_schema(competency_keys: list[str]) -> dict:
@@ -73,26 +78,70 @@ async def _extract_profile(session: AsyncSession, consultation: Consultation) ->
     )
 
 
-def _score_job(job: Job, scores: dict[str, int]) -> int:
-    """직무 역량 중요도(1~5) 가중 평균 → 0~100 적합도."""
-    weights = job.competencies
+def _weighted_avg(weights: dict[str, int], scores: dict[str, int]) -> int | None:
     if not weights:
-        return NEUTRAL_SCORE
-    total = sum(
-        scores.get(key, NEUTRAL_SCORE) * weight for key, weight in weights.items()
-    )
+        return None
+    total = sum(scores.get(key, NEUTRAL_SCORE) * weight for key, weight in weights.items())
     return round(total / (100 * sum(weights.values())) * 100)
 
 
-def _build_reason(job: Job, scores: dict[str, int], names: dict[str, str]) -> str:
-    """해당 직무에서 중요하면서(가중치) 사용자가 강한(점수) 역량 상위 2개로 근거 구성."""
+def _interest_match(job_profile: dict[str, int], user_profile: dict[str, int]) -> int | None:
+    """직무·사용자 흥미유형 벡터의 코사인 유사도 → 0~100.
+
+    가중 평균이 아닌 이유: RIASEC 프로필은 사용자가 특정 유형에 0점을 주는 게 흔한데(그 유형에
+    관심이 없다는 정상 신호), 가중 평균은 그 0점이 직무의 다른(비주력) 차원 가중치와 곱해지며
+    전체 점수를 깎아버려 "주력 유형이 정확히 일치"해도 점수가 낮게 나오는 문제가 있었다.
+    코사인 유사도는 방향(어느 유형이 두드러지는가)만 비교하므로 이 왜곡이 없다.
+    """
+    dims = set(job_profile) | set(user_profile)
+    if not dims:
+        return None
+    job_norm = math.sqrt(sum(job_profile.get(d, 0) ** 2 for d in dims))
+    user_norm = math.sqrt(sum(user_profile.get(d, 0) ** 2 for d in dims))
+    if job_norm == 0 or user_norm == 0:
+        return None
+    dot = sum(job_profile.get(d, 0) * user_profile.get(d, 0) for d in dims)
+    return round(max(dot / (job_norm * user_norm), 0) * 100)
+
+
+def _score_job(job: Job, scores: dict[str, int], interest_profile: dict[str, int] | None = None) -> int:
+    """직무 역량 중요도(1~5) 가중 평균 → 0~100 적합도. 사전 설문이 있으면 흥미유형 매칭을 보조 신호로 blend."""
+    competency_score = _weighted_avg(job.competencies, scores)
+    if competency_score is None:
+        competency_score = NEUTRAL_SCORE
+
+    if not interest_profile:
+        return competency_score
+    interest_score = _interest_match(job.interest_profile, interest_profile)
+    if interest_score is None:
+        return competency_score
+    return round(competency_score * (1 - INTEREST_WEIGHT) + interest_score * INTEREST_WEIGHT)
+
+
+def _build_reason(
+    job: Job,
+    scores: dict[str, int],
+    names: dict[str, str],
+    interest_profile: dict[str, int] | None = None,
+) -> str:
+    """해당 직무에서 중요하면서(가중치) 사용자가 강한(점수) 역량 상위 2개로 근거 구성.
+
+    사전 설문 흥미유형이 이 직무의 핵심 흥미유형과 겹치면 한 문장 덧붙임.
+    """
     ranked = sorted(
         job.competencies.items(),
         key=lambda kv: kv[1] * scores.get(kv[0], NEUTRAL_SCORE),
         reverse=True,
     )
     top = [names.get(key, key) for key, _ in ranked[:2]]
-    return f"{'·'.join(top)} 역량이 {job.title} 직무의 핵심 요구 역량과 잘 맞습니다."
+    reason = f"{'·'.join(top)} 역량이 {job.title} 직무의 핵심 요구 역량과 잘 맞습니다."
+
+    if interest_profile and job.interest_profile:
+        labels = survey.dimension_labels()
+        job_top_dim, job_top_weight = max(job.interest_profile.items(), key=lambda kv: kv[1])
+        if job_top_weight >= 4 and interest_profile.get(job_top_dim, 0) >= 60:
+            reason += f" 사전 설문에서 나타난 '{labels.get(job_top_dim, job_top_dim)}' 성향과도 잘 맞아요."
+    return reason
 
 
 async def create_recommendation(
@@ -120,15 +169,18 @@ async def create_recommendation(
 
     scores: dict[str, int] = profile.get("competency_scores") or {}
     names = {c["key"]: c["name"] for c in load_competencies()}
+    interest_profile: dict[str, int] = (consultation.survey or {}).get("profile") or {}
 
     jobs = list((await session.execute(select(Job))).scalars())
-    ranked = sorted(jobs, key=lambda j: _score_job(j, scores), reverse=True)[:TOP_N]
+    ranked = sorted(
+        jobs, key=lambda j: _score_job(j, scores, interest_profile), reverse=True
+    )[:TOP_N]
     results = [
         {
             "job_code": job.code,
             "job_title": job.title,
-            "score": _score_job(job, scores),
-            "reason": _build_reason(job, scores, names),
+            "score": _score_job(job, scores, interest_profile),
+            "reason": _build_reason(job, scores, names, interest_profile),
         }
         for job in ranked
     ]

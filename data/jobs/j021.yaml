@@ -1,0 +1,18 @@
+# J021 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J021_*.yaml
+code: j021
+title: 교육운영 보조
+description: 사내외 교육 프로그램이 차질 없이 진행되도록 준비 단계부터 사후 피드백 취합까지 운영 전반을 지원하는 직무입니다. 교안과 장비를 미리 점검하고 현장에서 발생하는
+  돌발 상황에 유연하게 대처하며 교육생들의 학습 만족도를 높입니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 4
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 2
+  investigative: 1
+  artistic: 1
+  social: 5
+  enterprising: 2
+  conventional: 3

@@ -1,0 +1,18 @@
+# J014 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J014_*.yaml
+code: j014
+title: 견적비교 담당
+description: 공급업체들이 제출한 견적 조건을 다각도로 분석하여 최적의 구매 조건을 도출하는 직무. 단가, 납기, 품질, 거래 조건 등을 객관적인 지표로 비교 분석하여 구매
+  의사결정의 기초 자료를 제공한다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 4
+  communication: 3
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 2
+  investigative: 5
+  artistic: 1
+  social: 2
+  enterprising: 3
+  conventional: 4

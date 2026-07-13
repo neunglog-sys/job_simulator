@@ -1,0 +1,18 @@
+# J022 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J022_*.yaml
+code: j022
+title: 인사총무 보조
+description: 임직원들이 업무에 몰입할 수 있도록 다양한 인사 및 총무 관련 요청을 접수하고 신속하게 처리하는 직무입니다. 사내 규정과 증빙 자료를 면밀히 검토하여 요청 사항을
+  분류하고, 민감한 정보가 노출되지 않도록 철저히 관리합니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 3
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 1
+  investigative: 2
+  artistic: 1
+  social: 3
+  enterprising: 2
+  conventional: 5

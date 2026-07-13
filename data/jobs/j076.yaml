@@ -1,0 +1,18 @@
+# J076 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J076_*.yaml
+code: j076
+title: IT 헬프데스크
+description: 사용자와 시스템 사이에서 발생하는 다양한 IT 기술 문의와 장애를 일차적으로 접수하고 해결하는 직무. 장애 현상을 정확히 파악하여 신속히 대응하고, 해결이 어려운
+  문제는 관련 부서로 이관하여 원활한 서비스 이용을 돕는다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 5
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 2
+  investigative: 3
+  artistic: 1
+  social: 5
+  enterprising: 3
+  conventional: 4

@@ -1,0 +1,18 @@
+# J066 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J066_*.yaml
+code: j066
+title: 상품촬영·편집 보조
+description: 상업용 제품의 매력을 극대화하기 위해 실물 촬영을 진행하고 이를 디지털 이미지로 정교하게 보정 및 편집하는 직무. 제품의 고유한 질감과 색상을 정확하게 표현하며
+  품질 검수 기준에 맞춰 최종 결과물을 완성한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 4
+  communication: 3
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 5
+  investigative: 2
+  artistic: 4
+  social: 2
+  enterprising: 2
+  conventional: 4

@@ -1,0 +1,18 @@
+# J080 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J080_*.yaml
+code: j080
+title: 입출고 담당
+description: 물류창고로 들어오고 나가는 모든 물품의 품목과 수량을 정확하게 대조하고 기록하는 직무. 지시서와 실물을 꼼꼼히 비교하여 오류 없는 입출고를 보장하며, 파손이나
+  오출고 등의 예외 상황을 신속히 파악해 보고합니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 3
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 4
+  investigative: 2
+  artistic: 1
+  social: 2
+  enterprising: 2
+  conventional: 5

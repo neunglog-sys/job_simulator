@@ -1,0 +1,18 @@
+# J083 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J083_*.yaml
+code: j083
+title: 창고 재고관리 담당
+description: 물류창고의 실물 재고와 전산 시스템상의 데이터를 대조하여 차이를 분석하고 조정하는 직무. 불일치가 발생한 원인을 추적하고, 불량이나 보류 재고를 명확히 구분하여
+  데이터의 신뢰성을 높입니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 5
+  communication: 3
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 2
+  investigative: 5
+  artistic: 1
+  social: 2
+  enterprising: 2
+  conventional: 5

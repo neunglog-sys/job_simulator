@@ -1,0 +1,18 @@
+# J025 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J025_*.yaml
+code: j025
+title: 콘텐츠 마케터
+description: 타깃 고객과 채널의 특성에 맞춰 매력적인 콘텐츠를 기획하고 제작하는 직무입니다. 카피라이팅부터 이미지 검수, 발행 후 성과 분석까지 담당하며 브랜드의 메시지를
+  효과적으로 전달합니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 4
+  collaboration: 4
+  task_management: 3
+interest_profile:
+  realistic: 1
+  investigative: 2
+  artistic: 5
+  social: 3
+  enterprising: 4
+  conventional: 2

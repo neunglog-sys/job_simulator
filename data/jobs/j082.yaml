@@ -1,0 +1,18 @@
+# J082 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J082_*.yaml
+code: j082
+title: 물류분류 작업자
+description: 컨베이어 벨트 등 자동화 설비를 활용하여 물품을 목적지별로 신속하고 정확하게 분류하는 직무. 설비 오작동이나 물품 끼임 등의 돌발 상황 발생 시 안전 규정에 따라
+  대처하며 원활한 물류 흐름을 유지합니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 3
+  communication: 2
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 5
+  investigative: 2
+  artistic: 1
+  social: 1
+  enterprising: 1
+  conventional: 4

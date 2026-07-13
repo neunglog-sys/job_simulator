@@ -1,0 +1,18 @@
+# J029 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J029_*.yaml
+code: j029
+title: CRM마케팅 운영
+description: 기존 고객과의 관계 강화를 위해 타깃 세그먼트를 분류하고 맞춤형 메시지를 발송하는 직무입니다. 수신 동의 여부와 중복 발송 등을 꼼꼼히 점검하여 정교한 개인화
+  마케팅을 실행합니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 3
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 1
+  investigative: 3
+  artistic: 2
+  social: 2
+  enterprising: 3
+  conventional: 5

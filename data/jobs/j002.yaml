@@ -1,0 +1,18 @@
+# J002 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J002_*.yaml
+code: j002
+title: 행정지원 담당
+description: 조직 내 행정 프로세스가 규정에 맞게 원활히 작동하도록 각종 서류 검토, 공문 처리, 부서 간 조율을 담당하는 직무입니다. 기한이 급박한 여러 행정 요청의 우선순위를
+  설정하고 누락 없이 처리하는 역할을 수행합니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 4
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 2
+  investigative: 3
+  artistic: 1
+  social: 3
+  enterprising: 3
+  conventional: 5

@@ -1,0 +1,18 @@
+# J093 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J093_*.yaml
+code: j093
+title: 비품보충 담당
+description: 객실 및 공용구역에 필요한 비품의 재고를 관리하고 적시에 보충하는 직무. 선입선출 원칙과 기준 수량을 바탕으로 창고 재고를 대조하며, 유통기한과 소요량을 정확히
+  기록하여 보고한다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 2
+  communication: 3
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 4
+  investigative: 2
+  artistic: 1
+  social: 1
+  enterprising: 1
+  conventional: 5
