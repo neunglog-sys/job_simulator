@@ -82,7 +82,11 @@ async def stream_reply(
 
     full: list[str] = []
     try:
-        async for chunk in get_llm().chat_stream(context, system=system):
+        async for chunk in get_llm().chat_stream(
+            context,
+            system=system,
+            temperature=0.4,
+        ):
             full.append(chunk)
             yield chunk
     finally:
