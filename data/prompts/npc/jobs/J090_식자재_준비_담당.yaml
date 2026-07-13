@@ -1,0 +1,387 @@
+schema_version: npc.job-override.v1
+job:
+  job_id: J090
+  job_name: 식자재 준비 담당
+  family_id: F20
+  family_name: 조리·식품제조
+  module: 작업순서·절차형
+review:
+  status: integrated_research
+  generated: true
+  human_review_required: false
+prompt_contract:
+  npc_visible:
+    work_targets:
+    - 레시피
+    - 원재료
+    - 위생기준
+    - 주문량
+    npc_roles:
+    - 조리장
+    - 매니저
+    - 고객
+    outputs:
+    - 준비체크표
+    - 위생점검표
+    - 조리일지
+    forbidden:
+    - 플레이어를 채점하거나 점수·통과 여부를 말하지 않는다.
+    - 오류의 정답·모범답안·단계별 해설을 제공하지 않는다.
+    - 업무상 필요한 지시·사실·자료·권한 범위만 전달한다.
+  coach_private:
+    success_criteria:
+    - 목적·자료·기준·결과·다음액션 포함
+    failure_patterns:
+    - 추측 진행
+    - 질문 누락
+    - 산출물 혼동
+kb_stages:
+- chunk_id: J090-S1
+  stage_id: S1
+  name: 업무요청 이해
+  goal: 요청자의 목적, 결과물, 마감, 제한조건을 확인한다.
+  rag_chunk_text: '[식자재 준비 담당/조리·식품제조/작업순서·절차형] 업무요청 이해: 요청자의 목적, 결과물, 마감, 제한조건을 확인한다. 업무대상은 레시피, 원재료, 위생기준, 주문량. 주요상대/NPC는
+    조리장, 매니저, 고객. 핵심산출물은 준비체크표, 위생점검표, 조리일지. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 조리·식품제조의 업무대상과 산출물을 벗어난
+    미션 생성 금지.'
+- chunk_id: J090-S2
+  stage_id: S2
+  name: 자료·현황 확인
+  goal: 업무대상 자료를 읽고 누락/불일치/위험요소를 표시한다.
+  rag_chunk_text: '[식자재 준비 담당/조리·식품제조/작업순서·절차형] 자료·현황 확인: 업무대상 자료를 읽고 누락/불일치/위험요소를 표시한다. 업무대상은 레시피, 원재료, 위생기준, 주문량. 주요상대/NPC는
+    조리장, 매니저, 고객. 핵심산출물은 준비체크표, 위생점검표, 조리일지. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 조리·식품제조의 업무대상과 산출물을 벗어난
+    미션 생성 금지.'
+- chunk_id: J090-S3
+  stage_id: S3
+  name: 처리·제작·응대
+  goal: 직무별 기준에 맞춰 문서/응대/작업/산출물을 만든다.
+  rag_chunk_text: '[식자재 준비 담당/조리·식품제조/작업순서·절차형] 처리·제작·응대: 직무별 기준에 맞춰 문서/응대/작업/산출물을 만든다. 업무대상은 레시피, 원재료, 위생기준, 주문량. 주요상대/NPC는
+    조리장, 매니저, 고객. 핵심산출물은 준비체크표, 위생점검표, 조리일지. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 조리·식품제조의 업무대상과 산출물을 벗어난
+    미션 생성 금지.'
+- chunk_id: J090-S4
+  stage_id: S4
+  name: 검수·판단
+  goal: 오류, 안전, 고객영향, 비용, 일정, 품질을 점검한다.
+  rag_chunk_text: '[식자재 준비 담당/조리·식품제조/작업순서·절차형] 검수·판단: 오류, 안전, 고객영향, 비용, 일정, 품질을 점검한다. 업무대상은 레시피, 원재료, 위생기준, 주문량. 주요상대/NPC는
+    조리장, 매니저, 고객. 핵심산출물은 준비체크표, 위생점검표, 조리일지. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 조리·식품제조의 업무대상과 산출물을 벗어난
+    미션 생성 금지.'
+- chunk_id: J090-S5
+  stage_id: S5
+  name: 보고·인계
+  goal: 결과, 근거, 남은 이슈, 다음 액션을 공유한다.
+  rag_chunk_text: '[식자재 준비 담당/조리·식품제조/작업순서·절차형] 보고·인계: 결과, 근거, 남은 이슈, 다음 액션을 공유한다. 업무대상은 레시피, 원재료, 위생기준, 주문량. 주요상대/NPC는 조리장,
+    매니저, 고객. 핵심산출물은 준비체크표, 위생점검표, 조리일지. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 조리·식품제조의 업무대상과 산출물을 벗어난 미션
+    생성 금지.'
+content_variants:
+- category: 조리·식품제조 현장
+  module: 작업순서·절차형
+  rag_status: 직접
+  workflow: 주문·레시피 확인 → 위생·원재료 검수 → 전처리·계량 → 공정 수행 → 시간·온도 점검 → 완성검사 → 제공·보관 → 세척·기록
+  npc_visible:
+    npc_roles:
+    - 조리장
+    - 매니저
+    - 고객
+    input_materials:
+    - 레시피
+    - 원재료
+    - 위생기준
+    - 주문량
+    outputs:
+    - 준비체크표
+    - 위생점검표
+    - 조리일지
+    sudden_events:
+    - 재료 부족
+    - 주문 변경
+    - 발효 실패
+    - 이물 발견
+    - 알레르기 누락
+  stages:
+  - stage_id: S1
+    name: 업무요청 이해
+    goal: 목적·결과물·마감·제한조건을 확인한다.
+    npc_visible:
+      materials:
+      - 레시피
+      - 원재료
+      - 위생기준
+      - 주문량
+      npc_roles:
+      - 조리장
+      - 매니저
+      - 고객
+      outputs:
+      - 준비체크표
+      - 위생점검표
+      - 조리일지
+      mission_candidate: 요청에서 목적·기한·산출물 찾기
+    coach_private:
+      success_criteria:
+      - 목적·기한·자료·기준 확인
+      failure_patterns:
+      - 질문 없이 추측
+  - stage_id: S2
+    name: 자료·현황 확인
+    goal: 업무자료를 읽고 누락·불일치·위험요소를 표시한다.
+    npc_visible:
+      materials:
+      - 레시피
+      - 원재료
+      - 위생기준
+      - 주문량
+      npc_roles:
+      - 조리장
+      - 매니저
+      - 고객
+      outputs:
+      - 준비체크표
+      - 위생점검표
+      - 조리일지
+      mission_candidate: 주문 순서 계획
+    coach_private:
+      success_criteria:
+      - 기준 준수
+      - 핵심 오류·위험 우선 처리
+      failure_patterns:
+      - 순서 생략
+      - 임의판단
+      - 위험·오류 방치
+  - stage_id: S3
+    name: 처리·제작·작업
+    goal: 해당 중분류의 기준과 순서에 따라 결과물을 만든다.
+    npc_visible:
+      materials:
+      - 레시피
+      - 원재료
+      - 위생기준
+      - 주문량
+      npc_roles:
+      - 조리장
+      - 매니저
+      - 고객
+      outputs:
+      - 준비체크표
+      - 위생점검표
+      - 조리일지
+      mission_candidate: 불량재료 찾기
+    coach_private:
+      success_criteria:
+      - 기준 준수
+      - 핵심 오류·위험 우선 처리
+      failure_patterns:
+      - 순서 생략
+      - 임의판단
+      - 위험·오류 방치
+  - stage_id: S4
+    name: 검수·판단
+    goal: 오류·안전·비용·일정·품질을 기준과 대조한다.
+    npc_visible:
+      materials:
+      - 레시피
+      - 원재료
+      - 위생기준
+      - 주문량
+      npc_roles:
+      - 조리장
+      - 매니저
+      - 고객
+      outputs:
+      - 준비체크표
+      - 위생점검표
+      - 조리일지
+      mission_candidate: 배수계량
+    coach_private:
+      success_criteria:
+      - 기준 준수
+      - 핵심 오류·위험 우선 처리
+      failure_patterns:
+      - 순서 생략
+      - 임의판단
+      - 위험·오류 방치
+  - stage_id: S5
+    name: 보고·인계
+    goal: 결과·근거·남은 이슈·다음 액션을 공유한다.
+    npc_visible:
+      materials:
+      - 레시피
+      - 원재료
+      - 위생기준
+      - 주문량
+      npc_roles:
+      - 조리장
+      - 매니저
+      - 고객
+      outputs:
+      - 준비체크표
+      - 위생점검표
+      - 조리일지
+      mission_candidate: 상황·조치·미해결사항을 3문장으로 보고
+    coach_private:
+      success_criteria:
+      - 사실
+      - 추정 구분
+      - 후속조치 명확
+      failure_patterns:
+      - 결과만 말하고 근거·다음액션 누락
+  missions:
+  - mission_id: MS-07-01
+    situation_type: 정상업무
+    difficulty: 쉬움
+    npc_visible:
+      npc: 조리장
+      request_line: 점심 주문 20인분의 식재료를 검수하고 전처리 순서를 정하세요.
+      materials:
+      - 레시피
+      - 주문량
+      - 원재료
+      - 냉장온도
+      - 준비시간
+      user_mission: 수량·신선도·유통기한·보관온도를 확인하고 조리순서에 맞춰 준비한다.
+      outputs:
+      - 식재료 준비표
+      - 검수기록
+      sudden_event: 채소 한 품목이 주문량보다 부족
+    coach_private:
+      required_actions:
+      - 손위생
+      - 원재료 검수
+      - 배수계량
+      - 교차오염 분리
+      - 준비표 작성
+      success_criteria:
+      - 수량 정확
+      - 불량재료 제외
+      - 생·가열식품 분리
+      failure_patterns:
+      - 상한 재료 사용 또는 계량·보관순서 오류
+    scorer_private:
+      rag_link: F20 직접연결
+  - mission_id: MS-07-02
+    situation_type: 자료·정보 누락
+    difficulty: 보통
+    npc_visible:
+      npc: 매니저
+      request_line: 고객 주문에 알레르기 메모가 있는데 대상 식재료가 적혀 있지 않습니다.
+      materials:
+      - 주문서
+      - 메뉴 원재료표
+      - 알레르기 대응지침
+      - 고객 연락수단
+      user_mission: 조리를 시작하지 않고 알레르기 종류를 재확인해 안전한 대체안을 준비한다.
+      outputs:
+      - 알레르기 확인표
+      - 대체메뉴안
+      sudden_event: 고객과 즉시 연락되지 않음
+    coach_private:
+      required_actions:
+      - 주문 보류
+      - 고객 재확인
+      - 원재료 대조
+      - 조리도구 분리
+      success_criteria:
+      - 확인 전 제조 금지
+      - 교차접촉까지 고려
+      failure_patterns:
+      - 추측으로 특정 재료만 빼고 조리
+    scorer_private:
+      rag_link: F20 직접연결
+  - mission_id: MS-07-03
+    situation_type: 우선순위 충돌
+    difficulty: 어려움
+    npc_visible:
+      npc: 조리장
+      request_line: 매장 주문과 단체 포장 주문이 동시에 몰렸습니다. 제조 순서를 배치하세요.
+      materials:
+      - 주문시간
+      - 메뉴별 소요시간
+      - 설비수
+      - 제공온도 기준
+      user_mission: 마감·조리시간·설비공유·품질유지시간을 고려해 병렬작업을 계획한다.
+      outputs:
+      - 조리순서표
+      - 역할분담표
+      sudden_event: 오븐 한 대가 예열 오류
+    coach_private:
+      required_actions:
+      - 주문마감 확인
+      - 공정별 소요
+      - 설비 충돌
+      - 선행전처리
+      - 역할배치
+      success_criteria:
+      - 지연 최소화와 제공온도·품질 유지
+      failure_patterns:
+      - 접수순만 따르다 긴 공정이 밀림
+    scorer_private:
+      rag_link: F20 직접연결
+  - mission_id: MS-07-04
+    situation_type: 오류·안전위험
+    difficulty: 어려움
+    npc_visible:
+      npc: 위생관리자
+      request_line: 완성품 근처에서 이물질이 발견됐습니다. 제공 전에 조치하세요.
+      materials:
+      - 완성품 배치
+      - 작업구역 CCTV 메모
+      - 원재료 로트
+      - 위생기준
+      user_mission: 영향범위를 격리하고 제공을 중단한 뒤 원인조사와 재제조 여부를 결정한다.
+      outputs:
+      - 이물사고 기록
+      - 폐기·재제조 결정표
+      sudden_event: 일부 제품이 이미 포장 완료됨
+    coach_private:
+      required_actions:
+      - 제공중단
+      - 영향제품 격리
+      - 로트·시간 추적
+      - 관리자 보고
+      - 재제조
+      success_criteria:
+      - 영향제품 전부 차단
+      - 증거 보존
+      - 고객안전 우선
+      failure_patterns:
+      - 이물만 제거하고 그대로 제공
+    scorer_private:
+      rag_link: F20 직접연결
+  - mission_id: MS-07-05
+    situation_type: 보고·인계
+    difficulty: 쉬움
+    npc_visible:
+      npc: 마감근무자
+      request_line: 남은 재고와 폐기·예약주문을 다음 근무자에게 인계하세요.
+      materials:
+      - 재고표
+      - 유통기한
+      - 폐기기록
+      - 예약주문
+      - 냉장온도
+      user_mission: 선입선출 기준으로 우선사용 재료와 폐기·해동·준비사항을 정리한다.
+      outputs:
+      - 주방인계표
+      sudden_event: 냉장고 온도가 기준 상한에 근접
+    coach_private:
+      required_actions:
+      - 재고수량
+      - 기한·보관상태
+      - 폐기
+      - 예약주문 필요량
+      success_criteria:
+      - 수량·기한·보관위치·다음 행동 명확
+      failure_patterns:
+      - 재고 총량만 전달하고 유통기한·예약을 누락
+    scorer_private:
+      rag_link: F20 직접연결
+provenance:
+  excel:
+  - file: 입문직무_RAG_KB_v5_정리본.xlsx
+    sheet: 01_직무마스터
+    rows: job_id=J090
+  - file: 입문직무_RAG_KB_v5_정리본.xlsx
+    sheet: 02_RAG프로세스
+    rows: job_id=J090
+  - file: 팀통합_8모듈_조사자료_표준화완료.xlsx
+    sheet: 01_연결맵/02_단계별프로세스/05_상황별미션
+    rows: job_id=J090
+  research_sources: []

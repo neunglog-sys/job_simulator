@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-3.5-flash"
 
     # 임베딩 (RAG) — doc_chunks.embedding 차원(1536)과 맞아야 함
     embedding_model: str = "text-embedding-3-small"
