@@ -68,3 +68,23 @@ class GeminiProvider:
                     yield chunk.text
         except Exception as e:  # noqa: BLE001
             raise LLMError(f"gemini stream 실패: {e}") from e
+
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        """gemini-embedding-001 임베딩 — output_dimensionality로 1536 고정.
+
+        cosine 거리(scale-invariant)를 쓰므로 축소차원 미정규화여도 검색은 성립한다.
+        task_type은 문서·질의 대칭(RETRIEVAL_DOCUMENT)으로 통일 — 필요 시 질의를
+        RETRIEVAL_QUERY로 분리하면 검색 품질이 더 오른다(선택 최적화).
+        """
+        try:
+            res = await self._client.aio.models.embed_content(
+                model=settings.embedding_model,
+                contents=texts,
+                config=types.EmbedContentConfig(
+                    output_dimensionality=settings.embedding_dim,
+                    task_type="RETRIEVAL_DOCUMENT",
+                ),
+            )
+        except Exception as e:  # noqa: BLE001
+            raise LLMError(f"gemini embed 실패: {e}") from e
+        return [list(e.values) for e in res.embeddings]
