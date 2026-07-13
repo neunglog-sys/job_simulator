@@ -1,0 +1,78 @@
+{
+  "_readme": [
+    "직무 상담 사전 설문 (5지선다) — 자유대화 전에 성향·기질 베이스라인을 잡는 단계.",
+    "세종님 작성 가이드:",
+    "  1. items에 문항을 추가하면 API가 자동으로 배달합니다 (35문항 목표, 개수 제한 없음).",
+    "  2. 각 option의 dimension_scores는 '이 선택지를 고르면 해당 성향 차원에 몇 점 기여하는가' (0~10 권장).",
+    "  3. dimensions에 차원 정의를 등록하세요 — 요약 문장(summary_label)이 전환 대사의 [요약 내용]에 쓰입니다.",
+    "  4. 차원 키는 자유지만, 영수님 질문은행(dimension_definitions.json)과 체계를 맞추면 자유대화와 이어집니다.",
+    "  5. 파일 저장 후 서버 재시작 없이 반영됩니다 (요청 시 로딩).",
+    "아래 문항 5개는 형식 예시용 샘플입니다 — 실제 콘텐츠로 교체해주세요."
+  ],
+  "version": "sample-v0",
+  "dimensions": {
+    "realistic": { "name": "현장·실행형", "summary_label": "몸으로 부딪히며 실행하는 것을 선호" },
+    "investigative": { "name": "분석·탐구형", "summary_label": "원인을 파고들어 분석하는 것을 선호" },
+    "artistic": { "name": "창작·표현형", "summary_label": "새로운 것을 만들고 표현하는 것을 선호" },
+    "social": { "name": "대인·조력형", "summary_label": "사람을 돕고 소통하는 것을 선호" },
+    "enterprising": { "name": "주도·설득형", "summary_label": "일을 주도하고 설득하는 것을 선호" },
+    "conventional": { "name": "체계·관리형", "summary_label": "체계를 잡고 꼼꼼히 관리하는 것을 선호" }
+  },
+  "items": [
+    {
+      "id": "SV-001",
+      "text": "새로운 일을 시작할 때 나는 먼저…",
+      "options": [
+        { "key": "a", "label": "일단 손으로 해보면서 감을 잡는다", "dimension_scores": { "realistic": 8 } },
+        { "key": "b", "label": "관련 자료를 찾아 원리를 이해한다", "dimension_scores": { "investigative": 8 } },
+        { "key": "c", "label": "나만의 방식을 떠올려본다", "dimension_scores": { "artistic": 8 } },
+        { "key": "d", "label": "해본 사람에게 물어본다", "dimension_scores": { "social": 8 } },
+        { "key": "e", "label": "계획표부터 만든다", "dimension_scores": { "conventional": 8 } }
+      ]
+    },
+    {
+      "id": "SV-002",
+      "text": "팀 프로젝트에서 내가 자연스럽게 맡게 되는 역할은…",
+      "options": [
+        { "key": "a", "label": "실제 작업을 처리하는 실행 담당", "dimension_scores": { "realistic": 8 } },
+        { "key": "b", "label": "자료 조사와 검증 담당", "dimension_scores": { "investigative": 8 } },
+        { "key": "c", "label": "발표 자료·디자인 담당", "dimension_scores": { "artistic": 8 } },
+        { "key": "d", "label": "의견을 모으고 갈등을 푸는 조율 담당", "dimension_scores": { "social": 8 } },
+        { "key": "e", "label": "방향을 정하고 밀어붙이는 리더", "dimension_scores": { "enterprising": 8 } }
+      ]
+    },
+    {
+      "id": "SV-003",
+      "text": "하루 일과 중 가장 몰입되는 순간은…",
+      "options": [
+        { "key": "a", "label": "손에 잡히는 결과물이 완성될 때", "dimension_scores": { "realistic": 6, "artistic": 3 } },
+        { "key": "b", "label": "복잡한 문제의 원인을 찾아냈을 때", "dimension_scores": { "investigative": 8 } },
+        { "key": "c", "label": "아이디어가 떠올라 형태를 갖출 때", "dimension_scores": { "artistic": 8 } },
+        { "key": "d", "label": "누군가에게 도움이 됐다는 말을 들을 때", "dimension_scores": { "social": 8 } },
+        { "key": "e", "label": "목표 수치를 달성했을 때", "dimension_scores": { "enterprising": 6, "conventional": 3 } }
+      ]
+    },
+    {
+      "id": "SV-004",
+      "text": "스트레스를 받는 업무 상황은…",
+      "options": [
+        { "key": "a", "label": "하루 종일 책상에만 앉아 있어야 할 때", "dimension_scores": { "realistic": 8 } },
+        { "key": "b", "label": "이유도 모른 채 시키는 대로만 해야 할 때", "dimension_scores": { "investigative": 8 } },
+        { "key": "c", "label": "정해진 틀을 벗어나면 안 될 때", "dimension_scores": { "artistic": 8 } },
+        { "key": "d", "label": "혼자서만 일해야 할 때", "dimension_scores": { "social": 8 } },
+        { "key": "e", "label": "일정과 기준이 수시로 바뀔 때", "dimension_scores": { "conventional": 8 } }
+      ]
+    },
+    {
+      "id": "SV-005",
+      "text": "주변 사람들이 말하는 나의 강점은…",
+      "options": [
+        { "key": "a", "label": "손이 빠르고 실속 있다", "dimension_scores": { "realistic": 8 } },
+        { "key": "b", "label": "꼼꼼하게 따져보고 판단한다", "dimension_scores": { "investigative": 6, "conventional": 3 } },
+        { "key": "c", "label": "발상이 남다르다", "dimension_scores": { "artistic": 8 } },
+        { "key": "d", "label": "사람을 편하게 해준다", "dimension_scores": { "social": 8 } },
+        { "key": "e", "label": "추진력이 있다", "dimension_scores": { "enterprising": 8 } }
+      ]
+    }
+  ]
+}
