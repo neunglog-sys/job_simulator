@@ -1,77 +1,1502 @@
 {
   "_readme": [
     "직무 상담 사전 설문 (5지선다) — 자유대화 전에 성향·기질 베이스라인을 잡는 단계.",
-    "세종님 작성 가이드:",
-    "  1. items에 문항을 추가하면 API가 자동으로 배달합니다 (35문항 목표, 개수 제한 없음).",
-    "  2. 각 option의 dimension_scores는 '이 선택지를 고르면 해당 성향 차원에 몇 점 기여하는가' (0~10 권장).",
-    "  3. dimensions에 차원 정의를 등록하세요 — 요약 문장(summary_label)이 전환 대사의 [요약 내용]에 쓰입니다.",
-    "  4. 차원 키는 자유지만, 영수님 질문은행(dimension_definitions.json)과 체계를 맞추면 자유대화와 이어집니다.",
-    "  5. 파일 저장 후 서버 재시작 없이 반영됩니다 (요청 시 로딩).",
-    "아래 문항 5개는 형식 예시용 샘플입니다 — 실제 콘텐츠로 교체해주세요."
+    "RIASEC(O*NET Interest Profiler) 6유형 개념 구조만 참고했고, 문항 문구는 전부 새로 작성했다 (docs/counseling/source_registry.md SRC-ONET-INTEREST-PROFILER 참고).",
+    "이 결과는 확정된 심리검사 결과가 아니라 자유대화 전 '성향 가설' 스크리닝이며, 전환 대사(avatar_lines)에서도 확정형이 아닌 확인형 어투로 제시한다."
   ],
-  "version": "sample-v0",
+  "version": "v1-2026-07-13",
   "dimensions": {
-    "realistic": { "name": "현장·실행형", "summary_label": "몸으로 부딪히며 실행하는 것을 선호" },
-    "investigative": { "name": "분석·탐구형", "summary_label": "원인을 파고들어 분석하는 것을 선호" },
-    "artistic": { "name": "창작·표현형", "summary_label": "새로운 것을 만들고 표현하는 것을 선호" },
-    "social": { "name": "대인·조력형", "summary_label": "사람을 돕고 소통하는 것을 선호" },
-    "enterprising": { "name": "주도·설득형", "summary_label": "일을 주도하고 설득하는 것을 선호" },
-    "conventional": { "name": "체계·관리형", "summary_label": "체계를 잡고 꼼꼼히 관리하는 것을 선호" }
+    "realistic": {
+      "name": "현장·실행형",
+      "summary_label": "몸으로 부딪히며 실행하는 것을 선호"
+    },
+    "investigative": {
+      "name": "분석·탐구형",
+      "summary_label": "원인을 파고들어 분석하는 것을 선호"
+    },
+    "artistic": {
+      "name": "창작·표현형",
+      "summary_label": "새로운 것을 만들고 표현하는 것을 선호"
+    },
+    "social": {
+      "name": "대인·조력형",
+      "summary_label": "사람을 돕고 소통하는 것을 선호"
+    },
+    "enterprising": {
+      "name": "주도·설득형",
+      "summary_label": "일을 주도하고 설득하는 것을 선호"
+    },
+    "conventional": {
+      "name": "체계·관리형",
+      "summary_label": "체계를 잡고 꼼꼼히 관리하는 것을 선호"
+    }
   },
   "items": [
     {
       "id": "SV-001",
-      "text": "새로운 일을 시작할 때 나는 먼저…",
+      "text": "새로운 아르바이트나 실습을 시작하는 첫날, 나는…",
       "options": [
-        { "key": "a", "label": "일단 손으로 해보면서 감을 잡는다", "dimension_scores": { "realistic": 8 } },
-        { "key": "b", "label": "관련 자료를 찾아 원리를 이해한다", "dimension_scores": { "investigative": 8 } },
-        { "key": "c", "label": "나만의 방식을 떠올려본다", "dimension_scores": { "artistic": 8 } },
-        { "key": "d", "label": "해본 사람에게 물어본다", "dimension_scores": { "social": 8 } },
-        { "key": "e", "label": "계획표부터 만든다", "dimension_scores": { "conventional": 8 } }
+        {
+          "key": "a",
+          "label": "장비나 도구부터 만져보며 익힌다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "매뉴얼을 꼼꼼히 읽고 원리를 파악한다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "내 나름의 순서를 새로 짜본다",
+          "dimension_scores": {
+            "artistic": 6,
+            "enterprising": 3
+          }
+        },
+        {
+          "key": "d",
+          "label": "선배에게 먼저 인사하고 물어본다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "체크리스트부터 만들어 순서대로 지운다",
+          "dimension_scores": {
+            "conventional": 8
+          }
+        }
       ]
     },
     {
       "id": "SV-002",
-      "text": "팀 프로젝트에서 내가 자연스럽게 맡게 되는 역할은…",
+      "text": "팀 과제에서 아무도 역할을 정하지 않았을 때 나는…",
       "options": [
-        { "key": "a", "label": "실제 작업을 처리하는 실행 담당", "dimension_scores": { "realistic": 8 } },
-        { "key": "b", "label": "자료 조사와 검증 담당", "dimension_scores": { "investigative": 8 } },
-        { "key": "c", "label": "발표 자료·디자인 담당", "dimension_scores": { "artistic": 8 } },
-        { "key": "d", "label": "의견을 모으고 갈등을 푸는 조율 담당", "dimension_scores": { "social": 8 } },
-        { "key": "e", "label": "방향을 정하고 밀어붙이는 리더", "dimension_scores": { "enterprising": 8 } }
+        {
+          "key": "a",
+          "label": "일단 손이 필요한 작업을 찾아 움직인다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "자료조사를 맡아 근거부터 모은다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "발표 자료나 결과물의 완성도를 맡는다",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "다들 무슨 역할을 원하는지 먼저 물어본다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "역할 배분표를 만들어 제안한다",
+          "dimension_scores": {
+            "enterprising": 6,
+            "conventional": 3
+          }
+        }
       ]
     },
     {
       "id": "SV-003",
-      "text": "하루 일과 중 가장 몰입되는 순간은…",
+      "text": "고장 난 기계 앞에 섰을 때 가장 먼저 드는 생각은…",
       "options": [
-        { "key": "a", "label": "손에 잡히는 결과물이 완성될 때", "dimension_scores": { "realistic": 6, "artistic": 3 } },
-        { "key": "b", "label": "복잡한 문제의 원인을 찾아냈을 때", "dimension_scores": { "investigative": 8 } },
-        { "key": "c", "label": "아이디어가 떠올라 형태를 갖출 때", "dimension_scores": { "artistic": 8 } },
-        { "key": "d", "label": "누군가에게 도움이 됐다는 말을 들을 때", "dimension_scores": { "social": 8 } },
-        { "key": "e", "label": "목표 수치를 달성했을 때", "dimension_scores": { "enterprising": 6, "conventional": 3 } }
+        {
+          "key": "a",
+          "label": "일단 열어서 어디가 문제인지 봐야겠다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "원인을 논리적으로 하나씩 추려봐야겠다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "더 나은 구조로 고칠 방법은 없을까",
+          "dimension_scores": {
+            "artistic": 6,
+            "investigative": 3
+          }
+        },
+        {
+          "key": "d",
+          "label": "누가 다치진 않았는지부터 확인해야겠다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "점검 기록부터 확인해야겠다",
+          "dimension_scores": {
+            "conventional": 8
+          }
+        }
       ]
     },
     {
       "id": "SV-004",
-      "text": "스트레스를 받는 업무 상황은…",
+      "text": "손님이 화가 난 채로 항의를 할 때 나는…",
       "options": [
-        { "key": "a", "label": "하루 종일 책상에만 앉아 있어야 할 때", "dimension_scores": { "realistic": 8 } },
-        { "key": "b", "label": "이유도 모른 채 시키는 대로만 해야 할 때", "dimension_scores": { "investigative": 8 } },
-        { "key": "c", "label": "정해진 틀을 벗어나면 안 될 때", "dimension_scores": { "artistic": 8 } },
-        { "key": "d", "label": "혼자서만 일해야 할 때", "dimension_scores": { "social": 8 } },
-        { "key": "e", "label": "일정과 기준이 수시로 바뀔 때", "dimension_scores": { "conventional": 8 } }
+        {
+          "key": "a",
+          "label": "문제가 된 물건이나 장비를 바로 살펴본다",
+          "dimension_scores": {
+            "realistic": 6,
+            "investigative": 2
+          }
+        },
+        {
+          "key": "b",
+          "label": "무엇이 잘못됐는지 원인을 차분히 짚어본다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "상황을 다른 관점으로 풀어서 설명해본다",
+          "dimension_scores": {
+            "artistic": 5,
+            "social": 3
+          }
+        },
+        {
+          "key": "d",
+          "label": "먼저 감정을 가라앉히도록 공감한다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "규정과 절차를 근거로 안내한다",
+          "dimension_scores": {
+            "conventional": 8
+          }
+        }
       ]
     },
     {
       "id": "SV-005",
-      "text": "주변 사람들이 말하는 나의 강점은…",
+      "text": "갑자기 예정에 없던 돌발 상황이 벌어졌을 때 나는…",
       "options": [
-        { "key": "a", "label": "손이 빠르고 실속 있다", "dimension_scores": { "realistic": 8 } },
-        { "key": "b", "label": "꼼꼼하게 따져보고 판단한다", "dimension_scores": { "investigative": 6, "conventional": 3 } },
-        { "key": "c", "label": "발상이 남다르다", "dimension_scores": { "artistic": 8 } },
-        { "key": "d", "label": "사람을 편하게 해준다", "dimension_scores": { "social": 8 } },
-        { "key": "e", "label": "추진력이 있다", "dimension_scores": { "enterprising": 8 } }
+        {
+          "key": "a",
+          "label": "몸이 먼저 반응해서 바로 처리하러 간다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "잠깐 멈춰 원인과 영향 범위부터 파악한다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "즉흥적으로 새로운 해결 방법을 떠올린다",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "주변 사람들을 먼저 안심시킨다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "누가 지금 결정을 내려야 하는지 나서서 정한다",
+          "dimension_scores": {
+            "enterprising": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-006",
+      "text": "주말에 시간이 붕 떴을 때 가장 끌리는 활동은…",
+      "options": [
+        {
+          "key": "a",
+          "label": "몸을 움직이는 운동이나 만들기",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "궁금했던 주제를 찾아보는 것",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "그림·영상·음악 같은 창작",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "친구·가족을 만나 시간을 보내는 것",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "밀린 정리와 계획 세우기",
+          "dimension_scores": {
+            "conventional": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-007",
+      "text": "여러 사람과 함께 일할 때 나는 자연스럽게…",
+      "options": [
+        {
+          "key": "a",
+          "label": "실제로 몸을 쓰는 일을 맡는다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "데이터나 근거를 검토하는 일을 맡는다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "아이디어를 내는 역할을 맡는다",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "분위기를 조율하는 역할을 맡는다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "전체 일정을 이끄는 역할을 맡는다",
+          "dimension_scores": {
+            "enterprising": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-008",
+      "text": "일이 계획대로 안 풀릴 때 나의 반응은…",
+      "options": [
+        {
+          "key": "a",
+          "label": "몸으로 부딪히면서 되는 방법을 찾는다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "왜 틀어졌는지 원인부터 다시 분석한다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "완전히 새로운 방식으로 접근해본다",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "같이 하는 사람들과 먼저 상의한다",
+          "dimension_scores": {
+            "social": 6,
+            "enterprising": 2
+          }
+        },
+        {
+          "key": "e",
+          "label": "계획표를 다시 짜서 순서를 재정비한다",
+          "dimension_scores": {
+            "conventional": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-009",
+      "text": "주변 사람들이 나에 대해 자주 하는 말은…",
+      "options": [
+        {
+          "key": "a",
+          "label": "손이 빠르고 실전에 강하다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "따지고 분석하는 걸 좋아한다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "발상이 독특하고 감각적이다",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "같이 있으면 편하고 잘 챙긴다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "추진력 있고 앞장선다",
+          "dimension_scores": {
+            "enterprising": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-010",
+      "text": "업무 중 가장 스트레스 받는 순간은…",
+      "options": [
+        {
+          "key": "a",
+          "label": "하루 종일 자리에 앉아만 있을 때",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "이유도 모른 채 지시만 따라야 할 때",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "정해진 틀에서 한 치도 못 벗어날 때",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "아무와도 말할 일 없이 혼자 일할 때",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "기준이 계속 바뀌고 정리가 안 될 때",
+          "dimension_scores": {
+            "conventional": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-011",
+      "text": "설명서 없이 새 장비를 다뤄야 한다면 나는…",
+      "options": [
+        {
+          "key": "a",
+          "label": "일단 버튼을 눌러보며 감으로 익힌다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "구조를 관찰해서 원리를 추측해본다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "더 편하게 쓸 방법을 궁리해본다",
+          "dimension_scores": {
+            "artistic": 6,
+            "realistic": 2
+          }
+        },
+        {
+          "key": "d",
+          "label": "먼저 써본 사람에게 물어본다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "시행착오를 기록해가며 접근한다",
+          "dimension_scores": {
+            "conventional": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-012",
+      "text": "동료가 실수로 일을 그르쳤을 때 나는…",
+      "options": [
+        {
+          "key": "a",
+          "label": "바로 수습할 방법부터 손을 움직인다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "원인을 짚어서 재발을 막을 방법을 찾는다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "다른 방식으로 풀어낼 아이디어를 낸다",
+          "dimension_scores": {
+            "artistic": 6,
+            "enterprising": 2
+          }
+        },
+        {
+          "key": "d",
+          "label": "동료가 위축되지 않게 먼저 다독인다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "다음엔 어떤 절차로 확인할지 정리한다",
+          "dimension_scores": {
+            "conventional": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-013",
+      "text": "장기 프로젝트에서 내가 가장 몰입하는 구간은…",
+      "options": [
+        {
+          "key": "a",
+          "label": "직접 만들고 조립하는 실행 단계",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "원인과 데이터를 파고드는 조사 단계",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "컨셉과 디자인을 잡는 기획 단계",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "팀원과 의견을 맞추는 협업 단계",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "목표와 일정을 정하는 계획 단계",
+          "dimension_scores": {
+            "enterprising": 4,
+            "conventional": 4
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-014",
+      "text": "안전 규정이 번거롭게 느껴질 때조차 지키는 이유는…",
+      "options": [
+        {
+          "key": "a",
+          "label": "몸으로 겪은 위험을 알기 때문이다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "사고 원인 통계를 알고 있기 때문이다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "더 안전한 방법을 스스로 찾고 싶어서다",
+          "dimension_scores": {
+            "artistic": 5,
+            "investigative": 3
+          }
+        },
+        {
+          "key": "d",
+          "label": "동료가 다치는 걸 원치 않아서다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "규정은 규정이라 그대로 따른다",
+          "dimension_scores": {
+            "conventional": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-015",
+      "text": "새로운 정보를 접했을 때 나의 첫 반응은…",
+      "options": [
+        {
+          "key": "a",
+          "label": "실제로 적용해볼 곳부터 찾는다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "출처와 근거가 맞는지 확인한다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "이걸로 뭘 새롭게 만들 수 있을지 생각한다",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "주변에 공유하고 의견을 나눈다",
+          "dimension_scores": {
+            "social": 6,
+            "enterprising": 2
+          }
+        },
+        {
+          "key": "e",
+          "label": "분류해서 자료로 정리해둔다",
+          "dimension_scores": {
+            "conventional": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-016",
+      "text": "오랫동안 같은 방식으로 반복되는 업무에 대해 나는…",
+      "options": [
+        {
+          "key": "a",
+          "label": "몸에 익어서 오히려 편하다고 느낀다",
+          "dimension_scores": {
+            "realistic": 6,
+            "conventional": 2
+          }
+        },
+        {
+          "key": "b",
+          "label": "더 효율적인 방법이 없을지 궁금해진다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "지루해서 나만의 변화를 주고 싶어진다",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "같이 하는 사람이 있으면 괜찮다",
+          "dimension_scores": {
+            "social": 6,
+            "realistic": 2
+          }
+        },
+        {
+          "key": "e",
+          "label": "정해진 대로 정확히 하는 게 편하다",
+          "dimension_scores": {
+            "conventional": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-017",
+      "text": "발표나 보고를 맡게 되면 나는…",
+      "options": [
+        {
+          "key": "a",
+          "label": "실제 사례나 시연으로 보여주려 한다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "데이터와 근거를 중심으로 구성한다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "인상에 남는 스토리와 비주얼로 꾸민다",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "듣는 사람 입장에서 눈높이를 맞춘다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "핵심을 설득력 있게 밀어붙인다",
+          "dimension_scores": {
+            "enterprising": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-018",
+      "text": "팀 회의에서 의견이 갈릴 때 나는…",
+      "options": [
+        {
+          "key": "a",
+          "label": "일단 해보고 결과로 판단하자고 한다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "각 의견의 근거를 비교해서 따져본다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "둘을 섞은 제3안을 떠올려본다",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "모두의 입장을 듣고 절충안을 찾는다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "결론을 내고 다음 단계로 밀고 나간다",
+          "dimension_scores": {
+            "enterprising": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-019",
+      "text": "실습 중 예상과 다른 결과가 나왔을 때 나는…",
+      "options": [
+        {
+          "key": "a",
+          "label": "손으로 다시 만져보며 원인을 찾는다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "가설을 다시 세우고 비교해본다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "결과 자체를 다른 관점에서 재해석해본다",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "같이 한 사람과 이야기하며 점검한다",
+          "dimension_scores": {
+            "social": 6,
+            "investigative": 2
+          }
+        },
+        {
+          "key": "e",
+          "label": "기록을 되짚어 어디서 틀렸는지 확인한다",
+          "dimension_scores": {
+            "conventional": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-020",
+      "text": "낯선 사람과 처음 일할 때 나는…",
+      "options": [
+        {
+          "key": "a",
+          "label": "말보다 행동으로 손발을 맞춰본다",
+          "dimension_scores": {
+            "realistic": 6,
+            "social": 2
+          }
+        },
+        {
+          "key": "b",
+          "label": "상대의 방식을 관찰하고 파악해본다",
+          "dimension_scores": {
+            "investigative": 6,
+            "social": 2
+          }
+        },
+        {
+          "key": "c",
+          "label": "먼저 편한 분위기를 만들어본다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "역할과 기대치를 먼저 명확히 한다",
+          "dimension_scores": {
+            "conventional": 6,
+            "enterprising": 2
+          }
+        },
+        {
+          "key": "e",
+          "label": "내가 주도해서 흐름을 잡는다",
+          "dimension_scores": {
+            "enterprising": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-021",
+      "text": "일하는 공간에 대해 나에게 더 중요한 것은…",
+      "options": [
+        {
+          "key": "a",
+          "label": "직접 움직이고 활동할 수 있는 공간",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "집중해서 파고들 수 있는 조용한 공간",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "자유롭게 표현할 수 있는 열린 공간",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "사람들과 자연스럽게 마주치는 공간",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "체계적으로 정돈된 공간",
+          "dimension_scores": {
+            "conventional": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-022",
+      "text": "성과를 인정받을 때 가장 뿌듯한 순간은…",
+      "options": [
+        {
+          "key": "a",
+          "label": "눈에 보이는 결과물을 완성했을 때",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "어려운 문제의 답을 찾아냈을 때",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "내 아이디어가 형태로 완성됐을 때",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "누군가에게 실질적 도움이 됐을 때",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "목표한 수치를 달성했을 때",
+          "dimension_scores": {
+            "enterprising": 6,
+            "conventional": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-023",
+      "text": "체력적으로 힘든 일과 머리 쓰는 일 중 고르라면 나는…",
+      "options": [
+        {
+          "key": "a",
+          "label": "몸을 쓰는 쪽이 오히려 덜 지친다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "생각하는 일이 더 잘 맞는다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "둘 다 아니고 손으로 표현하는 일이 좋다",
+          "dimension_scores": {
+            "artistic": 6,
+            "realistic": 2
+          }
+        },
+        {
+          "key": "d",
+          "label": "누구와 하느냐가 더 중요하다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "성과가 확실한 쪽을 고른다",
+          "dimension_scores": {
+            "enterprising": 6,
+            "conventional": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-024",
+      "text": "고객이나 이용자의 요청이 애매할 때 나는…",
+      "options": [
+        {
+          "key": "a",
+          "label": "일단 현장을 보고 판단한다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "질문을 던져 정확한 요구를 파악한다",
+          "dimension_scores": {
+            "investigative": 6,
+            "social": 2
+          }
+        },
+        {
+          "key": "c",
+          "label": "몇 가지 대안을 만들어 제시한다",
+          "dimension_scores": {
+            "artistic": 6,
+            "enterprising": 2
+          }
+        },
+        {
+          "key": "d",
+          "label": "상대 입장에서 원하는 바를 헤아린다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "기준과 절차에 맞춰 확인한다",
+          "dimension_scores": {
+            "conventional": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-025",
+      "text": "실수했을 때 나의 대처 방식은…",
+      "options": [
+        {
+          "key": "a",
+          "label": "바로 몸을 움직여 수습부터 한다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "왜 실수했는지 원인을 분석한다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "다르게 접근했다면 어땠을지 생각해본다",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "관련된 사람에게 먼저 알리고 사과한다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "체크리스트를 만들어 재발을 막는다",
+          "dimension_scores": {
+            "conventional": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-026",
+      "text": "여러 업무가 동시에 몰릴 때 나는…",
+      "options": [
+        {
+          "key": "a",
+          "label": "몸이 덜 힘든 일부터 처리한다",
+          "dimension_scores": {
+            "realistic": 6,
+            "conventional": 2
+          }
+        },
+        {
+          "key": "b",
+          "label": "중요도를 논리적으로 따져 순서를 정한다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "그때그때 흥미가 가는 일부터 한다",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "다른 사람과 나눠서 함께 처리한다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "전체를 지휘하며 배분한다",
+          "dimension_scores": {
+            "enterprising": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-027",
+      "text": "새로운 기술이나 도구가 도입되면 나는…",
+      "options": [
+        {
+          "key": "a",
+          "label": "직접 써보면서 몸으로 익힌다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "원리부터 이해하고 접근한다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "새로운 활용법을 찾아 시도해본다",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "동료들과 함께 배우고 알려준다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "매뉴얼을 만들어 정리해둔다",
+          "dimension_scores": {
+            "conventional": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-028",
+      "text": "혼자 하는 일과 여럿이 하는 일 중 나는…",
+      "options": [
+        {
+          "key": "a",
+          "label": "손발이 맞으면 여럿이 나은 편이다",
+          "dimension_scores": {
+            "realistic": 4,
+            "social": 4
+          }
+        },
+        {
+          "key": "b",
+          "label": "집중이 필요하면 혼자가 더 편하다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "내 감각대로 할 수 있는 혼자 작업이 좋다",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "확실히 여럿이 함께하는 게 좋다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "누가 이끄느냐에 따라 상관없다",
+          "dimension_scores": {
+            "enterprising": 6,
+            "conventional": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-029",
+      "text": "위기 상황에서 리더가 없다면 나는…",
+      "options": [
+        {
+          "key": "a",
+          "label": "일단 눈앞의 일부터 처리하러 나선다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "상황을 정확히 파악하는 데 집중한다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "기존과 다른 해결책을 제안해본다",
+          "dimension_scores": {
+            "artistic": 6,
+            "enterprising": 2
+          }
+        },
+        {
+          "key": "d",
+          "label": "사람들을 진정시키는 데 집중한다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "자연스럽게 지휘를 맡아 나선다",
+          "dimension_scores": {
+            "enterprising": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-030",
+      "text": "평가나 피드백을 받을 때 나에게 더 의미 있는 것은…",
+      "options": [
+        {
+          "key": "a",
+          "label": "결과물의 완성도에 대한 평가",
+          "dimension_scores": {
+            "realistic": 6,
+            "artistic": 2
+          }
+        },
+        {
+          "key": "b",
+          "label": "논리와 근거가 맞았는지에 대한 평가",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "얼마나 새롭고 창의적이었는지에 대한 평가",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "함께 일하기 어땠는지에 대한 평가",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "목표 대비 성과에 대한 평가",
+          "dimension_scores": {
+            "enterprising": 6,
+            "conventional": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-031",
+      "text": "규칙이 명확하지 않은 상황에 놓이면 나는…",
+      "options": [
+        {
+          "key": "a",
+          "label": "일단 해보면서 기준을 만들어간다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "비슷한 사례를 찾아 기준을 추론한다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "내 나름의 새 기준을 제안한다",
+          "dimension_scores": {
+            "artistic": 6,
+            "enterprising": 2
+          }
+        },
+        {
+          "key": "d",
+          "label": "주변에 물어서 암묵적 기준을 파악한다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "불안해서 명확한 규정부터 요청한다",
+          "dimension_scores": {
+            "conventional": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-032",
+      "text": "장래에 일하고 싶은 방식을 하나 고른다면…",
+      "options": [
+        {
+          "key": "a",
+          "label": "현장에서 몸으로 뛰는 일",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "데이터와 문제를 파고드는 일",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "무언가를 새롭게 만들어내는 일",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "사람을 만나고 돕는 일",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "조직을 이끌고 성과를 내는 일",
+          "dimension_scores": {
+            "enterprising": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-033",
+      "text": "일이 끝난 뒤 가장 뿌듯함을 느끼는 상황은…",
+      "options": [
+        {
+          "key": "a",
+          "label": "몸을 써서 뭔가를 완성했을 때",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "궁금했던 걸 끝까지 파헤쳤을 때",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "내 손으로 새로운 걸 만들어냈을 때",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "누군가와 함께 좋은 결과를 냈을 때",
+          "dimension_scores": {
+            "social": 6,
+            "enterprising": 2
+          }
+        },
+        {
+          "key": "e",
+          "label": "계획한 대로 정확히 마무리했을 때",
+          "dimension_scores": {
+            "conventional": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-034",
+      "text": "낯선 업무 매뉴얼을 받았을 때 나는…",
+      "options": [
+        {
+          "key": "a",
+          "label": "일단 실제로 따라 해보며 익힌다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "전체 구조와 이유를 먼저 이해한다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "더 나은 방식이 없을지 살펴본다",
+          "dimension_scores": {
+            "artistic": 6,
+            "investigative": 2
+          }
+        },
+        {
+          "key": "d",
+          "label": "동료의 경험담을 먼저 들어본다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "처음부터 끝까지 순서대로 정리해둔다",
+          "dimension_scores": {
+            "conventional": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "SV-035",
+      "text": "일과가 끝난 뒤 오늘 하루를 돌아볼 때 나는…",
+      "options": [
+        {
+          "key": "a",
+          "label": "몸을 얼마나 움직였는지를 먼저 떠올린다",
+          "dimension_scores": {
+            "realistic": 8
+          }
+        },
+        {
+          "key": "b",
+          "label": "오늘 새로 알게 된 게 뭔지 떠올린다",
+          "dimension_scores": {
+            "investigative": 8
+          }
+        },
+        {
+          "key": "c",
+          "label": "인상 깊었던 아이디어나 장면을 떠올린다",
+          "dimension_scores": {
+            "artistic": 8
+          }
+        },
+        {
+          "key": "d",
+          "label": "누구와 어떤 이야기를 나눴는지 떠올린다",
+          "dimension_scores": {
+            "social": 8
+          }
+        },
+        {
+          "key": "e",
+          "label": "오늘 계획한 걸 다 해냈는지 점검한다",
+          "dimension_scores": {
+            "conventional": 6,
+            "enterprising": 2
+          }
+        }
       ]
     }
   ]
