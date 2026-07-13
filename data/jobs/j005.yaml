@@ -16,3 +16,19 @@ interest_profile:
   social: 3
   enterprising: 2
   conventional: 5
+# 공식 매핑: K000007517 총무사무원 (docs/jobs/batch1_mapping_candidates.md)
+education_requirement:
+  value: "고졸 이상(소규모·중소기업), 관련분야 대졸 이상(대기업) — 사업체 규모에 따라 상이"
+  source_field: needKnwgCn
+  evidence_type: descriptive_text
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics:
+    median_annual_krw: 52500000
+    statistic_type: median
+    population: "재직자 약 30명 설문조사"
+    reference_year: 2025
+certifications:
+  - name: "ERP정보관리사《물류/생산/인사/회계》(국가공인 민간)"
+    tier: related
+status: provisional

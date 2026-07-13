@@ -16,3 +16,13 @@ interest_profile:
   social: 3
   enterprising: 2
   conventional: 5
+# 공식 매핑: K000003735 인사사무원 — 상세조사 데이터 없음 (docs/jobs/batch1_mapping_candidates.md)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 조사 필드(avwgCnvAmt/konetOccpNm/stdrYear) 전부 0/null — 임금 조사 대상 아님. 대안 검토했던 노무사무원(K000002096)도 동일하게 공백 확인됨."
+certifications: []
+status: not_found
