@@ -1,0 +1,76 @@
+{
+  "rules": [
+    {
+      "rule_id": "FR-INSUFFICIENT-EVIDENCE",
+      "condition": {
+        "evidence_count_below": 2
+      },
+      "action": "ask_followup_same_axis",
+      "question_selection": "highest_priority_unanswered_question_in_dimension",
+      "max_consecutive_questions": 2
+    },
+    {
+      "rule_id": "FR-LOW-CONFIDENCE",
+      "condition": {
+        "confidence_below": 40
+      },
+      "action": "ask_followup_same_axis",
+      "question_selection": "behavior_example_requiring_question",
+      "max_consecutive_questions": 2
+    },
+    {
+      "rule_id": "FR-CONFLICT-POS-NEG",
+      "condition": {
+        "conflict_type": "positive_negative_same_dimension"
+      },
+      "action": "ask_clarifying_question",
+      "question_selection": "conflict_targeted_question",
+      "max_consecutive_questions": 1
+    },
+    {
+      "rule_id": "FR-CONFLICT-PREF-CONSTRAINT",
+      "condition": {
+        "conflict_type": "preference_vs_constraint"
+      },
+      "action": "ask_clarifying_question",
+      "question_selection": "constraint_confirmation_question",
+      "max_consecutive_questions": 1
+    },
+    {
+      "rule_id": "FR-CONFLICT-ABILITY-INTEREST",
+      "condition": {
+        "conflict_type": "ability_vs_interest_mismatch"
+      },
+      "action": "ask_clarifying_question",
+      "question_selection": "interest_specific_question_separating_skill",
+      "max_consecutive_questions": 1
+    },
+    {
+      "rule_id": "FR-VAGUE-ANSWER",
+      "condition": {
+        "answer_pattern": "vague"
+      },
+      "action": "ask_behavior_example",
+      "question_selection": "same_topic_behavior_example_question",
+      "max_consecutive_questions": 2
+    },
+    {
+      "rule_id": "FR-USER-CONFUSION",
+      "condition": {
+        "user_signal": "confusion"
+      },
+      "action": "rephrase_and_simplify",
+      "question_selection": "simplified_restatement_of_last_question",
+      "max_consecutive_questions": 1
+    },
+    {
+      "rule_id": "FR-USER-WANTS-TO-RUSH",
+      "condition": {
+        "user_signal": "wants_to_rush"
+      },
+      "action": "offer_interim_summary_with_reduced_confidence_notice",
+      "question_selection": "none_move_to_interim_summary",
+      "max_consecutive_questions": 0
+    }
+  ]
+}
