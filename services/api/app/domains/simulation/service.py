@@ -33,6 +33,22 @@ SCORING_TURNS = 40  # 채점 대화록 상한 — 하루 종일 대화해도 채
 RAG_TOP_K = 3
 RAG_MAX_DISTANCE = 0.4  # Gemini 임베딩은 거리대가 좁음(관련 ~0.2, 무관 ~0.28) — eval로 재튜닝 대상
 
+# NPC 화법 — 현장·기능직 계열(family F03·F04·F07·F14·F15·F18~F24)에 매핑되는 시나리오는 반말,
+# 사무·전문직 계열(F01·F02·F05·F06·F08~F13·F16·F17)은 존대. 매핑 안 된 slug은 기본 존대.
+_BANMAL_SLUGS = {
+    "jm-01", "jm-02", "jm-03", "jm-04", "jm-05",
+    "ms-04", "ms-05", "ms-06", "ms-07", "ms-08", "ms-09", "ms-10",
+    "yg-01", "yg-02", "yg-05",
+    "ys-01", "ys-02", "ys-03", "ys-04", "ys-05",
+    "ys-06", "ys-07", "ys-08", "ys-09", "ys-10",
+    "gm-01", "sns-01", "wh-01", "cln-01",
+}
+
+
+def register_for(slug: str) -> str:
+    """시나리오 slug → NPC 화법('반말'|'존대'). 미매핑은 기본 존대."""
+    return "반말" if slug in _BANMAL_SLUGS else "존대"
+
 
 async def create_simulation(
     session: AsyncSession, user: User, scenario_slug: str
@@ -234,6 +250,7 @@ async def stream_npc_chat(
     system = render_prompt(
         "npc/system.md",
         scenario_title=scenario.title,
+        register=register_for(scenario.slug),
         mission=step["mission"],
         name=persona["name"], role=persona["role"], rank=persona["rank"],
         personality=persona["personality"], likes=persona["likes"],
