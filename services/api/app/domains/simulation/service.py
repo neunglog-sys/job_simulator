@@ -20,6 +20,7 @@ from app.content.knowledge import search_knowledge
 from app.domains.coach import service as coach
 from app.domains.scoring import aggregate
 from app.domains.scoring import service as scoring
+from app.domains.simulation import affinity
 from app.domains.simulation import hints
 from app.domains.simulation import state_machine as sm
 from app.llm import get_llm
@@ -228,6 +229,13 @@ async def stream_npc_chat(
     session.add(Message(simulation_id=simulation.id, role="user", content=user_text))
     await session.commit()
 
+    # 호감도: 이번 발화의 태도로 이 NPC 호감도만 가감(룰 기반, 즉시 반영). NPC별 독립값이라
+    # 시나리오 전역 상태값(trust 등)과 별개. state에 써두면 아래 NPC 응답 저장 커밋에 함께 영속된다.
+    aff_delta = affinity.delta_for(user_text)
+    aff_state, aff_value = affinity.bumped(simulation.state, npc_id, aff_delta)
+    simulation.state = aff_state
+    flag_modified(simulation, "state")
+
     # 최근 대화 + NPC 시스템 프롬프트 (화자는 npc_id → 이름으로 표시)
     history = list(
         (
@@ -267,6 +275,7 @@ async def stream_npc_chat(
         dislikes=persona["dislikes"], speech_habits=persona["speech_habits"],
         responsibilities=persona["responsibilities"],
         state=simulation.state,
+        affinity=aff_value, affinity_band=affinity.band(aff_value),
         knowledge=knowledge,
     )
 
@@ -320,6 +329,8 @@ async def stream_npc_chat(
             "name": persona["name"],
             "content": npc_reply,
             "delta": deltas,
+            # NPC별 호감도 — 프론트 친밀도 게이지용 (value 0~100, 이번 턴 변화량, 밴드)
+            "affinity": {"value": aff_value, "delta": aff_delta, "band": affinity.band(aff_value)},
             "state": public_state(new_state),
             "step_changed": (
                 sm.public_step(sm.find_step(scenario.steps, changed_step))
