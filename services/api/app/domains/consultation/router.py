@@ -90,7 +90,12 @@ async def upload_resume(
     )
     if not is_pdf:
         raise HTTPException(status_code=400, detail="PDF 파일만 업로드할 수 있어요.")
-    data = await file.read()
+    # 대용량 업로드 방어: Content-Length로 선차단 + 상한+1까지만 읽어(초과 감지) 메모리 폭주 방지.
+    if file.size is not None and file.size > resume.MAX_PDF_BYTES:
+        raise HTTPException(status_code=413, detail="파일이 너무 커요(최대 8MB).")
+    data = await file.read(resume.MAX_PDF_BYTES + 1)
+    if len(data) > resume.MAX_PDF_BYTES:
+        raise HTTPException(status_code=413, detail="파일이 너무 커요(최대 8MB).")
     analysis = await resume.attach_resume(session, consultation, data)
     return analysis
 

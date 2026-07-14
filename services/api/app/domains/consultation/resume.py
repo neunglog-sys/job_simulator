@@ -7,14 +7,13 @@
 원본 PDF는 저장하지 않고 분석 결과(JSON)만 Consultation.resume(암호화)에 남긴다.
 """
 
+import io
 import json
 import logging
 
 from fastapi import HTTPException
 from pypdf import PdfReader
-from pypdf.errors import PdfReadError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm.attributes import flag_modified
 
 from app.llm import get_llm
 from app.llm.base import ChatMessage
@@ -49,17 +48,21 @@ _ANALYSIS_SCHEMA = {
 
 
 def extract_text(data: bytes) -> str:
-    """PDF 바이트 → 텍스트. 파싱 불가·암호화 PDF는 400."""
-    import io
-
+    """PDF 바이트 → 텍스트. 파싱 불가·진짜 잠긴 PDF는 400."""
     try:
         reader = PdfReader(io.BytesIO(data))
         if reader.is_encrypted:
-            raise HTTPException(status_code=400, detail="암호가 걸린 PDF는 분석할 수 없어요.")
+            # 소유자 암호만 걸고 사용자 암호는 빈 문자열인 PDF(워드·macOS 내보내기 등)는
+            # 흔하고 실제로 열린다 → 빈 암호 복호화를 먼저 시도, 그래도 안 되면 거부.
+            if not reader.decrypt(""):
+                raise HTTPException(
+                    status_code=400,
+                    detail="암호가 걸린 PDF는 분석할 수 없어요. 암호를 풀고 올려주세요.",
+                )
         text = "\n".join((page.extract_text() or "") for page in reader.pages)
     except HTTPException:
         raise
-    except (PdfReadError, Exception) as exc:  # noqa: BLE001 — 손상 PDF 등은 사용자 오류로 처리
+    except Exception as exc:  # noqa: BLE001 — 손상 PDF 등은 사용자 오류(400)로 처리
         logger.warning("PDF 파싱 실패: %s", exc)
         raise HTTPException(status_code=400, detail="PDF를 읽을 수 없어요. 파일을 확인해주세요.")
 
@@ -85,16 +88,20 @@ async def analyze(text: str) -> dict:
 async def attach_resume(
     session: AsyncSession, consultation: Consultation, data: bytes
 ) -> dict:
-    """PDF 업로드 처리: 추출 → 분석 → consultation에 저장 → 분석 결과 반환.
+    """PDF 바이트 → 추출 → 분석 → consultation에 저장 → 분석 결과 반환.
 
+    크기 상한은 호출부(라우터)에서 읽기 상한으로 강제한다.
     상담사(아바타)가 이후 대화에서 이 분석을 근거로 희망 직무 방향을 확인한다.
     """
-    if len(data) > MAX_PDF_BYTES:
-        raise HTTPException(status_code=413, detail="파일이 너무 커요(최대 8MB).")
     text = extract_text(data)
-    analysis = await analyze(text)
-    consultation.resume = json.dumps(analysis, ensure_ascii=False)
-    flag_modified(consultation, "resume")
+    try:
+        analysis = await analyze(text)
+    except Exception:  # noqa: BLE001 — LLM 흔들림(실키·파싱)은 확정 5xx 대신 구조화 에러로
+        logger.exception("이력서 분석 LLM 실패 (consultation=%d)", consultation.id)
+        raise HTTPException(
+            status_code=503, detail="이력서 분석에 실패했어요. 잠시 후 다시 시도해주세요."
+        )
+    consultation.resume = json.dumps(analysis, ensure_ascii=False)  # 스칼라 대입 → 변경 자동 감지
     await session.commit()
     return analysis
 
