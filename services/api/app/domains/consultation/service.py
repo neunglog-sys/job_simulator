@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.content.counseling import build_safety_notes
 from app.content.knowledge import search_knowledge
+from app.domains.consultation import resume as resume_mod
 from app.llm import get_llm
 from app.llm.base import ChatMessage
 from app.llm.prompts import render_prompt
@@ -76,6 +77,7 @@ async def stream_reply(
     system = render_prompt(
         "avatar/system.md",
         summary=consultation.summary,
+        resume=resume_mod.load_analysis(consultation),  # 이력 분석 있으면 상담사가 방향 확인에 활용
         knowledge=knowledge,
         safety_notes=safety_notes,
     )

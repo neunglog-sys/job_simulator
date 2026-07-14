@@ -33,7 +33,7 @@ GET /api/simulations     → 내 시뮬레이션 목록 {status: active=이어�
 GET /api/reports         → 내 리포트 목록
 ```
 
-## 2-1. AI 상담 — 흐름: 사전 설문(5지선다) → 자유대화
+## 2-1. AI 상담 — 흐름: 사전 설문(5지선다) → (선택) 이력서 업로드 → 자유대화
 
 ```
 POST /api/consultations                    → {id}  상담 세션 시작
@@ -41,10 +41,16 @@ GET  /api/consultations/{id}/survey        → {items: [{id, text, options:[{key
 POST /api/consultations/{id}/survey        → {answers: {"SV-001":"a", ...}}  전 문항 필수
      응답: {profile, avatar_lines: [대사 3개]}
      → avatar_lines를 아바타 말풍선으로 순서대로 표시한 뒤 자유대화 UI로 전환
+POST /api/consultations/{id}/resume        → (선택) 이력서/포트폴리오 PDF 업로드 (multipart, 필드명 file)
+     응답: {summary, skills[], experiences[], strengths[], desired_directions[], opening_question}
+     → opening_question을 아바타 첫 말풍선으로 띄우면 자연스러움 (상담사가 희망 직무 방향을 확인)
 POST /api/consultations/{id}/messages      → SSE 스트림 (아래 참고) — 아바타가 설문 결과를 알고 대화함
 GET  /api/consultations/{id}/messages      → 대화 이력 (새로고침 복원용)
 ```
 - 문항 수는 데이터 파일에 따름 (현재 샘플 5개 → 세종님 콘텐츠 완성 시 35개). 페이징·진행바는 프론트 재량
+- **이력서 업로드는 선택** — 설문 다음, 자유대화 전에 붙이면 좋음. **PDF만** 허용(아니면 400), 최대 8MB,
+  텍스트 없는 스캔본은 400. 올리면 상담사가 대화 초반에 "생각하시는 직무가 ○○ 쪽 맞나요?"처럼 방향을 확인하고,
+  그 대화가 추천으로 이어짐 (이력을 추천 점수에 직접 꽂지 않음). `multipart/form-data`, 파일 필드명 `file`.
 
 ### SSE 받기 (아바타 응답이 타자 치듯 흘러옴)
 
