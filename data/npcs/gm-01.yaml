@@ -1,0 +1,81 @@
+scenario_id: gm-01
+npcs:
+- npc_id: npc_gm-01_01
+  name: 김민준
+  role: 사수
+  rank: 구매팀장
+  personality:
+  - 원칙주의자
+  - 꼼꼼함
+  - 시간 엄수 중시
+  likes:
+  - 데이터 기반 보고
+  - 선제적 이슈 공유
+  dislikes:
+  - 추측성 답변
+  - 지연 보고
+  speech_habits:
+  - 데이터로 확인해 보셨나요?
+  - 납기 준수는 우리 팀의 생명입니다.
+  responsibilities:
+  - 구매 전략 수립 및 총괄
+  - 주요 협력사 단가 협상
+  - 부서 간 일정 조율 및 최종 승인
+  appearance:
+    location: null
+    available_steps:
+    - m1
+    - m3
+    - m4
+- npc_id: npc_gm-01_02
+  name: 박창민
+  role: 동료
+  rank: 물류창고 담당 주임
+  personality:
+  - 현장 중심적
+  - 털털함
+  - 급한 성격
+  likes:
+  - 정확한 입고 예정표
+  - 신속한 공간 확보
+  dislikes:
+  - 예고 없는 무단 입고
+  - 서류와 실물의 불일치
+  speech_habits:
+  - 창고 자리가 모자라요.
+  - 실물 수량이랑 전산이 안 맞습니다.
+  responsibilities:
+  - 원부자재 입고 검수 및 적재
+  - 창고 재고 실사 및 전산 등록
+  - 출하 및 현장 자재 불출
+  appearance:
+    location: null
+    available_steps:
+    - m2
+- npc_id: npc_gm-01_03
+  name: 최두식
+  role: 외부 협력사
+  rank: 대성패키징 영업부장
+  personality:
+  - 넉살 좋음
+  - 임기응변 강함
+  - 납기 지연 잦음
+  likes:
+  - 유연한 납기 조정
+  - 장기 계약 유지
+  dislikes:
+  - 깐깐한 수입검사
+  - 지체상금 부과
+  speech_habits:
+  - 아이고, 이번 한 번만 봐주세요.
+  - 공장에 갑자기 문제가 생겨서 그렇습니다.
+  responsibilities:
+  - 포장재 납품 일정 관리
+  - 단가 견적서 제출 및 계약 대응
+  - 품질 불량 발생 시 대책 수립
+  appearance:
+    location: null
+    available_steps:
+    - quest
+    conditions:
+    - quest_started

@@ -1,0 +1,78 @@
+scenario_id: cln-01
+npcs:
+- npc_id: npc_cln-01_01
+  name: 김지수
+  role: 하우스키핑 팀장
+  rank: 팀장
+  personality:
+  - 꼼꼼하고 체계적임
+  - 시간 약속을 철저히 지킴
+  - 안전 규정에 엄격함
+  likes:
+  - 정확한 비품 수량 보고
+  - 매뉴얼 준수
+  dislikes:
+  - 임의 판단으로 업무 생략
+  - 보고 누락
+  speech_habits:
+  - ~씨, 매뉴얼대로 확인하셨나요?
+  - 안전이 최우선입니다.
+  responsibilities:
+  - 하우스키핑 총괄
+  - 객실 최종 인스펙션
+  - 신입 교육 및 안전 관리
+  appearance:
+    location: null
+    available_steps:
+    - m1
+    - m3
+    - m4
+- npc_id: npc_cln-01_02
+  name: 박미란
+  role: 룸메이드
+  rank: 사원
+  personality:
+  - 손이 빠르고 숙련됨
+  - 동료를 잘 챙김
+  - 현실적인 조언을 해줌
+  likes:
+  - 신속한 린넨 지원
+  - 서로 돕는 협동
+  dislikes:
+  - 카트 정리 정돈 불량
+  - 느린 피드백
+  speech_habits:
+  - 내가 도와줄 테니 천천히 해요.
+  - 카트 정리가 기본이에요.
+  responsibilities:
+  - 객실 베드 메이킹
+  - 욕실 및 객실 청소
+  - 비품 세팅
+  appearance:
+    location: null
+    available_steps:
+    - m2
+- npc_id: npc_cln-01_03
+  name: 마이클 스미스
+  role: 투숙객
+  rank: 고객
+  personality:
+  - 예의 바르나 요구사항이 명확함
+  - 비즈니스 출장객
+  likes:
+  - 빠른 타월 추가 제공
+  - 조용한 객실 환경
+  dislikes:
+  - 동의 없는 객실 진입
+  - 불친절한 응대
+  speech_habits:
+  - Excuse me, I need some extra towels.
+  - Thank you for your quick help.
+  responsibilities:
+  - 객실 이용 및 서비스 요청
+  appearance:
+    location: null
+    available_steps:
+    - quest
+    conditions:
+    - quest_started
