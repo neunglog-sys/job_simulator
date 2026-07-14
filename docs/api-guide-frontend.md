@@ -148,7 +148,7 @@ POST /api/simulations/{id}/finish       → 중도 포기 (aborted 처리)
 |---|---|---|
 | `session` | 접속 직후 현재 상태 전체 | 화면 초기화/복원 |
 | `token` | `{text}` NPC 응답 조각 | 말풍선에 이어붙이기 |
-| `npc_reply` | `{npc, name, content, delta, state, step_changed}` — `npc`=npc_id, `name`=표시 이름 | 응답 확정, 상태 게이지 갱신 |
+| `npc_reply` | `{npc, name, content, delta, affinity, state, step_changed}` — `npc`=npc_id, `name`=표시 이름 | 응답 확정, 상태 게이지 갱신 + **NPC 친밀도 게이지** 갱신 |
 | `task_result` | 채점: `{total, passed, scores[], feedback, advice_card, state}` | 결과 표시. **advice_card**(level 1~3, title, content)가 있으면 = 미달 → **AI조언카드 UI** |
 | `step_changed` | `{step}` 다음 스텝 정보 | 미션 패널 교체 |
 | `sudden_quest` | ⚡ `{npc, npc_name, intro, task}` — `npc`=npc_id, `npc_name`=표시 이름 | **돌발 퀘스트 연출** (인트로 → 퀘스트 과제 패널) |
@@ -159,6 +159,10 @@ POST /api/simulations/{id}/finish       → 중도 포기 (aborted 처리)
 | `error` | `{detail}` | 토스트 등 |
 
 ⚠️ 퀘스트 진행 중 `task_submit`은 자동으로 **퀘스트 채점**으로 갑니다 (본편 과제 제출 불가).
+
+### NPC 친밀도(호감도)
+
+`npc_reply`의 `affinity` = `{value: 0~100, delta: 이번 턴 변화량, band: "낮음"|"보통"|"높음"}` — **말을 건 그 NPC 한 명**의 값입니다(대화가 없었으면 기본 50). 공손·성의 있게 대하면 오르고, 무례·정답 떠먹기 요구엔 내려갑니다(오를 때보다 내릴 때 큼). 값이 오르면 그 NPC 말투가 살짝 부드러워져요. NPC별 최신값은 `state.affinity[npc_id]`에도 누적됩니다(하트/친밀도 게이지로 표시하면 됩니다). 표시는 선택 — 안 그려도 게임 진행엔 지장 없습니다.
 
 ## 6. 점수 (결과 화면)
 

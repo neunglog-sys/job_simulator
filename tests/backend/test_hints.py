@@ -30,17 +30,19 @@ def test_level2_lists_all_weak():
     assert "목적 명확" not in card["content"]  # 통과 기준은 제외
 
 
-def test_level3_reveals_answer_but_requires_submission():
+def test_level3_reveals_answer_skeleton():
+    # 3차 미달 → 정답 골격(answer_guide)을 항목별 불릿으로 공개.
+    # (제출 필요 안내 문장은 #42에서 AI 코치 TIP로 이관 — 카드는 항목만 나열)
     card = advice_card(TASK, 3, SCORES, "")
     assert card["level"] == 3
-    assert "①목적" in card["content"]
-    assert "직접 작성해 다시 제출" in card["content"]
+    assert "• 목적" in card["content"]
+    assert "• 대상" in card["content"]
 
 
 def test_level3_without_answer_guide_falls_back_to_criteria():
     task = {"criteria": ["A", "B"], "hints": {}}
     card = advice_card(task, 5, [], "")
-    assert "1. A" in card["content"] and "2. B" in card["content"]
+    assert "• A" in card["content"] and "• B" in card["content"]
 
 
 def test_float_scores_still_counted():
