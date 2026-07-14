@@ -3,6 +3,7 @@
 > 대상: 윤가연·최영수 님 (React) / 작성: 백엔드 (김태수) / 기준: dev 최신
 > 로컬 실행: `cd infra && docker compose up -d` → 베이스 URL `http://localhost:8000`
 > 전체 스펙 브라우징: http://localhost:8000/docs (Swagger — WS 제외 전부 클릭 테스트 가능)
+> 랜딩 페이지 버튼별 현재 호출 상태: [`frontend-endpoints.md`](./frontend-endpoints.md)
 
 ## 0. 한눈에 보는 사용자 플로우와 API
 
