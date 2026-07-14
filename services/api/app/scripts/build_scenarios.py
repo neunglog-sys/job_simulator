@@ -23,7 +23,6 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.content.loader import validate_npcs, validate_scenario, yaml_scenario_slugs
-from app.content.persona_parser import load_families
 from app.core.config import settings
 from app.domains.scoring.aggregate import TYPE_COMPETENCY
 from app.models import (
@@ -113,15 +112,6 @@ def split_npc_list(raw: str | None) -> list[str]:
     return [x.strip() for x in out if x.strip()]
 
 
-def load_category_family_map() -> dict[str, str]:
-    """카테고리 → family_id 매핑 (map_category_family 방출본). 없으면 빈 dict(아키타입 폴백)."""
-    path = Path(settings.data_dir) / "prompts" / "npc" / "category_family_map.yaml"
-    if not path.exists():
-        return {}
-    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    return {str(k): str(v) for k, v in raw.items() if v}
-
-
 def norm_role(raw: str) -> str:
     """NPC 문자열에서 괄호 설명 제거 — 원본→매칭 키 정규화 (표시·참조 양쪽 동일)."""
     return re.sub(r"\(.*?\)", "", raw or "").strip()
@@ -193,41 +183,33 @@ def gen_name(seed: str, used: set[str]) -> str:
     return n
 
 
-def build_npc(raw: str, slug: str, idx: int, used_names: set[str], family: dict | None = None) -> dict:
+def build_npc(raw: str, slug: str, idx: int, used_names: set[str]) -> dict:
     """원본 NPC 문자열 → 정규화 NPC 엔트리 (고유정보 + 배치정보 통합, seed가 두 테이블로 분리).
 
     인명이 없는 역할 라벨('원무팀장' 등)은 사람 이름을 생성하고 라벨을 role로 보존한다.
-    family(영수님 페르소나 파싱본)가 있으면 성격·말버릇을 그 역할 원형 페르소나로 대체.
     responsibilities·appearance는 상위(build_scenario_doc)에서 등장 스텝을 알고 채운다.
     """
     name, role, rank = parse_npc(raw)
     npc_id = make_npc_id(slug, idx)
+    # 첫 토큰이 사람 이름이 아니면(역할 라벨) 이름 생성, 라벨(name=head)을 역할로
     if not _looks_like_name(name.split()[0] if name else ""):
         role = name or role  # 원무팀장/고령 환자 등 라벨을 역할로
         name = gen_name(npc_id, used_names)
     else:
         used_names.add(name)
-    arch_key = classify(raw)
-    arch = ARCHETYPES[arch_key]
-    # family 페르소나 우선 — supervisor는 family의 사수/상급자(mentor)와 통합
-    fam_npc = None
-    if family:
-        by_arch = family.get("by_arch", {})
-        fam_npc = by_arch.get(arch_key) or (by_arch.get("mentor") if arch_key == "supervisor" else None)
-    personality = fam_npc["personality"] if fam_npc and fam_npc["personality"] else list(arch["personality"])
-    speech = fam_npc["speech_habits"] if fam_npc and fam_npc["speech_habits"] else list(arch["speech_habits"])
+    arch = ARCHETYPES[classify(raw)]
     return {
         "npc_id": npc_id,
         "name": name,
         "role": role,
         "rank": rank or None,
-        "personality": personality,
-        "likes": list(arch["likes"]),      # family엔 명시 필드 없음 — 아키타입 baseline 유지
+        "personality": list(arch["personality"]),
+        "likes": list(arch["likes"]),
         "dislikes": list(arch["dislikes"]),
-        "speech_habits": speech,
+        "speech_habits": list(arch["speech_habits"]),
         "responsibilities": [],   # build_scenario_doc에서 등장 스텝 미션으로 채움
         "appearance": {},         # build_scenario_doc에서 available_steps 채움
-        "_arch": arch_key,        # 폴백 보충 판단용 (emit 전 제거)
+        "_arch": classify(raw),   # 폴백 보충 판단용 (emit 전 제거)
     }
 
 
@@ -408,13 +390,9 @@ def mission_to_step(m: TeamMission, step_id: str, npc_by_key: dict) -> dict:
 
 
 def build_scenario_doc(
-    category: TeamCategory, missions: list[TeamMission], rep_codes: set[str], slug: str,
-    family: dict | None = None,
+    category: TeamCategory, missions: list[TeamMission], rep_codes: set[str], slug: str
 ) -> dict | None:
-    """중분류 1개 → 시나리오 문서 (NPC 정규화: npc_id 참조 + 고유/배치 필드). 미션 부족은 None.
-
-    family: 이 카테고리에 매핑된 영수님 페르소나(파싱본) — NPC 성격·말버릇에 반영.
-    """
+    """중분류 1개 → 시나리오 문서 (NPC 정규화: npc_id 참조 + 고유/배치 필드). 미션 부족은 None."""
     if not missions:
         logger.warning("스킵 %s: 미션 없음", category.category)
         return None
@@ -435,7 +413,7 @@ def build_scenario_doc(
         key = _match_key(raw)
         if not key or key in npc_by_key:
             continue
-        entry = build_npc(raw, slug, len(roster) + 1, used_names, family)
+        entry = build_npc(raw, slug, len(roster) + 1, used_names)
         npc_by_key[key] = entry
         roster.append(entry)
     # 최소 3명 보장 — 빠진 아키타입 축을 기본 역할로 보충 (근거 없는 실존 NPC 창작은 아님)
@@ -444,9 +422,7 @@ def build_scenario_doc(
         if len(roster) >= 3:
             break
         if arch_key not in seen_arch:
-            entry = build_npc(
-                ARCHETYPES[arch_key]["fallback_role"], slug, len(roster) + 1, used_names, family
-            )
+            entry = build_npc(ARCHETYPES[arch_key]["fallback_role"], slug, len(roster) + 1, used_names)
             npc_by_key[_match_key(ARCHETYPES[arch_key]["fallback_role"])] = entry
             roster.append(entry)
 
@@ -583,8 +559,6 @@ async def build_all_docs(session: AsyncSession) -> list[tuple[TeamCategory, dict
     rep_codes = set(
         (await session.execute(select(TeamRepMission.mission_code))).scalars()
     )
-    families = load_families()  # 영수님 페르소나 파싱본 {family_id: ...}
-    cat_family = load_category_family_map()  # {category: family_id}
     used_slugs: dict[str, str] = {}
     docs: list[tuple[TeamCategory, dict]] = []
     for cat in categories:
@@ -601,8 +575,7 @@ async def build_all_docs(session: AsyncSession) -> list[tuple[TeamCategory, dict
         if slug in used_slugs:  # 조용한 덮어쓰기 방지 — 데이터 문제를 즉시 드러냄
             raise ValueError(f"slug 충돌: '{slug}' ← {cat.category} vs {used_slugs[slug]}")
         used_slugs[slug] = cat.category
-        family = families.get(cat_family.get(cat.category, ""))
-        doc = build_scenario_doc(cat, missions, rep_codes, slug, family)
+        doc = build_scenario_doc(cat, missions, rep_codes, slug)
         if doc is None:
             continue
         doc["job"] = doc["slug"]  # 변환 시나리오의 job 코드 = slug
