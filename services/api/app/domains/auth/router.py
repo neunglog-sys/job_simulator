@@ -74,6 +74,6 @@ async def oauth_callback(
         raise HTTPException(status_code=400, detail="소셜 로그인이 취소되었거나 실패했어요.")
     if not state or not oauth.verify_state(state):  # CSRF 방지
         raise HTTPException(status_code=400, detail="유효하지 않은 로그인 요청이에요. 다시 시도해주세요.")
-    user = await oauth.complete_login(session, provider, code)
+    user = await oauth.complete_login(session, provider, code, state)
     token = create_token(user.id)
     return RedirectResponse(f"{settings.frontend_url}/#access_token={token}")
