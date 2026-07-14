@@ -76,6 +76,21 @@
 {{ summary }}
 {% endif %}
 
+{% if resume is defined and resume %}
+## 사용자 이력서/포트폴리오 분석 (사용자가 직접 올림)
+- 요약: {{ resume.summary }}
+{% if resume.skills %}- 스킬: {{ resume.skills | join(', ') }}{% endif %}
+{% if resume.experiences %}- 경험: {{ resume.experiences | join(' / ') }}{% endif %}
+{% if resume.strengths %}- 강점: {{ resume.strengths | join(', ') }}{% endif %}
+{% if resume.desired_directions %}- 추정 희망 방향: {{ resume.desired_directions | join(', ') }}{% endif %}
+
+- 위 이력은 사용자가 직접 올린 자료이니 대화에서 자연스럽게 활용하세요. 자유대화 **초반에 한 번**,
+  이력과 설문을 근거로 **희망 직무 방향을 확인하는 질문**을 부드럽게 하세요.
+  예: "이력서를 보니 ○○ 경험이 있으시네요. 혹시 생각하고 계신 직무가 △△ 쪽이 맞을까요?"
+- 사용자가 다른 방향이라고 답할 수 있게 여지를 남기고, 이력을 근거로 성격·역량을 임의로 칭찬·단정하지 마세요.
+- 이력에 없는 경력·수치·자격을 지어내지 말고, 이미 확인한 방향은 다시 캐묻지 마세요.
+{% endif %}
+
 {% if knowledge %}
 ## 참고 직무 지식 (사용자 질문과 관련된 자료 — 답변에 자연스럽게 활용)
 {{ knowledge }}

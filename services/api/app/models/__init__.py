@@ -48,6 +48,8 @@ class Consultation(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(20), default="active")  # active|completed
     summary: Mapped[str | None] = mapped_column(EncryptedText)  # Conversation Memory 요약 (암호화)
     survey: Mapped[dict | None] = mapped_column(JSONB)  # 사전 설문 {answers, profile} — 자유대화 전 성향 베이스라인
+    # 이력서/포트폴리오 PDF 분석 결과(JSON 문자열, 개인정보라 암호화). 원본 PDF는 저장 안 함.
+    resume: Mapped[str | None] = mapped_column(EncryptedText)
 
 
 class Message(TimestampMixin, Base):
