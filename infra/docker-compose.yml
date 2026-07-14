@@ -50,12 +50,33 @@ services:
     build:
       context: ../apps/web
       args:
-        # 브라우저가 백엔드를 호출할 공개 주소 — 배포 VM에선 .env에 VITE_API_BASE_URL=http://<공개IP>
+        # 브라우저가 백엔드를 호출할 공개 주소 — 배포 VM에선 .env에 VITE_API_BASE_URL=https://<도메인>
+        # (https면 endpoints.ts가 ws→wss도 자동 치환). 값 변경 시 --build 필수(빌드에 baked).
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
-    ports:
-      - "80:80"
+    expose:
+      - "80"  # 호스트 포트 미개방 — 앞단 caddy가 TLS 종단 후 web:80 으로 프록시
     depends_on:
       - api
 
+  # 엣지 리버스 프록시 — PUBLIC_DOMAIN에 대해 자동 HTTPS(Let's Encrypt) 발급 후 web으로 프록시.
+  # 배포 VM: .env에 PUBLIC_DOMAIN=<서브도메인>.duckdns.org 설정 + 방화벽 tcp:80,443 개방 필요.
+  # 로컬은 PUBLIC_DOMAIN 미설정 → localhost 내부 인증서(https://localhost)로 동작.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data      # 발급받은 인증서 영속화 (재배포 시 재발급 방지)
+      - caddy_config:/config
+    depends_on:
+      - web
+
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:
