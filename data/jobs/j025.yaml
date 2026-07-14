@@ -16,3 +16,18 @@ interest_profile:
   social: 3
   enterprising: 4
   conventional: 2
+# 공식 매핑: K000001069 광고·홍보·마케팅사무원 (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: "고졸 이상 — 대기업은 법학/경제학/경영학/무역학/회계학 등 대졸 이상"
+  source_field: needKnwgCn
+  evidence_type: descriptive_text
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics:
+    median_annual_krw: 55500000
+    statistic_type: median
+    population: "재직자 약 30명 설문조사"
+    reference_year: 2025
+certifications:
+  []
+status: provisional

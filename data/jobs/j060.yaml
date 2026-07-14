@@ -16,3 +16,12 @@ interest_profile:
   social: 4
   enterprising: 2
   conventional: 4
+# 공식 매핑 없음 — 팀 검수 결과 반려(적합한 공식 직업사전 항목 없음) (docs/jobs/batch2_mapping_review.md #19)
+education_requirement:
+  value: null
+  note: "적합한 공식 직업사전 매핑 없음 — 후보 검토 결과 업무 성격 불일치 또는 후보 부재로 반려."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+certifications: []
+status: not_found
