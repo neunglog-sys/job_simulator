@@ -34,8 +34,24 @@ class User(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str | None] = mapped_column(EncryptedText)
     email_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
-    pw_hash: Mapped[str | None] = mapped_column(String(255))
+    pw_hash: Mapped[str | None] = mapped_column(String(255))  # 소셜 전용 계정은 None
     name: Mapped[str] = mapped_column(EncryptedText)
+
+
+class OAuthAccount(Base):
+    """소셜 로그인 연결 — (provider, provider_user_id)로 사용자를 식별.
+
+    이메일을 주지 않는 provider(카카오 등)나 한 사람이 여러 소셜을 연결하는 경우까지 대응.
+    provider_user_id는 provider가 주는 고유 식별자(민감정보 아님, 해시 불필요).
+    """
+
+    __tablename__ = "oauth_accounts"
+    __table_args__ = (UniqueConstraint("provider", "provider_user_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    provider: Mapped[str] = mapped_column(String(20))  # google | kakao | naver
+    provider_user_id: Mapped[str] = mapped_column(String(255))
 
 
 class Consultation(TimestampMixin, Base):
