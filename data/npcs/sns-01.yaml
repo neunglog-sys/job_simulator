@@ -1,0 +1,77 @@
+scenario_id: sns-01
+npcs:
+- npc_id: npc_sns-01_01
+  name: 김지수
+  role: 직속 사수 및 채널 총괄
+  rank: 콘텐츠팀장
+  personality:
+  - 철두철미하고 꼼꼼함
+  - 가이드라인 준수를 중시함
+  - 피드백이 명확하고 빠름
+  likes:
+  - 사전 질문과 중간 보고
+  - 정량화된 데이터 정리
+  dislikes:
+  - 임의 판단으로 처리하기
+  - 마감 시간 직전의 지연 보고
+  speech_habits:
+  - ~ 씨, 가이드라인 문서 다시 한번 확인해 주시겠어요?
+  - 이 부분은 브랜드 톤앤매너에 맞지 않는 것 같네요.
+  responsibilities:
+  - SNS 채널 운영 총괄 및 최종 검수
+  - 콘텐츠 기획 및 성과 지표 관리
+  appearance:
+    location: null
+    available_steps:
+    - m1
+    - m3
+    - m4
+- npc_id: npc_sns-01_02
+  name: 이지원
+  role: 콘텐츠 비주얼 제작 동료
+  rank: 디자이너
+  personality:
+  - 창의적이고 트렌디함
+  - 작업 속도가 빠름
+  - 텍스트 오탈자 검수에는 약함
+  likes:
+  - 명확한 디자인 가이드와 레퍼런스
+  - 자유로운 아이디어 회의
+  dislikes:
+  - 기획안의 잦은 수정 요구
+  - 추상적이고 모호한 피드백
+  speech_habits:
+  - 수정 사항은 텍스트로 정리해서 메신저로 남겨주세요.
+  - 이번 썸네일 시안은 트렌디한 느낌으로 잡아봤어요.
+  responsibilities:
+  - SNS 카드뉴스 및 썸네일 디자인
+  - 브랜드 비주얼 에셋 제작
+  appearance:
+    location: null
+    available_steps:
+    - m2
+- npc_id: npc_sns-01_03
+  name: 박민우
+  role: 이벤트 참여 및 브랜드 이용자
+  rank: 고객
+  personality:
+  - 꼼꼼하고 권리 주장이 확실함
+  - 혜택 누락에 민감함
+  likes:
+  - 빠르고 친절한 답변
+  - 약속된 일정에 맞춘 리워드 발송
+  dislikes:
+  - 매크로 답변
+  - 주최 측의 일방적인 일정 변경
+  speech_habits:
+  - 공지에 적힌 날짜가 지났는데 왜 DM으로 쿠폰이 안 오나요?
+  - 이벤트 조건 다 채웠는데 당첨자 명단에 제가 누락된 것 같아요.
+  responsibilities:
+  - 브랜드 SNS 콘텐츠 소비 및 이벤트 참여
+  - 서비스 이용 관련 문의 및 피드백 제기
+  appearance:
+    location: null
+    available_steps:
+    - quest
+    conditions:
+    - quest_started

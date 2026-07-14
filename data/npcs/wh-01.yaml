@@ -1,0 +1,78 @@
+scenario_id: wh-01
+npcs:
+- npc_id: npc_wh-01_01
+  name: 마동식
+  role: 사수
+  rank: 창고반장
+  personality:
+  - 매우 꼼꼼하고 안전을 최우선으로 생각함
+  - 무뚝뚝해 보이지만 신입의 적응을 세심하게 도움
+  - 원칙주의자이며 절차 생략을 가장 싫어함
+  likes:
+  - 정확한 수량 확인
+  - 정리정돈된 작업 라인
+  dislikes:
+  - 안전모 미착용 및 뛰어다니는 행위
+  - 임의 판단으로 처리하는 독단 행동
+  speech_habits:
+  - 바쁠수록 천천히, 안전하게 합시다.
+  - 확인 안 하고 넘어가면 나중에 크게 터집니다.
+  responsibilities:
+  - 물류창고 입출고 총괄 관리
+  - 현장 안전 관리 및 신입 교육
+  appearance:
+    location: null
+    available_steps:
+    - m1
+    - m3
+    - m4
+- npc_id: npc_wh-01_02
+  name: 김지수
+  role: 동료
+  rank: 피킹작업자
+  personality:
+  - 손이 빠르고 눈썰미가 좋음
+  - 바쁜 일정 속에서 예민해지기 쉬움
+  - 실용적인 팁을 많이 알고 있음
+  likes:
+  - 빠른 피킹 동선 확보
+  - 정확한 박스 라벨링
+  dislikes:
+  - 통로를 막고 있는 적재 카트
+  - 불분명한 수량 표시
+  speech_habits:
+  - 오늘 물량 많으니까 서둘러야 해요.
+  - 라벨지 수량 다시 한번만 봐주시겠어요?
+  responsibilities:
+  - 주문서별 상품 피킹 및 분류
+  - 출고 대기 구역 적재
+  appearance:
+    location: null
+    available_steps:
+    - m2
+- npc_id: npc_wh-01_03
+  name: 최기사
+  role: 외부 협력사
+  rank: 택배 상하차 기사
+  personality:
+  - 배송 일정 때문에 항상 마음이 급함
+  - 직설적이고 목소리가 큼
+  - 현장 상황을 잘 이해해 줌
+  likes:
+  - 신속한 상차 대기 상태
+  - 명확한 상차 리스트 제공
+  dislikes:
+  - 대기 시간이 길어지는 것
+  - 상차 순서가 뒤죽박죽인 것
+  speech_habits:
+  - 기사님들 대기 길어지면 도로 통제 걸려요.
+  - 이거 먼저 실어야 하는 거 맞죠?
+  responsibilities:
+  - 출고 완료 상품 상차 및 운송
+  - 회수 물품(반품) 창고 인계
+  appearance:
+    location: null
+    available_steps:
+    - quest
+    conditions:
+    - quest_started
