@@ -8,6 +8,7 @@
 
 import logging
 import random
+import re
 from typing import AsyncIterator
 
 from fastapi import HTTPException
@@ -192,6 +193,15 @@ def _speaker(m: Message, roster: dict[str, dict]) -> str:
     return info["name"] if info else "NPC"
 
 
+# AI 코치 실시간 TIP 발동 조건 — 신입이 정답을 요구하거나 답답해할 때, 또는 사수가 거부/무뚝뚝하게 반응할 때
+_TIP_USER = re.compile(r"정답|답\s*(을|좀|이|뭐|알려|찍)|그냥\s*(알려|해|답)|알려\s*주|찍어|짜증|몰라|모르겠|대충|귀찮|하기\s*싫")
+_TIP_NPC = re.compile(r"왜\s*(나|저)한테|직접\s*(확인|알아|해)|본인이\s*(직접|알아|확인)|알아서\s*(해|찾)")
+
+
+def _should_coach_tip(user_text: str, npc_reply: str) -> bool:
+    return bool(_TIP_USER.search(user_text) or _TIP_NPC.search(npc_reply))
+
+
 async def stream_npc_chat(
     session: AsyncSession,
     simulation: Simulation,
@@ -290,6 +300,18 @@ async def stream_npc_chat(
     except Exception:  # noqa: BLE001 — 평가 실패가 확정된 대화를 되돌리거나 소켓을 죽이면 안 됨
         await session.rollback()
         logger.exception("발언 영향 평가 실패 (simulation=%d) — 대화 유지, 전이 생략", simulation.id)
+
+    # AI 코치 실시간 TIP — 사수가 정답요구를 거부하거나 신입이 답답해할 때 문장형 조언
+    # (항목별 힌트카드는 과제 오답 제출 때, 이 TIP은 대화 중에. 실패해도 대화 비차단)
+    if _should_coach_tip(user_text, npc_reply):
+        tip = await coach.generate_tip(
+            mission=step["mission"],
+            criteria=(step.get("task") or {}).get("criteria", []),
+            user_text=user_text,
+            npc_reply=npc_reply,
+        )
+        if tip:
+            yield ("coach_tip", {"text": tip})
 
     yield (
         "final",
