@@ -1,16 +1,4 @@
 code: hr-01
 title: 인사·채용 운영 (채용운영 보조)
 description: 채용 공고 게시부터 서류 전형 지원자 관리, 면접 일정 조율 및 합격자 안내까지 채용 프로세스 전반의 실무를 지원하고 운영합니다.
-competencies:
-  situation_judgment: 4
-  problem_solving: 3
-  communication: 5
-  collaboration: 4
-  task_management: 5
-interest_profile:
-  realistic: 2
-  investigative: 3
-  artistic: 1
-  social: 4
-  enterprising: 3
-  conventional: 5
+competencies: {}

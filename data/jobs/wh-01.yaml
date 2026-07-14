@@ -1,16 +1,4 @@
 code: wh-01
 title: 물류창고·분류 — 신입의 하루 / 입출고·분류 보조 신입
 description: 물류창고에서 상품의 입고, 분류, 피킹, 포장 및 출고 보조 업무를 수행하며, 정확한 재고 관리와 안전한 작업 환경 조성을 지원합니다.
-competencies:
-  situation_judgment: 4
-  problem_solving: 3
-  communication: 4
-  collaboration: 4
-  task_management: 5
-interest_profile:
-  realistic: 5
-  investigative: 2
-  artistic: 1
-  social: 3
-  enterprising: 2
-  conventional: 5
+competencies: {}
