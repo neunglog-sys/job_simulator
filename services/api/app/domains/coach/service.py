@@ -90,3 +90,22 @@ async def generate_cards(vars_: dict) -> dict | None:
     except Exception:  # noqa: BLE001 — 코치 실패가 게임을 막으면 안 됨 (mock 환경 포함)
         logger.info("코치 카드 생성 생략 (simulation=%s)", vars_.get("run_id"))
         return None
+
+
+async def generate_tip(*, mission: str, criteria: list, user_text: str, npc_reply: str) -> str | None:
+    """대화 중 실시간 코치 TIP — 사수가 정답요구를 거부하거나 짜증낼 때 문장형 조언. 실패 시 None(비차단)."""
+    try:
+        system = render_prompt(
+            "coach/tip.md", mission=mission, criteria=criteria or [],
+            user_text=user_text, npc_reply=npc_reply,
+        )
+        reply = await get_llm().chat(
+            [ChatMessage(role="user", content="위 상황에 맞는 코치 TIP 1~2문장만 출력하세요.")],
+            system=system,
+            temperature=0.4,
+        )
+        tip = " ".join(reply.split()).strip().strip('"')
+        return tip or None
+    except Exception:  # noqa: BLE001 — 코치 TIP 실패가 대화를 막으면 안 됨
+        logger.info("코치 TIP 생성 생략")
+        return None

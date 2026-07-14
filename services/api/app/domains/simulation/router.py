@@ -151,6 +151,8 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, token: str | N
                         ):
                             if kind == "token":
                                 await websocket.send_json({"type": "token", "text": payload})
+                            elif kind == "coach_tip":
+                                await websocket.send_json({"type": "coach_tip", "text": payload["text"]})
                             else:
                                 step_changed = payload.pop("step_changed")
                                 await websocket.send_json({"type": "npc_reply", **payload})

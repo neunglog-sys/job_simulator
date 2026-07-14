@@ -8,6 +8,7 @@
 
 import logging
 import random
+import re
 from typing import AsyncIterator
 
 from fastapi import HTTPException
@@ -32,6 +33,22 @@ MEMORY_TURNS = 20
 SCORING_TURNS = 40  # 채점 대화록 상한 — 하루 종일 대화해도 채점 프롬프트가 무한 성장하지 않게
 RAG_TOP_K = 3
 RAG_MAX_DISTANCE = 0.4  # Gemini 임베딩은 거리대가 좁음(관련 ~0.2, 무관 ~0.28) — eval로 재튜닝 대상
+
+# NPC 화법 — 현장·기능직 계열(family F03·F04·F07·F14·F15·F18~F24)에 매핑되는 시나리오는 반말,
+# 사무·전문직 계열(F01·F02·F05·F06·F08~F13·F16·F17)은 존대. 매핑 안 된 slug은 기본 존대.
+_BANMAL_SLUGS = {
+    "jm-01", "jm-02", "jm-03", "jm-04", "jm-05",
+    "ms-04", "ms-05", "ms-06", "ms-07", "ms-08", "ms-09", "ms-10",
+    "yg-01", "yg-02", "yg-05",
+    "ys-01", "ys-02", "ys-03", "ys-04", "ys-05",
+    "ys-06", "ys-07", "ys-08", "ys-09", "ys-10",
+    "gm-01", "sns-01", "wh-01", "cln-01",
+}
+
+
+def register_for(slug: str) -> str:
+    """시나리오 slug → NPC 화법('반말'|'존대'). 미매핑은 기본 존대."""
+    return "반말" if slug in _BANMAL_SLUGS else "존대"
 
 
 async def create_simulation(
@@ -176,6 +193,15 @@ def _speaker(m: Message, roster: dict[str, dict]) -> str:
     return info["name"] if info else "NPC"
 
 
+# AI 코치 실시간 TIP 발동 조건 — 신입이 정답을 요구하거나 답답해할 때, 또는 사수가 거부/무뚝뚝하게 반응할 때
+_TIP_USER = re.compile(r"정답|답\s*(을|좀|이|뭐|알려|찍)|그냥\s*(알려|해|답)|알려\s*주|찍어|짜증|몰라|모르겠|대충|귀찮|하기\s*싫")
+_TIP_NPC = re.compile(r"왜\s*(나|저)한테|직접\s*(확인|알아|해)|본인이\s*(직접|알아|확인)|알아서\s*(해|찾)")
+
+
+def _should_coach_tip(user_text: str, npc_reply: str) -> bool:
+    return bool(_TIP_USER.search(user_text) or _TIP_NPC.search(npc_reply))
+
+
 async def stream_npc_chat(
     session: AsyncSession,
     simulation: Simulation,
@@ -234,6 +260,7 @@ async def stream_npc_chat(
     system = render_prompt(
         "npc/system.md",
         scenario_title=scenario.title,
+        register=register_for(scenario.slug),
         mission=step["mission"],
         name=persona["name"], role=persona["role"], rank=persona["rank"],
         personality=persona["personality"], likes=persona["likes"],
@@ -273,6 +300,18 @@ async def stream_npc_chat(
     except Exception:  # noqa: BLE001 — 평가 실패가 확정된 대화를 되돌리거나 소켓을 죽이면 안 됨
         await session.rollback()
         logger.exception("발언 영향 평가 실패 (simulation=%d) — 대화 유지, 전이 생략", simulation.id)
+
+    # AI 코치 실시간 TIP — 사수가 정답요구를 거부하거나 신입이 답답해할 때 문장형 조언
+    # (항목별 힌트카드는 과제 오답 제출 때, 이 TIP은 대화 중에. 실패해도 대화 비차단)
+    if _should_coach_tip(user_text, npc_reply):
+        tip = await coach.generate_tip(
+            mission=step["mission"],
+            criteria=(step.get("task") or {}).get("criteria", []),
+            user_text=user_text,
+            npc_reply=npc_reply,
+        )
+        if tip:
+            yield ("coach_tip", {"text": tip})
 
     yield (
         "final",
