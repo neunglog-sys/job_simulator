@@ -46,13 +46,16 @@ services:
       timeout: 3s
       retries: 10
 
-  # React 앱 스캐폴딩 후 주석 해제 (apps/web/Dockerfile + infra/nginx/nginx.conf 필요)
-  # web:
-  #   build: ../apps/web
-  #   ports:
-  #     - "80:80"
-  #   depends_on:
-  #     - api
+  web:
+    build:
+      context: ../apps/web
+      args:
+        # 브라우저가 백엔드를 호출할 공개 주소 — 배포 VM에선 .env에 VITE_API_BASE_URL=http://<공개IP>
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+    ports:
+      - "80:80"
+    depends_on:
+      - api
 
 volumes:
   pgdata:
