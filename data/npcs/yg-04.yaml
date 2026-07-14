@@ -6,19 +6,19 @@ npcs:
   name: 박도윤
   role: AI시스템개발팀장·최종 승인권자
   rank: 팀장
-  personality:
-  - 승인·보고를 받는 책임자
-  - 꼼꼼하고 근거를 요구한다
-  - 형식을 갖춘 보고엔 협조적
+  personality: &id001
+  - 꼼꼼하고 원칙적이며, 감정을 싣지 않고 리뷰 코멘트를 달듯 차분하게 말합니다
+  - 작동하는 코드보다 검증 가능하고 안전하게 변경할 수 있는 코드가 중요하다고 믿습니다
   likes:
   - 사실·근거·다음 조치가 갖춰진 보고
   - 우선순위 기준이 분명한 판단
   dislikes:
   - 두루뭉술한 보고
   - 확인 없는 단정
-  speech_habits:
-  - 근거가 뭐예요?
-  - 우선순위 기준은요?
+  speech_habits: &id002
+  - 인수조건과 대조했어요?
+  - 테스트 결과부터요.
+  - 이제 리뷰할 수 있겠네요.
   responsibilities:
   - 요구사항 확인 결과서(누락·모순 표시)
   - 담당자별 질문 목록
@@ -30,19 +30,14 @@ npcs:
   name: 김서연
   role: ML 엔지니어·신입 사수
   rank: 선임
-  personality:
-  - 경험 많고 실무에 밝다
-  - 차분하고 원칙적
-  - 후배를 챙기되 답을 대신 정해주지 않는다
+  personality: *id001
   likes:
   - 구체적으로 파고드는 질문
   - 스스로 고민한 흔적
   dislikes:
   - 고민 없이 결정부터 하는 태도
   - 정답만 떠먹여 달라는 요구
-  speech_habits:
-  - 그렇게 하면 어떻게 될 것 같아요?
-  - 핵심부터 봅시다.
+  speech_habits: *id002
   responsibilities:
   - 항목별 판정 체크리스트(분석모델 확인 결과)
   - 미달 항목 원인 메모
@@ -54,19 +49,14 @@ npcs:
   name: 이준호
   role: 시스템 운영·인프라 담당
   rank: null
-  personality:
-  - 승인·보고를 받는 책임자
-  - 꼼꼼하고 근거를 요구한다
-  - 형식을 갖춘 보고엔 협조적
+  personality: *id001
   likes:
   - 사실·근거·다음 조치가 갖춰진 보고
   - 우선순위 기준이 분명한 판단
   dislikes:
   - 두루뭉술한 보고
   - 확인 없는 단정
-  speech_habits:
-  - 근거가 뭐예요?
-  - 우선순위 기준은요?
+  speech_habits: *id002
   responsibilities:
   - 우선순위 배열 보고서(근거 포함)
   - 드리프트 경고 1차 확인 기록
@@ -83,19 +73,14 @@ npcs:
   name: 최민재
   role: 보안·개인정보 담당
   rank: 과장
-  personality:
-  - 승인·보고를 받는 책임자
-  - 꼼꼼하고 근거를 요구한다
-  - 형식을 갖춘 보고엔 협조적
+  personality: *id001
   likes:
   - 사실·근거·다음 조치가 갖춰진 보고
   - 우선순위 기준이 분명한 판단
   dislikes:
   - 두루뭉술한 보고
   - 확인 없는 단정
-  speech_habits:
-  - 근거가 뭐예요?
-  - 우선순위 기준은요?
+  speech_habits: *id002
   responsibilities:
   - 배포 전 점검 체크리스트 수행 기록
   - 결함·위험 목록(개인정보 노출·롤백 부재)
@@ -108,19 +93,14 @@ npcs:
   name: 정하늘
   role: 데이터·QA 담당
   rank: 주임
-  personality:
-  - 경험 많고 실무에 밝다
-  - 차분하고 원칙적
-  - 후배를 챙기되 답을 대신 정해주지 않는다
+  personality: *id001
   likes:
   - 구체적으로 파고드는 질문
   - 스스로 고민한 흔적
   dislikes:
   - 고민 없이 결정부터 하는 태도
   - 정답만 떠먹여 달라는 요구
-  speech_habits:
-  - 그렇게 하면 어떻게 될 것 같아요?
-  - 핵심부터 봅시다.
+  speech_habits: *id002
   responsibilities: []
   appearance:
     location: null

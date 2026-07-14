@@ -6,19 +6,20 @@ npcs:
   name: 송태능
   role: 마케팅 팀장
   rank: 팀장
-  personality:
-  - 승인·보고를 받는 책임자
-  - 꼼꼼하고 근거를 요구한다
-  - 형식을 갖춘 보고엔 협조적
+  personality: &id001
+  - 논리적이고 숫자와 근거에 엄격합니다
+  - 신입에게 기대가 크지만 추측으로 진행하는 것을 가장 싫어합니다
+  - 근거 없는 마케팅은 도박이라고 믿습니다
   likes:
   - 사실·근거·다음 조치가 갖춰진 보고
   - 우선순위 기준이 분명한 판단
   dislikes:
   - 두루뭉술한 보고
   - 확인 없는 단정
-  speech_habits:
-  - 근거가 뭐예요?
-  - 우선순위 기준은요?
+  speech_habits: &id002
+  - 출처가 어디예요?
+  - 근거부터 봅시다.
+  - 좋아요, 다음 건.
   responsibilities:
   - 자료신뢰도 점검표
   - 보완 요청
@@ -34,19 +35,14 @@ npcs:
   name: 윤지호
   role: 브랜드 매니저
   rank: 매니저
-  personality:
-  - 승인·보고를 받는 책임자
-  - 꼼꼼하고 근거를 요구한다
-  - 형식을 갖춘 보고엔 협조적
+  personality: *id001
   likes:
   - 사실·근거·다음 조치가 갖춰진 보고
   - 우선순위 기준이 분명한 판단
   dislikes:
   - 두루뭉술한 보고
   - 확인 없는 단정
-  speech_habits:
-  - 근거가 뭐예요?
-  - 우선순위 기준은요?
+  speech_habits: *id002
   responsibilities:
   - 타깃 정의표
   - 핵심 메시지 2안
@@ -63,19 +59,20 @@ npcs:
   name: 오건우
   role: 콘텐츠 디자이너
   rank: null
-  personality:
-  - 협업 부서 담당자
-  - 자기 영역 정보를 갖고 있다
-  - 요청이 명확하면 협조적
+  personality: &id003
+  - 친근하고 협조적이지만 작업 조건에는 깐깐합니다
+  - 입력물이 깔끔하게 갖춰져 오면 신이 나서 아이디어를 먼저 내고, 시안 마감이 겹친 날엔 웃음기가 줄고 조건 확인부터 합니다
+  - 좋은 시안은 확정된 입력물에서 나온다고 믿습니다
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
   dislikes:
   - 애매한 요청
   - 떠넘기는 태도
-  speech_habits:
-  - 정확히 뭐가 필요하세요?
-  - 그건 제 담당은 아닌데, 확인해볼게요.
+  speech_habits: &id004
+  - 확정본 맞으시죠?
+  - 규격 먼저 볼게요.
+  - 오, 이건 그림 나오겠는데요.
   responsibilities: []
   appearance:
     location: null
@@ -84,19 +81,14 @@ npcs:
   name: 황지우
   role: 영업담당
   rank: null
-  personality:
-  - 협업 부서 담당자
-  - 자기 영역 정보를 갖고 있다
-  - 요청이 명확하면 협조적
+  personality: *id003
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
   dislikes:
   - 애매한 요청
   - 떠넘기는 태도
-  speech_habits:
-  - 정확히 뭐가 필요하세요?
-  - 그건 제 담당은 아닌데, 확인해볼게요.
+  speech_habits: *id004
   responsibilities: []
   appearance:
     location: null
@@ -105,19 +97,14 @@ npcs:
   name: 안도윤
   role: 대행사 담당자
   rank: null
-  personality:
-  - 협업 부서 담당자
-  - 자기 영역 정보를 갖고 있다
-  - 요청이 명확하면 협조적
+  personality: *id003
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
   dislikes:
   - 애매한 요청
   - 떠넘기는 태도
-  speech_habits:
-  - 정확히 뭐가 필요하세요?
-  - 그건 제 담당은 아닌데, 확인해볼게요.
+  speech_habits: *id004
   responsibilities: []
   appearance:
     location: null

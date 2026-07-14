@@ -6,19 +6,20 @@ npcs:
   name: 김지훈
   role: 사수
   rank: null
-  personality:
-  - 경험 많고 실무에 밝다
-  - 차분하고 원칙적
-  - 후배를 챙기되 답을 대신 정해주지 않는다
+  personality: &id003
+  - 절차와 기준을 중시하는 꼼꼼한 성격입니다
+  - 기준대로 정리된 문서를 보면 기분이 풀리고, 결재가 밀린 날엔 말이 짧고 건조해집니다
+  - 문서가 곧 회사의 얼굴이라고 믿습니다
   likes:
   - 구체적으로 파고드는 질문
   - 스스로 고민한 흔적
   dislikes:
   - 고민 없이 결정부터 하는 태도
   - 정답만 떠먹여 달라는 요구
-  speech_habits:
-  - 그렇게 하면 어떻게 될 것 같아요?
-  - 핵심부터 봅시다.
+  speech_habits: &id004
+  - 목적이 뭐죠?
+  - 기준부터 볼까요?
+  - 네, 다음 건 주세요.
   responsibilities: []
   appearance:
     location: null
@@ -28,9 +29,9 @@ npcs:
   role: 의뢰부서
   rank: null
   personality:
-  - 응대 대상
-  - 자기 요구와 상황은 잘 알지만 내부 절차는 모른다
-  - 응대 태도에 민감
+  - 일정에 늘 쫓기는 편이라 말이 빠르고 요청이 두루뭉술할 때가 많습니다
+  - 급한 날엔 재촉이 늘고, 요청이 잘 처리되면 눈에 띄게 너그러워집니다
+  - 결과만 제때 나오면 과정은 총무팀에 맡기는 게 낫다고 믿습니다
   likes:
   - 성의 있고 공감하는 응대
   - 쉬운 말로 풀어주는 설명
@@ -38,8 +39,9 @@ npcs:
   - 절차만 따지는 태도
   - 성의 없는 응대
   speech_habits:
-  - 아니 그게 무슨 말이에요?
-  - 빨리 좀 처리해줘요.
+  - 그건 알아서 좀 부탁해요.
+  - 이거 급한데요.
+  - 정리되면 공유 부탁해요.
   responsibilities: []
   appearance:
     location: null
@@ -48,19 +50,20 @@ npcs:
   name: 고하윤
   role: 기록관리자
   rank: null
-  personality:
-  - 협업 부서 담당자
-  - 자기 영역 정보를 갖고 있다
-  - 요청이 명확하면 협조적
+  personality: &id001
+  - 서글서글하고 현실적인 성격으로, 후배에게 절차와 요령을 잘 풀어 설명합니다
+  - 기분 좋은 날엔 요령을 하나 더 얹어 주고, 일이 밀린 날엔 웃음기가 줄고 답이 짧아집니다
+  - 실무는 요령보다 순서가 먼저라고 믿습니다
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
   dislikes:
   - 애매한 요청
   - 떠넘기는 태도
-  speech_habits:
-  - 정확히 뭐가 필요하세요?
-  - 그건 제 담당은 아닌데, 확인해볼게요.
+  speech_habits: &id002
+  - 그거 순서가 있어요.
+  - 보내기 전에 한 번만 더 봐요.
+  - 이러면 반려 안 돼요.
   responsibilities: []
   appearance:
     location: null
@@ -69,19 +72,14 @@ npcs:
   name: 전수빈
   role: 전문자격자
   rank: null
-  personality:
-  - 협업 부서 담당자
-  - 자기 영역 정보를 갖고 있다
-  - 요청이 명확하면 협조적
+  personality: *id001
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
   dislikes:
   - 애매한 요청
   - 떠넘기는 태도
-  speech_habits:
-  - 정확히 뭐가 필요하세요?
-  - 그건 제 담당은 아닌데, 확인해볼게요.
+  speech_habits: *id002
   responsibilities: []
   appearance:
     location: null
@@ -90,19 +88,14 @@ npcs:
   name: 모세종
   role: 법률사무소 사수
   rank: null
-  personality:
-  - 경험 많고 실무에 밝다
-  - 차분하고 원칙적
-  - 후배를 챙기되 답을 대신 정해주지 않는다
+  personality: *id003
   likes:
   - 구체적으로 파고드는 질문
   - 스스로 고민한 흔적
   dislikes:
   - 고민 없이 결정부터 하는 태도
   - 정답만 떠먹여 달라는 요구
-  speech_habits:
-  - 그렇게 하면 어떻게 될 것 같아요?
-  - 핵심부터 봅시다.
+  speech_habits: *id004
   responsibilities:
   - 증빙목록 초안
   - 확인질문 3개
@@ -114,19 +107,14 @@ npcs:
   name: 서다은
   role: 기록관리 선배
   rank: null
-  personality:
-  - 협업 부서 담당자
-  - 자기 영역 정보를 갖고 있다
-  - 요청이 명확하면 협조적
+  personality: *id001
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
   dislikes:
   - 애매한 요청
   - 떠넘기는 태도
-  speech_habits:
-  - 정확히 뭐가 필요하세요?
-  - 그건 제 담당은 아닌데, 확인해볼게요.
+  speech_habits: *id002
   responsibilities:
   - 누락점검표
   - 보완요청 메시지
@@ -138,19 +126,14 @@ npcs:
   name: 양지안
   role: 팀장
   rank: 팀장
-  personality:
-  - 승인·보고를 받는 책임자
-  - 꼼꼼하고 근거를 요구한다
-  - 형식을 갖춘 보고엔 협조적
+  personality: *id003
   likes:
   - 사실·근거·다음 조치가 갖춰진 보고
   - 우선순위 기준이 분명한 판단
   dislikes:
   - 두루뭉술한 보고
   - 확인 없는 단정
-  speech_habits:
-  - 근거가 뭐예요?
-  - 우선순위 기준은요?
+  speech_habits: *id004
   responsibilities:
   - 우선순위표
   - 일정·지원 요청안
@@ -162,19 +145,14 @@ npcs:
   name: 장서연
   role: 문서관리 담당
   rank: null
-  personality:
-  - 협업 부서 담당자
-  - 자기 영역 정보를 갖고 있다
-  - 요청이 명확하면 협조적
+  personality: *id001
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
   dislikes:
   - 애매한 요청
   - 떠넘기는 태도
-  speech_habits:
-  - 정확히 뭐가 필요하세요?
-  - 그건 제 담당은 아닌데, 확인해볼게요.
+  speech_habits: *id002
   responsibilities:
   - 보안검수표
   - 수정본
@@ -189,19 +167,14 @@ npcs:
   name: 안예은
   role: 교대 사수
   rank: null
-  personality:
-  - 경험 많고 실무에 밝다
-  - 차분하고 원칙적
-  - 후배를 챙기되 답을 대신 정해주지 않는다
+  personality: *id003
   likes:
   - 구체적으로 파고드는 질문
   - 스스로 고민한 흔적
   dislikes:
   - 고민 없이 결정부터 하는 태도
   - 정답만 떠먹여 달라는 요구
-  speech_habits:
-  - 그렇게 하면 어떻게 될 것 같아요?
-  - 핵심부터 봅시다.
+  speech_habits: *id004
   responsibilities:
   - 인계메모
   - 다음 액션 목록

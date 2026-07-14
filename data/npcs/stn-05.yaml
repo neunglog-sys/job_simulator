@@ -6,19 +6,20 @@ npcs:
   name: 서비스
   role: 기획 팀장
   rank: 팀장
-  personality:
-  - 승인·보고를 받는 책임자
-  - 꼼꼼하고 근거를 요구한다
-  - 형식을 갖춘 보고엔 협조적
+  personality: &id003
+  - 논리적이고 요구 수준이 높지만, 배우려는 태도에는 아낌없이 시간을 씁니다
+  - 회의가 몰린 날엔 질문이 더 짧고 날카로워지고, 근거가 꽉 찬 산출물엔 표정이 눈에 띄게 풀립니다
+  - 기획은 근거로 말한다고 믿습니다
   likes:
   - 사실·근거·다음 조치가 갖춰진 보고
   - 우선순위 기준이 분명한 판단
   dislikes:
   - 두루뭉술한 보고
   - 확인 없는 단정
-  speech_habits:
-  - 근거가 뭐예요?
-  - 우선순위 기준은요?
+  speech_habits: &id004
+  - 그래서 근거는요?
+  - 목적이 뭐예요?
+  - 좋아요, 다음 단계로 가죠.
   responsibilities:
   - 문제정의서
   - 개선안
@@ -36,19 +37,20 @@ npcs:
   name: 최도윤
   role: 상품 MD
   rank: null
-  personality:
-  - 협업 부서 담당자
-  - 자기 영역 정보를 갖고 있다
-  - 요청이 명확하면 협조적
+  personality: &id001
+  - 솔직하고 효율을 중시하며, 모호한 요구사항을 가장 싫어합니다
+  - 요구사항이 명확하면 말이 늘고 아이디어까지 얹지만, 검토가 밀린 날엔 답이 한 줄로 짧아집니다
+  - 명확한 요구사항이 좋은 구현보다 먼저라고 믿습니다
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
   dislikes:
   - 애매한 요청
   - 떠넘기는 태도
-  speech_habits:
-  - 정확히 뭐가 필요하세요?
-  - 그건 제 담당은 아닌데, 확인해볼게요.
+  speech_habits: &id002
+  - 예외 케이스는요?
+  - 공수부터 얘기하죠.
+  - 그건 기획에서 정해 주세요.
   responsibilities:
   - 상품검토표
   - 보완 요청
@@ -61,19 +63,14 @@ npcs:
   name: 장민서
   role: 개발·디자인 담당
   rank: null
-  personality:
-  - 협업 부서 담당자
-  - 자기 영역 정보를 갖고 있다
-  - 요청이 명확하면 협조적
+  personality: *id001
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
   dislikes:
   - 애매한 요청
   - 떠넘기는 태도
-  speech_habits:
-  - 정확히 뭐가 필요하세요?
-  - 그건 제 담당은 아닌데, 확인해볼게요.
+  speech_habits: *id002
   responsibilities: []
   appearance:
     location: null
@@ -82,19 +79,14 @@ npcs:
   name: 고지민
   role: 운영·영업 담당
   rank: null
-  personality:
-  - 협업 부서 담당자
-  - 자기 영역 정보를 갖고 있다
-  - 요청이 명확하면 협조적
+  personality: *id001
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
   dislikes:
   - 애매한 요청
   - 떠넘기는 태도
-  speech_habits:
-  - 정확히 뭐가 필요하세요?
-  - 그건 제 담당은 아닌데, 확인해볼게요.
+  speech_habits: *id002
   responsibilities: []
   appearance:
     location: null
@@ -103,19 +95,14 @@ npcs:
   name: 고수아
   role: 협력사·현지 파트너
   rank: null
-  personality:
-  - 협업 부서 담당자
-  - 자기 영역 정보를 갖고 있다
-  - 요청이 명확하면 협조적
+  personality: *id001
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
   dislikes:
   - 애매한 요청
   - 떠넘기는 태도
-  speech_habits:
-  - 정확히 뭐가 필요하세요?
-  - 그건 제 담당은 아닌데, 확인해볼게요.
+  speech_habits: *id002
   responsibilities: []
   appearance:
     location: null
@@ -124,19 +111,14 @@ npcs:
   name: 양선우
   role: 게임 서비스 기획 팀장
   rank: 팀장
-  personality:
-  - 승인·보고를 받는 책임자
-  - 꼼꼼하고 근거를 요구한다
-  - 형식을 갖춘 보고엔 협조적
+  personality: *id003
   likes:
   - 사실·근거·다음 조치가 갖춰진 보고
   - 우선순위 기준이 분명한 판단
   dislikes:
   - 두루뭉술한 보고
   - 확인 없는 단정
-  speech_habits:
-  - 근거가 뭐예요?
-  - 우선순위 기준은요?
+  speech_habits: *id004
   responsibilities:
   - 우선순위표
   - 스프린트 제안

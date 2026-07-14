@@ -6,19 +6,20 @@ npcs:
   name: 송지훈
   role: 센터장
   rank: 센터장
-  personality:
-  - 승인·보고를 받는 책임자
-  - 꼼꼼하고 근거를 요구한다
-  - 형식을 갖춘 보고엔 협조적
+  personality: &id001
+  - 일 처리가 빠르고 꼼꼼합니다
+  - 일정이 정리되면 여유가 생기지만 면접이 몰리면 질문과 지시가 더 짧아집니다
+  - 채용에서는 공정성과 정확한 안내가 신뢰를 만든다고 믿습니다
   likes:
   - 사실·근거·다음 조치가 갖춰진 보고
   - 우선순위 기준이 분명한 판단
   dislikes:
   - 두루뭉술한 보고
   - 확인 없는 단정
-  speech_habits:
-  - 근거가 뭐예요?
-  - 우선순위 기준은요?
+  speech_habits: &id002
+  - 결론부터 주세요.
+  - 확정인가요, 가안인가요?
+  - 그대로 진행하세요.
   responsibilities:
   - 완성된 회원 카드
   - 질문 목록
@@ -33,19 +34,14 @@ npcs:
   name: 양가은
   role: 수석 트레이너
   rank: 수석
-  personality:
-  - 경험 많고 실무에 밝다
-  - 차분하고 원칙적
-  - 후배를 챙기되 답을 대신 정해주지 않는다
+  personality: *id001
   likes:
   - 구체적으로 파고드는 질문
   - 스스로 고민한 흔적
   dislikes:
   - 고민 없이 결정부터 하는 태도
   - 정답만 떠먹여 달라는 요구
-  speech_habits:
-  - 그렇게 하면 어떻게 될 것 같아요?
-  - 핵심부터 봅시다.
+  speech_habits: *id002
   responsibilities:
   - 완료된 기구 점검표
   - 회원 주의사항 브리핑 메모
@@ -60,19 +56,19 @@ npcs:
   name: 유도현
   role: 초보 회원
   rank: null
-  personality:
-  - 응대 대상
-  - 자기 요구와 상황은 잘 알지만 내부 절차는 모른다
-  - 응대 태도에 민감
+  personality: &id003
+  - 예의 바르지만 긴장해 있고, 답을 빨리 듣고 싶어 조금 조급합니다
+  - 채용 안내는 지원자를 존중하는 약속이라고 생각합니다
   likes:
   - 성의 있고 공감하는 응대
   - 쉬운 말로 풀어주는 설명
   dislikes:
   - 절차만 따지는 태도
   - 성의 없는 응대
-  speech_habits:
-  - 아니 그게 무슨 말이에요?
-  - 빨리 좀 처리해줘요.
+  speech_habits: &id004
+  - 확정된 일정인가요?
+  - 언제까지 답을 받을 수 있을까요?
+  - 확인해 주셔서 감사합니다.
   responsibilities:
   - 이상 증상 대응 기록
   - 상태 관찰 메모
@@ -86,19 +82,14 @@ npcs:
   name: 윤건우
   role: 학부모
   rank: null
-  personality:
-  - 응대 대상
-  - 자기 요구와 상황은 잘 알지만 내부 절차는 모른다
-  - 응대 태도에 민감
+  personality: *id003
   likes:
   - 성의 있고 공감하는 응대
   - 쉬운 말로 풀어주는 설명
   dislikes:
   - 절차만 따지는 태도
   - 성의 없는 응대
-  speech_habits:
-  - 아니 그게 무슨 말이에요?
-  - 빨리 좀 처리해줘요.
+  speech_habits: *id004
   responsibilities: []
   appearance:
     location: null

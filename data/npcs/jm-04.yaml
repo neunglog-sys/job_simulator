@@ -6,19 +6,19 @@ npcs:
   name: 박해성
   role: 총지휘·최종 책임
   rank: null
-  personality:
-  - 승인·보고를 받는 책임자
-  - 꼼꼼하고 근거를 요구한다
-  - 형식을 갖춘 보고엔 협조적
+  personality: &id001
+  - 원칙주의자로 말이 짧고 명확하며, 신입에게는 엄격하지만 절차대로 움직이는 사람은 끝까지 지켜주는 사수입니다
+  - 배송 속도보다 현재 위치·안전·정확한 보고가 먼저라고 믿습니다
   likes:
   - 사실·근거·다음 조치가 갖춰진 보고
   - 우선순위 기준이 분명한 판단
   dislikes:
   - 두루뭉술한 보고
   - 확인 없는 단정
-  speech_habits:
-  - 근거가 뭐예요?
-  - 우선순위 기준은요?
+  speech_habits: &id002
+  - 결론부터요.
+  - 노선·위치·상황·요청은요?
+  - 그 지시대로 움직이세요.
   responsibilities:
   - 우선순위 배열표(7개 조치+각 근거)
   - 선장 보고 대본(감속 건의·ETA 지연 사유 포함)
@@ -35,19 +35,14 @@ npcs:
   name: 김도윤
   role: 당직 사수·신입 교육담당
   rank: null
-  personality:
-  - 승인·보고를 받는 책임자
-  - 꼼꼼하고 근거를 요구한다
-  - 형식을 갖춘 보고엔 협조적
+  personality: *id001
   likes:
   - 사실·근거·다음 조치가 갖춰진 보고
   - 우선순위 기준이 분명한 판단
   dislikes:
   - 두루뭉술한 보고
   - 확인 없는 단정
-  speech_habits:
-  - 근거가 뭐예요?
-  - 우선순위 기준은요?
+  speech_habits: *id002
   responsibilities:
   - 서명 완료된 출항 전 점검 체크리스트
   - 이상 항목 보고 메모(장비명·상태·조치요청)
@@ -63,19 +58,19 @@ npcs:
   name: 최민석
   role: 타륜 조작·복명복창 상대
   rank: null
-  personality:
-  - 협업 부서 담당자
-  - 자기 영역 정보를 갖고 있다
-  - 요청이 명확하면 협조적
+  personality: &id003
+  - 정이 많고 말이 많은 편이지만 안전 앞에서는 냉정해집니다
+  - 운송장·수량·적재 상태가 맞아야 다음 이동이 안전하다고 믿습니다
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
   dislikes:
   - 애매한 요청
   - 떠넘기는 태도
-  speech_habits:
-  - 정확히 뭐가 필요하세요?
-  - 그건 제 담당은 아닌데, 확인해볼게요.
+  speech_habits: &id004
+  - 운송장부터 맞춰 봐요.
+  - 혼자 들지 마세요.
+  - 이제 상차해도 됩니다.
   responsibilities: []
   appearance:
     location: null
@@ -84,19 +79,14 @@ npcs:
   name: 정운호
   role: 입출항 조선 지휘 보조
   rank: null
-  personality:
-  - 협업 부서 담당자
-  - 자기 영역 정보를 갖고 있다
-  - 요청이 명확하면 협조적
+  personality: *id003
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
   dislikes:
   - 애매한 요청
   - 떠넘기는 태도
-  speech_habits:
-  - 정확히 뭐가 필요하세요?
-  - 그건 제 담당은 아닌데, 확인해볼게요.
+  speech_habits: *id004
   responsibilities: []
   appearance:
     location: null
@@ -105,19 +95,14 @@ npcs:
   name: 오태식
   role: 기관부 협조·고장 대응
   rank: null
-  personality:
-  - 승인·보고를 받는 책임자
-  - 꼼꼼하고 근거를 요구한다
-  - 형식을 갖춘 보고엔 협조적
+  personality: *id001
   likes:
   - 사실·근거·다음 조치가 갖춰진 보고
   - 우선순위 기준이 분명한 판단
   dislikes:
   - 두루뭉술한 보고
   - 확인 없는 단정
-  speech_habits:
-  - 근거가 뭐예요?
-  - 우선순위 기준은요?
+  speech_habits: *id002
   responsibilities: []
   appearance:
     location: null

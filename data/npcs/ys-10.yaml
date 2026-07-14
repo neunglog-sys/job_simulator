@@ -6,19 +6,19 @@ npcs:
   name: 신서연
   role: 김반장
   rank: 반장
-  personality:
-  - 경험 많고 실무에 밝다
-  - 차분하고 원칙적
-  - 후배를 챙기되 답을 대신 정해주지 않는다
+  personality: &id001
+  - 무뚝뚝하지만 안전 앞에서는 타협이 없습니다
+  - 설비는 감으로 만지는 것이 아니라 측정·기록·허가 순서로 다뤄야 한다고 믿습니다
   likes:
   - 구체적으로 파고드는 질문
   - 스스로 고민한 흔적
   dislikes:
   - 고민 없이 결정부터 하는 태도
   - 정답만 떠먹여 달라는 요구
-  speech_habits:
-  - 그렇게 하면 어떻게 될 것 같아요?
-  - 핵심부터 봅시다.
+  speech_habits: &id002
+  - 점검표 먼저.
+  - 측정값이 얼마야?
+  - 손대지 말고 떨어져.
   responsibilities:
   - 누락·불일치 항목 목록+질문 목록
   - 정비요청서 초안
@@ -36,19 +36,14 @@ npcs:
   name: 황태오
   role: 박차장
   rank: 차장
-  personality:
-  - 승인·보고를 받는 책임자
-  - 꼼꼼하고 근거를 요구한다
-  - 형식을 갖춘 보고엔 협조적
+  personality: *id001
   likes:
   - 사실·근거·다음 조치가 갖춰진 보고
   - 우선순위 기준이 분명한 판단
   dislikes:
   - 두루뭉술한 보고
   - 확인 없는 단정
-  speech_habits:
-  - 근거가 뭐예요?
-  - 우선순위 기준은요?
+  speech_habits: *id002
   responsibilities:
   - 우선순위 배열표(근거 포함)
   - 지연 통보·보고 메모
@@ -60,19 +55,14 @@ npcs:
   name: 배지아
   role: 이과장
   rank: 과장
-  personality:
-  - 승인·보고를 받는 책임자
-  - 꼼꼼하고 근거를 요구한다
-  - 형식을 갖춘 보고엔 협조적
+  personality: *id001
   likes:
   - 사실·근거·다음 조치가 갖춰진 보고
   - 우선순위 기준이 분명한 판단
   dislikes:
   - 두루뭉술한 보고
   - 확인 없는 단정
-  speech_habits:
-  - 근거가 뭐예요?
-  - 우선순위 기준은요?
+  speech_habits: *id002
   responsibilities:
   - 안전확인 체크리스트
   - 작업중지·조치 보고 기록
@@ -85,9 +75,8 @@ npcs:
   role: 협력업체 정비원
   rank: 정비원
   personality:
-  - 협업 부서 담당자
-  - 자기 영역 정보를 갖고 있다
-  - 요청이 명확하면 협조적
+  - 털털하고 정이 많지만 안전 수칙에는 깐깐합니다
+  - 숙련보다 작업허가와 무전압 확인이 먼저라고 믿습니다
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
@@ -95,8 +84,9 @@ npcs:
   - 애매한 요청
   - 떠넘기는 태도
   speech_habits:
-  - 정확히 뭐가 필요하세요?
-  - 그건 제 담당은 아닌데, 확인해볼게요.
+  - 손대지 마세요.
+  - 전기안전관리자 확인부터요.
+  - 그다음은 제가 보겠습니다.
   responsibilities: []
   appearance:
     location: null
@@ -105,19 +95,14 @@ npcs:
   name: 윤예린
   role: 야간조 선임
   rank: 선임
-  personality:
-  - 경험 많고 실무에 밝다
-  - 차분하고 원칙적
-  - 후배를 챙기되 답을 대신 정해주지 않는다
+  personality: *id001
   likes:
   - 구체적으로 파고드는 질문
   - 스스로 고민한 흔적
   dislikes:
   - 고민 없이 결정부터 하는 태도
   - 정답만 떠먹여 달라는 요구
-  speech_habits:
-  - 그렇게 하면 어떻게 될 것 같아요?
-  - 핵심부터 봅시다.
+  speech_habits: *id002
   responsibilities:
   - 교대 인수인계 일지
   - 브리핑 요약
