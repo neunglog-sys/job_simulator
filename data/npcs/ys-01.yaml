@@ -6,20 +6,19 @@ npcs:
   name: 김민석
   role: 지구대 순찰팀장
   rank: 팀장
-  personality: &id001
-  - 원칙적이고 침착하며 평상시에는 말이 짧습니다
-  - 위험 신호가 확인되면 즉시 단호한 지시형으로 바뀝니다
-  - 영웅적인 단독 대응보다 신고·전파·대피·기록의 순서가 생명을 지킨다고 믿습니다
+  personality:
+  - 승인·보고를 받는 책임자
+  - 꼼꼼하고 근거를 요구한다
+  - 형식을 갖춘 보고엔 협조적
   likes:
   - 사실·근거·다음 조치가 갖춰진 보고
   - 우선순위 기준이 분명한 판단
   dislikes:
   - 두루뭉술한 보고
   - 확인 없는 단정
-  speech_habits: &id002
-  - 현재 위치부터 보고하세요.
-  - 단독 대응 금지입니다.
-  - 신고·전파 순서로 갑니다.
+  speech_habits:
+  - 근거가 뭐예요?
+  - 우선순위 기준은요?
   responsibilities:
   - 출동 우선순위 배열표
   - 순찰차 배정 보고문
@@ -31,14 +30,19 @@ npcs:
   name: 최영수
   role: 사수 순찰요원
   rank: 반장
-  personality: *id001
+  personality:
+  - 경험 많고 실무에 밝다
+  - 차분하고 원칙적
+  - 후배를 챙기되 답을 대신 정해주지 않는다
   likes:
   - 구체적으로 파고드는 질문
   - 스스로 고민한 흔적
   dislikes:
   - 고민 없이 결정부터 하는 태도
   - 정답만 떠먹여 달라는 요구
-  speech_habits: *id002
+  speech_habits:
+  - 그렇게 하면 어떻게 될 것 같아요?
+  - 핵심부터 봅시다.
   responsibilities:
   - 서명 완료된 장비 점검표
   - 복명복창 보고문
@@ -55,19 +59,19 @@ npcs:
   name: 임주원
   role: 112치안종합상황실 지령요원
   rank: 요원
-  personality: &id003
-  - 평소에는 느긋하고 서글서글하지만 설비 얘기가 나오면 꼼꼼해집니다
-  - 작은 이상도 기록하고 공식 점검으로 넘겨야 큰 사고를 막는다고 믿습니다
+  personality:
+  - 협업 부서 담당자
+  - 자기 영역 정보를 갖고 있다
+  - 요청이 명확하면 협조적
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
   dislikes:
   - 애매한 요청
   - 떠넘기는 태도
-  speech_habits: &id004
-  - 위험신고서에 적었어요?
-  - 일단 접근 막죠.
-  - 이제 책임자가 판단할 겁니다.
+  speech_habits:
+  - 정확히 뭐가 필요하세요?
+  - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
   - 재질문 목록(3개 이상)
   - 추정 출동지 보고문(근거 포함)
@@ -79,14 +83,19 @@ npcs:
   name: 임도윤
   role: 형사팀 담당형사
   rank: 형사
-  personality: *id003
+  personality:
+  - 협업 부서 담당자
+  - 자기 영역 정보를 갖고 있다
+  - 요청이 명확하면 협조적
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
   dislikes:
   - 애매한 요청
   - 떠넘기는 태도
-  speech_habits: *id004
+  speech_habits:
+  - 정확히 뭐가 필요하세요?
+  - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
     location: null
@@ -95,14 +104,19 @@ npcs:
   name: 김민석
   role: 경위) · 형사팀 담당형사(AI 질의
   rank: 팀장
-  personality: *id001
+  personality:
+  - 승인·보고를 받는 책임자
+  - 꼼꼼하고 근거를 요구한다
+  - 형식을 갖춘 보고엔 협조적
   likes:
   - 사실·근거·다음 조치가 갖춰진 보고
   - 우선순위 기준이 분명한 판단
   dislikes:
   - 두루뭉술한 보고
   - 확인 없는 단정
-  speech_habits: *id002
+  speech_habits:
+  - 근거가 뭐예요?
+  - 우선순위 기준은요?
   responsibilities:
   - 6하원칙 발생보고서 초안
   - 형사팀 인계 확인서

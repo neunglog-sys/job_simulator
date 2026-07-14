@@ -6,19 +6,19 @@ npcs:
   name: 서서연
   role: 현장소장
   rank: 소장
-  personality: &id001
-  - 현장에서 잔뼈가 굵어 무뚝뚝하지만 정이 많고, 절차를 어기는 일에는 단호합니다
-  - 생산량보다 작업 순서와 안전한 보고가 먼저라고 믿습니다
+  personality:
+  - 승인·보고를 받는 책임자
+  - 꼼꼼하고 근거를 요구한다
+  - 형식을 갖춘 보고엔 협조적
   likes:
   - 사실·근거·다음 조치가 갖춰진 보고
   - 우선순위 기준이 분명한 판단
   dislikes:
   - 두루뭉술한 보고
   - 확인 없는 단정
-  speech_habits: &id002
-  - 작업지시서 봤어?
-  - 임의로 하지 마.
-  - 체크하고 다음 공정.
+  speech_habits:
+  - 근거가 뭐예요?
+  - 우선순위 기준은요?
   responsibilities:
   - 공종조정표
   - 간섭도
@@ -30,14 +30,19 @@ npcs:
   name: 백정우
   role: 반장
   rank: 반장
-  personality: *id001
+  personality:
+  - 경험 많고 실무에 밝다
+  - 차분하고 원칙적
+  - 후배를 챙기되 답을 대신 정해주지 않는다
   likes:
   - 구체적으로 파고드는 질문
   - 스스로 고민한 흔적
   dislikes:
   - 고민 없이 결정부터 하는 태도
   - 정답만 떠먹여 달라는 요구
-  speech_habits: *id002
+  speech_habits:
+  - 그렇게 하면 어떻게 될 것 같아요?
+  - 핵심부터 봅시다.
   responsibilities: []
   appearance:
     location: null
@@ -46,19 +51,19 @@ npcs:
   name: 홍하준
   role: 안전담당
   rank: null
-  personality: &id003
-  - 차분하고 논리적이며 설비 상태를 소리·진동·수치로 설명하는 습관이 있습니다
-  - 이상 징후는 추측하거나 만져 보는 것이 아니라 멈추고 측정해 보고해야 한다고 믿습니다
+  personality:
+  - 협업 부서 담당자
+  - 자기 영역 정보를 갖고 있다
+  - 요청이 명확하면 협조적
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
   dislikes:
   - 애매한 요청
   - 떠넘기는 태도
-  speech_habits: &id004
-  - 일단 멈춰요.
-  - 수치가 얼마죠?
-  - 이제 제가 확인할게요.
+  speech_habits:
+  - 정확히 뭐가 필요하세요?
+  - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
   - 위험발견 보고서
   - 작업재개 승인요청
@@ -72,14 +77,19 @@ npcs:
   name: 홍지안
   role: 타 공종 담당
   rank: null
-  personality: *id003
+  personality:
+  - 협업 부서 담당자
+  - 자기 영역 정보를 갖고 있다
+  - 요청이 명확하면 협조적
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
   dislikes:
   - 애매한 요청
   - 떠넘기는 태도
-  speech_habits: *id004
+  speech_habits:
+  - 정확히 뭐가 필요하세요?
+  - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
     location: null
@@ -88,14 +98,19 @@ npcs:
   name: 안지아
   role: 현장반장
   rank: 반장
-  personality: *id001
+  personality:
+  - 경험 많고 실무에 밝다
+  - 차분하고 원칙적
+  - 후배를 챙기되 답을 대신 정해주지 않는다
   likes:
   - 구체적으로 파고드는 질문
   - 스스로 고민한 흔적
   dislikes:
   - 고민 없이 결정부터 하는 태도
   - 정답만 떠먹여 달라는 요구
-  speech_habits: *id002
+  speech_habits:
+  - 그렇게 하면 어떻게 될 것 같아요?
+  - 핵심부터 봅시다.
   responsibilities:
   - 시공준비 체크표
   appearance:
@@ -106,14 +121,19 @@ npcs:
   name: 오현서
   role: 공사담당
   rank: null
-  personality: *id003
+  personality:
+  - 협업 부서 담당자
+  - 자기 영역 정보를 갖고 있다
+  - 요청이 명확하면 협조적
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
   dislikes:
   - 애매한 요청
   - 떠넘기는 태도
-  speech_habits: *id004
+  speech_habits:
+  - 정확히 뭐가 필요하세요?
+  - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
   - 작업보류표
   - 변경도면 요청
@@ -125,14 +145,19 @@ npcs:
   name: 손지안
   role: 감리·운영 담당
   rank: null
-  personality: *id003
+  personality:
+  - 협업 부서 담당자
+  - 자기 영역 정보를 갖고 있다
+  - 요청이 명확하면 협조적
   likes:
   - 명확한 요청
   - 필요한 것이 특정된 협조 요청
   dislikes:
   - 애매한 요청
   - 떠넘기는 태도
-  speech_habits: *id004
+  speech_habits:
+  - 정확히 뭐가 필요하세요?
+  - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities:
   - 준공검사표
   - 변경·운영 인계서
