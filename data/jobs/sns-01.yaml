@@ -1,16 +1,4 @@
 code: sns-01
 title: 콘텐츠·SNS 운영 보조
 description: 브랜드 공식 SNS 채널의 콘텐츠 업로드, 댓글 및 DM 모니터링, 이벤트 당첨자 취합 및 경품 발송 등 전반적인 채널 운영 보조 업무를 수행합니다.
-competencies:
-  situation_judgment: 4
-  problem_solving: 3
-  communication: 5
-  collaboration: 4
-  task_management: 4
-interest_profile:
-  realistic: 2
-  investigative: 3
-  artistic: 4
-  social: 4
-  enterprising: 3
-  conventional: 5
+competencies: {}

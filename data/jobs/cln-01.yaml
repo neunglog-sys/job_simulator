@@ -1,16 +1,4 @@
 code: cln-01
 title: 호텔 객실관리 보조
 description: 호텔 객실의 청결 상태를 유지하고 고객에게 최상의 투숙 환경을 제공하기 위해 객실 정비, 비품 관리, 린넨 수거 및 세팅 업무를 수행합니다.
-competencies:
-  situation_judgment: 4
-  problem_solving: 3
-  communication: 3
-  collaboration: 4
-  task_management: 5
-interest_profile:
-  realistic: 5
-  investigative: 1
-  artistic: 2
-  social: 3
-  enterprising: 2
-  conventional: 5
+competencies: {}
