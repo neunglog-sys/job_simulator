@@ -90,7 +90,7 @@ services/api/app/
 | POST | `/api/auth/signup`, `/login` | JWT 발급 |
 | POST | `/api/consultations` | 상담 세션 시작 |
 | POST | `/api/consultations/{id}/messages` | 사용자 발화 → 아바타 응답(SSE) |
-| POST | `/api/recommendations` | 상담 이력 분석 → 추천 직무 3개 + 근거 |
+| POST | `/api/recommendations` | 상담 이력 분석 → 추천 직무 5개 + 근거 |
 | POST | `/api/simulations` | 직무 선택 → 시나리오 세션 생성 |
 | WS | `/ws/simulations/{id}` | NPC 자유 대화 + 미션 이벤트 + 상태값 변화 push |
 | POST | `/api/simulations/{id}/actions` | 선택지/과제 제출 (비대화 행동) |
@@ -128,7 +128,7 @@ doc_chunks            (id, source, content, embedding vector)   -- RAG (pgvector
 상담 종료 → recommendation:
   LLM으로 성향·관심사·강점 구조화 추출(JSON)
   → Rule-based Scoring: data/evaluation 가중치 × jobs 역량 매트릭스
-  → 상위 3개 직무 + 추천 근거 반환
+  → 상위 5개 직무 + 추천 근거 반환
 ```
 
 ### ② 시뮬레이션 (게이미피케이션 코어)

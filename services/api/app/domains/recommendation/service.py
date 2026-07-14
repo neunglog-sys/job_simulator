@@ -4,7 +4,7 @@
 2. 직무별 역량 매트릭스(data/jobs)와 가중 평균으로 적합도 계산 (룰 기반 — 결정적)
 3. 사전 설문(RIASEC 흥미유형, Consultation.survey.profile)이 있으면 직무별 흥미유형
    가중치(Job.interest_profile)와 매칭해 역량 점수에 보조 신호로 blend (7:3)
-4. 상위 3개 직무 + 근거를 recommendations 테이블에 저장
+4. 상위 5개 직무 + 근거를 recommendations 테이블에 저장
 """
 
 import logging
@@ -24,7 +24,7 @@ from app.models import Consultation, Job, Recommendation, Scenario, User
 
 logger = logging.getLogger(__name__)
 
-TOP_N = 3
+TOP_N = 5
 NEUTRAL_SCORE = 50  # 근거 부족 시 중립값
 APTITUDE_CLARITY_MIN = 50  # 미달 시 추천 대신 추가 상담 유도 (중간 게이트)
 INTEREST_WEIGHT = 0.3  # 흥미유형 매칭 반영 비중 (역량 점수가 주 신호, 설문은 보조 신호)
