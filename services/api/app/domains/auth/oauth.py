@@ -73,7 +73,9 @@ PROVIDERS: dict[str, ProviderConfig] = {
         authorize_url="https://kauth.kakao.com/oauth/authorize",
         token_url="https://kauth.kakao.com/oauth/token",
         userinfo_url="https://kapi.kakao.com/v2/user/me",
-        scope="profile_nickname account_email",  # account_email은 비즈앱 심사 필요할 수 있음
+        # 이메일(account_email)은 카카오 비즈앱 전환이 있어야 동의항목에 넣을 수 있어 기본은 닉네임만.
+        # 비즈앱 전환하면 "profile_nickname account_email"로 되돌리면 이메일도 수집(코드 그대로 동작).
+        scope="profile_nickname",
         parse=_kakao_profile,
     ),
     "naver": ProviderConfig(
@@ -140,7 +142,7 @@ def authorize_url(provider: str, state: str) -> str:
     return str(httpx.URL(config.authorize_url, params=params))
 
 
-async def _exchange_code(provider: str, code: str) -> str:
+async def _exchange_code(provider: str, code: str, state: str) -> str:
     """authorization code → access token."""
     config = get_config(provider)
     client_id, client_secret = _creds(provider)
@@ -152,6 +154,8 @@ async def _exchange_code(provider: str, code: str) -> str:
     }
     if client_secret:
         data["client_secret"] = client_secret
+    if provider == "naver":
+        data["state"] = state  # 네이버 토큰 교환은 state 필수
     async with httpx.AsyncClient(timeout=10) as client:
         res = await client.post(config.token_url, data=data, headers={"Accept": "application/json"})
     res.raise_for_status()
@@ -216,11 +220,11 @@ async def _find_or_create_user(
     return user
 
 
-async def complete_login(session: AsyncSession, provider: str, code: str) -> User:
+async def complete_login(session: AsyncSession, provider: str, code: str, state: str) -> User:
     """콜백 처리: code → 토큰 → 프로필 → 사용자 찾거나 생성."""
     get_config(provider)  # 미지원 provider 방어
     try:
-        access_token = await _exchange_code(provider, code)
+        access_token = await _exchange_code(provider, code, state)
         profile = await _fetch_profile(provider, access_token)
     except HTTPException:
         raise
