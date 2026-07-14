@@ -64,8 +64,21 @@ def test_load_analysis_none_and_corrupt():
     assert resume.load_analysis(_Bad()) is None
 
 
+def test_extract_text_accepts_empty_password_encrypted_pdf():
+    # 소유자 암호만 걸고 사용자 암호는 빈 PDF(흔함) → 빈 암호 복호화로 읽혀야 한다(반려 금지).
+    from reportlab.lib import pdfencrypt
+
+    enc = pdfencrypt.StandardEncryption("", ownerPassword="owner")
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, encrypt=enc)
+    c.drawString(72, 800, "Encrypted Resume FastAPI")
+    c.save()
+    text = resume.extract_text(buf.getvalue())
+    assert "FastAPI" in text
+
+
 @pytest.mark.asyncio(loop_scope="session")
-async def test_analyze_returns_structured(monkeypatch):
+async def test_analyze_returns_structured():
     result = await resume.analyze("백엔드 개발자, Python 경험")
     for key in ("summary", "skills", "experiences", "strengths", "desired_directions", "opening_question"):
         assert key in result
@@ -80,6 +93,19 @@ async def test_upload_endpoint_rejects_non_pdf(client):
         files={"file": ("resume.txt", b"plain text", "text/plain")},
     )
     assert res.status_code == 400
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_upload_endpoint_rejects_oversized(client, monkeypatch):
+    # 상한을 낮춰 대용량 방어 경로(413)를 검증 — 실제 8MB 할당 없이.
+    monkeypatch.setattr(resume, "MAX_PDF_BYTES", 10)
+    created = await client.post("/api/consultations")
+    cid = created.json()["id"]
+    res = await client.post(
+        f"/api/consultations/{cid}/resume",
+        files={"file": ("resume.pdf", b"%PDF-1.4 padding beyond limit", "application/pdf")},
+    )
+    assert res.status_code == 413
 
 
 @pytest.mark.asyncio(loop_scope="session")
