@@ -4,6 +4,7 @@ from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
+    Boolean,
     DateTime,
     ForeignKey,
     Integer,
@@ -124,6 +125,10 @@ class Npc(Base):
     likes: Mapped[list] = mapped_column(JSONB, default=list)
     dislikes: Mapped[list] = mapped_column(JSONB, default=list)
     speech_habits: Mapped[list] = mapped_column(JSONB, default=list)
+    # ── 동기화 추적 (YAML=원본, DB=복사본) ──
+    source_hash: Mapped[str | None] = mapped_column(String(64))  # YAML 내용 해시 — 안 바뀌면 skip
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)  # YAML에서 빠지면 삭제 대신 비활성
+    synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     placements: Mapped[list["NpcPlacement"]] = relationship(back_populates="npc")
 

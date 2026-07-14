@@ -2,19 +2,20 @@
 
 import logging
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.content.loader import load_jobs, load_scenarios
-from app.models import Job, Npc, NpcPlacement, Scenario
+from app.content.npc_sync import sync_npcs
+from app.models import Job, Scenario
 
 logger = logging.getLogger(__name__)
 
 
 async def seed_content(session: AsyncSession) -> None:
     jobs = load_jobs()
-    scenarios = load_scenarios()
+    scenarios, npcs_by_slug = load_scenarios()
 
     for job in jobs:
         stmt = insert(Job).values(
@@ -73,42 +74,10 @@ async def seed_content(session: AsyncSession) -> None:
         )
         await session.execute(stmt)
 
-        scenario_id = (
-            await session.execute(select(Scenario.id).where(Scenario.slug == sc["slug"]))
-        ).scalar_one()
-
-        # NPC 배치는 통째로 교체 — YAML에서 빠진(rename/삭제) 배치가 잔존하지 않게.
-        await session.execute(
-            delete(NpcPlacement).where(NpcPlacement.scenario_id == scenario_id)
-        )
-        for npc in sc["npcs"]:
-            # 고유정보(npcs) upsert — 같은 npc_id를 여러 시나리오가 공유할 수 있음
-            stmt = insert(Npc).values(
-                npc_id=npc["npc_id"], name=npc["name"],
-                personality=npc.get("personality") or [],
-                likes=npc.get("likes") or [],
-                dislikes=npc.get("dislikes") or [],
-                speech_habits=npc.get("speech_habits") or [],
-            ).on_conflict_do_update(
-                index_elements=[Npc.npc_id],
-                set_={"name": npc["name"], "personality": npc.get("personality") or [],
-                      "likes": npc.get("likes") or [], "dislikes": npc.get("dislikes") or [],
-                      "speech_habits": npc.get("speech_habits") or []},
-            )
-            await session.execute(stmt)
-            # 배치정보(npc_placements)
-            session.add(NpcPlacement(
-                scenario_id=scenario_id, npc_id=npc["npc_id"], role=npc["role"],
-                rank=npc.get("rank"), responsibilities=npc.get("responsibilities") or [],
-                appearance=npc.get("appearance") or {},
-            ))
-
-    await session.flush()
-    # 어떤 배치에서도 참조되지 않는 고아 NPC 정리 (rename/삭제 누적 방지)
-    referenced = set((await session.execute(select(NpcPlacement.npc_id))).scalars())
-    orphans = [n for n in (await session.execute(select(Npc.npc_id))).scalars() if n not in referenced]
-    if orphans:
-        await session.execute(delete(Npc).where(Npc.npc_id.in_(orphans)))
-
-    await session.commit()
-    logger.info("콘텐츠 시드 완료: 직무 %d개, 시나리오 %d개", len(jobs), len(scenarios))
+    await session.commit()  # NPC 동기화는 시나리오(FK 대상)가 먼저 커밋돼야 함
+    # NPC: 별도 원본(data/npcs) → source_hash 변경감지 + soft-delete로 동기화
+    report = await sync_npcs(session, npcs_by_slug, apply=True)
+    logger.info(
+        "콘텐츠 시드 완료: 직무 %d개, 시나리오 %d개, NPC 신규 %d·수정 %d·비활성 %d",
+        len(jobs), len(scenarios), report["new"], report["changed"], report["deactivated"],
+    )
