@@ -23,7 +23,18 @@
 
 - 이후 모든 요청에 `Authorization: Bearer <token>` 헤더.
 - **개발 편의**: 헤더를 아예 안 보내면 "데모 사용자"로 자동 처리됩니다 — 인증 UI 만들기 전에도 모든 API 테스트 가능.
-- OAuth(소셜 로그인)는 프로바이더 확정 후 추가 예정.
+
+### 소셜 로그인 (OAuth — 구글·카카오·네이버)
+
+```
+[구글로 로그인] 버튼 → window.location = `${API_BASE}/api/auth/oauth/google`
+   (provider: google | kakao | naver)
+→ 동의 후 백엔드가 처리하고 프론트로 리다이렉트:  {FRONTEND_URL}/#access_token=<JWT>
+→ 프론트는 로드 시 location.hash에서 access_token을 파싱해 저장(그 뒤론 일반 로그인과 동일)
+```
+- 버튼은 그냥 위 URL로 이동만 하면 됩니다(팝업/SDK 불필요, 시크릿은 백엔드에만).
+- 아직 **시크릿 미설정**이면 해당 provider는 `503`을 반환합니다 → 앱 등록·키 세팅 후 활성화.
+- 미지원 provider는 `404`. 콜백 실패/취소는 `400`.
 
 ## 2. 메인 화면 — 내 것들 목록
 

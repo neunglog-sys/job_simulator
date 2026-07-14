@@ -45,5 +45,18 @@ class Settings(BaseSettings):
     aes_key: str = ""
     jwt_expires_minutes: int = 60 * 24
 
+    # OAuth 소셜 로그인 — provider별 client_id/secret은 .env로만(DM 공유, 커밋 금지).
+    # 비어 있으면 해당 provider 로그인은 503(미설정)로 응답 → 시크릿 넣는 순간 활성화.
+    oauth_google_client_id: str = ""
+    oauth_google_client_secret: str = ""
+    oauth_kakao_client_id: str = ""
+    oauth_kakao_client_secret: str = ""  # 카카오는 REST API 키가 client_id, secret은 선택
+    oauth_naver_client_id: str = ""
+    oauth_naver_client_secret: str = ""
+    # 콜백을 받는 백엔드 공개 주소 (배포 시 https 도메인). redirect_uri = {base}/api/auth/oauth/{provider}/callback
+    oauth_redirect_base: str = "http://localhost:8000"
+    # 로그인 성공 후 토큰을 실어 돌려보낼 프론트 주소 ({frontend}/#access_token=...)
+    frontend_url: str = "http://localhost:5173"
+
 
 settings = Settings()
