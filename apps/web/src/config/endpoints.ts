@@ -5,6 +5,9 @@ export const API_BASE_URL = configuredApiBaseUrl.replace(/\/+$/, "");
 
 const apiUrl = (path: string) => `${API_BASE_URL}${path}`;
 
+// WebSocket은 헤더를 못 실어서 토큰을 쿼리로 붙인다 (백엔드 규약).
+export const WS_BASE_URL = API_BASE_URL.replace(/^http/, "ws");
+
 export const FRONTEND_ENDPOINTS = {
   home: "/",
 } as const;
@@ -20,11 +23,34 @@ export const API_ENDPOINTS = {
   consultations: {
     list: apiUrl("/api/consultations"),
     create: apiUrl("/api/consultations"),
+    survey: (id: number) => apiUrl(`/api/consultations/${id}/survey`),
+    messages: (id: number) => apiUrl(`/api/consultations/${id}/messages`),
   },
   recommendations: {
     create: apiUrl("/api/recommendations"),
   },
+  scenarios: {
+    list: apiUrl("/api/scenarios"),
+  },
+  simulations: {
+    list: apiUrl("/api/simulations"),
+    create: apiUrl("/api/simulations"),
+    detail: (id: number) => apiUrl(`/api/simulations/${id}`),
+    score: (id: number) => apiUrl(`/api/simulations/${id}/score`),
+    finish: (id: number) => apiUrl(`/api/simulations/${id}/finish`),
+  },
+  reports: {
+    list: apiUrl("/api/reports"),
+    create: apiUrl("/api/reports"),
+    detail: (id: number) => apiUrl(`/api/reports/${id}`),
+    pdf: (id: number) => apiUrl(`/api/reports/${id}/pdf`),
+  },
+  tts: apiUrl("/api/tts"),
 } as const;
+
+// 게임 WebSocket URL — 로그인 토큰이 있으면 쿼리로 실어 보낸다 (없으면 데모 사용자).
+export const wsSimulation = (id: number, token?: string | null) =>
+  `${WS_BASE_URL}/ws/simulations/${id}${token ? `?token=${encodeURIComponent(token)}` : ""}`;
 
 export const CLIENT_EVENTS = {
   startCareerExploration: "jobiverse:start",

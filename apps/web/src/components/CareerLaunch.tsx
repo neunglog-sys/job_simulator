@@ -31,6 +31,9 @@ import {
 } from "react";
 import { CLIENT_EVENTS, FRONTEND_ENDPOINTS } from "../config/endpoints";
 import { AVATAR_IMAGE, LANDING_COPY } from "../content";
+import { ApiError, createConsultation } from "../lib/api";
+import { logout, useAuth } from "../lib/auth";
+import { AuthModal, type AuthMode } from "./AuthModal";
 
 type ScenePhase =
   | "boot"
@@ -335,6 +338,8 @@ export function CareerLaunch() {
   const [phase, setPhase] = useState<ScenePhase>("boot");
   const [storyKey, setStoryKey] = useState(0);
   const [toast, setToast] = useState("");
+  const [authMode, setAuthMode] = useState<AuthMode | null>(null); // null = 모달 닫힘
+  const auth = useAuth();
 
   const pointerX = useMotionValue(0);
   const pointerY = useMotionValue(0);
@@ -391,10 +396,21 @@ export function CareerLaunch() {
     schedulePhase("settled", reduceMotion ? 100 : 5_500);
   }, [clearTimers, phase, reduceMotion, schedulePhase]);
 
-  const startCareerExploration = useCallback(() => {
+  const startCareerExploration = useCallback(async () => {
+    // 로그인 안 됐으면 먼저 로그인 유도 (상담은 사용자 소유 리소스).
+    if (auth.status !== "authed") {
+      setAuthMode("signIn");
+      showToast("로그인하면 직무 탐색을 시작할 수 있어요.");
+      return;
+    }
     window.dispatchEvent(new CustomEvent(CLIENT_EVENTS.startCareerExploration));
-    showToast("AI 아바타 설문을 시작할 준비가 됐어요.");
-  }, [showToast]);
+    try {
+      const consultation = await createConsultation();
+      showToast(`AI 상담 세션을 시작했어요 (#${consultation.id}). 설문 화면으로 이어집니다.`);
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : "상담 시작에 실패했어요.");
+    }
+  }, [auth.status, showToast]);
 
   const handleNavPrimaryAction = useCallback(() => {
     if (!phaseAtLeast(phase, "orbit")) {
@@ -528,21 +544,40 @@ export function CareerLaunch() {
         </a>
         <div className="nav-actions">
           <div className="account-actions" aria-label="회원 메뉴">
-            <button
-              className="nav-account-button sign-up-button"
-              type="button"
-              onClick={() => showToast("회원가입 화면은 인증 기능과 연결할 수 있어요.")}
-            >
-              {LANDING_COPY.actions.signUp}
-            </button>
-            <span className="nav-divider" aria-hidden="true" />
-            <button
-              className="nav-account-button sign-in-button"
-              type="button"
-              onClick={() => showToast("로그인 화면은 인증 기능과 연결할 수 있어요.")}
-            >
-              {LANDING_COPY.actions.signIn}
-            </button>
+            {auth.status === "authed" ? (
+              <>
+                <span className="nav-account-greeting">{auth.me.name}님</span>
+                <span className="nav-divider" aria-hidden="true" />
+                <button
+                  className="nav-account-button"
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    showToast("로그아웃했어요.");
+                  }}
+                >
+                  로그아웃
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  className="nav-account-button sign-up-button"
+                  type="button"
+                  onClick={() => setAuthMode("signUp")}
+                >
+                  {LANDING_COPY.actions.signUp}
+                </button>
+                <span className="nav-divider" aria-hidden="true" />
+                <button
+                  className="nav-account-button sign-in-button"
+                  type="button"
+                  onClick={() => setAuthMode("signIn")}
+                >
+                  {LANDING_COPY.actions.signIn}
+                </button>
+              </>
+            )}
           </div>
           <button
             className="button button-primary nav-primary"
@@ -727,6 +762,18 @@ export function CareerLaunch() {
       <div className={`toast ${toast ? "toast-visible" : ""}`} role="status" aria-live="polite">
         {toast}
       </div>
+
+      {authMode && (
+        <AuthModal
+          mode={authMode}
+          onClose={() => setAuthMode(null)}
+          onModeChange={setAuthMode}
+          onSuccess={() => {
+            setAuthMode(null);
+            showToast("환영해요! 직무 여정을 시작할 준비가 됐어요.");
+          }}
+        />
+      )}
     </main>
   );
 }
