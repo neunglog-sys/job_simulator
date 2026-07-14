@@ -100,7 +100,7 @@ async def generate_tip(*, mission: str, criteria: list, user_text: str, npc_repl
             user_text=user_text, npc_reply=npc_reply,
         )
         reply = await get_llm().chat(
-            [ChatMessage(role="user", content="위 상황에 맞는 코치 TIP 1~2문장만 출력하세요.")],
+            [ChatMessage(role="user", content="위 상황에 맞는 코치 TIP을 330자 이내로 출력하세요.")],
             system=system,
             temperature=0.4,
         )
