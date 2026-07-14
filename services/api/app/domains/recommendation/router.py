@@ -20,7 +20,7 @@ async def create_recommendation(
     session: AsyncSession = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
-    """상담 대화를 분석해 적합 직무 상위 3개를 추천. 상담 세션은 completed 처리됨."""
+    """상담 대화를 분석해 적합 직무 상위 5개를 추천. 상담 세션은 completed 처리됨."""
     return await service.create_recommendation(session, user, body.consultation_id)
 
 

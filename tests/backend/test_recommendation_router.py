@@ -55,7 +55,7 @@ async def test_create_get_and_feedback_flow(client, db_session, mock_llm):
     )
     assert create_resp.status_code == 201
     body = create_resp.json()
-    assert 1 <= len(body["results"]) <= 3
+    assert 1 <= len(body["results"]) <= 5
     assert body["feedback"] is None
     rec_id = body["id"]
 
