@@ -52,6 +52,47 @@ def register_for(slug: str) -> str:
     return "반말" if slug in _BANMAL_SLUGS else "존대"
 
 
+# NPC 역할 분류 — 화법·톡식 적용 범위 결정용. 고객 우선, 그다음 동료, 나머지는 사수(상사).
+_CUST_KW = ("고객", "손님", "환자", "민원", "방문", "투숙", "회원", "수강생", "승객", "보호자",
+            "거래처", "협력", "클라이언트", "의뢰인", "이용자", "이용객", "관람", "구매자",
+            "바이어", "점주", "입주", "내담")
+_PEER_KW = ("동료", "동기", "선배", "후배", "팀원", "파트너")
+
+
+def npc_kind(role: str, rank: str) -> str:
+    """NPC 역할 → '고객' | '동료' | '사수'(기본)."""
+    blob = f"{role or ''} {rank or ''}"
+    if any(k in blob for k in _CUST_KW):
+        return "고객"
+    if any(k in blob for k in _PEER_KW):
+        return "동료"
+    return "사수"
+
+
+def register_for_npc(slug: str, kind: str) -> str:
+    """고객은 시나리오 화법과 무관하게 존대(정중 응대) 기본. 사수·동료는 시나리오 화법."""
+    return "존대" if kind == "고객" else register_for(slug)
+
+
+_HANGUL = re.compile(r"[가-힣]")
+_SENTS = re.compile(r"[^.!?…]*[.!?…]+|\S[^.!?…]*$")
+
+
+def _clean_npc(text: str) -> str:
+    """NPC 응답 이물 정리 — `_`·홑따옴표·가장자리 마크업 제거 + 비한글(영어·수식) 문장 제거.
+
+    비한글 문장의 문자 구간만 도려내고 한글 문장은 원문 그대로 이어붙여, 문장부호·따옴표
+    간격 왜곡 없이 앞/중간/꼬리 어디의 영어든 제거한다. 전부 비한글이면 원문을 유지한다.
+    """
+    text = " ".join(text.split())
+    text = text.replace("_", "").replace("'", "")
+    text = text.strip(' "`*<>').strip()
+    kept = "".join(m.group() for m in _SENTS.finditer(text) if _HANGUL.search(m.group()))
+    kept = " ".join(kept.split()).strip()
+    kept = re.sub(r"^(?:[A-Za-z]+[ ,]*)+", "", kept).strip()  # 한글 앞 영어 인사말(Excuse me 등) 제거
+    return kept or text
+
+
 async def create_simulation(
     session: AsyncSession, user: User, scenario_slug: str
 ) -> tuple[Simulation, Scenario]:
@@ -265,10 +306,12 @@ async def stream_npc_chat(
         "\n\n".join(f"[{c.source}]\n{c.content}" for c in chunks) if chunks else None
     )
     # 프롬프트는 코드 템플릿이 구조화 필드를 조립 (system_prompt 통짜 저장 안 함)
+    kind = npc_kind(persona["role"], persona["rank"])  # 사수/동료/고객 → 화법·톡식 범위
     system = render_prompt(
         "npc/system.md",
         scenario_title=scenario.title,
-        register=register_for(scenario.slug),
+        register=register_for_npc(scenario.slug, kind),
+        npc_kind=kind,
         mission=step["mission"],
         name=persona["name"], role=persona["role"], rank=persona["rank"],
         personality=persona["personality"], likes=persona["likes"],
@@ -284,7 +327,7 @@ async def stream_npc_chat(
     async for chunk in get_llm().chat_stream(context, system=system, temperature=0.3):
         full.append(chunk)
         yield ("token", chunk)
-    npc_reply = "".join(full)
+    npc_reply = _clean_npc("".join(full))
 
     # 사용자가 이미 스트림으로 본 답변이므로 먼저 확정 저장한다 — 이후 평가가 실패해도
     # 대화록(채점·NPC 기억의 근거)이 사용자가 본 것과 어긋나지 않게.
