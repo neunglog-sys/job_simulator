@@ -1,0 +1,666 @@
+.screen {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  color: #ffffff;
+  background: #5b55c9;
+  font-family: Pretendard, "Noto Sans KR", system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+}
+
+.cosmicBackground {
+  position: absolute;
+  inset: -8%;
+  background:
+    radial-gradient(ellipse at 11% 48%, rgb(255 166 218 / 0.92) 0 5%, rgb(210 100 195 / 0.62) 21%, transparent 45%),
+    radial-gradient(ellipse at 50% 13%, rgb(220 174 255 / 0.82) 0, transparent 43%),
+    radial-gradient(ellipse at 88% 70%, rgb(69 148 239 / 0.8) 0, transparent 43%),
+    linear-gradient(132deg, #783daf 0%, #bc67c6 35%, #6676d4 69%, #29499f 100%);
+  filter: saturate(1.04);
+  transform: scale(1.04);
+}
+
+.cosmicBackground::before,
+.cosmicBackground::after {
+  position: absolute;
+  border-radius: 50%;
+  content: "";
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.cosmicBackground::before {
+  top: -24%;
+  left: 24%;
+  width: 54%;
+  height: 84%;
+  opacity: 0.35;
+  background: radial-gradient(circle, rgb(255 219 251 / 0.74), transparent 67%);
+  filter: blur(68px);
+}
+
+.cosmicBackground::after {
+  right: -9%;
+  bottom: -33%;
+  width: 58%;
+  height: 76%;
+  opacity: 0.3;
+  background: radial-gradient(circle, rgb(92 208 255 / 0.7), transparent 68%);
+  filter: blur(76px);
+}
+
+.starField {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.starField i {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 6px rgb(255 255 255 / 0.84);
+  opacity: 0.52;
+  animation: starTwinkle 3.2s ease-in-out infinite alternate;
+}
+
+.stage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1920px;
+  height: 900px;
+  overflow: visible;
+  transform: translate(-50%, -50%) scale(var(--conversation-scale));
+  transform-origin: center;
+}
+
+.header {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 60px;
+  padding: 0 70px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.headerLeft,
+.headerRight,
+.headerButtonPair {
+  display: flex;
+  align-items: center;
+}
+
+.headerButtonPair {
+  gap: 18px;
+}
+
+.headerLeft .brand {
+  margin-left: 20px;
+}
+
+.headerRight {
+  gap: 14px;
+}
+
+.headerRight .logoutButton {
+  margin-right: 4px;
+}
+
+.glassIconButton,
+.logoutButton,
+.avatarStatusBadge,
+.conversationPanel,
+.messageInputWrapper,
+.voiceButton {
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  backdrop-filter: blur(18px) saturate(180%);
+}
+
+.glassIconButton,
+.logoutButton,
+.brand,
+.sendButton,
+.voiceButton {
+  color: #ffffff;
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.glassIconButton,
+.logoutButton {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid rgb(255 255 255 / 0.36);
+  background: linear-gradient(
+    145deg,
+    rgb(255 255 255 / 0.23) 0%,
+    rgb(255 255 255 / 0.08) 55%,
+    rgb(255 255 255 / 0.12) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.48),
+    inset 0 -1px 0 rgb(255 255 255 / 0.08),
+    0 7px 20px rgb(42 29 111 / 0.16);
+}
+
+.glassIconButton {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 11px;
+}
+
+.glassIconButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+.logoutButton {
+  width: 96px;
+  height: 34px;
+  padding: 0 18px;
+  border-radius: 17px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.brand {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.brandMark {
+  position: relative;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.44);
+  border-radius: 11px;
+  background: linear-gradient(145deg, rgb(116 89 217 / 0.76), rgb(227 118 183 / 0.72));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 8px 20px rgb(70 44 149 / 0.2);
+  -webkit-backdrop-filter: blur(16px) saturate(175%);
+  backdrop-filter: blur(16px) saturate(175%);
+}
+
+.brandMark::before,
+.brandMark::after,
+.brandMark span::before,
+.brandMark span::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 18px;
+  border-radius: 99px;
+  background: #ffffff;
+  content: "";
+  transform: translate(-50%, -50%);
+}
+
+.brandMark::after {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.brandMark span::before {
+  height: 13px;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.brandMark span::after {
+  height: 13px;
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.brandWordmark {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.glassIconButton:hover,
+.logoutButton:hover,
+.voiceButton:hover,
+.sendButton:hover {
+  border-color: rgb(255 255 255 / 0.54);
+  transform: translateY(-1px);
+}
+
+.glassIconButton:active,
+.logoutButton:active,
+.voiceButton:active,
+.sendButton:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.glassIconButton:focus-visible,
+.logoutButton:focus-visible,
+.brand:focus-visible,
+.voiceButton:focus-visible,
+.sendButton:focus-visible {
+  outline: 2px solid rgb(255 255 255 / 0.9);
+  outline-offset: 3px;
+}
+
+.conversationMain {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 780px 580px;
+  column-gap: 20px;
+  align-items: start;
+  width: 1380px;
+  height: 780px;
+  margin: 30px auto 0;
+}
+
+.avatarColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 780px;
+  height: 780px;
+  gap: 26px;
+}
+
+.avatarStage {
+  position: relative;
+  flex: 0 0 auto;
+  width: 780px;
+  height: 684px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.28);
+  border-radius: 30px;
+  background: linear-gradient(145deg, rgb(255 255 255 / 0.14) 0%, rgb(255 255 255 / 0.045) 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.4),
+    0 18px 48px rgb(44 29 120 / 0.18);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  backdrop-filter: blur(22px) saturate(150%);
+}
+
+.avatarStage::before {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 30% 22%, rgb(255 225 250 / 0.16), transparent 27%),
+    radial-gradient(circle at 72% 70%, rgb(101 184 255 / 0.15), transparent 34%);
+  content: "";
+  pointer-events: none;
+}
+
+.avatarAmbientLight {
+  position: absolute;
+  top: 24%;
+  left: 50%;
+  width: 62%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(224 194 255 / 0.13), transparent 68%);
+  filter: blur(40px);
+  transform: translateX(-50%);
+}
+
+.avatarContent {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.avatarContent > video,
+.avatarContent > canvas,
+.avatarContent > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+  object-position: center;
+}
+
+.avatarStatusBadge {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 376px;
+  height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgb(255 255 255 / 0.21), rgb(255 255 255 / 0.08));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    0 9px 24px rgb(44 29 120 / 0.17);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.avatarStatusBadge::before {
+  position: absolute;
+  inset: 0;
+  padding: 3px;
+  border-radius: inherit;
+  background: linear-gradient(
+    145deg,
+    rgb(255 255 255 / 0.82) 0%,
+    rgb(255 255 255 / 0.25) 34%,
+    rgb(170 151 239 / 0.48) 67%,
+    rgb(255 255 255 / 0.68) 100%
+  );
+  content: "";
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.conversationPanel {
+  position: relative;
+  width: 580px;
+  height: 780px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.33);
+  border-radius: 30px;
+  background: linear-gradient(
+    145deg,
+    rgb(255 255 255 / 0.15) 0%,
+    rgb(255 255 255 / 0.055) 52%,
+    rgb(255 255 255 / 0.1) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    inset 0 -1px 0 rgb(255 255 255 / 0.06),
+    0 22px 58px rgb(44 29 120 / 0.22);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  backdrop-filter: blur(28px) saturate(170%);
+}
+
+.messagesViewport {
+  position: absolute;
+  top: 72px;
+  right: 12px;
+  bottom: 96px;
+  left: 24px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 12px;
+  scrollbar-color: rgb(255 255 255 / 0.45) transparent;
+  scrollbar-width: thin;
+}
+
+.messagesViewport::-webkit-scrollbar {
+  width: 8px;
+}
+
+.messagesViewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.messagesViewport::-webkit-scrollbar-thumb {
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.58), rgb(255 255 255 / 0.25));
+}
+
+.messagesViewport::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.messageList {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 24px;
+  min-height: 100%;
+}
+
+.messageBubble {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 8px 16px;
+  border: 1px solid rgb(255 255 255 / 0.28);
+  border-radius: 18px;
+  color: #35275d;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 21px;
+  text-align: left;
+  white-space: pre-line;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  -webkit-backdrop-filter: blur(16px) saturate(165%);
+  backdrop-filter: blur(16px) saturate(165%);
+}
+
+.multilineBubble {
+  height: auto;
+  padding: 11px 16px;
+  border-radius: 16px;
+}
+
+.assistantBubble {
+  width: fit-content;
+  max-width: 476px;
+  align-self: flex-start;
+  background: linear-gradient(135deg, rgb(255 255 255 / 0.5), rgb(241 235 255 / 0.32));
+  border-color: rgb(255 255 255 / 0.4);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.32),
+    0 6px 18px rgb(44 29 120 / 0.1);
+}
+
+.userBubble {
+  width: fit-content;
+  max-width: 458px;
+  align-self: flex-end;
+  background: linear-gradient(
+    120deg,
+    rgb(118 82 222 / 0.68) 0%,
+    rgb(153 76 210 / 0.64) 48%,
+    rgb(207 75 171 / 0.6) 100%
+  );
+  border-color: rgb(255 255 255 / 0.38);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.35),
+    0 8px 24px rgb(72 43 163 / 0.18);
+  -webkit-backdrop-filter: blur(17px) saturate(180%);
+  backdrop-filter: blur(17px) saturate(180%);
+}
+
+.chatComposer {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  left: 24px;
+  display: grid;
+  grid-template-columns: 474px 46px;
+  column-gap: 12px;
+  align-items: center;
+  height: 46px;
+  margin: 0;
+}
+
+.messageInputWrapper {
+  position: relative;
+  width: 474px;
+  height: 46px;
+  border: 1px solid rgb(255 255 255 / 0.3);
+  border-radius: 23px;
+  background: linear-gradient(135deg, rgb(255 255 255 / 0.18), rgb(255 255 255 / 0.07));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.38),
+    0 7px 20px rgb(44 29 120 / 0.12);
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.messageInputWrapper:focus-within {
+  border-color: rgb(175 154 255 / 0.48);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.34),
+    0 0 0 2px rgb(119 93 231 / 0.08),
+    0 7px 20px rgb(44 29 120 / 0.12);
+}
+
+.messageInput {
+  width: 100%;
+  height: 100%;
+  padding: 0 57px 0 18px;
+  border: 0;
+  border-radius: inherit;
+  outline: 0;
+  color: #ffffff;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.messageInput::placeholder {
+  color: rgb(255 255 255 / 0.54);
+  opacity: 1;
+}
+
+.sendButton {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 0.35);
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgb(90 55 205 / 0.96), rgb(190 55 165 / 0.94));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.38),
+    0 5px 14px rgb(65 38 155 / 0.2);
+  -webkit-backdrop-filter: blur(14px) saturate(190%);
+  backdrop-filter: blur(14px) saturate(190%);
+}
+
+.sendButton svg {
+  width: 14px;
+  height: 14px;
+}
+
+.voiceButton {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 0.36);
+  border-radius: 23px;
+  background: linear-gradient(145deg, rgb(255 255 255 / 0.24), rgb(255 255 255 / 0.08));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    0 6px 18px rgb(44 29 120 / 0.15);
+}
+
+.voiceButton svg {
+  position: relative;
+  left: 0.8px;
+  width: 20px;
+  height: 20px;
+}
+
+.voiceRecording {
+  border-color: rgb(255 194 244 / 0.72);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.52),
+    0 0 0 5px rgb(218 97 195 / 0.1),
+    0 7px 22px rgb(87 52 175 / 0.2);
+  animation: voicePulse 1.6s ease-in-out infinite;
+}
+
+.voiceSpinner {
+  animation: spinnerRotate 0.8s linear infinite;
+}
+
+.sendButton:disabled,
+.voiceButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@keyframes starTwinkle {
+  from {
+    opacity: 0.28;
+    transform: scale(0.82);
+  }
+  to {
+    opacity: 0.84;
+    transform: scale(1.18);
+  }
+}
+
+@keyframes voicePulse {
+  50% {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.52),
+      0 0 0 8px rgb(218 97 195 / 0.05),
+      0 7px 22px rgb(87 52 175 / 0.2);
+  }
+}
+
+@keyframes spinnerRotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .starField i,
+  .voiceRecording,
+  .voiceSpinner {
+    animation: none;
+  }
+
+  .glassIconButton,
+  .logoutButton,
+  .brand,
+  .sendButton,
+  .voiceButton {
+    transition: none;
+  }
+}
