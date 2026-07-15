@@ -36,6 +36,7 @@ def build_vars(
     submission: str,
     result: dict,
     attempt: int,
+    knowledge: list[str] | None = None,  # 그 직무 스코프 RAG 청크 내용 (kb_jobs_for)
 ) -> dict:
     """엔진 데이터 → 코치 프롬프트 입력 계약 매핑."""
     weak = [
@@ -73,7 +74,7 @@ def build_vars(
             s.get("criterion", f"기준{i}"): {"score": s.get("score"), "max_score": 100}
             for i, s in enumerate(result.get("scores", []), 1)
         },
-        "retrieved_context": [],  # KB 청크 연동은 실키 확보 후 (get_stage_chunk)
+        "retrieved_context": knowledge or [],  # 그 직무 스코프 RAG 청크 — 코치 그라운딩
     }
 
 
@@ -123,12 +124,18 @@ def _clean_tip(text: str) -> str:
     return text[:end].strip() or text[:_TIP_SOFT_CAP].strip()
 
 
-async def generate_tip(*, mission: str, criteria: list, user_text: str, npc_reply: str) -> str | None:
-    """대화 중 실시간 코치 TIP — 사수가 정답요구를 거부하거나 짜증낼 때 문장형 조언. 실패 시 None(비차단)."""
+async def generate_tip(
+    *, mission: str, criteria: list, user_text: str, npc_reply: str,
+    knowledge: str | None = None,
+) -> str | None:
+    """대화 중 실시간 코치 TIP — 사수가 정답요구를 거부하거나 짜증낼 때 문장형 조언. 실패 시 None(비차단).
+
+    knowledge: 그 직무 스코프 RAG 지식(NPC와 동일 청크 재사용). 있으면 그 사실 범위로 그라운딩.
+    """
     try:
         system = render_prompt(
             "coach/tip.md", mission=mission, criteria=criteria or [],
-            user_text=user_text, npc_reply=npc_reply,
+            user_text=user_text, npc_reply=npc_reply, knowledge=knowledge,
         )
         reply = await get_llm().chat(
             [ChatMessage(role="user", content="위 상황에 맞는 코치 TIP을 330자 이내로 출력하세요.")],
