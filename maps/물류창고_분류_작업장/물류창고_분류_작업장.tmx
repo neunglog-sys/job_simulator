@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="80" height="45" tilewidth="24" tileheight="24" infinite="0" nextlayerid="7" nextobjectid="42">
+ <imagelayer id="2" name="background" locked="1">
+  <image source="물류창고_분류_작업장.png" width="1920" height="1080"/>
+ </imagelayer>
+ <objectgroup id="3" name="play_bounds" locked="1">
+  <object id="1" name="main_play_area" x="70" y="80" width="1780" height="656"/>
+ </objectgroup>
+ <objectgroup id="4" name="walkable" locked="1">
+  <object id="2" name="walkable" x="70" y="80" width="1780" height="656"/>
+ </objectgroup>
+ <objectgroup id="5" name="collision" locked="1">
+  <object id="3" x="1707.28" y="605.393" width="88.5941" height="127.354"/>
+  <object id="4" x="1613.15" y="315.616" width="129.2" height="86.7484"/>
+  <object id="5" x="1733.12" y="79.3655" width="16.6114" height="230.714"/>
+  <object id="6" x="1747.89" y="271.319" width="53.5256" height="110.743"/>
+  <object id="7" x="1746.04" y="75.6741" width="108.897" height="57.217"/>
+  <object id="8" x="1423.04" y="97.8226" width="238.097" height="215.948"/>
+  <object id="9" x="1369.52" y="83.057" width="62.7541" height="140.274"/>
+  <object id="10" x="1330.76" y="249.171" width="49.8342" height="36.9142"/>
+  <object id="11" x="1295.69" y="186.417" width="53.5256" height="75.6741"/>
+  <object id="12" x="1336.29" y="70.137" width="18.4571" height="121.817"/>
+  <object id="13" x="330.382" y="70.137" width="989.301" height="84.9027"/>
+  <object id="16" x="81.2112" y="243.634" width="252.862" height="64.5999"/>
+  <object id="17" x="171.651" y="147.657" width="125.508" height="55.3713"/>
+  <object id="18" x="77.5198" y="118.125" width="29.5314" height="123.663"/>
+  <object id="19" x="112.588" y="68.2913" width="219.64" height="62.7541"/>
+  <object id="20" x="73.8284" y="304.542" width="11.0743" height="182.725"/>
+  <object id="21" x="90.4398" y="378.371" width="352.531" height="71.9827"/>
+  <object id="22" x="442.97" y="404.211" width="592.473" height="62.7541"/>
+  <object id="23" x="985.609" y="468.81" width="64.5999" height="260.245"/>
+  <object id="24" x="1225.55" y="413.439" width="86.7484" height="88.5941"/>
+  <object id="25" x="1220.01" y="592.473" width="83.057" height="73.8284"/>
+  <object id="26" x="1371.36" y="594.319" width="49.8342" height="70.137"/>
+  <object id="27" x="1461.8" y="585.09" width="75.6741" height="79.3655"/>
+  <object id="28" x="1587.31" y="598.01" width="71.9827" height="90.4398"/>
+  <object id="29" x="1539.32" y="441.125" width="83.057" height="75.6741"/>
+  <object id="30" x="1441.5" y="428.205" width="68.2913" height="86.7484"/>
+  <object id="32" x="1345.52" y="431.896" width="66.4456" height="84.9027"/>
+  <object id="33" x="980.072" y="212.257" width="221.485" height="92.2855"/>
+  <object id="34" x="555.559" y="217.794" width="343.302" height="81.2112"/>
+  <object id="35" x="450.353" y="203.028" width="14.7657" height="112.588"/>
+  <object id="36" x="1843.86" y="116.28" width="25.8399" height="636.77"/>
+  <object id="37" x="1773.73" y="717.981" width="77.5198" height="40.6056"/>
+ </objectgroup>
+ <objectgroup id="6" name="spawn" locked="1">
+  <object id="38" name="player" x="511.262" y="393.136">
+   <point/>
+  </object>
+  <object id="39" name="sasu" x="1066.82" y="428.205">
+   <point/>
+  </object>
+  <object id="40" name="teamjang" x="1572.55" y="361.759">
+   <point/>
+  </object>
+  <object id="41" name="bujang" x="1127.73" y="719.827">
+   <point/>
+  </object>
+ </objectgroup>
+</map>
