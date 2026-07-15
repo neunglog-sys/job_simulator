@@ -19,6 +19,7 @@ from app.domains.simulation.router import router as simulation_router
 from app.domains.tts.router import router as tts_router
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -26,7 +27,12 @@ async def lifespan(app: FastAPI):
     # 마이그레이션은 컨테이너 기동 커맨드(alembic upgrade head)에서 선행됨
     async with SessionFactory() as session:
         await seed_content(session)
-        await ingest_knowledge(session)
+        try:
+            await ingest_knowledge(session)
+        except Exception:  # noqa: BLE001 — 임베딩 장애(부팅 시 Gemini 다운 등)가 앱 기동을 막지 않게
+            logger.exception(
+                "지식 적재 실패 — RAG 없이 기동 계속 (다음 재기동 시 해시 가드로 자동 재적재)"
+            )
     yield
     await redis_client.aclose()
     await engine.dispose()

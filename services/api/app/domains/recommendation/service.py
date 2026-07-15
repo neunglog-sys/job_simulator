@@ -71,11 +71,18 @@ async def _extract_profile(session: AsyncSession, consultation: Consultation) ->
         f"{'사용자' if m.role == 'user' else '상담사'}: {m.content}" for m in messages
     )
     system = render_prompt("recommendation/extract.md", competencies=competencies)
-    return await get_llm().chat_json(
-        [ChatMessage(role="user", content=f"## 상담 대화\n{transcript}")],
-        system=system,
-        json_schema=_extraction_schema([c["key"] for c in competencies]),
-    )
+    try:
+        return await get_llm().chat_json(
+            [ChatMessage(role="user", content=f"## 상담 대화\n{transcript}")],
+            system=system,
+            json_schema=_extraction_schema([c["key"] for c in competencies]),
+        )
+    except Exception as e:  # noqa: BLE001 — LLM 실패를 raw 500 대신 명확한 503으로
+        logger.warning("추천 프로파일 추출 실패 (consultation=%d): %s", consultation.id, e)
+        raise HTTPException(
+            status_code=503,
+            detail="추천 분석을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.",
+        ) from e
 
 
 def _weighted_avg(weights: dict[str, int], scores: dict[str, int]) -> int | None:

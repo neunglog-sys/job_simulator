@@ -10,6 +10,7 @@
 """
 
 import asyncio
+import hashlib
 from pathlib import Path
 
 import openpyxl
@@ -170,16 +171,35 @@ async def load_tables(session) -> dict[str, int]:
 
 
 async def embed_kb_chunks(session) -> int:
-    """kb_stages.chunk_text → doc_chunks 벡터 적재 (source='kb-v5/<chunk_code>')."""
+    """kb_stages.chunk_text → doc_chunks 벡터 적재 (source='kb-v5/<chunk_code>').
+
+    provider+내용 해시(file_hash)로 변경을 감지해 동일하면 재임베딩을 건너뛴다(비용 절약).
+    임베더가 mock이면 실벡터를 무작위값으로 덮어써 RAG가 조용히 죽으므로 적재를 거부한다.
+    """
+    provider = get_llm().embedder.name
+    if provider == "mock":
+        print("  ⚠ 임베더가 mock — KB 재적재 건너뜀(실벡터 오염 방지). 실 Gemini 키로 다시 실행하세요.")
+        return 0
+
     rows = (
         await session.execute(
             text("SELECT chunk_code, job_code, chunk_text FROM kb_stages "
                  "WHERE chunk_text IS NOT NULL AND length(trim(chunk_text)) > 0 "
-                 "ORDER BY id")  # 빈 문자열은 OpenAI 임베딩이 거부하므로 제외
+                 "ORDER BY id")  # 빈 문자열은 임베딩 API가 거부하므로 제외
         )
     ).all()
-    await session.execute(delete(DocChunk).where(DocChunk.source.like("kb-v5/%")))
+    # provider + 전체 청크 내용 시그니처 — 내용/프로바이더가 하나라도 바뀌면 재적재
+    sig = hashlib.sha256((provider + "\n".join(r[2] for r in rows)).encode()).hexdigest()
+    existing = (
+        await session.execute(
+            text("SELECT DISTINCT file_hash FROM doc_chunks WHERE source LIKE 'kb-v5/%'")
+        )
+    ).scalars().all()
+    if existing == [sig]:
+        print(f"  KB v5 변경 없음(provider+내용 동일) — 재임베딩 스킵 ({len(rows)}청크 유지)")
+        return len(rows)
 
+    await session.execute(delete(DocChunk).where(DocChunk.source.like("kb-v5/%")))
     llm = get_llm()
     for i in range(0, len(rows), EMBED_BATCH):
         batch = rows[i : i + EMBED_BATCH]
@@ -188,6 +208,7 @@ async def embed_kb_chunks(session) -> int:
             session.add(DocChunk(
                 job_code=job_code,
                 source=f"kb-v5/{chunk_code}",
+                file_hash=sig,
                 content=chunk_text,
                 embedding=vector,
             ))

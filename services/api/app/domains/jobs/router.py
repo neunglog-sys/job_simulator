@@ -33,4 +33,9 @@ async def knowledge(
     session: AsyncSession = Depends(get_session),
 ):
     """직무 지식 검색 (RAG) — 데이터 적재 확인·NPC 지식 주입용."""
-    return await search_knowledge(session, q, job_code=code, top_k=top_k)
+    try:
+        return await search_knowledge(session, q, job_code=code, top_k=top_k)
+    except Exception as e:  # noqa: BLE001 — 임베딩/검색 실패를 raw 500 대신 503으로
+        raise HTTPException(
+            status_code=503, detail="지식 검색을 일시적으로 사용할 수 없어요."
+        ) from e
