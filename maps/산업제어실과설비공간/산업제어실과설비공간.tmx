@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="80" height="45" tilewidth="24" tileheight="24" infinite="0" nextlayerid="7" nextobjectid="38">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="80" height="45" tilewidth="24" tileheight="24" infinite="0" nextlayerid="7" nextobjectid="40">
  <imagelayer id="2" name="background" locked="1">
   <image source="산업제어실과설비공간.png" width="1920" height="1080"/>
  </imagelayer>
@@ -37,6 +37,8 @@
   <object id="30" x="1220.01" y="513.107" width="149.503" height="180.88"/>
   <object id="32" x="994.838" y="118.125" width="68.2913" height="20.3028"/>
   <object id="33" x="335.919" y="119.971" width="81.2112" height="16.6114"/>
+  <object id="38" x="1411.97" y="631.233" width="112.588" height="101.514"/>
+  <object id="39" x="1369.52" y="592.473" width="44.297" height="55.3713"/>
  </objectgroup>
  <objectgroup id="6" name="spawn" locked="1">
   <object id="34" name="player" x="555.559" y="463.273">
