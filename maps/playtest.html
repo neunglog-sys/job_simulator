@@ -1,0 +1,88 @@
+<!doctype html><meta charset="utf-8"><title>map1 플레이 테스트</title>
+<style>
+body{margin:0;background:#1a1a1a;font-family:sans-serif;overflow:hidden}
+#stage{position:relative;width:1920px;height:1080px;background:url("IT_운영_네트워크_관제실.png") 0 0/1920px 1080px no-repeat;
+  transform-origin:0 0}
+.ov{position:absolute;border:1px solid rgba(0,0,0,.4);display:none}
+.show .ov{display:block}
+#player{position:absolute;width:34px;height:44px;margin:-40px 0 0 -17px;z-index:10;
+  transition:left 70ms linear,top 70ms linear}
+#player .body{width:34px;height:34px;border-radius:50% 50% 42% 42%;
+  background:linear-gradient(160deg,#6143ca,#d963aa);border:3px solid #fff;
+  box-shadow:0 6px 14px rgba(0,0,0,.45)}
+#player .shadow{width:26px;height:8px;margin:2px auto 0;border-radius:50%;background:rgba(0,0,0,.4)}
+.npc{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;
+  background:#3498db;border:2px solid #fff;z-index:5}
+.npc b{position:absolute;top:-22px;left:50%;transform:translateX(-50%);color:#fff;
+  font-size:12px;font-weight:600;text-shadow:0 1px 3px #000;white-space:nowrap}
+#hint{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:20;
+  padding:10px 16px;border-radius:12px;background:rgba(20,12,50,.88);color:#fff;
+  font-size:14px;display:none}
+#help{position:fixed;top:10px;left:10px;z-index:20;color:#bbb;font-size:12px;
+  background:rgba(0,0,0,.55);padding:6px 10px;border-radius:8px}
+</style>
+<div id="stage"></div>
+<div id="hint"></div>
+<div id="help">이동: WASD/방향키 · 오버레이: G</div>
+<script>
+const G = {"playable": [{"x": 70, "y": 80, "w": 1780, "h": 656, "id": "main_play_area"}], "walkable": [{"x": 70, "y": 80, "w": 1780, "h": 656, "id": "walkable"}], "collision": [{"x": 425, "y": 303, "w": 509, "h": 96}, {"x": 987, "y": 306, "w": 334, "h": 98}, {"x": 1451, "y": 330, "w": 96, "h": 192}, {"x": 1681, "y": 443, "w": 144, "h": 105}, {"x": 580, "y": 100, "w": 1008, "h": 129}, {"x": 1689, "y": 90, "w": 150, "h": 131}, {"x": 1661, "y": 616, "w": 186, "h": 111}, {"x": 1362, "y": 648, "w": 286, "h": 79}, {"x": 960, "y": 640, "w": 356, "h": 89}, {"x": 980, "y": 484, "w": 349, "h": 81}, {"x": 437, "y": 476, "w": 487, "h": 100}, {"x": 526, "y": 672, "w": 308, "h": 55}, {"x": 96, "y": 598, "w": 48, "h": 133}, {"x": 151, "y": 648, "w": 148, "h": 76}, {"x": 181, "y": 493, "w": 173, "h": 109}, {"x": 83, "y": 430, "w": 52, "h": 126}, {"x": 151, "y": 316, "w": 159, "h": 100}, {"x": 146, "y": 129, "w": 196, "h": 120}, {"x": 375, "y": 109, "w": 85, "h": 98}, {"x": 1829, "y": 242, "w": 26, "h": 253}], "spawns": [{"x": 554, "y": 611, "id": "player"}, {"x": 1718, "y": 308, "id": "sasu"}, {"x": 552, "y": 293, "id": "bujang"}, {"x": 1272, "y": 489, "id": "teamjang"}], "npc_paths": []};
+const STEP = 18, FOOT_W = 28, FOOT_H = 16, TALK_DIST = 130;  // NPC가 책상 뒤라 책상 너머 대화 가능한 반경
+const stage = document.getElementById("stage");
+
+for (const [kind, color] of [["walkable","rgba(46,204,113,.30)"],["collision","rgba(231,76,60,.35)"]])
+  for (const r of G[kind]) {
+    const d = document.createElement("div");
+    d.className = "ov";
+    d.style.cssText = `left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px;background:${color}`;
+    stage.appendChild(d);
+  }
+
+const npcs = G.spawns.filter(s => s.id !== "player");
+for (const n of npcs) {
+  const d = document.createElement("div");
+  d.className = "npc";
+  d.style.cssText = `left:${n.x}px;top:${n.y}px`;
+  d.innerHTML = `<b>${n.id}</b>`;
+  stage.appendChild(d);
+}
+
+const spawn = G.spawns.find(s => s.id === "player") || {x: 200, y: 400};
+let px = spawn.x, py = spawn.y;
+const player = document.createElement("div");
+player.id = "player";
+player.innerHTML = '<div class="body"></div><div class="shadow"></div>';
+stage.appendChild(player);
+
+const inWalkable = (x, y) => G.walkable.some(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
+const hitsCollision = (x, y) => G.collision.some(r =>
+  x - FOOT_W / 2 < r.x + r.w && x + FOOT_W / 2 > r.x && y - FOOT_H < r.y + r.h && y > r.y);
+const canStand = (x, y) => inWalkable(x, y) && !hitsCollision(x, y);
+
+function render() {
+  player.style.left = px + "px";
+  player.style.top = py + "px";
+  const near = npcs.map(n => ({n, d: Math.hypot(n.x - px, n.y - py)}))
+    .filter(o => o.d < TALK_DIST).sort((a, b) => a.d - b.d)[0];
+  const hint = document.getElementById("hint");
+  hint.style.display = near ? "block" : "none";
+  if (near) hint.textContent = `💬 ${near.n.id} 자리 — 여기서 '대화하기' 버튼이 뜹니다`;
+}
+
+document.addEventListener("keydown", (e) => {
+  const k = e.key.toLowerCase();
+  if (k === "g") { stage.classList.toggle("show"); return; }
+  const d = {arrowup:[0,-STEP], w:[0,-STEP], arrowdown:[0,STEP], s:[0,STEP],
+             arrowleft:[-STEP,0], a:[-STEP,0], arrowright:[STEP,0], d:[STEP,0]}[k];
+  if (!d) return;
+  e.preventDefault();
+  if (canStand(px + d[0], py)) px += d[0];   // 축 분리 → 벽에 스치며 슬라이딩
+  if (canStand(px, py + d[1])) py += d[1];
+  render();
+});
+
+const fit = () => stage.style.transform = `scale(${Math.min(1, innerWidth / 1920, innerHeight / 1080)})`;
+addEventListener("resize", fit); fit(); render();
+// 자동 검증용 훅 (게임과 무관)
+window.__pt = { get pos() { return [px, py]; }, set(x, y) { px = x; py = y; render(); },
+  canStand, players: document.querySelectorAll("#player").length };
+</script>

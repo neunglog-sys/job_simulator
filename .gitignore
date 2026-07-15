@@ -46,3 +46,7 @@ personal/
 secrets/
 *service-account*.json
 *gcp*key*.json
+
+# 맵 배경 이미지 — 용량이 커서 git 대신 구글드라이브로 공유 (tmx·geometry.json만 커밋)
+maps/*.png
+maps/**/*.png
