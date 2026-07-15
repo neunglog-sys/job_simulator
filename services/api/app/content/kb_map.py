@@ -1,12 +1,15 @@
-"""게임 시나리오 slug → KB v5 직무군(family)의 doc_chunks job_code(J0xx) 매핑.
+"""게임 시나리오 slug → RAG 검색 스코프(doc_chunks job_code 목록) 매핑.
 
 RAG 지식(kb-v5 청크)은 job_code가 J001~J103(KB v5 연구 체계)인데, 게임 시나리오/Job은
 ys-01·cln-01 등이라 직접 매칭이 안 된다. 이 표로 slug → 해당 KB 직무군의 J코드들로 변환해
-search_knowledge 스코프에 쓴다. 미매핑 slug(전문·기능·1차산업·법집행·R&D 등 KB 범위 밖)은
-빈 리스트 → RAG 미주입(엉뚱한 지식 주입 방지).
+search_knowledge 스코프에 쓴다.
 
-매핑 근거: 2026-07-15 다중 에이전트 매칭+검수(45개 중 33개 확정, 12개 갭). 시나리오 제목과
-KB family 이름의 의미 일치 기준. before/after 실검색으로 부활 검증 완료.
+스코프에는 slug 자체도 항상 포함한다 — KB에 없는 직무(철도·항공·군사 등 12개 갭)는
+data/knowledge/<slug>/*.md 로 보충 지식을 적재하며(job_code=폴더명=slug), 매핑된 직무도
+전용 지식을 추가하면 함께 검색된다. 전용 지식이 없는 slug은 검색 0건 → 미주입(안전).
+
+매핑 근거: 2026-07-15 다중 에이전트 매칭+검수(45개 중 33개 확정, 12개 갭은 전용 지식으로
+보충). before/after 실검색으로 부활 검증 완료.
 """
 
 
@@ -46,6 +49,9 @@ _SLUG_TO_FAMILY = {
 
 
 def kb_jobs_for(slug: str) -> list[str]:
-    """시나리오 slug → RAG 검색용 KB job_code 리스트. 미매핑이면 빈 리스트(RAG 미주입)."""
+    """시나리오 slug → RAG 검색 스코프 job_code 리스트.
+
+    slug 자체(data/knowledge/<slug>/ 전용 지식) + KB 매핑이 있으면 그 직무군 J코드들.
+    """
     fam = _SLUG_TO_FAMILY.get(slug)
-    return list(_FAMILY_JOBS[fam]) if fam else []
+    return [slug] + (list(_FAMILY_JOBS[fam]) if fam else [])
