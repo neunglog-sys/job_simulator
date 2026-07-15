@@ -13,6 +13,11 @@ class JobRecommendation(BaseModel):
     job_title: str
     score: int  # 0~100 적합도
     reason: str
+    # NCS 조사자료(배치1) 원본 — 미조사 직무는 필드 내부가 비어있을 수 있음
+    education_requirement: dict | None = None
+    salary: dict | None = None
+    certifications: list = []
+    scenario_slug: str | None = None
 
 
 class RecommendationOut(BaseModel):
