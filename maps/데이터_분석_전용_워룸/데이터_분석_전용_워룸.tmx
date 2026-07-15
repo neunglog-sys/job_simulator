@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="80" height="45" tilewidth="24" tileheight="24" infinite="0" nextlayerid="7" nextobjectid="37">
+ <imagelayer id="2" name="background" locked="1">
+  <image source="데이터_분석_전용_워룸.png" width="1920" height="1080"/>
+ </imagelayer>
+ <objectgroup id="3" name="play_bounds" locked="1">
+  <object id="1" name="main_play_area" x="70" y="80" width="1780" height="656"/>
+ </objectgroup>
+ <objectgroup id="4" name="walkable" locked="1">
+  <object id="2" name="walkable" x="70" y="80" width="1780" height="656"/>
+ </objectgroup>
+ <objectgroup id="5" name="collision" locked="1">
+  <object id="3" x="411.593" y="90.4398" width="813.958" height="252.862"/>
+  <object id="4" x="813.958" y="404.211" width="299.005" height="97.8226"/>
+  <object id="5" x="823.187" y="562.942" width="302.696" height="103.36"/>
+  <object id="7" x="448.508" y="557.404" width="275.011" height="108.897"/>
+  <object id="8" x="439.279" y="402.365" width="297.159" height="99.6683"/>
+  <object id="9" x="79.3655" y="99.6683" width="252.862" height="121.817"/>
+  <object id="10" x="81.2112" y="238.097" width="42.4513" height="123.663"/>
+  <object id="11" x="293.468" y="317.462" width="18.4571" height="59.0627"/>
+  <object id="12" x="70.137" y="398.673" width="280.548" height="173.497"/>
+  <object id="13" x="212.257" y="570.324" width="101.514" height="51.6799"/>
+  <object id="14" x="71.9827" y="695.833" width="260.245" height="33.2228"/>
+  <object id="15" x="1194.17" y="346.994" width="29.5314" height="99.6683"/>
+  <object id="16" x="1208.94" y="219.64" width="123.663" height="116.28"/>
+  <object id="17" x="1332.6" y="393.136" width="59.0627" height="47.9885"/>
+  <object id="18" x="1332.6" y="83.057" width="350.685" height="118.125"/>
+  <object id="19" x="1413.81" y="247.325" width="191.954" height="64.5999"/>
+  <object id="20" x="1664.83" y="214.102" width="31.3771" height="227.022"/>
+  <object id="21" x="1579.93" y="359.913" width="81.2112" height="86.7484"/>
+  <object id="22" x="1376.9" y="359.913" width="94.1312" height="83.057"/>
+  <object id="23" x="1530.09" y="358.068" width="57.217" height="77.5198"/>
+  <object id="24" x="1519.02" y="492.805" width="179.034" height="79.3655"/>
+  <object id="25" x="1533.79" y="616.467" width="123.663" height="86.7484"/>
+  <object id="27" x="1686.98" y="570.324" width="18.4571" height="162.422"/>
+  <object id="28" x="1758.96" y="114.434" width="88.5941" height="618.313"/>
+  <object id="29" x="1683.29" y="88.5941" width="16.6114" height="118.125"/>
+  <object id="30" x="1249.55" y="542.639" width="171.651" height="131.045"/>
+  <object id="36" x="171.651" y="271.319" width="57.217" height="57.217"/>
+ </objectgroup>
+ <objectgroup id="6" name="spawn" locked="1">
+  <object id="31" name="player" x="520.49" y="692.141">
+   <point/>
+  </object>
+  <object id="32" name="sasu" x="658.919" y="684.758">
+   <point/>
+  </object>
+  <object id="33" name="teamjang" x="889.632" y="372.833">
+   <point/>
+  </object>
+  <object id="34" name="bujang" x="197.491" y="367.296">
+   <point/>
+  </object>
+ </objectgroup>
+</map>
