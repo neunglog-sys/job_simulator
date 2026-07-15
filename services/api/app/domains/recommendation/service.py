@@ -195,6 +195,10 @@ async def create_recommendation(
             "job_title": job.title,
             "score": _score_job(job, scores, interest_profile),
             "reason": _build_reason(job, scores, names, interest_profile),
+            # NCS 조사자료(배치1) — 미조사 직무는 내부 필드가 비어있을 수 있음
+            "education_requirement": job.education_requirement,
+            "salary": job.salary,
+            "certifications": job.certifications,
             # 프론트 '바로 체험하기' 버튼용 — 매핑 없거나 시나리오 부재면 null (버튼 숨김)
             "scenario_slug": (
                 slug if (slug := scenario_map.get(job.code)) in live_slugs else None

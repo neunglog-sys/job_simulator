@@ -10,6 +10,18 @@
 - {{ r.job_title }} (적합도 {{ r.score }}점): {{ r.reason }}
 {% endfor %}
 
+{% set top = recommendations[0] if recommendations else None %}
+{% set top_salary = top.salary if top and top.salary is defined else None %}
+{% set top_edu = top.education_requirement if top and top.education_requirement is defined else None %}
+{% set top_certs = top.certifications if top and top.certifications is defined else None %}
+{% if top_salary or top_edu or top_certs %}
+## 1순위 직무 NCS 조사자료 — advice에서 구체적 근거로 활용
+{% if top_salary and top_salary.reference_statistics %}- 급여: 중위 연봉 {{ top_salary.reference_statistics.median_annual_krw }}원 ({{ top_salary.reference_statistics.reference_year }}년 기준, {{ top_salary.reference_statistics.population }}){% endif %}
+{% if top_edu and top_edu.value %}- 학력/자격 요건: {{ top_edu.value }}{% endif %}
+{% if top_certs %}- 관련 자격증: {% for c in top_certs %}{{ c.name }}({{ c.tier }}) {% endfor %}{% endif %}
+조사자료가 비어있거나 "조사 대상 아님"으로 표기된 항목은 advice에서 단정하지 말고, 있는 항목만 근거로 쓰세요.
+{% endif %}
+
 {% if performance %}
 ## 직무 체험(시뮬레이션) 수행 결과 — 반드시 분석에 반영할 것
 - 체험 직무: {{ performance.scenario_title }}
