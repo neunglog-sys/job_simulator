@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="80" height="45" tilewidth="24" tileheight="24" infinite="0" nextlayerid="7" nextobjectid="44">
+ <imagelayer id="2" name="background" locked="1">
+  <image source="드론_정비_실험실_배경.png" width="1920" height="1080"/>
+ </imagelayer>
+ <objectgroup id="3" name="play_bounds" locked="1">
+  <object id="1" name="main_play_area" x="70" y="80" width="1780" height="656"/>
+ </objectgroup>
+ <objectgroup id="4" name="walkable" locked="1">
+  <object id="2" name="walkable" x="70" y="80" width="1780" height="656"/>
+ </objectgroup>
+ <objectgroup id="5" name="collision" locked="1">
+  <object id="6" x="1389.82" y="228.868" width="370.988" height="507.57"/>
+  <object id="7" x="1522.71" y="83.057" width="12.92" height="155.04"/>
+  <object id="8" x="1351.06" y="227.022" width="47.9885" height="42.4513"/>
+  <object id="9" x="1295.69" y="70.137" width="92.2855" height="129.2"/>
+  <object id="10" x="1408.28" y="55.3713" width="121.817" height="171.651"/>
+  <object id="11" x="1273.54" y="60.9084" width="12.92" height="184.571"/>
+  <object id="12" x="1136.96" y="68.2913" width="125.508" height="143.965"/>
+  <object id="13" x="1125.88" y="206.72" width="27.6857" height="36.9142"/>
+  <object id="14" x="762.278" y="66.4456" width="365.451" height="149.503"/>
+  <object id="15" x="614.621" y="51.6799" width="164.268" height="190.108"/>
+  <object id="16" x="428.205" y="71.9827" width="190.108" height="119.971"/>
+  <object id="17" x="409.748" y="199.337" width="27.6857" height="88.5941"/>
+  <object id="18" x="184.571" y="234.405" width="169.805" height="86.7484"/>
+  <object id="19" x="118.125" y="77.5198" width="300.851" height="92.2855"/>
+  <object id="20" x="103.36" y="162.422" width="22.1485" height="572.17"/>
+  <object id="21" x="119.971" y="407.902" width="271.319" height="75.6741"/>
+  <object id="22" x="131.045" y="361.759" width="35.0685" height="40.6056"/>
+  <object id="23" x="127.354" y="531.565" width="29.5314" height="138.428"/>
+  <object id="24" x="162.422" y="527.873" width="92.2855" height="14.7657"/>
+  <object id="25" x="310.079" y="586.936" width="12.92" height="84.9027"/>
+  <object id="26" x="204.874" y="599.856" width="49.8342" height="49.8342"/>
+  <object id="27" x="319.308" y="526.027" width="59.0627" height="81.2112"/>
+  <object id="28" x="374.679" y="642.307" width="23.9942" height="42.4513"/>
+  <object id="29" x="127.354" y="699.524" width="201.182" height="33.2228"/>
+  <object id="30" x="550.022" y="265.782" width="193.8" height="88.5941"/>
+  <object id="31" x="815.804" y="287.931" width="195.645" height="55.3713"/>
+  <object id="32" x="1081.59" y="267.628" width="208.565" height="94.1312"/>
+  <object id="33" x="1164.64" y="420.822" width="158.731" height="97.8226"/>
+  <object id="34" x="747.513" y="441.125" width="346.994" height="94.1312"/>
+  <object id="35" x="502.033" y="413.439" width="184.571" height="97.8226"/>
+  <object id="37" x="520.49" y="585.09" width="191.954" height="81.2112"/>
+  <object id="38" x="775.198" y="592.473" width="284.239" height="81.2112"/>
+  <object id="39" x="1142.49" y="585.09" width="166.114" height="83.057"/>
+ </objectgroup>
+ <objectgroup id="6" name="spawn" locked="1">
+  <object id="40" name="player" x="1216.32" y="706.907">
+   <point/>
+  </object>
+  <object id="41" name="sasu" x="861.947" y="411.593">
+   <point/>
+  </object>
+  <object id="42" name="teamjang" x="989.301" y="418.976">
+   <point/>
+  </object>
+  <object id="43" name="bujang" x="922.855" y="575.862">
+   <point/>
+  </object>
+ </objectgroup>
+</map>
