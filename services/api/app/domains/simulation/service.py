@@ -318,10 +318,14 @@ async def stream_npc_chat(
     # RAG: 발화 관련 직무 지식을 NPC 프롬프트에 주입 (Gemini 임베딩, doc_chunks).
     # 스코프 = 시나리오 slug → KB v5 직무군 J코드들(kb_map). KB 지식은 J0xx로 적재돼 있고
     # 시나리오는 ys-01 등이라 이 변환이 없으면 검색이 0건이 된다. 매핑 없으면 [] → 주입 없음(안전).
-    chunks = await search_knowledge(
-        session, user_text, job_code=kb_jobs_for(scenario.slug),
-        top_k=RAG_TOP_K, max_distance=RAG_MAX_DISTANCE,
-    )
+    try:
+        chunks = await search_knowledge(
+            session, user_text, job_code=kb_jobs_for(scenario.slug),
+            top_k=RAG_TOP_K, max_distance=RAG_MAX_DISTANCE,
+        )
+    except Exception:  # noqa: BLE001 — RAG 검색 실패가 대화를 끊지 않게 (지식 없이 진행)
+        logger.warning("NPC RAG 검색 실패 (simulation=%d) — 지식 없이 대화 진행", simulation.id)
+        chunks = []
     knowledge = (
         "\n\n".join(f"[{c.source}]\n{c.content}" for c in chunks) if chunks else None
     )
@@ -459,7 +463,15 @@ async def _grade(
     if task.get("kind") in scoring.RULE_KINDS:
         return scoring.grade_structured(task, submission)
     transcript = await _transcript(session, simulation, scenario)
-    return await scoring.evaluate_task(mission, task, transcript, str(submission))
+    try:
+        return await scoring.evaluate_task(mission, task, transcript, str(submission))
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001 — LLM 채점 실패를 게임차단(WS 1011) 대신 재시도 가능 오류로
+        logger.warning("과제 채점 실패 (simulation=%d): %s", simulation.id, e)
+        raise HTTPException(
+            status_code=503, detail="채점을 완료하지 못했어요. 잠시 후 다시 제출해 주세요.",
+        ) from e
 
 
 def _envelope(

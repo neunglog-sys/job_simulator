@@ -13,6 +13,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import AsyncIterator
 
+from jsonschema import Draft202012Validator, ValidationError
+
 from app.core.config import settings
 from app.llm.base import ChatMessage, LLMProvider
 
@@ -66,13 +68,16 @@ class LLMGateway:
         self.provider = provider
         self.embedder = embedder
 
-    def _log(self, kind: str, started: float, ok: bool, chars: int, error: str = "") -> None:
+    def _log(
+        self, kind: str, started: float, ok: bool, chars: int,
+        error: str = "", provider: str | None = None,
+    ) -> None:
         try:
             log_dir = Path(settings.storage_dir) / "logs"
             log_dir.mkdir(parents=True, exist_ok=True)
             entry = {
                 "ts": time.time(),
-                "provider": self.provider.name,
+                "provider": provider or self.provider.name,
                 "kind": kind,
                 "latency_ms": round((time.time() - started) * 1000),
                 "ok": ok,
@@ -111,17 +116,20 @@ class LLMGateway:
         json_schema: dict,
         temperature: float = 0.3,
     ) -> dict:
-        """구조화 출력 — 파싱 실패 시 1회 재시도."""
+        """구조화 출력 — JSON 파싱 + 스키마 검증. 실패 시 1회 재시도."""
+        validator = Draft202012Validator(json_schema)
         for attempt in (1, 2):
             raw = await self.chat(
                 messages, system=system, json_schema=json_schema, temperature=temperature
             )
             try:
-                return json.loads(raw)
-            except json.JSONDecodeError:
+                obj = json.loads(raw)
+                validator.validate(obj)  # 네이티브 구조화출력의 백스톱 — 스키마 위반도 차단
+                return obj
+            except (json.JSONDecodeError, ValidationError) as e:
                 if attempt == 2:
                     raise
-                logger.warning("LLM JSON 파싱 실패, 재시도 (raw=%.200s)", raw)
+                logger.warning("LLM JSON 파싱/스키마 검증 실패, 재시도 (%s)", type(e).__name__)
         raise RuntimeError("unreachable")
 
     async def chat_stream(
@@ -145,14 +153,19 @@ class LLMGateway:
         self._log("stream", started, ok=True, chars=chars)
 
 
-    async def embed(self, texts: list[str]) -> list[list[float]]:
+    async def embed(
+        self, texts: list[str], *, task_type: str = "RETRIEVAL_DOCUMENT"
+    ) -> list[list[float]]:
         started = time.time()
         try:
-            vectors = await self.embedder.embed(texts)
+            vectors = await self.embedder.embed(texts, task_type=task_type)
         except Exception as e:
-            self._log("embed", started, ok=False, chars=0, error=str(e))
+            self._log("embed", started, ok=False, chars=0, error=str(e), provider=self.embedder.name)
             raise
-        self._log("embed", started, ok=True, chars=sum(len(t) for t in texts))
+        self._log(
+            "embed", started, ok=True, chars=sum(len(t) for t in texts),
+            provider=self.embedder.name,
+        )
         return vectors
 
 

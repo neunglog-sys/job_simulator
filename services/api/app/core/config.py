@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     google_genai_use_vertexai: bool = False
     google_cloud_project: str = ""
     google_cloud_location: str = "global"  # gemini-3.5-flash가 global 전용이라 기본 global
+    # LLM 견고성 — 무응답·일시장애 방지
+    llm_timeout_ms: int = 60_000  # Gemini 호출 타임아웃(ms). 무응답 시 실패 처리 → 요청 무한대기 차단
+    llm_max_retries: int = 2  # 일시오류(429·5xx·타임아웃) 지수백오프 재시도 횟수
 
     # 임베딩 (RAG) — Gemini로 통일. output_dimensionality로 doc_chunks 차원(1536) 유지
     # (마이그레이션 없이 기존 Vector(1536) 컬럼 재사용). 재임베딩 필요.
