@@ -46,3 +46,13 @@ personal/
 secrets/
 *service-account*.json
 *gcp*key*.json
+
+# ── 게임 맵 (maps/) ──
+# 커밋하는 것: .tmx(제작 원본) + geometry.json(게임이 읽는 좌표)
+# 배경 PNG는 용량이 커서 구글드라이브로 공유, 검수 산출물은 변환기가 언제든 재생성
+maps/**/*.png
+maps/**/review.csv
+maps/**/debug-overlay.html
+maps/**/playtest.html
+maps/**/*.mp4
+maps/**/*.webm
