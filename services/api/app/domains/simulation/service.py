@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
+from app.content.kb_map import kb_jobs_for
 from app.content.knowledge import search_knowledge
 from app.domains.coach import service as coach
 from app.domains.scoring import aggregate
@@ -26,7 +27,7 @@ from app.domains.simulation import state_machine as sm
 from app.llm import get_llm
 from app.llm.base import ChatMessage
 from app.llm.prompts import render_prompt
-from app.models import Job, Message, Npc, NpcPlacement, Scenario, Simulation, User
+from app.models import Message, Npc, NpcPlacement, Scenario, Simulation, User
 
 logger = logging.getLogger(__name__)
 
@@ -295,11 +296,10 @@ async def stream_npc_chat(
         for m in history
     ]
     # RAG: 발화 관련 직무 지식을 NPC 프롬프트에 주입 (Gemini 임베딩, doc_chunks).
-    # 반드시 이 시나리오 직무로 스코프 — 안 그러면 다른 직무의 지식이 끼어들어(거리 컷 안에)
-    # NPC가 엉뚱한 업무를 근거로 답한다. 매칭 지식이 없으면 주입 없음(안전).
-    job = await session.get(Job, scenario.job_id)
+    # 스코프 = 시나리오 slug → KB v5 직무군 J코드들(kb_map). KB 지식은 J0xx로 적재돼 있고
+    # 시나리오는 ys-01 등이라 이 변환이 없으면 검색이 0건이 된다. 매핑 없으면 [] → 주입 없음(안전).
     chunks = await search_knowledge(
-        session, user_text, job_code=(job.code if job else None),
+        session, user_text, job_code=kb_jobs_for(scenario.slug),
         top_k=RAG_TOP_K, max_distance=RAG_MAX_DISTANCE,
     )
     knowledge = (

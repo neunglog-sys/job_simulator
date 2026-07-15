@@ -102,20 +102,32 @@ async def ingest_knowledge(session: AsyncSession) -> None:
 async def search_knowledge(
     session: AsyncSession,
     query: str,
-    job_code: str | None = None,
+    job_code: str | list[str] | None = None,
     top_k: int = 5,
     max_distance: float | None = None,
 ) -> list[DocChunk]:
     """질의 임베딩 → 코사인 거리 기준 top-k 청크.
 
+    job_code: 검색 스코프. None이면 전체(아바타 상담용), 단일 str이면 그 직무 코드,
+    리스트면 그 안에서 IN 검색(게임 NPC — 시나리오 slug→KB 직무군 J코드들). 빈 리스트는
+    '스코프는 지정됐으나 대응 지식 없음(갭)'이므로 검색 없이 빈 결과를 준다(엉뚱한 직무
+    지식이 전체검색으로 새어 들어가는 것을 방지).
     max_distance: 관련도 컷오프 (코사인 거리, 작을수록 유사). 잡담에 무관한
     지식이 끼어드는 걸 막을 때 사용. mock 임베딩은 거리가 ~1.0이라 자연히 걸러짐.
     """
+    if isinstance(job_code, (list, tuple, set)):
+        job_code = list(job_code)
+        if not job_code:
+            return []  # 빈 스코프 → RAG 미주입 (임베딩 호출도 생략)
     [qvec] = await get_llm().embed([query])
     distance = DocChunk.embedding.cosine_distance(qvec)
     stmt = select(DocChunk)
     if job_code:
-        stmt = stmt.where(DocChunk.job_code == job_code)
+        stmt = stmt.where(
+            DocChunk.job_code.in_(job_code)
+            if isinstance(job_code, list)
+            else DocChunk.job_code == job_code
+        )
     if max_distance is not None:
         stmt = stmt.where(distance < max_distance)
     stmt = stmt.order_by(distance).limit(top_k)
