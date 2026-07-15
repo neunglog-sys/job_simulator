@@ -35,6 +35,26 @@ MEMORY_TURNS = 20
 SCORING_TURNS = 40  # 채점 대화록 상한 — 하루 종일 대화해도 채점 프롬프트가 무한 성장하지 않게
 RAG_TOP_K = 3
 RAG_MAX_DISTANCE = 0.4  # Gemini 임베딩은 거리대가 좁음(관련 ~0.2, 무관 ~0.28) — eval로 재튜닝 대상
+COACH_RAG_TOP_K = 6  # 코치는 가르치는 입장 — NPC(3)보다 넓게 그 직무 전체 그림을 그라운딩
+
+
+async def _coach_knowledge(
+    session: AsyncSession, scenario: Scenario, *query_parts: str
+) -> list[str]:
+    """코치 카드 그라운딩 — 그 직무 스코프(kb_jobs_for) RAG 청크 내용. 실패·미매핑이면 [] (비차단)."""
+    query = " ".join(p for p in query_parts if p).strip()
+    if not query:
+        return []
+    try:
+        chunks = await search_knowledge(
+            session, query, job_code=kb_jobs_for(scenario.slug),
+            top_k=COACH_RAG_TOP_K, max_distance=RAG_MAX_DISTANCE,
+        )
+    except Exception:  # noqa: BLE001 — 코치 근거 검색 실패가 제출을 막으면 안 됨
+        logger.warning("코치 RAG 검색 실패 (scenario=%s) — 근거 없이 카드 생성", scenario.slug)
+        return []
+    return [c.content for c in chunks]
+
 
 # NPC 화법 — 현장·기능직 계열(family F03·F04·F07·F14·F15·F18~F24)에 매핑되는 시나리오는 반말,
 # 사무·전문직 계열(F01·F02·F05·F06·F08~F13·F16·F17)은 존대. 매핑 안 된 slug은 기본 존대.
@@ -361,6 +381,8 @@ async def stream_npc_chat(
             criteria=(step.get("task") or {}).get("criteria", []),
             user_text=user_text,
             npc_reply=npc_reply,
+            # NPC와 동일 스코프로 이미 검색한 청크 재사용 (추가 임베딩 호출 없음)
+            knowledge=("\n\n".join(c.content for c in chunks) if chunks else None),
         )
         if tip:
             yield ("coach_tip", {"text": tip})
@@ -561,6 +583,7 @@ async def submit_task(
         coach_cards = await coach.generate_cards(coach.build_vars(
             simulation_id=simulation.id, scenario_slug=scenario.slug,
             step=step, task=task, submission=submission, result=result, attempt=attempt_n,
+            knowledge=await _coach_knowledge(session, scenario, step["mission"], task.get("prompt", "")),
         ))
 
     return _envelope(
@@ -629,6 +652,9 @@ async def _submit_quest(
             simulation_id=simulation.id, scenario_slug=scenario.slug,
             step=quest_step, task=qtask, submission=submission, result=result,
             attempt=quest["attempts"],
+            knowledge=await _coach_knowledge(
+                session, scenario, qtask.get("mission") or qtask.get("prompt", "")
+            ),
         ))
 
     return _envelope(
