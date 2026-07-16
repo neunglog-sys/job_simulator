@@ -348,20 +348,6 @@ a:focus-visible {
     var(--twinkle-delay, 0s) infinite alternate;
 }
 
-.star-bright {
-  background: #ffffff;
-  box-shadow:
-    0 0 7px #ffffff,
-    0 0 15px rgb(237 198 255 / 0.72);
-}
-
-.star-warm {
-  background: #ffdc8f;
-  box-shadow:
-    0 0 7px rgb(255 245 199 / 0.96),
-    0 0 14px rgb(255 199 125 / 0.72);
-}
-
 .cosmic-sparkle {
   position: absolute;
   z-index: 1;
