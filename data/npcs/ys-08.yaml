@@ -25,7 +25,7 @@ npcs:
   - 우선순위 배열표(사유 포함) + 보류 업무 재일정 메모
   - 교대 인수인계장 1부(미결사항·주의 장비·측정값 추이 포함)
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - m1
     - m2
@@ -53,7 +53,7 @@ npcs:
   - 핵심부터 봅시다.
   responsibilities: []
   appearance:
-    location: null
+    location: sasu
     available_steps: []
 - npc_id: npc_ys-08_03
   name: 손소율
@@ -74,7 +74,7 @@ npcs:
   - 핵심부터 봅시다.
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []
 - npc_id: npc_ys-08_04
   name: 한유진
@@ -95,7 +95,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []
 - npc_id: npc_ys-08_05
   name: 서연우
@@ -116,5 +116,5 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: sasu
     available_steps: []

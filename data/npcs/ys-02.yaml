@@ -25,7 +25,7 @@ npcs:
   - 우선순위 배열표(1~4순위+근거)
   - 구두보고 문안
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m1
     - m3
@@ -50,7 +50,7 @@ npcs:
   - 수하 단계별 수행 선택 기록
   - 육하원칙 무전보고 문안
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - quest
     conditions:
@@ -77,7 +77,7 @@ npcs:
   - 인수인계 서명
   - 장비 반납 대장 기재
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m4
 - npc_id: npc_ys-02_04
@@ -99,7 +99,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: sasu
     available_steps: []
 - npc_id: npc_ys-02_05
   name: 손서연
@@ -123,6 +123,6 @@ npcs:
   - 확인 질문 기록
   - 정정 사유가 명시된 상황일지
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m2

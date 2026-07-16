@@ -25,7 +25,7 @@ npcs:
   - 교대 인수인계 일지
   - 브리핑 요약
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m1
     - m4
@@ -53,7 +53,7 @@ npcs:
   - 우선순위 배열표(근거 포함)
   - 지연 통보·보고 메모
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - m2
 - npc_id: npc_ys-10_03
@@ -77,7 +77,7 @@ npcs:
   - 안전확인 체크리스트
   - 작업중지·조치 보고 기록
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m3
 - npc_id: npc_ys-10_04
@@ -99,7 +99,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []
 - npc_id: npc_ys-10_05
   name: 윤예린
@@ -122,6 +122,6 @@ npcs:
   - 교대 인수인계 일지
   - 브리핑 요약
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m4

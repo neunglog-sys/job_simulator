@@ -21,7 +21,7 @@ npcs:
   - SNS 채널 운영 총괄 및 최종 검수
   - 콘텐츠 기획 및 성과 지표 관리
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m1
     - m3
@@ -47,7 +47,7 @@ npcs:
   - SNS 카드뉴스 및 썸네일 디자인
   - 브랜드 비주얼 에셋 제작
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m2
 - npc_id: npc_sns-01_03
@@ -70,7 +70,7 @@ npcs:
   - 브랜드 SNS 콘텐츠 소비 및 이벤트 참여
   - 서비스 이용 관련 문의 및 피드백 제기
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - quest
     conditions:

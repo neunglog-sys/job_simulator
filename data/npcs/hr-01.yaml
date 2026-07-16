@@ -25,7 +25,7 @@ npcs:
   - 최종 합격자 처우 협의 및 승인
   - 채용 관련 규정 및 가이드라인 수립
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m1
     - m3
@@ -55,7 +55,7 @@ npcs:
   - 현업 서류 전형 및 기술 면접관 참여
   - 신규 입사자 기술 온보딩 리드
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m2
 - npc_id: npc_hr-01_03
@@ -80,7 +80,7 @@ npcs:
   - 메일로 보내주신 사전 과제 안내문 양식에 오류가 있는 것 같습니다.
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - quest
     conditions:

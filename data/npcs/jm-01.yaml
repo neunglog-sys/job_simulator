@@ -23,7 +23,7 @@ npcs:
   - 서명된 일상점검표
   - 이상 항목 보고 메모(항목·수치 포함)
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m1
 - npc_id: npc_jm-01_02
@@ -45,7 +45,7 @@ npcs:
   - 핵심부터 봅시다.
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []
 - npc_id: npc_jm-01_03
   name: 이하늘
@@ -68,7 +68,7 @@ npcs:
   - 누락·오류 확인 메모(송장번호 명시)
   - 수정된 배송 순서표
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m2
 - npc_id: npc_jm-01_04
@@ -92,7 +92,7 @@ npcs:
   - 단계별 대응 선택 기록
   - 119·배차실 신고 스크립트
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - quest
     conditions:
@@ -118,7 +118,7 @@ npcs:
   - 우선순위 배열표(각 카드 근거 포함)
   - 무전 보고 스크립트
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m3
 - npc_id: npc_jm-01_06
@@ -142,6 +142,6 @@ npcs:
   - 6하원칙 경위서
   - 인수인계 메모(정비 의뢰·미배송 잔량 포함)
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - m4

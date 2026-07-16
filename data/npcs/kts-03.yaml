@@ -25,7 +25,7 @@ npcs:
   - 우선순위 배열표
   - 처리·회신 기록
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m1
     - m3
@@ -49,7 +49,7 @@ npcs:
   - 핵심부터 봅시다.
   responsibilities: []
   appearance:
-    location: null
+    location: sasu
     available_steps: []
 - npc_id: npc_kts-03_03
   name: 유선우
@@ -72,7 +72,7 @@ npcs:
   - 니즈 파악 메모
   - 후보 상품 목록
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - m2
 - npc_id: npc_kts-03_04
@@ -96,7 +96,7 @@ npcs:
   - 민원 대응 기록
   - 인계 보고
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - quest
     conditions:

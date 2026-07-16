@@ -23,7 +23,7 @@ npcs:
   - 연구보고서
   - 데이터·코드 패키지
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m1
     - m4
@@ -49,7 +49,7 @@ npcs:
   - 기기 분석을 시작하기 전에 표준 물질부터 먼저 측정하는 것이 안전합니다.
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []
 - npc_id: npc_stn-04_03
   name: 홍하은
@@ -70,7 +70,7 @@ npcs:
   - 야외에서는 예상치 못한 변수가 많으니, 체크리스트를 두 번씩 확인합시다.
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []
 - npc_id: npc_stn-04_04
   name: 윤예은
@@ -91,7 +91,7 @@ npcs:
   - 규정을 준수하는 것이 연구의 신뢰성을 지키는 가장 빠른 길입니다.
   responsibilities: []
   appearance:
-    location: null
+    location: sasu
     available_steps: []
 - npc_id: npc_stn-04_05
   name: 최지안
@@ -112,7 +112,7 @@ npcs:
   - 보고서의 요약본만 보고도 의사결정을 내릴 수 있도록 직관적으로 정리해주십시오.
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []
 - npc_id: npc_stn-04_06
   name: 장지민
@@ -135,7 +135,7 @@ npcs:
   - 시료점검표
   - 사용보류 목록
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m2
 - npc_id: npc_stn-04_07
@@ -159,6 +159,6 @@ npcs:
   - 실험 우선순위표
   - 예약조정안
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m3

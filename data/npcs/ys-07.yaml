@@ -26,7 +26,7 @@ npcs:
   - 우선순위 배열표(배열 근거 포함)
   - 반장 보고 문자 초안
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m1
     - m2
@@ -56,7 +56,7 @@ npcs:
   - 측정값 기록지(3회 측정·단위·측정조건)
   - 기준 출처를 명시한 판정 메모
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m3
     - quest
@@ -87,7 +87,7 @@ npcs:
   - 미완료 인계 메모
   - 고객 설명용 요약
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - m4
 - npc_id: npc_ys-07_04
@@ -112,5 +112,5 @@ npcs:
   - 제가 차를 잘 몰라서 그러는데, 교체해야 하는 부품이 정확히 어디에 들어가는 건지 보여주실 수 있을까요?
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []

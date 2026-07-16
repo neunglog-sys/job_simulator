@@ -23,7 +23,7 @@ npcs:
   - 우선순위 배열표
   - 대기·예약 안내 기록
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m3
 - npc_id: npc_kts-04_02
@@ -49,7 +49,7 @@ npcs:
   - 마감된 상담카드
   - 예약 안내 발송 기록
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m1
     - m4
@@ -74,7 +74,7 @@ npcs:
   - 의심 징후 체크 기록
   - 보고서
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - quest
     conditions:
@@ -100,6 +100,6 @@ npcs:
   - 상담카드(3줄 요약)
   - 처리 경로 메모
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m2
