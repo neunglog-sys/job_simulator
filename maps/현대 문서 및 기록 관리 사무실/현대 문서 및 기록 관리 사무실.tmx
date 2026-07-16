@@ -9,7 +9,7 @@
  <objectgroup id="5" name="walkable" locked="1">
   <object id="57" x="70" y="80" width="1780" height="656"/>
  </objectgroup>
- <objectgroup id="4" name="collision" locked="1">
+ <objectgroup id="4" name="collision">
   <object id="4" x="70.953" y="79.8222" width="129.711" height="136.363"/>
   <object id="5" x="74.279" y="222.837" width="106.43" height="511.084"/>
   <object id="6" x="262.748" y="151.884" width="22.1728" height="57.6493"/>
@@ -63,7 +63,7 @@
   <object id="56" x="1819.28" y="185.143" width="47.6716" height="180.708"/>
   <object id="63" x="1820.39" y="637.469" width="26.6074" height="100.886"/>
   <object id="64" x="1686.24" y="671.836" width="52.1061" height="76.4962"/>
-  <object id="65" x="1722.83" y="128.602" width="14.4123" height="175.165"/>
+  <object id="65" x="1728.37" y="128.602" width="8.86909" height="175.165"/>
  </objectgroup>
  <objectgroup id="6" name="spawns" locked="1">
   <object id="59" name="부장" x="419.066" y="496.671">
