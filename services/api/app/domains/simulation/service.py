@@ -308,7 +308,8 @@ async def stream_npc_chat(
     roster = await npc_map(session, scenario.id)
     persona = roster.get(npc_id)
     if persona is None:
-        raise HTTPException(status_code=404, detail=f"NPC 없음: {npc_id}")
+        # npc는 npc_id여야 한다(이름 아님). 프론트가 이름을 보내면 여기로 온다.
+        raise HTTPException(status_code=404, detail=f"NPC 없음: {npc_id} (npc_id로 지목하세요)")
 
     # 자유 대화: 이 시나리오 로스터의 누구와도 말은 걸 수 있다(맵에서 NPC 클릭 → 잡담).
     # 단 미션 채점·상태 전이·코치 TIP은 현재 스텝(또는 활성 퀘스트) NPC일 때만 —
