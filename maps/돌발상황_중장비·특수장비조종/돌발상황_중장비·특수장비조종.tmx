@@ -80,7 +80,7 @@
   <object id="72" x="1520.87" y="173.497" width="153.194" height="118.125"/>
   <object id="73" x="1395.36" y="217.794" width="64.5999" height="62.7541"/>
  </objectgroup>
- <objectgroup id="6" name="spawn">
+ <objectgroup id="6" name="spawn" locked="1">
   <object id="74" name="player" x="559.25" y="614.621">
    <point/>
   </object>
