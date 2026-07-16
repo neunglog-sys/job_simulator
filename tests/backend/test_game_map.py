@@ -38,7 +38,7 @@ def test_map_info_for_mapped_scenario():
 
 
 def test_map_info_none_for_unmapped():
-    assert game_map.map_info_for("ms-06") is None  # 맵 미정(null) 시나리오
+    assert game_map.map_info_for("ms-03") is None  # 맵 미정(null) 시나리오
     assert game_map.map_info_for("없는-slug") is None
 
 
@@ -92,7 +92,7 @@ def test_missing_geometry_not_cached_appears_later(tmp_path, monkeypatch):
 def test_available_map_id_gated_on_geometry(tmp_path, monkeypatch):
     # 리뷰 #4: /api/scenarios의 map_id는 geometry가 실제로 로드될 때만
     assert game_map.available_map_id("gm-01")  # 실제 맵 존재
-    assert game_map.available_map_id("ms-06") is None  # 매핑 자체가 null
+    assert game_map.available_map_id("ms-03") is None  # 매핑 자체가 null
     monkeypatch.setattr(settings, "maps_dir", str(tmp_path))  # 매핑은 있는데 파일 없음
     game_map.clear_caches()
     assert game_map.available_map_id("gm-01") is None
