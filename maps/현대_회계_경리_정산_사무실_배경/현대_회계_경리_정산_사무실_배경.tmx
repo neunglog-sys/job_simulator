@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="80" height="45" tilewidth="24" tileheight="24" infinite="0" nextlayerid="7" nextobjectid="63">
+ <imagelayer id="2" name="background" locked="1">
+  <image source="현대_회계_경리_정산_사무실_배경.png" width="1920" height="1080"/>
+ </imagelayer>
+ <objectgroup id="3" name="player_bounds" locked="1">
+  <object id="1" x="70" y="80" width="1780" height="656"/>
+ </objectgroup>
+ <objectgroup id="4" name="walkable" locked="1">
+  <object id="2" x="70" y="80" width="1780" height="656"/>
+ </objectgroup>
+ <objectgroup id="5" name="collision" locked="1">
+  <object id="3" x="80.9308" y="75.3876" width="54.3234" height="76.4962"/>
+  <object id="4" x="74.279" y="369.177" width="47.6716" height="126.385"/>
+  <object id="5" x="64.3012" y="645.229" width="54.3234" height="73.1703"/>
+  <object id="6" x="159.644" y="85.3654" width="14.4123" height="661.859"/>
+  <object id="7" x="1782.69" y="83.1481" width="18.8469" height="664.076"/>
+  <object id="8" x="1697.33" y="82.0394" width="88.6913" height="137.471"/>
+  <object id="9" x="1216.18" y="85.3654" width="11.0864" height="227.271"/>
+  <object id="10" x="1351.43" y="83.1481" width="9.97777" height="237.249"/>
+  <object id="11" x="1368.06" y="86.474" width="194.012" height="107.538"/>
+  <object id="12" x="1567.62" y="93.1258" width="127.494" height="64.3012"/>
+  <object id="13" x="171.839" y="96.4518" width="350.331" height="97.5604"/>
+  <object id="14" x="526.604" y="98.6691" width="176.274" height="82.0394"/>
+  <object id="15" x="696.227" y="170.731" width="13.3037" height="141.906"/>
+  <object id="16" x="769.397" y="106.43" width="8.86913" height="209.533"/>
+  <object id="17" x="779.375" y="272.726" width="243.901" height="44.3456"/>
+  <object id="19" x="821.503" y="178.491" width="155.21" height="65.4098"/>
+  <object id="20" x="711.748" y="95.3431" width="54.3234" height="67.6271"/>
+  <object id="21" x="1015.52" y="103.104" width="66.5185" height="66.5185"/>
+  <object id="22" x="769.397" y="63.1925" width="246.118" height="83.1481"/>
+  <object id="23" x="1087.58" y="59.8666" width="137.471" height="99.7777"/>
+  <object id="24" x="1233.92" y="90.9086" width="113.081" height="110.864"/>
+  <object id="25" x="1077.6" y="151.884" width="18.8469" height="168.513"/>
+  <object id="26" x="1158.53" y="266.074" width="64.3012" height="44.3456"/>
+  <object id="27" x="1354.76" y="259.422" width="52.1061" height="56.5407"/>
+  <object id="28" x="1687.35" y="174.057" width="9.97777" height="98.6691"/>
+  <object id="29" x="345.896" y="694.009" width="95.3431" height="67.6271"/>
+  <object id="30" x="506.649" y="192.904" width="13.3037" height="70.953"/>
+  <object id="31" x="481.15" y="264.965" width="38.8024" height="47.6716"/>
+  <object id="32" x="182.926" y="264.965" width="181.817" height="42.1284"/>
+  <object id="33" x="246.118" y="189.578" width="15.521" height="70.953"/>
+  <object id="34" x="513.301" y="399.111" width="286.029" height="86.474"/>
+  <object id="35" x="476.716" y="437.913" width="24.3901" height="57.6493"/>
+  <object id="36" x="807.091" y="442.348" width="32.1506" height="44.3456"/>
+  <object id="37" x="888.021" y="441.239" width="24.3901" height="45.4543"/>
+  <object id="38" x="922.389" y="405.763" width="389.133" height="76.4962"/>
+  <object id="39" x="1322.61" y="445.674" width="29.9333" height="36.5852"/>
+  <object id="40" x="476.716" y="598.666" width="25.4987" height="52.1061"/>
+  <object id="41" x="518.844" y="567.624" width="283.812" height="77.6049"/>
+  <object id="42" x="812.634" y="603.101" width="29.9333" height="52.1061"/>
+  <object id="43" x="892.456" y="608.644" width="24.3901" height="41.0197"/>
+  <object id="44" x="930.15" y="564.298" width="372.503" height="80.9308"/>
+  <object id="45" x="1328.15" y="600.883" width="34.3679" height="50.9975"/>
+  <object id="46" x="1490.01" y="513.301" width="231.706" height="78.7135"/>
+  <object id="47" x="1499.99" y="266.074" width="211.75" height="93.1258"/>
+  <object id="48" x="1623.05" y="402.437" width="90.9086" height="63.1925"/>
+  <object id="49" x="1707.31" y="353.656" width="11.0864" height="178.491"/>
+  <object id="50" x="1707.31" y="598.666" width="7.76049" height="137.471"/>
+  <object id="51" x="1647.44" y="604.209" width="37.6938" height="57.6493"/>
+  <object id="52" x="1464.51" y="695.118" width="195.121" height="86.474"/>
+  <object id="53" x="1461.19" y="637.469" width="52.1061" height="64.3012"/>
+  <object id="54" x="190.686" y="412.414" width="103.104" height="47.6716"/>
+  <object id="55" x="191.795" y="501.106" width="146.341" height="48.7802"/>
+  <object id="56" x="197.338" y="585.362" width="134.146" height="54.3234"/>
+  <object id="57" x="189.578" y="670.728" width="41.0197" height="94.2345"/>
+  <object id="58" x="292.681" y="320.397" width="78.7135" height="74.279"/>
+ </objectgroup>
+ <objectgroup id="6" name="spawns" locked="1">
+  <object id="59" name="player" x="874.718" y="353.656">
+   <point/>
+  </object>
+  <object id="60" name="사수" x="402.437" y="527.713">
+   <point/>
+  </object>
+  <object id="61" name="팀장" x="863.631" y="533.256">
+   <point/>
+  </object>
+  <object id="62" name="부장" x="1424.6" y="644.12">
+   <point/>
+  </object>
+ </objectgroup>
+</map>

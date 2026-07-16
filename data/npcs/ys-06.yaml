@@ -25,7 +25,7 @@ npcs:
   - 회로별 판정표(합격/미달)
   - 이상개소 보고서
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m2
     - m3
@@ -55,7 +55,7 @@ npcs:
   - 전기안전관리대장 기입분
   - 야간 인계장
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m1
     - m4
@@ -78,7 +78,7 @@ npcs:
   - 핵심부터 봅시다.
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []
 - npc_id: npc_ys-06_04
   name: 임차인
@@ -99,5 +99,5 @@ npcs:
   - 빨리 좀 처리해줘요.
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []

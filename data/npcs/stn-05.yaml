@@ -25,7 +25,7 @@ npcs:
   - KPI 초안
   - 기획서
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m1
     - m4
@@ -54,7 +54,7 @@ npcs:
   - 보완 요청
   - 임시 후보군
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m2
 - npc_id: npc_stn-05_03
@@ -76,7 +76,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []
 - npc_id: npc_stn-05_04
   name: 고지민
@@ -97,7 +97,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []
 - npc_id: npc_stn-05_05
   name: 고수아
@@ -118,7 +118,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: sasu
     available_steps: []
 - npc_id: npc_stn-05_06
   name: 양선우
@@ -142,6 +142,6 @@ npcs:
   - 스프린트 제안
   - 제외근거
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - m3

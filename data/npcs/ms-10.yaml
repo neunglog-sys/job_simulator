@@ -21,7 +21,7 @@ npcs:
   - 공종조정표
   - 간섭도
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m3
 - npc_id: npc_ms-10_02
@@ -43,7 +43,7 @@ npcs:
   - 서 기사님, 오늘 들어온 철근 규격이 도면이랑 좀 다른 것 같은데 확인해보셨습니까?
   responsibilities: []
   appearance:
-    location: null
+    location: sasu
     available_steps: []
 - npc_id: npc_ms-10_03
   name: 홍하준
@@ -66,7 +66,7 @@ npcs:
   - 위험발견 보고서
   - 작업재개 승인요청
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - quest
     conditions:
@@ -90,7 +90,7 @@ npcs:
   - 서 기사님, 이번 주말 타설 전에 저희 입선 작업 끝낼 수 있게 일정 조율 부탁드립니다.
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []
 - npc_id: npc_ms-10_05
   name: 안지아
@@ -112,7 +112,7 @@ npcs:
   responsibilities:
   - 시공준비 체크표
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m1
 - npc_id: npc_ms-10_06
@@ -136,7 +136,7 @@ npcs:
   - 작업보류표
   - 변경도면 요청
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - m2
 - npc_id: npc_ms-10_07
@@ -160,6 +160,6 @@ npcs:
   - 준공검사표
   - 변경·운영 인계서
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m4

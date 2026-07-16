@@ -25,7 +25,7 @@ npcs:
   - 조리순서표
   - 역할분담표
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m1
     - m3
@@ -50,7 +50,7 @@ npcs:
   - 알레르기 확인표
   - 대체메뉴안
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m2
 - npc_id: npc_ms-07_03
@@ -72,7 +72,7 @@ npcs:
   - 빨리 좀 처리해줘요.
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []
 - npc_id: npc_ms-07_04
   name: 황소율
@@ -95,7 +95,7 @@ npcs:
   - 이물사고 기록
   - 폐기·재제조 결정표
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - quest
     conditions:
@@ -120,6 +120,6 @@ npcs:
   responsibilities:
   - 주방인계표
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m4

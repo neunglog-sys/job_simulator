@@ -25,7 +25,7 @@ npcs:
   - 우선순위표
   - 지원·일정 조정안
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m2
     - m3
@@ -53,7 +53,7 @@ npcs:
   - 광고 검수표
   - 수정요청서
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m1
     - quest
@@ -78,7 +78,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []
 - npc_id: npc_stn-01_04
   name: 황지우
@@ -99,7 +99,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []
 - npc_id: npc_stn-01_05
   name: 안도윤
@@ -120,5 +120,5 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: sasu
     available_steps: []

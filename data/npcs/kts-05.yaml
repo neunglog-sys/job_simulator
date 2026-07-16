@@ -25,7 +25,7 @@ npcs:
   - 교대 인계장
   - 분실물 대조 기록
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m1
     - m4
@@ -50,7 +50,7 @@ npcs:
   - 우선순위 배열표
   - 처리·회신 로그
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m3
 - npc_id: npc_kts-05_03
@@ -74,7 +74,7 @@ npcs:
   - 체크인 처리 기록
   - 예약 표기 정정 메모
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - m2
 - npc_id: npc_kts-05_04
@@ -98,7 +98,7 @@ npcs:
   - 대응 단계 기록
   - 상황 보고서
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - quest
     conditions:

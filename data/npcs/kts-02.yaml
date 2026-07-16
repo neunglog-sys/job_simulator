@@ -25,7 +25,7 @@ npcs:
   - 상담 준비 요약
   - 상담 결과 기록
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m2
     - m4
@@ -52,7 +52,7 @@ npcs:
   - 수업 진행 계획표
   - 배분 근거 메모
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m1
     - m3
@@ -77,7 +77,7 @@ npcs:
   - 이상 증상 대응 기록
   - 상태 관찰 메모
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - quest
     conditions:
@@ -101,5 +101,5 @@ npcs:
   - 빨리 좀 처리해줘요.
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []

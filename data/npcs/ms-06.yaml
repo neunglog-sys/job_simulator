@@ -20,7 +20,7 @@ npcs:
   responsibilities:
   - 폭염대응 작업표
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m3
 - npc_id: npc_ms-06_02
@@ -43,7 +43,7 @@ npcs:
   responsibilities:
   - 환경·개체 점검표
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m1
 - npc_id: npc_ms-06_03
@@ -65,7 +65,7 @@ npcs:
   - 방제 약제를 선택할 때는 작물의 생육 단계와 안전 사용 기준일수를 반드시 먼저 확인해야 합니다.
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []
 - npc_id: npc_ms-06_04
   name: 권예준
@@ -88,7 +88,7 @@ npcs:
   - 관수확인표
   - 조치보고
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m2
 - npc_id: npc_ms-06_05
@@ -112,7 +112,7 @@ npcs:
   - 비상조치 기록
   - 설비장애 보고
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - quest
     conditions:
@@ -137,6 +137,6 @@ npcs:
   responsibilities:
   - 교대인계서
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - m4

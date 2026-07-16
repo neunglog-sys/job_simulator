@@ -21,7 +21,7 @@ npcs:
   - 물류창고 입출고 총괄 관리
   - 현장 안전 관리 및 신입 교육
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m1
     - m3
@@ -47,7 +47,7 @@ npcs:
   - 주문서별 상품 피킹 및 분류
   - 출고 대기 구역 적재
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m2
 - npc_id: npc_wh-01_03
@@ -71,7 +71,7 @@ npcs:
   - 출고 완료 상품 상차 및 운송
   - 회수 물품(반품) 창고 인계
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - quest
     conditions:

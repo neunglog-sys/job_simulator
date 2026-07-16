@@ -25,7 +25,7 @@ npcs:
   - 누락항목 목록(위치·누락 사유)
   - 주최측 확인 질문 3개
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m1
     - m2
@@ -50,7 +50,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []
 - npc_id: npc_ys-03_03
   name: 오소율
@@ -71,7 +71,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []
 - npc_id: npc_ys-03_04
   name: 손서연
@@ -92,7 +92,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: sasu
     available_steps: []
 - npc_id: npc_ys-03_05
   name: 황하윤
@@ -113,7 +113,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []
 - npc_id: npc_ys-03_06
   name: 전은채
@@ -136,7 +136,7 @@ npcs:
   - 육하원칙 무전 보고문
   - 대응 단계 선택 기록
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - quest
     conditions:

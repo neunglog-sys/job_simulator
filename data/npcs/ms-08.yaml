@@ -23,7 +23,7 @@ npcs:
   - 일정조정표
   - 고객안내 문구
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m3
 - npc_id: npc_ms-08_02
@@ -46,7 +46,7 @@ npcs:
   responsibilities:
   - 사후관리 안내서
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - m4
 - npc_id: npc_ms-08_03
@@ -70,7 +70,7 @@ npcs:
   - 이상반응 보고서
   - 사후안내
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - quest
     conditions:
@@ -96,7 +96,7 @@ npcs:
   - 상담·동의서
   - 서비스 계획
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m1
 - npc_id: npc_ms-08_05
@@ -120,6 +120,6 @@ npcs:
   - 사전상태 기록
   - 보호자동의
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m2

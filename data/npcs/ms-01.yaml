@@ -21,7 +21,7 @@ npcs:
   - 핵심부터 봅시다.
   responsibilities: []
   appearance:
-    location: null
+    location: sasu
     available_steps: []
 - npc_id: npc_ms-01_02
   name: 황지아
@@ -42,7 +42,7 @@ npcs:
   - 빨리 좀 처리해줘요.
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []
 - npc_id: npc_ms-01_03
   name: 고하윤
@@ -63,7 +63,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []
 - npc_id: npc_ms-01_04
   name: 전수빈
@@ -84,7 +84,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: sasu
     available_steps: []
 - npc_id: npc_ms-01_05
   name: 모세종
@@ -107,7 +107,7 @@ npcs:
   - 증빙목록 초안
   - 확인질문 3개
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - m1
 - npc_id: npc_ms-01_06
@@ -131,7 +131,7 @@ npcs:
   - 누락점검표
   - 보완요청 메시지
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m2
 - npc_id: npc_ms-01_07
@@ -155,7 +155,7 @@ npcs:
   - 우선순위표
   - 일정·지원 요청안
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m3
 - npc_id: npc_ms-01_08
@@ -180,7 +180,7 @@ npcs:
   - 수정본
   - 발송보류 보고
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - quest
     conditions:
@@ -206,6 +206,6 @@ npcs:
   - 인계메모
   - 다음 액션 목록
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - m4

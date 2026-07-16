@@ -27,7 +27,7 @@ npcs:
   - 우선순위 배열표(순위·근거)
   - 기장 보고 스크립트
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m1
     - m3
@@ -58,7 +58,7 @@ npcs:
   - '"상황이 급할수록 교신은 더 간결하고 명확해야 합니다. 다시 송신하십시오."'
   responsibilities: []
   appearance:
-    location: null
+    location: sasu
     available_steps: []
 - npc_id: npc_jm-03_03
   name: 이정민
@@ -85,7 +85,7 @@ npcs:
   - 누락·불일치 목록과 확인 질문 기록
   - 보완된 브리핑 확인 요약
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - m2
 - npc_id: npc_jm-03_04
@@ -114,7 +114,7 @@ npcs:
   - 테크로그 결함 기록 초안
   - 안전의무보고 대상 판단 메모
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m4
 - npc_id: npc_jm-03_05
@@ -140,7 +140,7 @@ npcs:
   - '"저희 승무원들은 승객의 편안함 이전에 안전을 지키기 위해 이 자리에 있습니다."'
   responsibilities: []
   appearance:
-    location: null
+    location: sasu
     available_steps: []
 - npc_id: npc_jm-03_06
   name: 김유진
@@ -165,5 +165,5 @@ npcs:
   - '"지상 기상이 악화되고 있으니, 회항 여부에 대한 최종 결정을 신속히 내려주시기 바랍니다."'
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []

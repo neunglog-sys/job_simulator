@@ -1,8 +1,11 @@
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from app.content.knowledge import ingest_knowledge
@@ -40,6 +43,17 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="나의 직무 아카데미아 API", lifespan=lifespan)
 
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request, exc):
+    """미처리 예외 → 프론트 에러 규약({detail})으로 통일 + 스택 로깅.
+
+    기본 Starlette 500은 plain text라 프론트의 detail 파싱이 깨진다. HTTPException은
+    FastAPI 기본 핸들러가 그대로 처리하므로 여기 안 온다.
+    """
+    logger.exception("미처리 예외: %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "서버 오류가 발생했어요. 잠시 후 다시 시도해주세요."})
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins.split(","),
@@ -55,6 +69,13 @@ app.include_router(jobs_router)
 app.include_router(reporting_router)
 app.include_router(simulation_router)
 app.include_router(tts_router)
+
+# 게임 맵 정적 서빙 — /maps/<맵폴더>/<배경>.png 등. 폴더가 없으면(배포 초기 등) 조용히 생략:
+# 게임 API의 map 필드도 None이 되어 프론트는 기존 module 배경으로 폴백한다.
+if Path(settings.maps_dir).is_dir():
+    app.mount("/maps", StaticFiles(directory=settings.maps_dir), name="maps")
+else:
+    logger.warning("maps/ 폴더 없음 — 게임 맵 정적 서빙 비활성 (compose 볼륨 확인)")
 
 
 @app.get("/health")

@@ -23,7 +23,7 @@ npcs:
   - 출동 우선순위 배열표
   - 순찰차 배정 보고문
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m3
 - npc_id: npc_ys-01_02
@@ -49,7 +49,7 @@ npcs:
   - 위험징후 기록지
   - 무전보고문 3건
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m1
     - quest
@@ -76,7 +76,7 @@ npcs:
   - 재질문 목록(3개 이상)
   - 추정 출동지 보고문(근거 포함)
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - m2
 - npc_id: npc_ys-01_04
@@ -98,7 +98,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []
 - npc_id: npc_ys-01_05
   name: 김민석
@@ -121,6 +121,6 @@ npcs:
   - 6하원칙 발생보고서 초안
   - 형사팀 인계 확인서
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m4

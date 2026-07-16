@@ -25,7 +25,7 @@ npcs:
   - 돌발대응 분기 선택 결과(4단계)
   - 돌발상황 보고서(시각·조치 포함)
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - m1
     - quest
@@ -53,7 +53,7 @@ npcs:
   - 팀장 확인 질문 3개
   - 비행 가능/보류 판단 결과
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m2
 - npc_id: npc_jm-05_03
@@ -75,7 +75,7 @@ npcs:
   - 우선순위 기준은요?
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []
 - npc_id: npc_jm-05_04
   name: 정미래
@@ -99,7 +99,7 @@ npcs:
   - 4단계 구조 돌발상황 보고서
   - 인수인계서
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m4
 - npc_id: npc_jm-05_05
@@ -123,6 +123,6 @@ npcs:
   - 우선순위 배열표(5건)
   - 작업 중지 건의문(법 조항 근거 포함)
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m3

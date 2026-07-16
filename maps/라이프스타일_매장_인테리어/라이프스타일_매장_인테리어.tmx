@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="80" height="45" tilewidth="24" tileheight="24" infinite="0" nextlayerid="7" nextobjectid="35">
+ <imagelayer id="2" name="background" locked="1">
+  <image source="라이프스타일_매장_인테리어.png" width="1920" height="1080"/>
+ </imagelayer>
+ <objectgroup id="3" name="play_bounds" locked="1">
+  <object id="1" name="main_play_area" x="70" y="80" width="1780" height="656"/>
+ </objectgroup>
+ <objectgroup id="4" name="walkable" locked="1">
+  <object id="2" name="walkable" x="70" y="80" width="1780" height="656"/>
+ </objectgroup>
+ <objectgroup id="5" name="collision" locked="1">
+  <object id="3" x="1092.66" y="84.9027" width="428.205" height="166.114"/>
+  <object id="4" x="1555.93" y="84.9027" width="73.8284" height="186.417"/>
+  <object id="5" x="1648.22" y="138.428" width="107.051" height="44.297"/>
+  <object id="6" x="1758.96" y="79.3655" width="66.4456" height="195.645"/>
+  <object id="7" x="1779.26" y="311.925" width="64.5999" height="217.794"/>
+  <object id="8" x="1387.97" y="422.668" width="238.097" height="108.897"/>
+  <object id="9" x="1380.59" y="383.908" width="97.8226" height="36.9142"/>
+  <object id="10" x="1129.57" y="339.611" width="125.508" height="208.565"/>
+  <object id="11" x="1037.29" y="627.541" width="214.102" height="103.36"/>
+  <object id="12" x="1242.16" y="723.518" width="151.348" height="51.6799"/>
+  <object id="13" x="1399.05" y="596.164" width="468.81" height="132.891"/>
+  <object id="14" x="712.444" y="503.879" width="227.022" height="190.108"/>
+  <object id="15" x="882.249" y="339.611" width="184.571" height="97.8226"/>
+  <object id="16" x="669.993" y="334.074" width="134.737" height="108.897"/>
+  <object id="17" x="430.05" y="352.531" width="164.268" height="121.817"/>
+  <object id="18" x="413.439" y="583.244" width="197.491" height="123.663"/>
+  <object id="19" x="605.393" y="741.975" width="454.045" height="49.8342"/>
+  <object id="20" x="62.7541" y="738.284" width="551.867" height="42.4513"/>
+  <object id="21" x="55.3713" y="374.679" width="44.297" height="350.685"/>
+  <object id="22" x="81.2112" y="376.525" width="221.485" height="215.948"/>
+  <object id="23" x="22.1485" y="234.405" width="66.4456" height="145.811"/>
+  <object id="24" x="68.2913" y="83.057" width="62.7541" height="177.188"/>
+  <object id="25" x="142.12" y="97.8226" width="162.422" height="83.057"/>
+  <object id="26" x="110.743" y="180.88" width="99.6683" height="49.8342"/>
+  <object id="27" x="300.851" y="73.8284" width="138.428" height="230.714"/>
+  <object id="28" x="470.656" y="90.4398" width="396.828" height="127.354"/>
+  <object id="29" x="867.484" y="81.2112" width="228.868" height="129.2"/>
+  <object id="30" x="1845.71" y="522.336" width="59.0627" height="79.3655"/>
+ </objectgroup>
+ <objectgroup id="6" name="spawn" locked="1">
+  <object id="31" name="player" x="1321.53" y="673.684">
+   <point/>
+  </object>
+  <object id="32" name="sasu" x="1531.94" y="411.593">
+   <point/>
+  </object>
+  <object id="33" name="teamjang" x="1107.43" y="287.931">
+   <point/>
+  </object>
+  <object id="34" name="bujang" x="221.485" y="306.388">
+   <point/>
+  </object>
+ </objectgroup>
+</map>
