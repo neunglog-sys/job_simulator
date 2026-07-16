@@ -21,7 +21,7 @@ import {
 } from "react";
 import { CLIENT_EVENTS, FRONTEND_ENDPOINTS } from "../config/endpoints";
 import { AVATAR_IMAGE, LANDING_COPY } from "../content";
-import { ApiError, createConsultation } from "../lib/api";
+import { createConsultation } from "../lib/api";
 import { logout, useAuth } from "../lib/auth";
 import { AuthModal, type AuthMode } from "./AuthModal";
 
@@ -577,40 +577,16 @@ export function CareerLaunch() {
     toastTimerRef.current = window.setTimeout(() => setToast(""), 2_500);
   }, []);
 
-  const launchNow = useCallback(() => {
-    if (phaseAtLeast(phase, "launch")) return;
-    clearTimers();
-    setPhase("ignition");
-    schedulePhase("launch", reduceMotion ? 30 : 950);
-    schedulePhase("transition", reduceMotion ? 50 : 2_600);
-    schedulePhase("orbit", reduceMotion ? 70 : 4_800);
-    schedulePhase("settled", reduceMotion ? 90 : 7_250);
-  }, [clearTimers, phase, reduceMotion, schedulePhase]);
-
-  const startCareerExploration = useCallback(async () => {
-    // 로그인 안 됐으면 먼저 로그인 유도 (상담은 사용자 소유 리소스).
-    if (auth.status !== "authed") {
-      setAuthMode("signIn");
-      showToast("로그인하면 직무 탐색을 시작할 수 있어요.");
-      return;
-    }
+  const startCareerExploration = useCallback(() => {
     window.dispatchEvent(new CustomEvent(CLIENT_EVENTS.startCareerExploration));
-    try {
-      const consultation = await createConsultation();
-      showToast(`AI 상담 세션을 시작했어요 (#${consultation.id}). 설문 화면으로 이어집니다.`);
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "상담 시작에 실패했어요.");
+    // 테스트 단계: 화면 전환이 목적이라 상담 생성을 '기다리지 않는다'.
+    // (이전엔 await createConsultation() 로 기다리다, 로그인 상태에서 상담 생성이 지연되면
+    //  화면이 안 넘어가는 문제가 있었다. 로그인 시 백그라운드로 시도만 하고 즉시 이동.)
+    if (auth.status === "authed") {
+      void createConsultation().catch(() => {});
     }
-  }, [auth.status, showToast]);
-
-  const handleNavPrimaryAction = useCallback(() => {
-    if (!phaseAtLeast(phase, "orbit")) {
-      launchNow();
-      return;
-    }
-
-    startCareerExploration();
-  }, [launchNow, phase, startCareerExploration]);
+    window.location.assign(FRONTEND_ENDPOINTS.conversation);
+  }, [auth.status]);
 
   const handlePointerMove = (event: PointerEvent<HTMLElement>) => {
     if (reduceMotion || event.pointerType === "touch") return;
@@ -782,7 +758,7 @@ export function CareerLaunch() {
           <button
             className="button button-primary nav-primary"
             type="button"
-            onClick={handleNavPrimaryAction}
+            onClick={startCareerExploration}
           >
             <span>{LANDING_COPY.actions.getStarted}</span>
             <ArrowRight aria-hidden="true" />

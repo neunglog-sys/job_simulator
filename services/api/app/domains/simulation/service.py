@@ -109,6 +109,8 @@ def _clean_npc(text: str) -> str:
     text = " ".join(text.split())
     text = text.replace("_", "").replace("'", "")
     text = text.strip(' "`*<>').strip()
+    # 문맥이 NPC 발화를 "[이름] ..."로 넣어 모델이 그 화자 태그를 흉내내는 경우가 있다 — 접두 제거.
+    text = re.sub(r"^\s*\[[^\]]{1,20}\]\s*", "", text).strip()
     kept = "".join(m.group() for m in _SENTS.finditer(text) if _HANGUL.search(m.group()))
     kept = " ".join(kept.split()).strip()
     kept = re.sub(r"^(?:[A-Za-z]+[ ,]*)+", "", kept).strip()  # 한글 앞 영어 인사말(Excuse me 등) 제거
@@ -234,6 +236,8 @@ async def to_out(session: AsyncSession, simulation: Simulation, scenario: Scenar
         "status": simulation.status,
         "state": public_state(simulation.state),
         "step": sm.public_step(step),
+        # 본편 미션 id 순서 (진행률 계산용) — 돌발 퀘스트는 steps에 없어 자연히 제외됨
+        "step_ids": [s["id"] for s in scenario.steps],
         "npcs": _public_npcs(roster, slots),  # 시나리오 NPC 표시정보 (step.npcs는 npc_id 목록)
         "map": map_info,
         "created_at": simulation.created_at,
@@ -436,6 +440,82 @@ async def stream_npc_chat(
     )
 
 
+async def _persona_line(
+    simulation: Simulation, scenario: Scenario, step: dict, persona: dict,
+    user_prompt: str, *, temperature: float = 0.5,
+) -> str:
+    """해당 NPC 페르소나 시스템 프롬프트로 짧은 대사 1개 생성 (인사·격려 공용)."""
+    kind = npc_kind(persona["role"], persona["rank"])
+    system = render_prompt(
+        "npc/system.md",
+        scenario_title=scenario.title,
+        register=register_for_npc(scenario.slug, kind),
+        npc_kind=kind,
+        mission=step["mission"],
+        name=persona["name"], role=persona["role"], rank=persona["rank"],
+        personality=persona["personality"], likes=persona["likes"],
+        dislikes=persona["dislikes"], speech_habits=persona["speech_habits"],
+        responsibilities=persona["responsibilities"],
+        state=simulation.state,
+        affinity=50, affinity_band=affinity.band(50),
+        knowledge=None,
+    )
+    return _clean_npc(
+        await get_llm().chat([ChatMessage(role="user", content=user_prompt)], system=system, temperature=temperature)
+    )
+
+
+async def npc_greeting(
+    session: AsyncSession, simulation: Simulation, scenario: Scenario
+) -> dict:
+    """현재 스텝 담당 NPC의 실시간 인사 — 플레이어가 다가왔을 때 짧게 인사하며 업무를 건넨다.
+
+    LLM 실패 시 시나리오 미션의 NPC 대사(첫 문단)로 폴백. 채점·상태 변경 없음(부작용 없음).
+    """
+    step = _resolve_step(scenario, simulation.state)
+    npc_id = (step.get("npcs") or [None])[0]
+    fallback = (step.get("mission") or "").split("\n\n")[0].strip()
+    roster = await npc_map(session, scenario.id)
+    persona = roster.get(npc_id or "")
+    if persona is None:
+        return {"npc": npc_id, "name": "", "text": fallback}
+
+    prompt = (
+        "신입 직원이 방금 당신에게 다가왔습니다. 짧게 인사하고, 오늘 맡길 업무를 "
+        "자연스럽게 건네세요. 2~3문장, 정답은 알려주지 말 것."
+    )
+    try:
+        text = await _persona_line(simulation, scenario, step, persona, prompt, temperature=0.5)
+    except Exception:  # noqa: BLE001 — 인사 생성 실패가 게임을 막지 않게 폴백
+        logger.warning("NPC 인사 생성 실패 (simulation=%d) — 시나리오 대사로 폴백", simulation.id)
+        text = ""
+    return {"npc": npc_id, "name": persona["name"], "text": text or fallback}
+
+
+async def npc_farewell(
+    session: AsyncSession, simulation: Simulation, scenario: Scenario, step: dict
+) -> dict | None:
+    """방금 이 업무(step)를 마친 신입에게 담당 NPC가 건네는 짧은 격려('고생했다').
+
+    실패·NPC 없음이면 None (프론트는 기본 문구 폴백). 부작용 없음.
+    """
+    npc_id = (step.get("npcs") or [None])[0]
+    roster = await npc_map(session, scenario.id)
+    persona = roster.get(npc_id or "")
+    if persona is None:
+        return None
+    prompt = (
+        "신입이 방금 이 업무를 마쳤습니다. 당신 성격대로 짧게 '수고했다'고 격려하며 "
+        "마무리하세요. 1~2문장, 정답·다음 지시는 언급하지 말 것."
+    )
+    try:
+        text = await _persona_line(simulation, scenario, step, persona, prompt, temperature=0.6)
+    except Exception:  # noqa: BLE001 — 격려 생성 실패가 통과를 막지 않게
+        logger.warning("NPC 격려 생성 실패 (simulation=%d)", simulation.id)
+        return None
+    return {"npc": npc_id, "name": persona["name"], "text": text or "고생했어요."}
+
+
 async def submit_choice(
     session: AsyncSession,
     simulation: Simulation,
@@ -624,6 +704,9 @@ async def submit_task(
             knowledge=await _coach_knowledge(session, scenario, step["mission"], task.get("prompt", "")),
         ))
 
+    # 통과 시 담당 NPC의 격려('고생했다') 문구 — 방금 마친 step 기준
+    farewell = await npc_farewell(session, simulation, scenario, step) if result["passed"] else None
+
     return _envelope(
         result,
         simulation.state,
@@ -632,6 +715,7 @@ async def submit_task(
         completed=completed,
         sudden_quest=quest_fired,
         coach=coach_cards,
+        farewell=farewell,
     )
 
 
@@ -703,6 +787,48 @@ async def _submit_quest(
         quest_status=quest["status"],
         coach=coach_cards,
     )
+
+
+async def skip_step(
+    session: AsyncSession, simulation: Simulation, scenario: Scenario
+) -> dict:
+    """테스트용 — 채점 없이 현재 미션을 통과 처리하고 다음 미션으로 전진(마지막이면 완주).
+
+    돌발 퀘스트가 활성 중이면 퀘스트를 통과 처리하고 본편은 유지한다.
+    """
+    _ensure_active(simulation)
+    state = dict(simulation.state)
+
+    quest = dict(state.get("quest") or {"status": "none", "attempts": 0})
+    if quest.get("status") == "active":
+        quest["status"] = "passed"
+        state["quest"] = quest
+        simulation.state = state
+        flag_modified(simulation, "state")
+        await scoring.log_action(session, simulation.id, "skip_quest", {}, {})
+        await session.commit()
+        return {"step_changed": None, "completed": False, "state": public_state(simulation.state)}
+
+    step = _resolve_step(scenario, state)
+    on_pass = (step.get("task") or {}).get("on_pass")
+    completed = False
+    step_changed = None
+    if on_pass is None or on_pass == sm.END:
+        simulation.status = "completed"
+        completed = True
+    else:
+        state["step"] = on_pass
+        step_changed = sm.public_step(sm.find_step(scenario.steps, on_pass))
+    simulation.state = state
+    flag_modified(simulation, "state")
+    await scoring.log_action(session, simulation.id, "skip_step", {"from": step["id"]}, {})
+    await session.commit()
+    if completed:
+        try:
+            await finalize_score(session, simulation, scenario)
+        except Exception:  # noqa: BLE001 — 스냅샷 실패가 스킵을 막지 않게
+            logger.exception("스킵 완주 점수 스냅샷 실패 (simulation=%d)", simulation.id)
+    return {"step_changed": step_changed, "completed": completed, "state": public_state(simulation.state)}
 
 
 async def finalize_score(

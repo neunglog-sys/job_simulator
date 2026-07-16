@@ -204,6 +204,19 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, token: str | N
                             await websocket.send_json(
                                 {"type": "step_changed", "step": step_changed}
                             )
+                    elif data.get("type") == "skip_step":
+                        # 테스트용 — 채점 없이 현재 미션 통과 처리하고 다음 미션/완주로 전진
+                        result = await service.skip_step(session, simulation, scenario)
+                        if result["completed"]:
+                            await websocket.send_json({"type": "simulation_completed"})
+                        elif result["step_changed"]:
+                            await websocket.send_json(
+                                {"type": "step_changed", "step": result["step_changed"]}
+                            )
+                    elif data.get("type") == "greet":
+                        # 플레이어가 담당 NPC에게 다가왔을 때 — 실시간 인사+업무 문구
+                        greeting = await service.npc_greeting(session, simulation, scenario)
+                        await websocket.send_json({"type": "npc_greeting", **greeting})
                     else:
                         await websocket.send_json(
                             {"type": "error", "detail": f"알 수 없는 타입: {data.get('type')}"}
@@ -212,12 +225,22 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, token: str | N
                     await websocket.send_json({"type": "error", "detail": e.detail})
     except WebSocketDisconnect:
         pass
+    except RuntimeError:
+        # LLM 등 처리 중 클라이언트가 끊기면 send/close가 "after websocket.close"로 실패한다.
+        # 정상적인 연결 종료로 간주하고 조용히 종료 (이중 close 크래시 방지).
+        pass
     except HTTPException as e:
-        await websocket.send_json({"type": "error", "detail": e.detail})
-        await websocket.close()
+        try:
+            await websocket.send_json({"type": "error", "detail": e.detail})
+            await websocket.close()
+        except (WebSocketDisconnect, RuntimeError):
+            pass
     except Exception:  # noqa: BLE001
         logger.exception("WS 처리 중 오류 (simulation=%d)", simulation_id)
-        await websocket.close(code=1011)
+        try:
+            await websocket.close(code=1011)
+        except RuntimeError:  # 이미 닫힌 소켓 재종료 방지
+            pass
 
 
 def _jsonable(out: dict) -> dict:

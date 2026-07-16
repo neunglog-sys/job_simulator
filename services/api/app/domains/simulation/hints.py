@@ -57,15 +57,18 @@ def advice_card(task: dict, attempt: int, scores: list[dict], feedback: str) -> 
     return {"level": 3, "title": "조언 카드 — 정답 가이드", "content": body}
 
 
+QUEST_FIRE_PROB = 0.3  # 스텝 전환당 돌발 발동 확률 (종착 스텝 진입 시엔 강제 발동)
+
+
 def should_fire_quest(next_step: dict, quest_status: str, roll: float) -> bool:
     """스텝 전환 시 돌발 퀘스트 발동 판정.
 
-    - 확률 50%로 발동하되, **종착 스텝(과제의 on_pass가 __end__) 진입**이 마지막
-      기회이므로 그 시점까지 미발동이면 강제 발동 — 스텝 배열 순서에 의존하지 않음
+    - 확률 QUEST_FIRE_PROB로 발동하되, **종착 스텝(과제의 on_pass가 __end__) 진입**이
+      마지막 기회이므로 그 시점까지 미발동이면 강제 발동 — 스텝 배열 순서에 의존하지 않음
     - roll: 0~1 난수 (호출부에서 주입 — 테스트 가능하게)
     """
     if quest_status != "pending":
         return False
     next_task = next_step.get("task") or {}
     is_last_chance = next_task.get("on_pass") == "__end__"
-    return is_last_chance or roll < 0.5
+    return is_last_chance or roll < QUEST_FIRE_PROB
