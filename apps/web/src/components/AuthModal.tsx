@@ -1,5 +1,6 @@
 import { X } from "@phosphor-icons/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { API_ENDPOINTS } from "../config/endpoints";
 import { ApiError } from "../lib/api";
 import { authenticate } from "../lib/auth";
 
@@ -131,6 +132,24 @@ export function AuthModal({ mode, onClose, onModeChange, onSuccess }: Props) {
             {busy ? "처리 중…" : isSignUp ? "가입하고 시작하기" : "로그인"}
           </button>
         </form>
+
+        <div className="auth-social-divider" aria-hidden="true">
+          <span>또는</span>
+        </div>
+        <div className="auth-social-actions" aria-label="소셜 로그인">
+          <a className="auth-social-button auth-social-google" href={API_ENDPOINTS.auth.oauth.google}>
+            <span className="auth-social-mark" aria-hidden="true">G</span>
+            Google로 계속하기
+          </a>
+          <a className="auth-social-button auth-social-kakao" href={API_ENDPOINTS.auth.oauth.kakao}>
+            <span className="auth-social-mark" aria-hidden="true">K</span>
+            카카오로 계속하기
+          </a>
+          <a className="auth-social-button auth-social-naver" href={API_ENDPOINTS.auth.oauth.naver}>
+            <span className="auth-social-mark" aria-hidden="true">N</span>
+            네이버로 계속하기
+          </a>
+        </div>
 
         <p className="auth-switch">
           {isSignUp ? "이미 계정이 있으세요? " : "아직 계정이 없으세요? "}

@@ -47,6 +47,12 @@ export async function authenticate(
   await refresh();
 }
 
+/** OAuth 리다이렉트 URL의 토큰을 저장하고, 로그인 사용자 정보를 즉시 갱신한다. */
+export async function completeOAuthAuthentication(token: string): Promise<void> {
+  api.setToken(token);
+  await refresh();
+}
+
 export function logout(): void {
   api.setToken(null);
   setState({ status: "anon", me: null });
