@@ -1,8 +1,10 @@
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from app.content.knowledge import ingest_knowledge
@@ -55,6 +57,13 @@ app.include_router(jobs_router)
 app.include_router(reporting_router)
 app.include_router(simulation_router)
 app.include_router(tts_router)
+
+# 게임 맵 정적 서빙 — /maps/<맵폴더>/<배경>.png 등. 폴더가 없으면(배포 초기 등) 조용히 생략:
+# 게임 API의 map 필드도 None이 되어 프론트는 기존 module 배경으로 폴백한다.
+if Path(settings.maps_dir).is_dir():
+    app.mount("/maps", StaticFiles(directory=settings.maps_dir), name="maps")
+else:
+    logger.warning("maps/ 폴더 없음 — 게임 맵 정적 서빙 비활성 (compose 볼륨 확인)")
 
 
 @app.get("/health")

@@ -1,10 +1,32 @@
 """data/ 폴더의 YAML 콘텐츠 로더."""
 
+import logging
 from pathlib import Path
 
 import yaml
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+def read_yaml_map(path: Path) -> dict[str, str]:
+    """선택적 매핑 YAML → {str: str}. null 값은 걸러낸다.
+
+    없거나 깨진 파일은 빈 dict — 콘텐츠 파일 오류가 API 응답을 500으로 브릭하지 않게
+    (엔드포인트는 매핑이 빠진 것처럼 동작하고, 원인은 로그로 남긴다).
+    """
+    if not path.exists():
+        return {}
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError:
+        logger.warning("매핑 YAML 파싱 실패 — 빈 매핑으로 동작: %s", path)
+        return {}
+    if not isinstance(raw, dict):
+        logger.warning("매핑 YAML이 dict가 아님 — 빈 매핑으로 동작: %s", path)
+        return {}
+    return {str(k): str(v) for k, v in raw.items() if v}
 
 REQUIRED_JOB_KEYS = {"code", "title", "description", "competencies"}
 # NPC 실데이터는 data/npcs/*.yaml로 분리 — 시나리오엔 npc_id 참조만
@@ -196,9 +218,4 @@ def load_job_scenario_map() -> dict[str, str]:
     파일이 없으면 빈 dict — 추천은 정상 동작하고 '바로 체험' 연결만 빠진다.
     값이 null인 항목(체험 미연결 확정)은 걸러낸다.
     """
-    path = Path(settings.data_dir) / "recommendation" / "job_scenario_map.yaml"
-    if not path.exists():
-        return {}
-    with open(path, encoding="utf-8") as f:
-        raw = yaml.safe_load(f) or {}
-    return {str(k): str(v) for k, v in raw.items() if v}
+    return read_yaml_map(Path(settings.data_dir) / "recommendation" / "job_scenario_map.yaml")
