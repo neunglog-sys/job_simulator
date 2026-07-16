@@ -31,12 +31,13 @@ async def list_scenarios(session: AsyncSession = Depends(get_session)):
             .order_by(Scenario.slug)
         )
     ).all()
-    game_maps = game_map.load_scenario_game_map()  # slug → 맵 폴더 (미배정이면 없음)
     return [
         {
             "slug": slug, "title": title, "module": module,
             "job_code": code, "job_title": jtitle,
-            "map_id": game_maps.get(slug),  # null이면 module 배경 폴백
+            # geometry까지 로드 가능한 경우에만 — 시뮬 응답의 map과 항상 같은 신호
+            # (목록엔 맵 있다더니 게임 시작하니 null인 어긋남 방지). null이면 module 폴백.
+            "map_id": game_map.available_map_id(slug),
         }
         for slug, title, module, code, jtitle in rows
     ]

@@ -158,6 +158,8 @@ async def npc_map(session: AsyncSession, scenario_id: int) -> dict[str, dict]:
             select(Npc, NpcPlacement)
             .join(NpcPlacement, NpcPlacement.npc_id == Npc.npc_id)
             .where(NpcPlacement.scenario_id == scenario_id)
+            # 순서 고정 필수 — spawn 자리 배정이 순서 의존이라, 없으면 요청마다 NPC 위치가 뒤바뀜
+            .order_by(NpcPlacement.id)
         )
     ).all()
     return {
@@ -166,22 +168,26 @@ async def npc_map(session: AsyncSession, scenario_id: int) -> dict[str, dict]:
             "personality": npc.personality or [], "likes": npc.likes or [],
             "dislikes": npc.dislikes or [], "speech_habits": npc.speech_habits or [],
             "responsibilities": pl.responsibilities or [],
+            # 맵 자리 배정용 — YAML의 appearance.location (데이터가 있으면 추론보다 우선)
+            "location": (pl.appearance or {}).get("location"),
         }
         for npc, pl in rows
     }
 
 
-def _public_npcs(roster: dict[str, dict]) -> list[dict]:
+def _public_npcs(
+    roster: dict[str, dict], slots: tuple[str, ...] = game_map.NPC_SLOTS
+) -> list[dict]:
     """클라이언트 표시용 NPC 목록 — 프롬프트 재료(성격·선호 등)는 빼고 표시 필드만.
 
     spawn = 맵 geometry의 NPC 자리 이름(teamjang|sasu|bujang). 프론트는 geometry.spawns에서
-    같은 id의 좌표를 찾아 그 위치에 NPC를 그린다.
+    같은 id의 좌표를 찾아 그 위치에 NPC를 그린다. slots는 이 맵에 실제로 있는 자리만.
     """
-    slots = game_map.assign_spawn_slots(list(roster.values()))
+    assigned = game_map.assign_spawn_slots(list(roster.values()), slots)
     return [
         {
             "npc_id": v["npc_id"], "name": v["name"], "role": v["role"], "rank": v["rank"],
-            "spawn": slots.get(v["npc_id"]),
+            "spawn": assigned.get(v["npc_id"]),
         }
         for v in roster.values()
     ]
@@ -215,6 +221,11 @@ def _resolve_step(scenario: Scenario, state: dict) -> dict:
 async def to_out(session: AsyncSession, simulation: Simulation, scenario: Scenario) -> dict:
     step = _resolve_step(scenario, simulation.state)
     roster = await npc_map(session, scenario.id)
+    # 게임 맵 — {id, background(정적 URL), geometry(walkable·collision·spawns)}.
+    # null이면 맵 미배정/좌표 없음 → 프론트는 기존 module 배경 방식으로 폴백.
+    map_info = game_map.map_info_for(scenario.slug)
+    # NPC 자리는 이 맵에 실제로 있는 것만 배정 (일부 맵은 자리가 2개뿐)
+    slots = game_map.npc_slots_in(map_info["geometry"]) if map_info else game_map.NPC_SLOTS
     return {
         "id": simulation.id,
         "scenario_slug": scenario.slug,
@@ -223,10 +234,8 @@ async def to_out(session: AsyncSession, simulation: Simulation, scenario: Scenar
         "status": simulation.status,
         "state": public_state(simulation.state),
         "step": sm.public_step(step),
-        "npcs": _public_npcs(roster),  # 시나리오 NPC 표시정보 (step.npcs는 npc_id 목록)
-        # 게임 맵 — {id, background(정적 URL), geometry(walkable·collision·spawns)}.
-        # null이면 맵 미배정/좌표 없음 → 프론트는 기존 module 배경 방식으로 폴백.
-        "map": game_map.map_info_for(scenario.slug),
+        "npcs": _public_npcs(roster, slots),  # 시나리오 NPC 표시정보 (step.npcs는 npc_id 목록)
+        "map": map_info,
         "created_at": simulation.created_at,
     }
 

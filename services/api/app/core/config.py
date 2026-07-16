@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     storage_dir: str = "storage"
     data_dir: str = "data"
+    maps_dir: str = "maps"  # 게임 맵 (geometry.json + 배경) — 컨테이너에선 /app/maps 볼륨
 
     # LLM — 키가 없으면 자동으로 mock 프로바이더로 폴백 (개발용)
     llm_provider: str = "openai"  # openai | gemini | mock
