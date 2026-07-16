@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="80" height="45" tilewidth="24" tileheight="24" infinite="0" nextlayerid="7" nextobjectid="35">
+ <imagelayer id="2" name="background" locked="1">
+  <image source="무역분류와운송사무실지도.png" width="1920" height="1080"/>
+ </imagelayer>
+ <objectgroup id="3" name="play_bounds" locked="1">
+  <object id="1" name="main_play_area" x="70" y="80" width="1780" height="656"/>
+ </objectgroup>
+ <objectgroup id="4" name="walkable" locked="1">
+  <object id="2" name="walkable" x="70" y="80" width="1780" height="656"/>
+ </objectgroup>
+ <objectgroup id="5" name="collision" locked="1">
+  <object id="3" x="428.205" y="95.9769" width="542.639" height="131.045"/>
+  <object id="4" x="465.119" y="225.177" width="461.428" height="29.5314"/>
+  <object id="5" x="970.844" y="107.051" width="123.663" height="147.657"/>
+  <object id="6" x="1081.59" y="262.091" width="356.222" height="70.137"/>
+  <object id="7" x="1135.11" y="387.599" width="210.411" height="119.971"/>
+  <object id="8" x="1138.8" y="566.633" width="230.714" height="75.6741"/>
+  <object id="9" x="841.644" y="538.947" width="203.028" height="99.6683"/>
+  <object id="10" x="455.89" y="367.296" width="574.016" height="101.514"/>
+  <object id="11" x="463.273" y="546.33" width="297.159" height="90.4398"/>
+  <object id="12" x="127.354" y="490.959" width="236.251" height="75.6741"/>
+  <object id="13" x="136.583" y="228.868" width="125.508" height="134.737"/>
+  <object id="14" x="71.9827" y="108.897" width="275.011" height="83.057"/>
+  <object id="15" x="321.154" y="317.462" width="47.9885" height="136.583"/>
+  <object id="16" x="75.6741" y="402.365" width="256.554" height="44.297"/>
+  <object id="17" x="324.845" y="199.337" width="18.4571" height="55.3713"/>
+  <object id="18" x="138.428" y="625.696" width="201.182" height="47.9885"/>
+  <object id="19" x="121.817" y="673.684" width="27.6857" height="55.3713"/>
+  <object id="20" x="385.753" y="703.216" width="1050.21" height="23.9942"/>
+  <object id="21" x="1424.89" y="472.502" width="29.5314" height="227.022"/>
+  <object id="22" x="1423.04" y="418.976" width="29.5314" height="49.8342"/>
+  <object id="23" x="1423.04" y="101.514" width="14.7657" height="167.96"/>
+  <object id="24" x="1491.33" y="260.245" width="42.4513" height="84.9027"/>
+  <object id="25" x="1559.63" y="389.445" width="236.251" height="260.245"/>
+  <object id="26" x="1463.65" y="677.376" width="249.171" height="55.3713"/>
+  <object id="27" x="1720.2" y="714.29" width="105.205" height="16.6114"/>
+  <object id="28" x="1723.89" y="105.205" width="118.125" height="241.788"/>
+  <object id="29" x="1657.45" y="350.685" width="46.1428" height="36.9142"/>
+  <object id="30" x="1471.03" y="86.7484" width="249.171" height="31.3771"/>
+ </objectgroup>
+ <objectgroup id="6" name="spawn">
+  <object id="31" name="player" x="575.862" y="494.65">
+   <point/>
+  </object>
+  <object id="32" name="sasu" x="856.41" y="492.805">
+   <point/>
+  </object>
+  <object id="33" name="teamjang" x="1674.06" y="199.337">
+   <point/>
+  </object>
+  <object id="34" name="bujang" x="821.341" y="284.239">
+   <point/>
+  </object>
+ </objectgroup>
+</map>
