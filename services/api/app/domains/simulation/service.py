@@ -300,17 +300,21 @@ async def stream_npc_chat(
     """NPC 대화 처리 — ("token", str) 조각들 후 ("final", dict) 하나를 yield. npc_id로 지목."""
     _ensure_active(simulation)
     step = _resolve_step(scenario, simulation.state)
-    allowed = set(step.get("npcs", []))
+    mission_npcs = set(step.get("npcs", []))
     quest = simulation.state.get("quest") or {}
     if quest.get("status") == "active" and scenario.sudden_quest:
-        allowed.add(scenario.sudden_quest.get("npc"))  # 퀘스트 NPC와도 대화 가능
-    if npc_id not in allowed:
-        raise HTTPException(status_code=400, detail=f"현재 스텝에 없는 NPC: {npc_id}")
+        mission_npcs.add(scenario.sudden_quest.get("npc"))  # 활성 퀘스트 NPC도 미션 대상
 
     roster = await npc_map(session, scenario.id)
     persona = roster.get(npc_id)
     if persona is None:
         raise HTTPException(status_code=404, detail=f"NPC 없음: {npc_id}")
+
+    # 자유 대화: 이 시나리오 로스터의 누구와도 말은 걸 수 있다(맵에서 NPC 클릭 → 잡담).
+    # 단 미션 채점·상태 전이·코치 TIP은 현재 스텝(또는 활성 퀘스트) NPC일 때만 —
+    # 엉뚱한 NPC와의 잡담이 미션을 진행시키거나 점수를 주면 안 된다.
+    # 호감도는 NPC별 사회적 값이라 상대가 누구든 즉시 반영한다.
+    mission_active = npc_id in mission_npcs
 
     # 사용자 발화 저장
     session.add(Message(simulation_id=simulation.id, role="user", content=user_text))
@@ -390,21 +394,22 @@ async def stream_npc_chat(
     deltas: dict = {}
     changed_step = None
     new_state = dict(simulation.state)
-    try:
-        deltas, reason = await scoring.evaluate_chat(step["mission"], user_text, npc_reply)
-        new_state, changed_step = await _update_state(session, simulation, scenario, deltas)
-        await scoring.log_action(
-            session, simulation.id, "chat",
-            {"npc": npc_id, "user_text": user_text, "reason": reason}, deltas,
-        )
-        await session.commit()
-    except Exception:  # noqa: BLE001 — 평가 실패가 확정된 대화를 되돌리거나 소켓을 죽이면 안 됨
-        await session.rollback()
-        logger.exception("발언 영향 평가 실패 (simulation=%d) — 대화 유지, 전이 생략", simulation.id)
+    if mission_active:
+        try:
+            deltas, reason = await scoring.evaluate_chat(step["mission"], user_text, npc_reply)
+            new_state, changed_step = await _update_state(session, simulation, scenario, deltas)
+            await scoring.log_action(
+                session, simulation.id, "chat",
+                {"npc": npc_id, "user_text": user_text, "reason": reason}, deltas,
+            )
+            await session.commit()
+        except Exception:  # noqa: BLE001 — 평가 실패가 확정된 대화를 되돌리거나 소켓을 죽이면 안 됨
+            await session.rollback()
+            logger.exception("발언 영향 평가 실패 (simulation=%d) — 대화 유지, 전이 생략", simulation.id)
 
     # AI 코치 실시간 TIP — 사수가 정답요구를 거부하거나 신입이 답답해할 때 문장형 조언
     # (항목별 힌트카드는 과제 오답 제출 때, 이 TIP은 대화 중에. 실패해도 대화 비차단)
-    if _should_coach_tip(user_text, npc_reply):
+    if mission_active and _should_coach_tip(user_text, npc_reply):
         tip = await coach.generate_tip(
             mission=step["mission"],
             criteria=(step.get("task") or {}).get("criteria", []),
