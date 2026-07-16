@@ -10,6 +10,8 @@ export const WS_BASE_URL = API_BASE_URL.replace(/^http/, "ws");
 
 export const FRONTEND_ENDPOINTS = {
   home: "/",
+  conversation: "/conversation", // AI 상담 화면
+  scenario: "/scenario", // 시나리오 게임 화면
 } as const;
 
 export const API_ENDPOINTS = {

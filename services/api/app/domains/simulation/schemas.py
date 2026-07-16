@@ -13,6 +13,8 @@ class TaskOut(BaseModel):
     criteria: list[str]
     pass_score: int
     options: list[dict] = []  # 선택·배열형 보기 (kind가 choice/checklist/order일 때)
+    answer: dict | None = None  # ⚠️ 테스트용 정답 공개 ('확인하기'·미션 스킵). 운영 시 게이트 필요.
+    answer_guide: str | None = None  # ⚠️ 테스트용 정답 해설
 
 
 class NpcOut(BaseModel):
@@ -49,6 +51,7 @@ class SimulationOut(BaseModel):
     status: str
     state: dict
     step: StepOut
+    step_ids: list[str] = []  # 본편 미션 id 순서 (진행률 계산용, 돌발 퀘스트 제외)
     npcs: list[NpcOut] = []  # 시나리오 NPC 표시정보 (npc_id → name/role/rank/spawn)
     map: GameMapOut | None = None  # null이면 맵 미배정 → module 배경 폴백
     created_at: datetime

@@ -100,3 +100,63 @@ export function fetchMe(): Promise<Me> {
 export function createConsultation(): Promise<Consultation> {
   return request(API_ENDPOINTS.consultations.create, { method: "POST" });
 }
+
+// --- 시뮬레이션(게임) 타입 — 백엔드 SimulationOut 스키마와 1:1 ---
+export type GameTaskOption = { key: string; label: string };
+export type GameTask = {
+  kind: string; // write | choice | checklist | order
+  prompt: string;
+  criteria: string[];
+  pass_score: number;
+  options: GameTaskOption[];
+  answer?: { key?: string; keys?: string[] } | null; // ⚠️ 테스트용 정답 공개
+  answer_guide?: string | null; // ⚠️ 테스트용 정답 해설
+};
+export type GameStep = {
+  id: string;
+  title: string;
+  mission: string;
+  npcs: string[]; // npc_id 목록 (표시정보는 Simulation.npcs에서 조회)
+  guide: string | null;
+  choices: Array<Record<string, unknown>>;
+  task: GameTask | null;
+};
+export type GameNpc = {
+  npc_id: string;
+  name: string;
+  role: string;
+  rank: string | null;
+  spawn: string | null; // 맵 geometry.spawns의 자리 id (teamjang|sasu|bujang)
+};
+export type GameSpawn = { id: string; x: number; y: number };
+export type GameMapData = {
+  id: string;
+  background: string | null; // /maps/<폴더>/<파일>.png (백엔드 정적 서빙) — 절대 URL은 API_BASE_URL 접두
+  geometry: {
+    size?: { width: number; height: number };
+    spawns?: GameSpawn[];
+    walkable?: Array<{ x: number; y: number; w: number; h: number; id?: string }>;
+    collision?: Array<{ x: number; y: number; w: number; h: number }>;
+    [key: string]: unknown;
+  };
+};
+export type Simulation = {
+  id: number;
+  scenario_slug: string;
+  scenario_title: string;
+  module: string | null;
+  status: string;
+  state: Record<string, unknown>;
+  step: GameStep;
+  step_ids: string[]; // 본편 미션 id 순서 (진행률 계산용, 돌발 퀘스트 제외)
+  npcs: GameNpc[];
+  map: GameMapData | null; // null이면 맵 미배정 → 프론트 기본 배경 폴백
+  created_at: string;
+};
+
+export function createSimulation(scenarioSlug: string): Promise<Simulation> {
+  return request(API_ENDPOINTS.simulations.create, {
+    method: "POST",
+    body: JSON.stringify({ scenario_slug: scenarioSlug }),
+  });
+}
