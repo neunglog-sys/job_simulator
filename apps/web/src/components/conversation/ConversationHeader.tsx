@@ -1,4 +1,5 @@
 import { ArrowLeft, GearSix, House, List } from "@phosphor-icons/react";
+import { FRONTEND_ENDPOINTS } from "../../config/endpoints";
 import { logout } from "../../lib/auth";
 import styles from "../../styles/oneToOneConversation.module.css";
 import { BrandLogo } from "./BrandLogo";
@@ -6,6 +7,11 @@ import { GlassIconButton } from "./GlassIconButton";
 
 function goHome() {
   window.location.assign("/");
+}
+
+// 테스트 단계: 상담 화면에서 곧바로 시나리오 게임으로 진입 (화면 연결용).
+function goToScenario() {
+  window.location.assign(FRONTEND_ENDPOINTS.scenario);
 }
 
 function goBack() {
@@ -29,6 +35,14 @@ export function ConversationHeader() {
       </div>
 
       <div className={styles.headerRight}>
+        <button
+          className={styles.logoutButton}
+          type="button"
+          style={{ width: "auto" }}
+          onClick={goToScenario}
+        >
+          시나리오 게임 시작
+        </button>
         <button
           className={styles.logoutButton}
           type="button"

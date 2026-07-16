@@ -1,16 +1,20 @@
 import {
+  ArrowCounterClockwise,
   ArrowLeft,
   CornersIn,
   CornersOut,
+  FastForward,
   GearSix,
   House,
   LightbulbFilament,
   List,
   SignOut,
+  Target,
 } from "@phosphor-icons/react";
 import styles from "../../styles/scenarioGame.module.css";
 
 type DashboardHeaderProps = {
+  progress: number; // 0~100 실시간 진행률
   isHintOpen: boolean;
   isFullscreen: boolean;
   onHintToggle: () => void;
@@ -20,9 +24,13 @@ type DashboardHeaderProps = {
   onSettingsOpen: () => void;
   onHome: () => void;
   onBack: () => void;
+  onSkip: () => void;
+  onRetry: () => void;
+  onMission: () => void;
 };
 
 export function DashboardHeader({
+  progress,
   isHintOpen,
   isFullscreen,
   onHintToggle,
@@ -32,6 +40,9 @@ export function DashboardHeader({
   onSettingsOpen,
   onHome,
   onBack,
+  onSkip,
+  onRetry,
+  onMission,
 }: DashboardHeaderProps) {
   return (
     <header className={styles.header}>
@@ -45,15 +56,31 @@ export function DashboardHeader({
         <span className={styles.brandText}>JOBIVERSE</span>
       </div>
 
-      <div className={styles.progressGroup} aria-label="시나리오 진행도 42퍼센트">
+      <div className={styles.progressGroup} aria-label={`시나리오 진행도 ${progress}퍼센트`}>
         <span>진행도</span>
         <span className={styles.progressTrack} aria-hidden="true">
-          <span className={styles.progressValue} />
+          <span className={styles.progressValue} style={{ width: `${progress}%` }} />
         </span>
-        <strong>42%</strong>
+        <strong>{progress}%</strong>
       </div>
 
       <div className={styles.headerActions}>
+        <button
+          className={`${styles.exitButton} ${styles.missionCtaButton}`}
+          type="button"
+          onClick={onMission}
+        >
+          <Target weight="fill" aria-hidden="true" />
+          <span>미션 도전</span>
+        </button>
+        <button className={styles.exitButton} type="button" onClick={onRetry}>
+          <ArrowCounterClockwise weight="bold" aria-hidden="true" />
+          <span>리트라이</span>
+        </button>
+        <button className={styles.exitButton} type="button" onClick={onSkip}>
+          <FastForward weight="fill" aria-hidden="true" />
+          <span>미션 스킵</span>
+        </button>
         <button className={styles.exitButton} type="button" onClick={onLogout}>
           <SignOut weight="bold" aria-hidden="true" />
           <span>로그아웃</span>
