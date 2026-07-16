@@ -130,12 +130,16 @@ export function ScenarioGamePage() {
   const [npcMessage, setNpcMessage] = useState("");
   const [userMessage, setUserMessage] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [chatNpcId, setChatNpcId] = useState<string | null>(null); // 대화 상대(마커 클릭). null=미션 담당 NPC
   const [mapImage, setMapImage] = useState<string>(DEFAULT_SCENARIO_MAP_IMAGE);
   const socketRef = useRef<SimulationSocket | null>(null);
 
   // 현재 스텝의 대화 상대 NPC (step.npcs[0]) — 표시정보는 npcs 로스터에서 조회
   const activeNpcId = activeStep?.npcs?.[0] ?? null;
   const activeNpc = npcs.find((npc) => npc.npc_id === activeNpcId) ?? null;
+  // 대화 상대 = 마커로 선택한 NPC(chatNpcId), 없으면 미션 담당 NPC.
+  const chatTargetId = chatNpcId ?? activeNpcId;
+  const chatNpc = npcs.find((npc) => npc.npc_id === chatTargetId) ?? activeNpc;
   const hints = useMemo(() => buildHints(activeStep), [activeStep]);
   // 진행률 = 완료한 본편 미션 수 / 전체 (완주 시 100%). 돌발 퀘스트는 stepIds에 없어 제외됨.
   const progress = isCompleted
@@ -276,6 +280,7 @@ export function ScenarioGamePage() {
           },
           onNpcGreeting: (greeting) => {
             if (cancelled || !greeting.text) return;
+            setChatNpcId(null); // 인사는 미션 담당 NPC 것 — 대화창을 그 NPC로 맞춤
             setNpcMessage(greeting.text); // 인사·업무 문구는 채팅창(NPC 대화창)에만 표시 (배너엔 '오늘의 업무')
           },
           onSuddenQuest: (questFrame) => {
@@ -307,6 +312,7 @@ export function ScenarioGamePage() {
             if (cancelled || !step) return;
             setActiveStep(step);
             setQuest(null);
+            setChatNpcId(null); // 다음 미션 담당 NPC로 대화 상대 리셋
             setNpcMessage("");
             setUserMessage("");
             setTaskResult(null); // 다음 미션으로 넘어가며 채점 결과 초기화
@@ -342,18 +348,26 @@ export function ScenarioGamePage() {
   const handleSendToNpc = useCallback(
     (message: string) => {
       const socket = socketRef.current;
-      if (!socket || !activeNpcId) return;
+      if (!socket || !chatTargetId) return;
       setUserMessage(message);
       setNpcMessage("");
       setIsStreaming(true);
-      const sent = socket.sendChat(activeNpcId, message);
+      const sent = socket.sendChat(chatTargetId, message);
       if (!sent) {
         setIsStreaming(false);
         setCoachMessage("게임 서버에 연결 중이에요. 잠시 후 다시 보내주세요.");
       }
     },
-    [activeNpcId],
+    [chatTargetId],
   );
+
+  // NPC 마커 클릭 → 그 NPC와 대화 (미션 진행과 무관한 자유 대화). 대화창 초기화.
+  const handleNpcClick = useCallback((npcId: string) => {
+    setChatNpcId(npcId);
+    setNpcMessage("");
+    setUserMessage("");
+    setIsStreaming(false);
+  }, []);
 
   // 테스트용 — 현재 미션을 채점 없이 통과 처리하고 다음 미션으로 (WS skip_step). 마지막이면 완료 오버레이.
   const handleSkip = useCallback(() => {
@@ -378,6 +392,7 @@ export function ScenarioGamePage() {
     setTaskSubmitting(false);
     setGreetSent(false);
     setFarewell(null);
+    setChatNpcId(null);
     setNpcMessage("");
     setUserMessage("");
     setIsStreaming(false);
@@ -434,6 +449,7 @@ export function ScenarioGamePage() {
           geometry={gameMap?.geometry ?? null}
           npcs={npcs}
           activeNpcId={activeNpcId}
+          onNpcClick={handleNpcClick}
         />
         <DashboardHeader
           progress={progress}
@@ -489,8 +505,8 @@ export function ScenarioGamePage() {
         ) : null}
         <div className={styles.bottomHud}>
           <ScenarioControlPanel
-            npcName={activeNpc?.name ?? "NPC"}
-            npcRole={activeNpc?.role}
+            npcName={chatNpc?.name ?? "NPC"}
+            npcRole={chatNpc?.role}
             npcMessage={npcMessage}
             userMessage={userMessage}
             isStreaming={isStreaming}

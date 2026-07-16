@@ -399,9 +399,23 @@ button.headerOrb:active {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  pointer-events: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  pointer-events: auto; /* 클릭 → 대화 */
+  cursor: pointer;
   transform: translate(-50%, -50%);
   animation: objectFloat 4s ease-in-out infinite alternate;
+}
+
+.npcMarkerAvatar {
+  transition: transform 150ms ease;
+}
+
+.npcMarker:hover .npcMarkerAvatar {
+  transform: scale(1.1);
 }
 
 .npcMarkerAvatar {
