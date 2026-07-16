@@ -26,6 +26,7 @@ type MovementAreaProps = {
   geometry?: GameMapData["geometry"] | null;
   npcs?: GameNpc[];
   activeNpcId?: string | null; // 현재 미션 담당 NPC — 마커를 그 이름으로 강조
+  onNpcClick?: (npcId: string) => void; // NPC 마커 클릭 → 그 NPC와 대화
 };
 
 type GameObject = {
@@ -79,6 +80,7 @@ export function MovementArea({
   geometry = null,
   npcs = [],
   activeNpcId = null,
+  onNpcClick,
 }: MovementAreaProps) {
   const areaRef = useRef<HTMLDivElement>(null);
 
@@ -231,10 +233,13 @@ export function MovementArea({
       <div className={styles.objectLayer}>
         {geometry ? (
           npcMarkers.map((marker) => (
-            <div
+            <button
               className={`${styles.npcMarker} ${marker.isActive ? styles.npcMarkerActive : ""}`}
+              type="button"
               key={marker.npc_id}
               style={{ left: marker.x, top: marker.y }}
+              onClick={() => onNpcClick?.(marker.npc_id)}
+              aria-label={`${marker.name}와 대화하기`}
             >
               {marker.isActive ? (
                 <span className={styles.npcMarkerBadge} aria-hidden="true">
@@ -245,7 +250,7 @@ export function MovementArea({
                 <UserCircle weight="duotone" />
               </span>
               <span className={styles.npcMarkerName}>{marker.name}</span>
-            </div>
+            </button>
           ))
         ) : (
           GAME_OBJECTS.map((object) => {
