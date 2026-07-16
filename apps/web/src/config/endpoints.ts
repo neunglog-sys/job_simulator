@@ -19,6 +19,11 @@ export const API_ENDPOINTS = {
     signUp: apiUrl("/api/auth/signup"),
     signIn: apiUrl("/api/auth/login"),
     me: apiUrl("/api/auth/me"),
+    oauth: {
+      google: apiUrl("/api/auth/oauth/google"),
+      kakao: apiUrl("/api/auth/oauth/kakao"),
+      naver: apiUrl("/api/auth/oauth/naver"),
+    },
   },
   consultations: {
     list: apiUrl("/api/consultations"),
