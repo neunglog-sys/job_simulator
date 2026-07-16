@@ -20,6 +20,15 @@ class NpcOut(BaseModel):
     name: str
     role: str
     rank: str | None = None
+    spawn: str | None = None  # 맵 geometry.spawns의 자리 id(teamjang|sasu|bujang) — NPC를 그릴 위치
+
+
+class GameMapOut(BaseModel):
+    """게임 맵 — 프론트가 배경을 깔고 geometry(walkable·collision·spawns)로 이동 판정."""
+
+    id: str
+    background: str | None = None  # /maps/<폴더>/<파일>.png (백엔드 정적 서빙)
+    geometry: dict
 
 
 class StepOut(BaseModel):
@@ -40,5 +49,6 @@ class SimulationOut(BaseModel):
     status: str
     state: dict
     step: StepOut
-    npcs: list[NpcOut] = []  # 시나리오 NPC 표시정보 (npc_id → name/role/rank)
+    npcs: list[NpcOut] = []  # 시나리오 NPC 표시정보 (npc_id → name/role/rank/spawn)
+    map: GameMapOut | None = None  # null이면 맵 미배정 → module 배경 폴백
     created_at: datetime

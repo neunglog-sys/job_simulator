@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
+from app.content import game_map
 from app.content.kb_map import kb_jobs_for
 from app.content.knowledge import search_knowledge
 from app.domains.coach import service as coach
@@ -171,9 +172,17 @@ async def npc_map(session: AsyncSession, scenario_id: int) -> dict[str, dict]:
 
 
 def _public_npcs(roster: dict[str, dict]) -> list[dict]:
-    """클라이언트 표시용 NPC 목록 — 프롬프트 재료(성격·선호 등)는 빼고 표시 필드만."""
+    """클라이언트 표시용 NPC 목록 — 프롬프트 재료(성격·선호 등)는 빼고 표시 필드만.
+
+    spawn = 맵 geometry의 NPC 자리 이름(teamjang|sasu|bujang). 프론트는 geometry.spawns에서
+    같은 id의 좌표를 찾아 그 위치에 NPC를 그린다.
+    """
+    slots = game_map.assign_spawn_slots(list(roster.values()))
     return [
-        {"npc_id": v["npc_id"], "name": v["name"], "role": v["role"], "rank": v["rank"]}
+        {
+            "npc_id": v["npc_id"], "name": v["name"], "role": v["role"], "rank": v["rank"],
+            "spawn": slots.get(v["npc_id"]),
+        }
         for v in roster.values()
     ]
 
@@ -215,6 +224,9 @@ async def to_out(session: AsyncSession, simulation: Simulation, scenario: Scenar
         "state": public_state(simulation.state),
         "step": sm.public_step(step),
         "npcs": _public_npcs(roster),  # 시나리오 NPC 표시정보 (step.npcs는 npc_id 목록)
+        # 게임 맵 — {id, background(정적 URL), geometry(walkable·collision·spawns)}.
+        # null이면 맵 미배정/좌표 없음 → 프론트는 기존 module 배경 방식으로 폴백.
+        "map": game_map.map_info_for(scenario.slug),
         "created_at": simulation.created_at,
     }
 

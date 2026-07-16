@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.content import game_map
 from app.core.db import SessionFactory, get_session
 from app.core.deps import get_current_user, resolve_user
 from app.domains.scoring import aggregate
@@ -30,8 +31,13 @@ async def list_scenarios(session: AsyncSession = Depends(get_session)):
             .order_by(Scenario.slug)
         )
     ).all()
+    game_maps = game_map.load_scenario_game_map()  # slug → 맵 폴더 (미배정이면 없음)
     return [
-        {"slug": slug, "title": title, "module": module, "job_code": code, "job_title": jtitle}
+        {
+            "slug": slug, "title": title, "module": module,
+            "job_code": code, "job_title": jtitle,
+            "map_id": game_maps.get(slug),  # null이면 module 배경 폴백
+        }
         for slug, title, module, code, jtitle in rows
     ]
 

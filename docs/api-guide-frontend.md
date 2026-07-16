@@ -96,9 +96,9 @@ POST /api/recommendations  {consultation_id}
 
 ```
 GET /api/scenarios
-  → [{slug, title, module, job_code, job_title}]
+  → [{slug, title, module, job_code, job_title, map_id}]
 ```
-- **module**(8종: 대인응대형/절차·점검형/...)로 **배경 세트 선택**하면 됩니다.
+- **map_id** = 이 시나리오 전용 게임 맵 (아래 §5-1). null이면 **module**(8종)로 배경 세트 폴백.
 - 돌발 퀘스트 보유 여부는 의도적으로 안 내려줌 (서프라이즈).
 
 ## 5. 🎮 게임 (WebSocket)
@@ -137,6 +137,31 @@ POST /api/simulations/{id}/finish       → 중도 포기 (aborted 처리)
 ```
 
 > **NPC는 npc_id로 참조**합니다. `step.npcs`는 npc_id 목록이고, 이름·역할·직급은 최상위 `npcs`에서 조회하세요. 대화를 걸 때도(WS `chat`) `npc`에 **npc_id**를 넣습니다. (이름을 식별자로 쓰지 않음 — 길이·중복 무관하게 안정적)
+
+### 5-1. 게임 맵 (배경 + 이동 판정 좌표)
+
+시뮬레이션 응답(POST/GET `/api/simulations`, WS `session`)에 **`map`** 이 함께 옵니다:
+
+```json
+"map": {
+  "id": "구매_자재_관리_사무실",
+  "background": "/maps/구매_자재_관리_사무실/구매_자재_관리_사무실.png",   ← 배경 (백엔드 정적 서빙, API_BASE 붙여서 로드)
+  "geometry": {
+    "size": {"width": 1920, "height": 1080},
+    "walkable":  [{"x","y","w","h"}, ...],     ← 걸을 수 있는 영역 (사각형 합집합)
+    "collision": [{"x","y","w","h"}, ...],     ← 통과 불가 (책상·벽 등)
+    "spawns": [ {"id": "player", "x", "y"},    ← 플레이어 시작 위치
+                {"id": "teamjang", ...}, {"id": "sasu", ...}, {"id": "bujang", ...} ]
+  }
+}
+```
+
+- **이동 판정**: 발 기준점이 `walkable 안` **그리고** 발 박스가 `collision 밖`이면 이동 가능.
+  참고 구현이 각 맵 폴더의 `playtest.html`에 있습니다 (판정 함수 그대로 옮기면 됨 — 축분리 슬라이딩 포함).
+- **NPC 배치**: `npcs[].spawn`(teamjang|sasu|bujang)이 각 NPC가 서는 자리입니다.
+  `geometry.spawns`에서 같은 id의 좌표를 찾아 거기에 그리세요.
+- **`map`이 null이면** (맵 미배정 시나리오 11개) 기존 `module` 배경 방식으로 폴백하세요.
+- 근접 대화: 플레이어-NPC 거리 < **130px**이면 "대화하기" 버튼 → WS `chat`에 그 npc_id.
 
 ### 과제 유형(`task.kind`) — UI 분기
 
