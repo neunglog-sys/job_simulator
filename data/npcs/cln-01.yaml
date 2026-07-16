@@ -22,7 +22,7 @@ npcs:
   - 객실 최종 인스펙션
   - 신입 교육 및 안전 관리
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m1
     - m3
@@ -49,7 +49,7 @@ npcs:
   - 욕실 및 객실 청소
   - 비품 세팅
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m2
 - npc_id: npc_cln-01_03
@@ -71,7 +71,7 @@ npcs:
   responsibilities:
   - 객실 이용 및 서비스 요청
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - quest
     conditions:

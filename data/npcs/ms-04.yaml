@@ -25,7 +25,7 @@ npcs:
   - 배치계획표
   - 비용·위험 비교표
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m1
     - m3
@@ -48,7 +48,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []
 - npc_id: npc_ms-04_03
   name: 배수빈
@@ -69,7 +69,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []
 - npc_id: npc_ms-04_04
   name: 고객사
@@ -90,7 +90,7 @@ npcs:
   - 빨리 좀 처리해줘요.
   responsibilities: []
   appearance:
-    location: null
+    location: sasu
     available_steps: []
 - npc_id: npc_ms-04_05
   name: 임하준
@@ -111,7 +111,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []
 - npc_id: npc_ms-04_06
   name: 임다은
@@ -134,7 +134,7 @@ npcs:
   - 서류불일치표
   - 보완요청 메일
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m2
 - npc_id: npc_ms-04_07
@@ -158,7 +158,7 @@ npcs:
   - 통관보류 대응표
   - 자료패킷
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - quest
     conditions:
@@ -184,6 +184,6 @@ npcs:
   - 지연보고 메시지
   - 대체운송안
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m4

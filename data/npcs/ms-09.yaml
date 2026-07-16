@@ -24,7 +24,7 @@ npcs:
   - 작업배치표
   - 전환점검표
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m1
     - m3
@@ -51,7 +51,7 @@ npcs:
   - 검사성적서
   - 공정인계표
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m2
     - m4
@@ -76,7 +76,7 @@ npcs:
   - 비상조치 기록
   - 결함검사 요청
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - quest
     conditions:

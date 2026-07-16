@@ -25,7 +25,7 @@ npcs:
   - 대체 필요 소재 표시
   - 결과보고서 요약
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m2
     - quest
@@ -54,7 +54,7 @@ npcs:
   - 오류 기록(타임코드·유형)
   - 백업·버전 저장 기록
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m1
     - m4
@@ -79,7 +79,7 @@ npcs:
   - 우선순위 배열표(오류성/취향성 구분·소요시간·근거)
   - 보고 메모
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - m3
 - npc_id: npc_yg-01_04
@@ -101,5 +101,5 @@ npcs:
   - 우선순위 기준은요?
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []

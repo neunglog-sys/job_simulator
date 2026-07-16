@@ -25,7 +25,7 @@ npcs:
   - 출동 브리핑 메모
   - 우선순위 배열표(근거 포함)
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m2
     - m3
@@ -53,7 +53,7 @@ npcs:
   - 위험징후 판정 체크리스트
   - 철수 건의 무전문
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m1
     - quest
@@ -78,5 +78,5 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []

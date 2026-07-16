@@ -23,7 +23,7 @@ npcs:
   - 우선순위 보고서(태스크 배열+항목별 근거) — 프로그램 디버깅하기·프로젝트 범위관리 반영
   - 배포 전 위험 점검 보고서(치명 위험 3건+중단 건의) — 프로그램 디버깅하기·데이터베이스 구현·SQL활용 반영
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m2
     - m3
@@ -49,7 +49,7 @@ npcs:
   - 릴리스노트 초안+인수인계 요약(보류 결함·롤백 방법 포함, 운영보고서 양식 준수) — 요구사항 확인하기·프로그램 디버깅 기록 반영
   - 요구사항 확인 질문 목록(누락·상충 표기 포함) — 요구사항 확인하기·현행 시스템 분석하기 능력 반영
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m1
     - m4
@@ -75,7 +75,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []
 - npc_id: npc_yg-03_04
   name: 정하늘
@@ -96,7 +96,7 @@ npcs:
   - 우선순위 기준은요?
   responsibilities: []
   appearance:
-    location: null
+    location: sasu
     available_steps: []
 - npc_id: npc_yg-03_05
   name: 한지민
@@ -117,5 +117,5 @@ npcs:
   - 우선순위 기준은요?
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []

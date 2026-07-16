@@ -23,7 +23,7 @@ npcs:
   - MOB 대응 분기 선택 기록(타임라인)
   - MAYDAY 통신문 작성본
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m3
     - quest
@@ -52,7 +52,7 @@ npcs:
   - 누락·불일치 대조표(항행통보 번호·해당 변침점·위험도)
   - 항로 수정 건의 메모
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m1
     - m2
@@ -76,7 +76,7 @@ npcs:
   - “명령이 명확하지 않으면 타를 움직일 수 없습니다. 정확한 타각과 침로를 다시 복창해 주십시오.”
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []
 - npc_id: npc_jm-04_04
   name: 정운호
@@ -97,7 +97,7 @@ npcs:
   - “지금 선수에서 로프 작업 중인 선원들의 안전거리가 확보되었는지 확인하고 보고해 주십시오.”
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []
 - npc_id: npc_jm-04_05
   name: 오태식
@@ -118,5 +118,5 @@ npcs:
   - “기계는 거짓말을 하지 않습니다. 이상 진동이 느껴진다면 제어반의 압력 수치부터 먼저 대조해 보십시오.”
   responsibilities: []
   appearance:
-    location: null
+    location: sasu
     available_steps: []

@@ -24,7 +24,7 @@ npcs:
   - 우선순위 배열표(순위·근거·처리방안) + 무전 보고 문안
   - 일일 안전점검일지 + 야간당직 인계장(미결·화기작업 주의 포함)
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m1
     - m3
@@ -49,7 +49,7 @@ npcs:
   responsibilities:
   - 누락 항목 표시된 허가서 검토의견 + 보완 요청 목록
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m2
 - npc_id: npc_ys-05_03
@@ -71,7 +71,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []
 - npc_id: npc_ys-05_04
   name: 송은채
@@ -92,7 +92,7 @@ npcs:
   - 우선순위 기준은요?
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []
 - npc_id: npc_ys-05_05
   name: 홍연우
@@ -114,7 +114,7 @@ npcs:
   responsibilities:
   - 작업중지 판단 보고(측정값 + 근거 조항 + 재개 조건)
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - quest
     conditions:

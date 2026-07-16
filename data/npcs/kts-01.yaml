@@ -25,7 +25,7 @@ npcs:
   - 우선순위 배열표(근거 포함)
   - 대기 안내 문구
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m1
     - m3
@@ -51,7 +51,7 @@ npcs:
   - 보완 완료 문진표
   - 누락 항목 목록
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m2
 - npc_id: npc_kts-01_03
@@ -75,7 +75,7 @@ npcs:
   - 민원 대응 기록(시간·내용·조치)
   - 인계 보고
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - quest
     conditions:
@@ -99,5 +99,5 @@ npcs:
   - 핵심부터 봅시다.
   responsibilities: []
   appearance:
-    location: null
+    location: teamjang
     available_steps: []

@@ -26,7 +26,7 @@ npcs:
   - 돌발대응 분기 선택 기록(조치 시각 포함)
   - 관제 보고문
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m1
     - quest
@@ -56,7 +56,7 @@ npcs:
   - 우선순위 배열표(근거 규정 포함)
   - 관제 지연 보고문
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - m3
 - npc_id: npc_jm-02_03
@@ -83,7 +83,7 @@ npcs:
   - 누락 명령 질의 메모
   - 정정된 서행구간 확인표
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m2
 - npc_id: npc_jm-02_04
@@ -108,7 +108,7 @@ npcs:
   - 기관사님, 객실 출입문 취급 시 승하차 승객을 한 번 더 확인해 주시기 바랍니다.
   responsibilities: []
   appearance:
-    location: null
+    location: sasu
     available_steps: []
 - npc_id: npc_jm-02_05
   name: 이수한
@@ -135,7 +135,7 @@ npcs:
   - 이례상황 보고서
   - 정비 의뢰서
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m4
 - npc_id: npc_jm-02_06
@@ -160,5 +160,5 @@ npcs:
   - 출고 점검 시 제동 압력 수치를 다시 한번 확실하게 확인하고 나가십시오.
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []

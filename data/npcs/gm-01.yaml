@@ -22,7 +22,7 @@ npcs:
   - 주요 협력사 단가 협상
   - 부서 간 일정 조율 및 최종 승인
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m1
     - m3
@@ -49,7 +49,7 @@ npcs:
   - 창고 재고 실사 및 전산 등록
   - 출하 및 현장 자재 불출
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m2
 - npc_id: npc_gm-01_03
@@ -74,7 +74,7 @@ npcs:
   - 단가 견적서 제출 및 계약 대응
   - 품질 불량 발생 시 대책 수립
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - quest
     conditions:

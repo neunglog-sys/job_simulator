@@ -25,7 +25,7 @@ npcs:
   - 우선순위표(순서+근거)
   - 배터리 격리 조치 기록
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m2
     - m3
@@ -53,7 +53,7 @@ npcs:
   - 이상발생 보고(시각·증상·측정값·조치 순)
   - 시험중단 기록
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m1
     - quest
@@ -78,5 +78,5 @@ npcs:
   - 빨리 좀 처리해줘요.
   responsibilities: []
   appearance:
-    location: null
+    location: bujang
     available_steps: []

@@ -25,7 +25,7 @@ npcs:
   - 주제 정의서 초안
   - 인계 요약서(작품·검수·권리·보존·피드백)
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m2
     - quest
@@ -52,7 +52,7 @@ npcs:
   - 우선순위 배열표
   - 충돌 조정 보고 메모
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m3
 - npc_id: npc_yg-02_03
@@ -75,7 +75,7 @@ npcs:
   responsibilities:
   - 세공 제품 검사 결과가 기록된 검수표(합격/보류 판정·사유 포함)
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - m1
 - npc_id: npc_yg-02_04
@@ -101,7 +101,7 @@ npcs:
   - 권리 위험 보고 메모
   - 미확인 샘플 목록이 표시된 검수표(권리 확인서 보완 요청 포함)
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m3
     - m4
@@ -124,5 +124,5 @@ npcs:
   - 빨리 좀 처리해줘요.
   responsibilities: []
   appearance:
-    location: null
+    location: sasu
     available_steps: []

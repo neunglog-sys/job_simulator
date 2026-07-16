@@ -23,7 +23,7 @@ npcs:
   - 요구사항 확인 결과서(누락·모순 표시)
   - 담당자별 질문 목록
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m2
 - npc_id: npc_yg-04_02
@@ -47,7 +47,7 @@ npcs:
   - 항목별 판정 체크리스트(분석모델 확인 결과)
   - 미달 항목 원인 메모
   appearance:
-    location: null
+    location: sasu
     available_steps:
     - m1
 - npc_id: npc_yg-04_03
@@ -73,7 +73,7 @@ npcs:
   - 장애·사고 기록(타임라인)
   - RCA 요약
   appearance:
-    location: null
+    location: bujang
     available_steps:
     - m3
     - quest
@@ -101,7 +101,7 @@ npcs:
   - 결함·위험 목록(개인정보 노출·롤백 부재)
   - 사고 보고서 초안
   appearance:
-    location: null
+    location: teamjang
     available_steps:
     - m4
 - npc_id: npc_yg-04_05
@@ -123,5 +123,5 @@ npcs:
   - 핵심부터 봅시다.
   responsibilities: []
   appearance:
-    location: null
+    location: sasu
     available_steps: []
