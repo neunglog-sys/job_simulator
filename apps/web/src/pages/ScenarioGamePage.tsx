@@ -19,6 +19,7 @@ import type { MissionView } from "../components/scenario/MissionPanel";
 import {
   ApiError,
   createSimulation,
+  fetchSimulation,
   type GameNpc,
   type GameStep,
   type GameTask,
@@ -124,6 +125,26 @@ const DEFAULT_SCENARIO_SLUG =
 const ENCOUNTER_RADIUS = 150;
 
 const NOOP = () => undefined;
+
+// 진행 중이던 시뮬 id를 기억해 이어받는다 — 새로고침할 때마다 새 시뮬을 만들면 투어·인사·미션
+// 진행도가 전부 날아가고(서버에 state를 저장해 둔 의미가 없어진다), 버려진 시뮬만 쌓인다.
+const RESUME_KEY = `sim:${DEFAULT_SCENARIO_SLUG}`;
+
+async function resumeOrCreate(slug: string): Promise<Simulation> {
+  const saved = Number(sessionStorage.getItem(RESUME_KEY));
+  if (saved) {
+    try {
+      const sim = await fetchSimulation(saved);
+      if (sim.status === "active") return sim; // 진행 중이면 이어받는다
+    } catch {
+      /* 없거나 남의 것 → 새로 만든다 */
+    }
+    sessionStorage.removeItem(RESUME_KEY);
+  }
+  const sim = await createSimulation(slug);
+  sessionStorage.setItem(RESUME_KEY, String(sim.id));
+  return sim;
+}
 
 type ConnectionStatus = "creating" | "open" | "closed" | "error";
 
@@ -404,7 +425,7 @@ export function ScenarioGamePage() {
     (async () => {
       setConnStatus("creating");
       try {
-        const sim = await createSimulation(DEFAULT_SCENARIO_SLUG);
+        const sim = await resumeOrCreate(DEFAULT_SCENARIO_SLUG);
         if (cancelled) return;
         applySim(sim);
 
@@ -590,6 +611,7 @@ export function ScenarioGamePage() {
   // 리트라이 — 현재 시뮬을 닫고 첫 미션부터 새로 시작한다.
   const handleRetry = useCallback(() => {
     // 새 시뮬을 처음부터 — 투어·브리핑·인사 진행도까지 전부 초기화(1단계부터 다시).
+    sessionStorage.removeItem(RESUME_KEY); // 이어받지 말고 새로 만들게
     setPhase("loading");
     setQuest(null);
     setTaskResult(null);

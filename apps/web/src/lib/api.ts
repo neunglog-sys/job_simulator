@@ -164,6 +164,11 @@ export function createSimulation(scenarioSlug: string): Promise<Simulation> {
   });
 }
 
+/** 진행 중이던 시뮬 이어받기 — 새로고침·뒤로가기로 진행도(투어·인사·미션)가 날아가지 않게. */
+export function fetchSimulation(id: number): Promise<Simulation> {
+  return request(API_ENDPOINTS.simulations.detail(id));
+}
+
 // 수행 점수 — 완주 화면·리포트 근거. 진행 중이면 부분 집계.
 export type SimulationScore = {
   total: number;
