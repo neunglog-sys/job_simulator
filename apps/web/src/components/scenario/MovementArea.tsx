@@ -250,10 +250,21 @@ export function MovementArea({
       x: (event.clientX - bounds.left) * scaleX - PLAYER_SIZE.width / 2,
       y: (event.clientY - bounds.top) * scaleY - PLAYER_SIZE.height / 2,
     });
-    // 클릭 이동도 충돌을 지킨다 — 예전엔 충돌을 무시해 벽·집기를 뚫고 텔레포트했고,
-    // 그러면 맵의 collision 설계 자체가 의미를 잃는다. 갈 수 없는 자리면 무시.
-    if (collidesAt(target)) return;
-    onPositionChange(target);
+    // 클릭한 지점까지 '걸어간다' — 벽·집기를 뚫지 않되, 막혔다고 그 자리에 멈춰 서지도 않는다.
+    // NPC는 책상 앞에 있어서 NPC를 누르면 목적지가 충돌 안이 되는데, 예전처럼 무시해 버리면
+    // "눌러도 아무 일이 없다"가 된다(다가가려고 누른 건데). 갈 수 있는 데까지 이동한다.
+    const from = positionRef.current;
+    const steps = Math.max(1, Math.ceil(Math.hypot(target.x - from.x, target.y - from.y) / MOVE_STEP));
+    let reachable = from;
+    for (let i = 1; i <= steps; i++) {
+      const point = {
+        x: from.x + ((target.x - from.x) * i) / steps,
+        y: from.y + ((target.y - from.y) * i) / steps,
+      };
+      if (collidesAt(point)) break; // 처음 막히는 지점 직전까지만
+      reachable = point;
+    }
+    if (reachable !== from) onPositionChange(reachable);
   };
 
   useEffect(() => {
