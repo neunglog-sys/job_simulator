@@ -325,6 +325,14 @@ async def stream_npc_chat(
     # 시나리오 전역 상태값(trust 등)과 별개. state에 써두면 아래 NPC 응답 저장 커밋에 함께 영속된다.
     aff_delta = affinity.delta_for(user_text)
     aff_state, aff_value = affinity.bumped(simulation.state, npc_id, aff_delta)
+
+    # 첫 대면이면 오리엔테이션 — 이 NPC는 업무 지시 대신 자기소개와 자기가 맡은 일을 알려준다.
+    # 만난 동료를 state에 기록해 둔다(1단계 진행도: 모든 동료와 인사해야 업무가 열림).
+    met = list(aff_state.get("met_npcs") or [])
+    first_meeting = npc_id not in met
+    if first_meeting:
+        met.append(npc_id)
+        aff_state = {**aff_state, "met_npcs": met}
     simulation.state = aff_state
     flag_modified(simulation, "state")
 
@@ -374,6 +382,8 @@ async def stream_npc_chat(
         state=simulation.state,
         affinity=aff_value, affinity_band=affinity.band(aff_value),
         knowledge=knowledge,
+        # 첫 대면 = 소개하는 자리(짧은 메신저 말투·업무 복귀 규칙 완화), 그다음부터는 평소 업무 대화
+        phase="orientation" if first_meeting else "work",
     )
 
     full: list[str] = []
@@ -460,6 +470,7 @@ async def _persona_line(
         state=simulation.state,
         affinity=50, affinity_band=affinity.band(50),
         knowledge=None,
+        phase="work",  # 인사·격려 대사는 평소 말투(짧게)
     )
     return _clean_npc(
         await get_llm().chat([ChatMessage(role="user", content=user_prompt)], system=system, temperature=temperature)
