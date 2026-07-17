@@ -10,7 +10,6 @@ import {
   useEffect,
   useMemo,
   useRef,
-  type KeyboardEvent,
   type PointerEvent,
 } from "react";
 import type { GameMapData, GameNpc } from "../../lib/api";
@@ -41,6 +40,35 @@ type Rect = { x: number; y: number; w: number; h: number };
 type NpcMarker = { npc_id: string; name: string; x: number; y: number; isActive: boolean };
 
 const MOVE_STEP = 18;
+
+// WASD·방향키 → 이동량. 대소문자·한글 자판(ㅈㅁㄴㅇ) 모두 받는다 —
+// 한글 입력 상태에서도 게임이 멈추지 않게 (event.key가 자모로 들어옴).
+const MOVEMENT_KEYS: Record<string, Position> = {
+  ArrowUp: { x: 0, y: -MOVE_STEP },
+  w: { x: 0, y: -MOVE_STEP },
+  W: { x: 0, y: -MOVE_STEP },
+  ㅈ: { x: 0, y: -MOVE_STEP },
+  ArrowDown: { x: 0, y: MOVE_STEP },
+  s: { x: 0, y: MOVE_STEP },
+  S: { x: 0, y: MOVE_STEP },
+  ㄴ: { x: 0, y: MOVE_STEP },
+  ArrowLeft: { x: -MOVE_STEP, y: 0 },
+  a: { x: -MOVE_STEP, y: 0 },
+  A: { x: -MOVE_STEP, y: 0 },
+  ㅁ: { x: -MOVE_STEP, y: 0 },
+  ArrowRight: { x: MOVE_STEP, y: 0 },
+  d: { x: MOVE_STEP, y: 0 },
+  D: { x: MOVE_STEP, y: 0 },
+  ㅇ: { x: MOVE_STEP, y: 0 },
+};
+
+/** 지금 글자를 입력 중인가 — 채팅창에 타이핑할 때 캐릭터가 같이 움직이면 안 된다. */
+function isTypingTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable === true;
+}
 // 충돌은 스프라이트 전체가 아니라 발밑 영역으로 판정 — 벽에 자연스럽게 붙는다.
 const FOOT_WIDTH = 46;
 const FOOT_HEIGHT = 26;
@@ -169,26 +197,21 @@ export function MovementArea({
     [clampPosition, collidesAt, onPositionChange, position.x, position.y],
   );
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const movementKeys: Record<string, Position> = {
-      ArrowUp: { x: 0, y: -MOVE_STEP },
-      w: { x: 0, y: -MOVE_STEP },
-      W: { x: 0, y: -MOVE_STEP },
-      ArrowDown: { x: 0, y: MOVE_STEP },
-      s: { x: 0, y: MOVE_STEP },
-      S: { x: 0, y: MOVE_STEP },
-      ArrowLeft: { x: -MOVE_STEP, y: 0 },
-      a: { x: -MOVE_STEP, y: 0 },
-      A: { x: -MOVE_STEP, y: 0 },
-      ArrowRight: { x: MOVE_STEP, y: 0 },
-      d: { x: MOVE_STEP, y: 0 },
-      D: { x: MOVE_STEP, y: 0 },
+  // 이동 키는 window에서 받는다 — 이동영역 div에 포커스가 있어야만 동작하던 탓에
+  // '맵을 한 번 클릭해야 키보드가 먹고, 채팅창에 타이핑하면 다시 먹통'이 됐다.
+  // 글자 입력 중(채팅·서술형 답안)에는 무시한다.
+  useEffect(() => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (isTypingTarget(event.target)) return;
+      const delta = MOVEMENT_KEYS[event.key];
+      if (!delta) return;
+      event.preventDefault();
+      movePlayer(delta.x, delta.y);
     };
-    const delta = movementKeys[event.key];
-    if (!delta) return;
-    event.preventDefault();
-    movePlayer(delta.x, delta.y);
-  };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [movePlayer]);
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.target instanceof Element && event.target.closest("button")) return;
@@ -202,9 +225,10 @@ export function MovementArea({
       x: (event.clientX - bounds.left) * scaleX - PLAYER_SIZE.width / 2,
       y: (event.clientY - bounds.top) * scaleY - PLAYER_SIZE.height / 2,
     });
-    // 마우스 클릭 이동은 tile 충돌을 무시하고 자유 이동 (키보드 이동만 충돌 판정 유지).
+    // 클릭 이동도 충돌을 지킨다 — 예전엔 충돌을 무시해 벽·집기를 뚫고 텔레포트했고,
+    // 그러면 맵의 collision 설계 자체가 의미를 잃는다. 갈 수 없는 자리면 무시.
+    if (collidesAt(target)) return;
     onPositionChange(target);
-    areaRef.current?.focus();
   };
 
   useEffect(() => {
@@ -225,8 +249,6 @@ export function MovementArea({
     <div
       ref={areaRef}
       className={styles.movementArea}
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
       onPointerDown={handlePointerDown}
       aria-label="플레이어 이동 영역. 방향키 또는 WASD로 이동할 수 있습니다."
     >
