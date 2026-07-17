@@ -43,6 +43,9 @@ type Rect = { x: number; y: number; w: number; h: number };
 type NpcMarker = { npc_id: string; name: string; x: number; y: number; isActive: boolean };
 
 const MOVE_STEP = 18;
+// 같은 spawn 자리를 쓰는 NPC들을 좌우로 벌리는 간격(px) — 맵 자리(3개)보다 인원이 많을 때.
+// 투어 앵커 계산(ScenarioGamePage)도 같은 값을 써야 마커와 어긋나지 않는다.
+export const SLOT_SPREAD = 92;
 
 // WASD·방향키 → 이동량. 대소문자·한글 자판(ㅈㅁㄴㅇ) 모두 받는다 —
 // 한글 입력 상태에서도 게임이 멈추지 않게 (event.key가 자모로 들어옴).
@@ -136,24 +139,31 @@ export function MovementArea({
   const npcMarkers = useMemo<NpcMarker[]>(() => {
     if (!geometry?.spawns) return [];
     const byId = new Map(geometry.spawns.map((s) => [s.id, s]));
-    // 시나리오 NPC가 spawn 자리보다 많으면 백엔드가 한 자리에 여러 명을 배정한다(순환).
-    // 자리당 1명만 표시하되, 현재 미션 담당 NPC가 그 자리에 있으면 그를 대표로(정확한 이름·강조).
-    const bySlot = new Map<string, GameNpc>();
+    // 맵의 NPC 자리는 3개(teamjang/sasu/bujang)인데 시나리오 NPC는 평균 5명이라 백엔드가
+    // 한 자리에 여러 명을 배정한다(순환). 예전엔 자리당 1명만 그려서 6명짜리 팀이 3명으로
+    // 보였다 → 같은 자리를 쓰는 사람들을 가로로 벌려 전원을 표시한다.
+    // (맵에 자리가 늘어나면 자연히 겹침이 사라진다)
+    const slotMembers = new Map<string, GameNpc[]>();
     for (const npc of npcs) {
       if (!npc.spawn || !byId.has(npc.spawn)) continue;
-      const existing = bySlot.get(npc.spawn);
-      if (!existing || npc.npc_id === activeNpcId) bySlot.set(npc.spawn, npc);
+      const list = slotMembers.get(npc.spawn);
+      if (list) list.push(npc);
+      else slotMembers.set(npc.spawn, [npc]);
     }
+
     const markers: NpcMarker[] = [];
-    for (const [slot, npc] of bySlot) {
+    for (const [slot, members] of slotMembers) {
       const spot = byId.get(slot);
-      if (spot) {
-        // 투어 중인 사수는 자기 자리가 아니라 지금 안내하고 있는 위치에 그린다(걸어다니는 연출).
+      if (!spot) continue;
+      for (const [index, npc] of members.entries()) {
+        // 같은 자리 인원은 좌우로 번갈아 벌린다: 0 → 0, 1 → +90, 2 → -90, 3 → +180 …
+        const step = Math.ceil(index / 2) * SLOT_SPREAD * (index % 2 === 1 ? 1 : -1);
+        // 투어 중인 사수는 자기 자리가 아니라 지금 안내하는 위치에 그린다(걸어다니는 연출).
         const touring = guideNpcId === npc.npc_id && guidePosition;
         markers.push({
           npc_id: npc.npc_id,
           name: npc.name,
-          x: touring ? guidePosition.x : spot.x - origin.x,
+          x: touring ? guidePosition.x : spot.x - origin.x + step,
           y: touring ? guidePosition.y : spot.y - origin.y,
           isActive: npc.npc_id === activeNpcId,
         });

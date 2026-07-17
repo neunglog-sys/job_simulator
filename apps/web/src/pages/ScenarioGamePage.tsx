@@ -7,7 +7,7 @@ import { GameMapLayer } from "../components/scenario/GameMapLayer";
 import { HintPanel } from "../components/scenario/HintPanel";
 import { MiniGamePanel } from "../components/scenario/MiniGamePanel";
 import { MissionPanel } from "../components/scenario/MissionPanel";
-import { MovementArea } from "../components/scenario/MovementArea";
+import { MovementArea, SLOT_SPREAD } from "../components/scenario/MovementArea";
 import { PLAYER_SIZE } from "../components/scenario/PlayerSprite";
 import { ScenarioControlPanel } from "../components/scenario/ScenarioControlPanel";
 import { TourBanner } from "../components/scenario/TourBanner";
@@ -270,7 +270,12 @@ export function ScenarioGamePage() {
       const slot = npcs.find((npc) => npc.npc_id === npcId)?.spawn;
       const spot = geo?.spawns?.find((s) => s.id === slot);
       if (!geo || !origin || !spot) return null;
-      return { x: spot.x - origin.x, y: spot.y - origin.y };
+      // 자리가 3개뿐이라 여러 명이 같은 자리를 쓴다 — MovementArea와 같은 규칙으로 벌린 위치를
+      // 계산해야 사수가 그 사람 앞에 정확히 선다(마커와 어긋나면 엉뚱한 데서 소개하게 됨).
+      const members = npcs.filter((npc) => npc.spawn === slot);
+      const index = members.findIndex((npc) => npc.npc_id === npcId);
+      const step = Math.ceil(index / 2) * SLOT_SPREAD * (index % 2 === 1 ? 1 : -1);
+      return { x: spot.x - origin.x + step, y: spot.y - origin.y };
     },
     [gameMap, npcs],
   );
