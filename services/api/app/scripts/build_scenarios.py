@@ -22,6 +22,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.content.korean import with_josa
 from app.content.loader import validate_npcs, validate_scenario, yaml_scenario_slugs
 from app.core.config import settings
 from app.domains.scoring.aggregate import TYPE_COMPETENCY
@@ -441,7 +442,7 @@ def build_scenario_doc(
         q_name = next((e["name"] for e in roster if e["npc_id"] == q_npc), "")
         quest = {
             "npc": q_npc,
-            "intro": f'{q_name}이(가) 다급하게 찾아왔다. "{q.npc_line}"' if q.npc_line
+            "intro": f'{with_josa(q_name)} 다급하게 찾아왔다. "{q.npc_line}"' if q.npc_line
                      else "예상치 못한 상황이 발생했다.",
             "task": {**build_task(q), "type": q.situation_type},
         }

@@ -79,3 +79,21 @@ def test_procedure_items_are_sentences_not_keywords():
         if parts and sum(len(p) for p in parts) / len(parts) < 8:
             offenders.append(f"{slug} {step['id']}: {parts[:3]}")
     assert not offenders, "절차가 키워드 나열인 스텝:\n" + "\n".join(offenders[:10])
+
+
+def test_glossary_does_not_break_compound_words():
+    """용어 풀이가 더 긴 단어 중간에 끼면 단어가 깨진다 — "출고(물건을 내보냄)지시서".
+
+    용어 뒤에 조사·어미가 아니라 다른 명사가 이어지면 그 자리는 합성어의 일부다.
+    """
+    particles = (
+        "을", "를", "이", "가", "은", "는", "의", "에", "와", "과", "로", "도", "만",
+        "한", "해", "하", "된", "될", "인", "부터", "까지", "에서", "으로", "에게", "께",
+    )
+    offenders = []
+    for path in _SCENARIOS:
+        text = Path(path).read_text(encoding="utf-8")
+        for match in re.finditer(r"([가-힣]{2,6})\(([^)]{2,14})\)([가-힣]{1,6})", text):
+            if not match.group(3).startswith(particles):
+                offenders.append(f"{Path(path).stem}: {match.group(0)}")
+    assert not offenders, "용어 풀이가 합성어를 쪼갬:\n" + "\n".join(offenders[:10])
