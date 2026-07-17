@@ -2027,6 +2027,38 @@ button.headerOrb:active {
   gap: 12px;
 }
 
+/* 4단계 실무 미니게임 — 지금은 빈 창(자리만 잡아둔 상태) */
+.miniGameStage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 24px;
+  border: 1px dashed rgb(120 140 255 / 0.5);
+  border-radius: 18px;
+  background: rgb(120 140 255 / 0.08);
+  gap: 10px;
+  text-align: center;
+}
+
+.miniGameStage svg {
+  width: 46px;
+  height: 46px;
+  opacity: 0.65;
+}
+
+.miniGameTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.miniGameBody {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  opacity: 0.85;
+}
+
 /* 채점 결과 + 조언 카드 묶음 — 미달해도 창을 닫지 않고 그 자리에서 힌트를 보고 재제출 */
 .missionResultBlock {
   display: flex;

@@ -4,6 +4,7 @@ import { AiCoachPanel } from "../components/scenario/AiCoachPanel";
 import { DashboardHeader } from "../components/scenario/DashboardHeader";
 import { GameMapLayer } from "../components/scenario/GameMapLayer";
 import { HintPanel } from "../components/scenario/HintPanel";
+import { MiniGamePanel } from "../components/scenario/MiniGamePanel";
 import { MissionPanel } from "../components/scenario/MissionPanel";
 import { MovementArea } from "../components/scenario/MovementArea";
 import { PLAYER_SIZE } from "../components/scenario/PlayerSprite";
@@ -169,6 +170,9 @@ export function ScenarioGamePage() {
   const [coachCards, setCoachCards] = useState<CoachCardsFrame | null>(null);
   // 완주 시 수행 결과 — 리포트에 실릴 근거를 사용자에게도 보여준다
   const [finalScore, setFinalScore] = useState<SimulationScore | null>(null);
+  // 4단계(실무 미니게임) — 마지막 스텝(소감문) 직전에 1회. 지금은 빈 창 → 바로 완료.
+  const [miniGameOpen, setMiniGameOpen] = useState(false);
+  const [miniGameCleared, setMiniGameCleared] = useState(false);
   const socketRef = useRef<SimulationSocket | null>(null);
 
   // 현재 스텝의 대화 상대 NPC (step.npcs[0]) — 표시정보는 npcs 로스터에서 조회
@@ -218,6 +222,15 @@ export function ScenarioGamePage() {
     !quest &&
     !farewell && // 격려 배너가 떠 있는 동안은 업무 배너 숨김
     Boolean(activeStep?.task);
+
+  // 4단계(실무 미니게임) 발동 — 앞 미션들로 주 업무를 익힌 뒤, 마지막 소감문 스텝 직전에 1회.
+  // 마지막 스텝 = step_ids의 끝(본편 미션 순서). 돌발 퀘스트 중에는 끼어들지 않는다.
+  const isFinalStep = Boolean(
+    activeStep && stepIds.length > 0 && activeStep.id === stepIds[stepIds.length - 1],
+  );
+  useEffect(() => {
+    if (isFinalStep && !miniGameCleared && !quest && !isCompleted) setMiniGameOpen(true);
+  }, [isFinalStep, miniGameCleared, quest, isCompleted]);
 
   // 담당 NPC에게 처음 다가가면 실시간 인사를 1회 요청 (스텝당 1회, 응답 오면 채팅창에 표시).
   useEffect(() => {
@@ -459,6 +472,9 @@ export function ScenarioGamePage() {
     setIsStreaming(false);
     setAdviceCards([]);
     setCoachCards(null);
+    setFinalScore(null);
+    setMiniGameOpen(false);
+    setMiniGameCleared(false); // 처음부터 다시 = 4단계도 다시
     setConnStatus("creating");
     setRetryKey((key) => key + 1);
   }, []);
@@ -584,7 +600,18 @@ export function ScenarioGamePage() {
         </span>
       </div>
 
-      {isMissionOpen && activeMission ? (
+      {/* 4단계 — 실무 미니게임(빈 창). 소감문 미션보다 먼저 뜨고, 완료하면 5단계로 넘어간다. */}
+      {miniGameOpen ? (
+        <MiniGamePanel
+          missionTitle={activeStep?.title || "신입의 주 업무"}
+          onClear={() => {
+            setMiniGameCleared(true);
+            setMiniGameOpen(false);
+          }}
+        />
+      ) : null}
+
+      {isMissionOpen && activeMission && !miniGameOpen ? (
         <MissionPanel
           key={quest ? "quest" : activeStep?.id}
           mission={activeMission}
