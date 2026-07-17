@@ -10,8 +10,9 @@
   position: relative;
   isolation: isolate;
   width: 100vw;
+  /* 보이는 만큼만 차지한다. min-height:100vh를 함께 주면 vh>dvh인 환경(모바일 주소창 등)에서
+     화면보다 큰 박스가 되고, 스테이지가 그 박스 중앙에 놓여 아래(채팅·코치 패널)가 잘린다. */
   height: 100dvh;
-  min-height: 100vh;
   overflow: hidden;
   color: var(--ink);
   background-color: #d8dadd;
