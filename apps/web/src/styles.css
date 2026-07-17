@@ -82,57 +82,10 @@ a:focus-visible {
 
 .ground-sky {
   opacity: 0;
-  background:
-    radial-gradient(ellipse 64% 104% at -18% 58%, rgb(194 110 231 / 0.24) 0%, rgb(116 72 183 / 0.12) 43%, transparent 72%),
-    radial-gradient(ellipse 34% 58% at 20% 3%, rgb(187 142 240 / 0.12) 0%, transparent 74%),
-    radial-gradient(ellipse 33% 56% at 81% 38%, rgb(69 149 246 / 0.32) 0%, rgb(60 104 209 / 0.14) 48%, transparent 74%),
-    radial-gradient(ellipse 58% 34% at 52% 2%, rgb(119 105 236 / 0.24) 0%, transparent 70%),
-    radial-gradient(ellipse 72% 38% at 50% 96%, rgb(91 65 185 / 0.38) 0%, transparent 70%),
-    linear-gradient(145deg, #170d4d 0%, #33206f 37%, #2f4f9d 70%, #173d80 100%);
-  filter: saturate(1.12) brightness(0.98);
-  transform: translate3d(0, 0, 0) scale(1.01);
+  background: #151543 url("/assets/rocket-launch-background9.webp") center / cover no-repeat;
+  filter: saturate(1.02) brightness(0.96);
+  transform: translate3d(0, 0, 0) scale(1.005);
   transform-origin: 50% 50%;
-}
-
-.ground-sky::before,
-.ground-sky::after {
-  position: absolute;
-  content: "";
-  pointer-events: none;
-  transition:
-    opacity 1.6s var(--ease-out-quint),
-    transform 1.9s var(--ease-out-quint);
-}
-
-.ground-sky::before {
-  inset: -18%;
-  opacity: 0.76;
-  background:
-    radial-gradient(ellipse 56% 110% at -12% 57%, transparent 0 24%, rgb(225 181 250 / 0.17) 38%, rgb(164 103 220 / 0.08) 49%, transparent 67%),
-    radial-gradient(ellipse 27% 66% at 80% 38%, transparent 0 30%, rgb(120 190 255 / 0.18) 40%, rgb(79 126 224 / 0.08) 49%, transparent 65%),
-    radial-gradient(ellipse 44% 34% at 48% 13%, transparent 0 36%, rgb(167 145 255 / 0.13) 48%, transparent 67%),
-    radial-gradient(ellipse 34% 94% at -3% 58%, rgb(221 174 249 / 0.2) 0%, rgb(163 103 220 / 0.1) 43%, transparent 75%),
-    radial-gradient(ellipse 24% 72% at 68% 35%, rgb(98 166 255 / 0.26) 0%, rgb(86 104 222 / 0.1) 48%, transparent 76%),
-    conic-gradient(from 202deg at 16% 54%, transparent 0 12%, rgb(190 125 232 / 0.13) 18%, rgb(96 115 223 / 0.07) 27%, transparent 38% 100%);
-  filter: blur(34px) saturate(1.24);
-  mix-blend-mode: screen;
-  transform: translate3d(0, 0, 0) rotate(-5deg) scale(1.04);
-}
-
-.ground-sky::after {
-  inset: -8%;
-  opacity: 0.32;
-  background-image:
-    url("/assets/pink-nebula-texture.webp"),
-    radial-gradient(circle, rgb(255 255 255 / 0.68) 0 0.65px, transparent 1.05px),
-    radial-gradient(circle, rgb(190 218 255 / 0.62) 0 0.7px, transparent 1.1px),
-    radial-gradient(circle, rgb(246 200 255 / 0.56) 0 0.6px, transparent 1px);
-  background-position: -9% 50%, 3px 11px, 37px 23px, 71px 47px;
-  background-repeat: no-repeat, repeat, repeat, repeat;
-  background-size: 76% 126%, 97px 89px, 149px 137px, 211px 181px;
-  filter: hue-rotate(18deg) saturate(1.2) brightness(0.9) contrast(1.05);
-  mix-blend-mode: screen;
-  transform: translate3d(0, 2%, 0) scale(1.05);
 }
 
 .has-ground .ground-sky {
@@ -141,14 +94,8 @@ a:focus-visible {
 
 .is-space .ground-sky {
   opacity: 0;
-  filter: saturate(0.98) brightness(0.92);
-  transform: translate3d(0, -4.5%, 0) scale(1.1);
-}
-
-.is-space .ground-sky::before,
-.is-space .ground-sky::after {
-  opacity: 0;
-  transform: translate3d(0, -12%, 0) scale(1.1);
+  filter: saturate(0.94) brightness(0.82) blur(1px);
+  transform: translate3d(0, -5%, 0) scale(1.08);
 }
 
 .space-sky {

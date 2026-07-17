@@ -123,7 +123,7 @@ const CAREERS: Career[] = [
     name: "개발자",
     iconSrc: "/assets/career-icons/career-code.webp",
     colors: ["#667cff", "#62e4ee"],
-    ground: [-38, 6],
+    ground: [-43, 14],
     orbit: [36.5, 14.2],
     mobile: [34, 34],
     size: 128,
@@ -135,7 +135,7 @@ const CAREERS: Career[] = [
     name: "디자이너",
     iconSrc: "/assets/career-icons/career-design.webp",
     colors: ["#a26cff", "#ff8fce"],
-    ground: [-18, 0],
+    ground: [-26, -2],
     orbit: [3, 0.5],
     mobile: [34, 7],
     size: 96,
@@ -147,7 +147,7 @@ const CAREERS: Career[] = [
     name: "영상 제작자",
     iconSrc: "/assets/career-icons/career-video.webp",
     colors: ["#796cf2", "#f596dc"],
-    ground: [-34, -11],
+    ground: [-40, -22],
     orbit: [12.5, -34],
     mobile: [-32, 18],
     size: 84,
@@ -159,7 +159,7 @@ const CAREERS: Career[] = [
     name: "의료 직군",
     iconSrc: "/assets/career-icons/career-medical.webp",
     colors: ["#35cfc3", "#8ce9f5"],
-    ground: [18, 12],
+    ground: [35, 13],
     orbit: [29, 26.5],
     mobile: [-31, 35],
     size: 92,
@@ -172,7 +172,7 @@ const CAREERS: Career[] = [
     name: "데이터 분석가",
     iconSrc: "/assets/career-icons/career-data.webp",
     colors: ["#587ee9", "#8fcff7"],
-    ground: [26, 0],
+    ground: [29, -1],
     orbit: [31.5, -6.3],
     mobile: [-6, 24],
     size: 80,
@@ -184,7 +184,7 @@ const CAREERS: Career[] = [
     name: "연구원",
     iconSrc: "/assets/career-icons/career-research.webp",
     colors: ["#b764de", "#ff91c5"],
-    ground: [35, 11],
+    ground: [43, -21],
     orbit: [31.2, -28.2],
     mobile: [32, 20],
     size: 112,
@@ -196,7 +196,7 @@ const CAREERS: Career[] = [
     name: "우주 과학자",
     iconSrc: "/assets/career-icons/career-space.webp",
     colors: ["#6b78e8", "#91dcf5"],
-    ground: [-27, 10],
+    ground: [-34, -3],
     orbit: [9, -23],
     mobile: [-13, 3],
     size: 54,
@@ -208,7 +208,7 @@ const CAREERS: Career[] = [
     name: "안전 관리 전문가",
     iconSrc: "/assets/career-icons/career-safety.webp",
     colors: ["#8e68f3", "#51dff2"],
-    ground: [12, -9],
+    ground: [13, -15],
     orbit: [1.2, -15.8],
     mobile: [-25, 11],
     size: 68,
@@ -220,7 +220,7 @@ const CAREERS: Career[] = [
     name: "콘텐츠 제작자",
     iconSrc: "/assets/career-icons/career-microphone.webp",
     colors: ["#e462b4", "#ff9fc9"],
-    ground: [37, -10],
+    ground: [38, -5],
     orbit: [35.5, -16.8],
     mobile: [12, 43],
     size: 44,
@@ -232,7 +232,7 @@ const CAREERS: Career[] = [
     name: "기획자",
     iconSrc: "/assets/career-icons/career-idea.webp",
     colors: ["#f2869c", "#ffd18a"],
-    ground: [-15, 13],
+    ground: [-15, 15],
     orbit: [8.6, 22.5],
     mobile: [-12, 43],
     size: 52,
@@ -244,7 +244,7 @@ const CAREERS: Career[] = [
     name: "보안 전문가",
     iconSrc: "/assets/career-icons/career-security.webp",
     colors: ["#4f8ee2", "#76d5e8"],
-    ground: [14, 7],
+    ground: [16, 12],
     orbit: [22.4, -33.6],
     mobile: [10, 2],
     size: 54,
@@ -268,26 +268,43 @@ const PLANET_POINTER_PROFILES: PlanetPointerProfile[] = [
   { x: 4, y: -6, stiffness: 82, damping: 24, mass: 0.74 },
 ];
 
-const STAR_POINTS = Array.from({ length: 64 }, (_, index) => {
-  let left = (index * 37 + 11) % 97;
-  let top = (index * 53 + 7) % 89;
+function createSeededRandom(seed: number) {
+  let state = seed;
 
-  // Keep the final headline area quiet while distributing extra stars elsewhere.
+  return () => {
+    state += 0x6d2b79f5;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296;
+  };
+}
+
+const starRandom = createSeededRandom(0x5f3759df);
+
+const STAR_POINTS = Array.from({ length: 64 }, (_, index) => {
+  let left = 2 + starRandom() * 96;
+  let top = 3 + starRandom() * 91;
+
+  // Keep the final headline area quiet without snapping stars onto shared rows.
   if (left >= 4 && left <= 44 && top >= 27 && top <= 73) {
-    if (index % 2 === 0) {
-      top = 9 + ((index * 7) % 17);
+    if (starRandom() < 0.48) {
+      top = 4 + starRandom() * 21;
     } else {
-      left = 47 + ((index * 19) % 49);
+      left = 47 + starRandom() * 50;
     }
   }
 
+  const sizeRoll = starRandom();
+  const toneRoll = starRandom();
+
   return {
-    left: `${left}%`,
-    top: `${top}%`,
-    size: `${index % 23 === 0 ? 3 : index % 8 === 0 ? 2 : 1}px`,
-    delay: `${-(index % 11) * 0.37}s`,
-    duration: `${2.35 + (index % 6) * 0.31}s`,
-    tone: index % 17 === 0 ? "warm" : index % 7 === 0 ? "bright" : "soft",
+    left: `${left.toFixed(2)}%`,
+    top: `${top.toFixed(2)}%`,
+    size: `${sizeRoll > 0.96 ? 3 : sizeRoll > 0.76 ? 2 : 1.35}px`,
+    delay: `${(-starRandom() * 4.2).toFixed(2)}s`,
+    duration: `${(2.2 + starRandom() * 1.75).toFixed(2)}s`,
+    tone: toneRoll > 0.93 ? "warm" : toneRoll > 0.75 ? "bright" : "soft",
     mobileOptional: index >= 46,
   };
 });
@@ -698,15 +715,6 @@ export function CareerLaunch() {
         ))}
       </motion.div>
 
-      <div className="launch-planet-layer" aria-hidden="true">
-        <div className="launch-planet-horizon">
-          <span className="launch-planet-atmosphere" />
-          <span className="launch-planet-crater launch-planet-crater-one" />
-          <span className="launch-planet-crater launch-planet-crater-two" />
-          <span className="launch-planet-crater launch-planet-crater-three" />
-        </div>
-      </div>
-
       <nav className="site-nav" aria-label="주요 메뉴">
         <a
           className="brand"
@@ -792,7 +800,7 @@ export function CareerLaunch() {
       </section>
 
       <div className="career-layer" aria-label="다양한 직무를 상징하는 행성들">
-        {CAREERS.map((career, index) => (
+        {isFinal ? CAREERS.map((career, index) => (
           <CareerPlanet
             career={career}
             index={index}
@@ -801,7 +809,7 @@ export function CareerLaunch() {
             pointerY={pointerY}
             reduceMotion={Boolean(reduceMotion)}
           />
-        ))}
+        )) : null}
       </div>
 
       <div
@@ -892,13 +900,13 @@ export function CareerLaunch() {
           ))}
         </div>
         <div className="rocket-shake">
-          <img src="/assets/rocket.png" alt="" />
+          <img src="/assets/rocket.webp" alt="" />
           <div className="rocket-flame" />
         </div>
       </div>
 
       <div className="cloud-image-layer" aria-hidden="true">
-        <img src="/assets/cloud-bank.png" alt="" />
+        <img src="/assets/cloud-bank.webp" alt="" />
       </div>
 
       <button
