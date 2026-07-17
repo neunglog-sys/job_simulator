@@ -1994,8 +1994,8 @@ button.headerOrb:active {
 /* 1단계 온보딩 투어 자막 — 사수가 팀원을 소개하는 동안 뜬다 */
 .tourBanner {
   position: absolute;
-  z-index: 6;
-  top: 24px;
+  z-index: 15;
+  top: 88px; /* 헤더(높이 60px + top 10px) 아래 — 업무 배너와 같은 줄 */
   left: 50%;
   display: flex;
   width: min(900px, calc(100% - 80px));

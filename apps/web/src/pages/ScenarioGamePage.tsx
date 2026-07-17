@@ -149,12 +149,12 @@ function approachGuide(step: GameStep | null, roster: GameNpc[]): string {
     : "지도에서 '!' 표시된 담당 NPC에게 다가가면 업무를 받을 수 있어요.";
 }
 
-// 1단계 안내 — 팀 동료를 한 명씩 만나 인사하며 업무 흐름을 듣는 단계.
-function introGuide(unmet: GameNpc[], total: number): string {
-  const met = total - unmet.length;
-  return `첫 출근이에요. 팀 동료들에게 다가가 인사부터 나눠보세요. (${met}/${total}) 아직 못 만난 분: ${unmet
-    .map((npc) => npc.name)
-    .join(", ")}`;
+// 1단계 안내 — 사수에게 다가가면 팀을 한 바퀴 돌며 소개해 준다.
+function introGuide(step: GameStep | null, roster: GameNpc[]): string {
+  const name = roster.find((npc) => npc.npc_id === step?.npcs?.[0])?.name;
+  return name
+    ? `첫 출근이에요. '!' 표시된 ${name} 님에게 다가가 인사하면 팀을 소개해 줄 거예요.`
+    : "첫 출근이에요. '!' 표시된 사수에게 다가가 인사해보세요.";
 }
 
 export function ScenarioGamePage() {
@@ -194,6 +194,7 @@ export function ScenarioGamePage() {
   // 1단계 온보딩 투어(컷신) — 사수가 데리고 다니며 팀원을 소개한다. index: 0..stops-1, stops면 마무리.
   const [tour, setTour] = useState<TourFrame | null>(null);
   const [tourIndex, setTourIndex] = useState(0);
+  const [tourDone, setTourDone] = useState(false); // 서버 state.tour_done 미러 — 업무 게이트
   const [reflectionSending, setReflectionSending] = useState(false);
   const socketRef = useRef<SimulationSocket | null>(null);
 
@@ -236,11 +237,10 @@ export function ScenarioGamePage() {
       playerPosition.y + PLAYER_SIZE.height / 2 - activeNpcMarker.y,
     ) < ENCOUNTER_RADIUS;
 
-  // 1단계 — 첫 업무 전에 팀 전원과 인사해야 한다(돌아다니며 동료들에게 업무 흐름을 듣는 단계).
-  // 첫 미션에서만 게이트한다: 이후 미션은 이미 다 아는 사이라 다시 돌 필요가 없다.
+  // 1단계 — 사수에게 다가가 인사를 청하면 투어가 시작되고, 투어를 마쳐야 업무가 열린다.
+  // (투어가 각 동료에게 직접 인사를 시키므로 '전원과 인사'는 투어 완료로 보장된다)
   const isFirstStep = Boolean(activeStep && stepIds.length > 0 && activeStep.id === stepIds[0]);
-  const unmetNpcs = npcs.filter((npc) => !metNpcs.includes(npc.npc_id));
-  const introDone = !isFirstStep || unmetNpcs.length === 0;
+  const needsTour = isFirstStep && !tourDone;
 
   // 담당 NPC 근처 + 미션 미진행일 때만 업무 배너 표시 (순차 진행 — 현재 스텝 NPC에게만 뜬다).
   // 자유 이동 중(exploring) 담당 NPC 근처일 때만 업무 배너 — 컷신·모달 중에는 뜨지 않는다.
@@ -316,6 +316,7 @@ export function ScenarioGamePage() {
     }
     if (phase === "tour_closing") {
       socketRef.current?.sendTourDone(); // 투어 완료 기록(새로고침해도 다시 안 틀게)
+      setTourDone(true);
       setChatNpcId(null);
       setPhase("exploring");
     }
@@ -324,13 +325,11 @@ export function ScenarioGamePage() {
   // 1단계 안내 — 인사가 남았으면 누구를 만나야 하는지, 다 만났으면 업무를 받으러 가라고 안내한다.
   // (대화 중 코치 TIP·리뷰가 떠 있을 때 덮어쓰지 않도록 스트리밍 중에는 건드리지 않는다)
   useEffect(() => {
-    if (!isFirstStep || isStreaming || npcs.length === 0 || phase === "completed") return;
+    if (phase !== "exploring" || isStreaming || npcs.length === 0) return;
     setCoachMessage(
-      unmetNpcs.length > 0
-        ? introGuide(unmetNpcs, npcs.length)
-        : approachGuide(activeStep, npcsRef.current),
+      needsTour ? introGuide(activeStep, npcsRef.current) : approachGuide(activeStep, npcsRef.current),
     );
-  }, [isFirstStep, unmetNpcs.length, npcs.length, isStreaming, phase, activeStep]);
+  }, [phase, needsTour, npcs.length, isStreaming, activeStep]);
 
   // 담당 NPC에게 처음 다가가면 실시간 인사를 1회 요청 (스텝당 1회, 응답 오면 채팅창에 표시).
   useEffect(() => {
@@ -371,8 +370,9 @@ export function ScenarioGamePage() {
       setNpcs(sim.npcs);
       // 1단계 진행도 복원 — 새로고침해도 인사한 동료·투어 완료는 기억된다(서버 state).
       setMetNpcs((sim.state?.met_npcs as string[] | undefined) ?? []);
-      // 투어를 이미 봤으면 바로 자유 행동으로. 아직이면 투어 대사가 도착할 때 tour_intro로.
-      setPhase(sim.state?.tour_done ? "exploring" : "loading");
+      // 접속하면 언제나 자유 이동부터 — 투어는 플레이어가 사수에게 다가가 시작한다.
+      setTourDone(Boolean(sim.state?.tour_done));
+      setPhase("exploring");
       npcsRef.current = sim.npcs;
       setGameMap(sim.map);
       setScenarioTitle(sim.scenario_title);
@@ -407,12 +407,7 @@ export function ScenarioGamePage() {
         applySim(sim);
 
         socket = new SimulationSocket(sim.id, {
-          onOpen: () => {
-            if (cancelled) return;
-            setConnStatus("open");
-            // 첫 출근이면 사수의 팀 소개 투어부터 (이미 봤으면 서버 state로 걸러진다)
-            if (!sim.state?.tour_done) socket?.requestTour();
-          },
+          onOpen: () => !cancelled && setConnStatus("open"),
           onClose: () => !cancelled && setConnStatus("closed"),
           onError: (detail) => {
             if (cancelled) return;
@@ -490,6 +485,7 @@ export function ScenarioGamePage() {
             // 소개할 동료가 없으면(1인 시나리오 등) 투어를 건너뛴다.
             if (frame.stops.length === 0) {
               socketRef.current?.sendTourDone();
+              setTourDone(true);
               setPhase("exploring");
             } else {
               setPhase("tour_intro");
@@ -499,6 +495,7 @@ export function ScenarioGamePage() {
             if (cancelled) return;
             const met = state.met_npcs as string[] | undefined;
             if (met) setMetNpcs(met);
+            if (state.tour_done) setTourDone(true);
             if (state.reflection) {
               // 5단계 소감문 저장 완료 → 완주 화면 (점수는 게임에서 공개하지 않는다)
               setReflectionSending(false);
@@ -606,6 +603,7 @@ export function ScenarioGamePage() {
     setBriefedSteps([]);
     setTour(null);
     setTourIndex(0);
+    setTourDone(false);
     setMetNpcs([]);
     setConnStatus("creating");
     setRetryKey((key) => key + 1);
@@ -614,12 +612,13 @@ export function ScenarioGamePage() {
   // 업무 받기 — 1단계(전원과 인사)가 안 끝났으면 아직 업무를 받을 수 없다.
   // 끝났으면: 브리핑을 아직 안 들었으면 사수 설명부터(1·3단계), 들었으면 바로 과제(2단계).
   const handleOpenMission = useCallback(() => {
-    if (!introDone) {
-      setCoachMessage(
-        `업무를 받기 전에 팀 동료들과 인사부터 나눠요. 아직 못 만난 분: ${unmetNpcs
-          .map((npc) => npc.name)
-          .join(", ")}`,
-      );
+    // 아직 팀 소개를 못 받았으면, 업무 대신 사수의 인솔 투어부터 시작한다(1단계).
+    if (needsTour) {
+      // 투어 대사는 LLM이 생성해 몇 초 걸린다 — 누르고 멈춘 것처럼 보이지 않게 안내.
+      setCoachMessage("사수가 팀을 소개해 주려고 해요. 잠시만요…");
+      if (!socketRef.current?.requestTour()) {
+        setCoachMessage("게임 서버에 연결 중이에요. 잠시 후 다시 시도해주세요.");
+      }
       return;
     }
     setTaskResult(null);
@@ -628,7 +627,7 @@ export function ScenarioGamePage() {
     const needsBriefing =
       Boolean(stepId) && !quest && !briefedSteps.includes(stepId!) && (activeStep?.briefing?.length ?? 0) > 0;
     setPhase(needsBriefing ? "briefing" : "mission");
-  }, [activeStep, briefedSteps, quest, introDone, unmetNpcs]);
+  }, [activeStep, briefedSteps, quest, needsTour]);
 
   // 브리핑을 다 들으면 그 스텝은 들은 것으로 기록하고 과제로 넘어간다.
   const handleBriefingDone = useCallback(() => {
@@ -758,23 +757,11 @@ export function ScenarioGamePage() {
                 {activeNpc?.name ?? "NPC"}
                 {activeNpc?.role ? ` · ${activeNpc.role}` : ""}
               </strong>
-              {/* 1단계가 안 끝났으면 업무 대신 '누구와 더 인사해야 하는지'를 알려준다 */}
-              <p>
-                {introDone
-                  ? "오늘의 업무"
-                  : `먼저 팀 동료들과 인사해요 · ${metNpcs.length}/${npcs.length}명`}
-              </p>
+              {/* 첫 출근이면 업무 대신 팀 소개부터 — 사수가 데리고 다니며 인사시켜 준다 */}
+              <p>{needsTour ? "첫 출근 — 팀 소개받기" : "오늘의 업무"}</p>
             </div>
-            <button
-              className={styles.encounterButton}
-              type="button"
-              onClick={handleOpenMission}
-              disabled={!introDone}
-              title={
-                introDone ? undefined : `아직 인사 못한 동료: ${unmetNpcs.map((n) => n.name).join(", ")}`
-              }
-            >
-              {introDone ? "업무 받기 →" : "인사부터 →"}
+            <button className={styles.encounterButton} type="button" onClick={handleOpenMission}>
+              {needsTour ? "인사하러 가기 →" : "업무 받기 →"}
             </button>
           </div>
         ) : null}
