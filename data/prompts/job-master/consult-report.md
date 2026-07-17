@@ -29,7 +29,7 @@
 - 역량별 점수: {% for k, v in performance.competencies.items() %}{% if v is not none %}{{ k }}={{ v }} {% endif %}{% endfor %}
 - 미션 수행: {% for m in performance.missions %}{{ m.type }}({{ m.adjusted }}점, {{ m.attempts }}회 시도) {% endfor %}
 {% if performance.quest %}- 돌발 퀘스트: {{ "통과" if performance.quest.status == "passed" else "미통과" }} ({{ performance.quest.adjusted }}점){% endif %}
-{% if performance.conduct %}- 동료 대응 태도: 평균 호감도 {{ performance.conduct.average }}/100 ({{ performance.conduct.band }}), 대화한 동료 {{ performance.conduct.npc_count }}명 중 최저 {{ performance.conduct.lowest }}
+{% set conduct = performance.get('conduct') %}{% if conduct %}- 동료 대응 태도: 평균 호감도 {{ conduct.average }}/100 ({{ conduct.band }}), 대화한 동료 {{ conduct.npc_count }}명 중 최저 {{ conduct.lowest }}
 
 태도 해석 지침: 호감도는 체험 중 사용자가 동료 NPC를 대한 말투·협조 태도로만 오르내립니다
 (무례·정답 요구는 하락, 공손·성의 있는 질문은 상승). 이는 직무 역량이 아니라 **함께 일하는
