@@ -2036,6 +2036,26 @@ button.headerOrb:active {
   font-weight: 700;
 }
 
+/* 5단계 소감문 — 채점 없는 자유 서술 */
+.reflectionPrompts {
+  display: flex;
+  margin: 0;
+  padding: 12px 16px 12px 30px;
+  border-radius: 14px;
+  background: rgb(120 140 255 / 0.08);
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  line-height: 1.55;
+  opacity: 0.85;
+}
+
+.reflectionHint {
+  flex: 1;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
 /* 1·3단계 업무 브리핑 — 사수가 절차를 알려주는 창 */
 .briefingSpeaker {
   display: flex;

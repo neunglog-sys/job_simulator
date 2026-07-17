@@ -8,6 +8,8 @@ import { HintPanel } from "../components/scenario/HintPanel";
 import { MiniGamePanel } from "../components/scenario/MiniGamePanel";
 import { MissionPanel } from "../components/scenario/MissionPanel";
 import { MovementArea, SLOT_SPREAD } from "../components/scenario/MovementArea";
+import { canChat, canMove, MODAL_PHASES, TOUR_PHASES, type GamePhase } from "../components/scenario/phase";
+import { ReflectionPanel } from "../components/scenario/ReflectionPanel";
 import { PLAYER_SIZE } from "../components/scenario/PlayerSprite";
 import { ScenarioControlPanel } from "../components/scenario/ScenarioControlPanel";
 import { TourBanner } from "../components/scenario/TourBanner";
@@ -40,6 +42,13 @@ const ADVICE_CATEGORY: Record<number, string> = {
   2: "조언 · 미충족 기준",
   3: "조언 · 정답 골격",
 };
+
+// 과제 창이 떠 있는 페이즈 — 풀이·채점중·결과가 한 화면(미달해도 닫지 않고 재제출).
+const MISSION_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
+  "mission",
+  "mission_grading",
+  "mission_result",
+]);
 
 const COACH_SEVERITY: Record<string, string> = {
   critical: "꼭 고칠 것",
@@ -114,6 +123,8 @@ const DEFAULT_SCENARIO_SLUG =
 // 플레이어가 담당 NPC 좌표(스테이지 로컬 px)에 이 거리 안으로 들어오면 업무를 건넨다.
 const ENCOUNTER_RADIUS = 150;
 
+const NOOP = () => undefined;
+
 type ConnectionStatus = "creating" | "open" | "closed" | "error";
 
 type ScenarioScreenStyle = CSSProperties & {
@@ -160,11 +171,10 @@ export function ScenarioGamePage() {
   const [gameMap, setGameMap] = useState<Simulation["map"]>(null);
   const [scenarioTitle, setScenarioTitle] = useState("");
   const [stepIds, setStepIds] = useState<string[]>([]); // 본편 미션 순서 (진행률 계산용)
-  const [isCompleted, setIsCompleted] = useState(false);
+  // 진행 페이즈 — "지금 무엇을 하는 중인지"의 단일 출처. 전이는 아래 handle*/소켓 핸들러에서만.
+  const [phase, setPhase] = useState<GamePhase>("loading");
   const [retryKey, setRetryKey] = useState(0);
-  const [isMissionOpen, setIsMissionOpen] = useState(false);
   const [taskResult, setTaskResult] = useState<TaskResultFrame | null>(null);
-  const [taskSubmitting, setTaskSubmitting] = useState(false);
   const [quest, setQuest] = useState<{ title: string; task: GameTask; banner?: string } | null>(null);
   const [greetSent, setGreetSent] = useState(false);
   const [farewell, setFarewell] = useState<{ name: string; text: string } | null>(null); // 통과 격려 배너
@@ -178,18 +188,13 @@ export function ScenarioGamePage() {
   const [adviceCards, setAdviceCards] = useState<AdviceCard[]>([]);
   // 미션 통과 후 AI 코치 사후 리뷰 (근거 기반 카드)
   const [coachCards, setCoachCards] = useState<CoachCardsFrame | null>(null);
-  // 4단계(실무 미니게임) — 마지막 스텝(소감문) 직전에 1회. 지금은 빈 창 → 바로 완료.
-  const [miniGameOpen, setMiniGameOpen] = useState(false);
-  const [miniGameCleared, setMiniGameCleared] = useState(false);
-  // 1·3단계 — 업무를 받기 전 사수 브리핑(절차 설명). 스텝당 1회.
-  const [briefingOpen, setBriefingOpen] = useState(false);
-  const [briefedSteps, setBriefedSteps] = useState<string[]>([]); // 브리핑 본 스텝 id
+  const [briefedSteps, setBriefedSteps] = useState<string[]>([]); // 브리핑을 본 스텝 id (스텝당 1회)
   // 1단계 진행도 — 인사를 나눈 동료 목록(서버 state.met_npcs). 전원과 인사해야 업무가 열린다.
   const [metNpcs, setMetNpcs] = useState<string[]>([]);
   // 1단계 온보딩 투어(컷신) — 사수가 데리고 다니며 팀원을 소개한다. index: 0..stops-1, stops면 마무리.
   const [tour, setTour] = useState<TourFrame | null>(null);
   const [tourIndex, setTourIndex] = useState(0);
-  const [tourDone, setTourDone] = useState(false);
+  const [reflectionSending, setReflectionSending] = useState(false);
   const socketRef = useRef<SimulationSocket | null>(null);
 
   // 현재 스텝의 대화 상대 NPC (step.npcs[0]) — 표시정보는 npcs 로스터에서 조회
@@ -203,7 +208,7 @@ export function ScenarioGamePage() {
     [activeStep, adviceCards, coachCards, briefedSteps],
   );
   // 진행률 = 완료한 본편 미션 수 / 전체 (완주 시 100%). 돌발 퀘스트는 stepIds에 없어 제외됨.
-  const progress = isCompleted
+  const progress = phase === "completed"
     ? 100
     : stepIds.length
       ? Math.round((Math.max(0, stepIds.indexOf(activeStep?.id ?? "")) / stepIds.length) * 100)
@@ -238,12 +243,10 @@ export function ScenarioGamePage() {
   const introDone = !isFirstStep || unmetNpcs.length === 0;
 
   // 담당 NPC 근처 + 미션 미진행일 때만 업무 배너 표시 (순차 진행 — 현재 스텝 NPC에게만 뜬다).
+  // 자유 이동 중(exploring) 담당 NPC 근처일 때만 업무 배너 — 컷신·모달 중에는 뜨지 않는다.
   const showEncounter =
-    !tourActive && // 투어(컷신) 중에는 업무 배너를 띄우지 않는다
+    phase === "exploring" &&
     isNearActiveNpc &&
-    !isMissionOpen &&
-    !isCompleted &&
-    !quest &&
     !farewell && // 격려 배너가 떠 있는 동안은 업무 배너 숨김
     Boolean(activeStep?.task);
 
@@ -268,7 +271,7 @@ export function ScenarioGamePage() {
   );
 
   const tourStop = tour && tourIndex < tour.stops.length ? tour.stops[tourIndex] : null;
-  const tourActive = Boolean(tour && !tourDone);
+  const tourActive = TOUR_PHASES.has(phase);
   // 투어 중 사수·플레이어가 서 있을 자리 — 소개 대상 옆(마무리 때는 사수 자리로 돌아온다).
   const tourAnchor = useMemo(() => {
     if (!tour) return null;
@@ -289,35 +292,45 @@ export function ScenarioGamePage() {
     });
   }, [tourActive, tourAnchor]);
 
+  // 투어 전이: 사수 소개(tour_intro) → 신입이 직접 인사(tour_greet) → 동료 응답(tour_reply)
+  //          → 다음 동료 / 마지막이면 사수 마무리(tour_closing) → exploring
   const handleTourNext = useCallback(() => {
     if (!tour) return;
-    if (tourIndex < tour.stops.length) {
-      setTourIndex((current) => current + 1); // 다음 동료 (마지막 다음은 closing)
+    if (phase === "tour_intro") {
+      // 소개를 들었으면 이제 신입이 직접 인사한다 — 여기서 화법(호감도)이 평가된다.
+      setChatNpcId(tour.stops[tourIndex]?.npc ?? null);
+      setNpcMessage("");
+      setUserMessage("");
+      setPhase("tour_greet");
       return;
     }
-    setTourDone(true); // 마무리까지 봤다 → 전원과 인사한 것으로 서버에 기록
-    socketRef.current?.sendTourDone();
-  }, [tour, tourIndex]);
+    if (phase === "tour_reply") {
+      const next = tourIndex + 1;
+      if (next < tour.stops.length) {
+        setTourIndex(next);
+        setPhase("tour_intro");
+      } else {
+        setPhase("tour_closing");
+      }
+      return;
+    }
+    if (phase === "tour_closing") {
+      socketRef.current?.sendTourDone(); // 투어 완료 기록(새로고침해도 다시 안 틀게)
+      setChatNpcId(null);
+      setPhase("exploring");
+    }
+  }, [tour, tourIndex, phase]);
 
   // 1단계 안내 — 인사가 남았으면 누구를 만나야 하는지, 다 만났으면 업무를 받으러 가라고 안내한다.
   // (대화 중 코치 TIP·리뷰가 떠 있을 때 덮어쓰지 않도록 스트리밍 중에는 건드리지 않는다)
   useEffect(() => {
-    if (!isFirstStep || isStreaming || npcs.length === 0 || isCompleted) return;
+    if (!isFirstStep || isStreaming || npcs.length === 0 || phase === "completed") return;
     setCoachMessage(
       unmetNpcs.length > 0
         ? introGuide(unmetNpcs, npcs.length)
         : approachGuide(activeStep, npcsRef.current),
     );
-  }, [isFirstStep, unmetNpcs.length, npcs.length, isStreaming, isCompleted, activeStep]);
-
-  // 4단계(실무 미니게임) 발동 — 앞 미션들로 주 업무를 익힌 뒤, 마지막 소감문 스텝 직전에 1회.
-  // 마지막 스텝 = step_ids의 끝(본편 미션 순서). 돌발 퀘스트 중에는 끼어들지 않는다.
-  const isFinalStep = Boolean(
-    activeStep && stepIds.length > 0 && activeStep.id === stepIds[stepIds.length - 1],
-  );
-  useEffect(() => {
-    if (isFinalStep && !miniGameCleared && !quest && !isCompleted) setMiniGameOpen(true);
-  }, [isFinalStep, miniGameCleared, quest, isCompleted]);
+  }, [isFirstStep, unmetNpcs.length, npcs.length, isStreaming, phase, activeStep]);
 
   // 담당 NPC에게 처음 다가가면 실시간 인사를 1회 요청 (스텝당 1회, 응답 오면 채팅창에 표시).
   useEffect(() => {
@@ -358,7 +371,8 @@ export function ScenarioGamePage() {
       setNpcs(sim.npcs);
       // 1단계 진행도 복원 — 새로고침해도 인사한 동료·투어 완료는 기억된다(서버 state).
       setMetNpcs((sim.state?.met_npcs as string[] | undefined) ?? []);
-      setTourDone(Boolean(sim.state?.tour_done));
+      // 투어를 이미 봤으면 바로 자유 행동으로. 아직이면 투어 대사가 도착할 때 tour_intro로.
+      setPhase(sim.state?.tour_done ? "exploring" : "loading");
       npcsRef.current = sim.npcs;
       setGameMap(sim.map);
       setScenarioTitle(sim.scenario_title);
@@ -405,7 +419,9 @@ export function ScenarioGamePage() {
             setConnStatus("error");
             setCoachMessage(detail);
             setIsStreaming(false);
-            setTaskSubmitting(false);
+            setReflectionSending(false);
+            // 채점 중 오류면 과제 창을 유지한 채 다시 제출할 수 있게 되돌린다.
+            setPhase((current) => (current === "mission_grading" ? "mission" : current));
           },
           onToken: (text) => !cancelled && setNpcMessage((prev) => prev + text),
           onNpcReply: (reply) => {
@@ -414,11 +430,13 @@ export function ScenarioGamePage() {
             setIsStreaming(false);
             const met = reply.state?.met_npcs as string[] | undefined;
             if (met) setMetNpcs(met); // 방금 인사한 동료 반영 → 1단계 진행도 갱신
+            // 투어 중이었다면 그 동료가 인사를 받아준 것 → '다음' 버튼이 열린다.
+            setPhase((current) => (current === "tour_greet" ? "tour_reply" : current));
           },
           onTaskResult: (taskResultFrame) => {
             if (cancelled) return;
             setTaskResult(taskResultFrame);
-            setTaskSubmitting(false);
+            setPhase("mission_result");
             // 미달 → 조언 카드 누적 (같은 단계는 한 번만). 힌트 패널에서 계속 볼 수 있게.
             const advice = taskResultFrame.advice_card;
             if (advice) {
@@ -428,8 +446,8 @@ export function ScenarioGamePage() {
               setIsHintOpen(true); // 도움이 도착했음을 바로 보이게
             }
             if (taskResultFrame.passed) {
-              // 통과 → 미션 패널 닫음(자동으로 다음 미션 X) + 담당 NPC 격려 배너 표시
-              setIsMissionOpen(false);
+              // 통과 → 과제 창 닫고 자유 행동으로. 다음 미션은 step_changed가 알려준다.
+              setPhase("exploring");
               setFarewell({
                 name: taskResultFrame.farewell?.name || "",
                 text: taskResultFrame.farewell?.text || "고생하셨어요. 잘 마무리했네요.",
@@ -450,12 +468,11 @@ export function ScenarioGamePage() {
               banner: [questFrame.npc_name, questFrame.intro].filter(Boolean).join(" — "),
             });
             setTaskResult(null);
-            setTaskSubmitting(false);
-            setIsMissionOpen(true);
+            setPhase("mission"); // 돌발 과제도 같은 과제 창을 재사용
           },
           onQuestResult: (questResult) => {
             if (cancelled) return;
-            setTaskSubmitting(false);
+            setPhase("mission_result");
             if (questResult.feedback) setCoachMessage(questResult.feedback);
             if (questResult.quest_status === "active") {
               setTaskResult(questResult); // 1차 미달 — 재시도
@@ -470,12 +487,23 @@ export function ScenarioGamePage() {
             if (cancelled) return;
             setTour(frame);
             setTourIndex(0);
+            // 소개할 동료가 없으면(1인 시나리오 등) 투어를 건너뛴다.
+            if (frame.stops.length === 0) {
+              socketRef.current?.sendTourDone();
+              setPhase("exploring");
+            } else {
+              setPhase("tour_intro");
+            }
           },
           onStateUpdated: (state) => {
             if (cancelled) return;
             const met = state.met_npcs as string[] | undefined;
             if (met) setMetNpcs(met);
-            if (state.tour_done) setTourDone(true);
+            if (state.reflection) {
+              // 5단계 소감문 저장 완료 → 완주 화면 (점수는 게임에서 공개하지 않는다)
+              setReflectionSending(false);
+              setPhase("completed");
+            }
           },
           onCoachCards: (frame) => {
             if (cancelled) return;
@@ -492,7 +520,6 @@ export function ScenarioGamePage() {
             setNpcMessage("");
             setUserMessage("");
             setTaskResult(null); // 다음 미션으로 넘어가며 채점 결과 초기화
-            setTaskSubmitting(false);
             setGreetSent(false); // 다음 담당 NPC 인사를 새로 요청
             setAdviceCards([]); // 조언 카드는 미션별 — 다음 미션으로 넘기지 않는다
             setCoachCards(null);
@@ -500,8 +527,8 @@ export function ScenarioGamePage() {
           },
           onCompleted: () => {
             if (cancelled) return;
-            setIsMissionOpen(false);
-            setIsCompleted(true);
+            // 업무를 다 마쳤다 → 4단계 실무 미니게임 → 5단계 소감문 → 완주
+            setPhase("minigame");
           },
         });
         socketRef.current = socket;
@@ -555,7 +582,7 @@ export function ScenarioGamePage() {
     // 돌발 퀘스트 표시 중 스킵하면 서버는 퀘스트를 통과 처리(프레임 없음)하므로 로컬도 함께 정리.
     setQuest(null);
     setTaskResult(null);
-    setTaskSubmitting(false);
+    setPhase("exploring"); // 다음 미션은 step_changed가, 마지막이면 simulation_completed가 알려준다
     if (!socket || !socket.sendSkipStep()) {
       setCoachMessage("게임 서버에 연결 중이에요. 잠시 후 다시 시도해주세요.");
     }
@@ -563,26 +590,22 @@ export function ScenarioGamePage() {
 
   // 리트라이 — 현재 시뮬을 닫고 첫 미션부터 새로 시작한다.
   const handleRetry = useCallback(() => {
-    setIsCompleted(false);
-    setIsMissionOpen(false);
+    // 새 시뮬을 처음부터 — 투어·브리핑·인사 진행도까지 전부 초기화(1단계부터 다시).
+    setPhase("loading");
     setQuest(null);
     setTaskResult(null);
-    setTaskSubmitting(false);
     setGreetSent(false);
     setFarewell(null);
     setChatNpcId(null);
     setNpcMessage("");
     setUserMessage("");
     setIsStreaming(false);
+    setReflectionSending(false);
     setAdviceCards([]);
     setCoachCards(null);
-    setMiniGameOpen(false);
-    setMiniGameCleared(false); // 처음부터 다시 = 4단계도 다시
-    setBriefingOpen(false);
-    setBriefedSteps([]); // 브리핑도 다시 듣는다
+    setBriefedSteps([]);
     setTour(null);
     setTourIndex(0);
-    setTourDone(false);
     setMetNpcs([]);
     setConnStatus("creating");
     setRetryKey((key) => key + 1);
@@ -601,27 +624,34 @@ export function ScenarioGamePage() {
     }
     setTaskResult(null);
     const stepId = activeStep?.id;
-    if (stepId && !quest && !briefedSteps.includes(stepId) && (activeStep?.briefing?.length ?? 0) > 0) {
-      setBriefingOpen(true);
-      return;
-    }
-    setIsMissionOpen(true);
+    // 이 업무의 절차를 아직 안 들었으면 브리핑부터 → 들었으면 바로 과제
+    const needsBriefing =
+      Boolean(stepId) && !quest && !briefedSteps.includes(stepId!) && (activeStep?.briefing?.length ?? 0) > 0;
+    setPhase(needsBriefing ? "briefing" : "mission");
   }, [activeStep, briefedSteps, quest, introDone, unmetNpcs]);
 
   // 브리핑을 다 들으면 그 스텝은 들은 것으로 기록하고 과제로 넘어간다.
   const handleBriefingDone = useCallback(() => {
     if (activeStep?.id) setBriefedSteps((current) => [...current, activeStep.id]);
-    setBriefingOpen(false);
-    setIsMissionOpen(true);
+    setPhase("mission");
   }, [activeStep]);
+
+  // 5단계 — 소감문 전송(채점 없음). 서버 저장 후 완주 화면으로.
+  const handleReflectionSubmit = useCallback((content: string) => {
+    setReflectionSending(true);
+    if (!socketRef.current?.sendReflection(content)) {
+      setReflectionSending(false);
+      setCoachMessage("게임 서버에 연결 중이에요. 잠시 후 다시 보내주세요.");
+    }
+  }, []);
 
   // 미션(과제) 제출 — WS task_submit. 통과 시 step_changed로 다음 미션, 마지막이면 완료.
   const handleTaskSubmit = useCallback((content: string | string[]) => {
     const socket = socketRef.current;
     setTaskResult(null);
-    setTaskSubmitting(true);
+    setPhase("mission_grading");
     if (!socket || !socket.sendTaskSubmit(content)) {
-      setTaskSubmitting(false);
+      setPhase("mission");
       setCoachMessage("게임 서버에 연결 중이에요. 잠시 후 다시 시도해주세요.");
     }
   }, []);
@@ -654,12 +684,13 @@ export function ScenarioGamePage() {
         <GameMapLayer imageUrl={mapImage} />
         <MovementArea
           position={playerPosition}
-          onPositionChange={setPlayerPosition}
+          // 컷신·모달 중에는 조작을 뺏지 않는다 — 이동은 exploring에서만.
+          onPositionChange={canMove(phase) ? setPlayerPosition : NOOP}
           onCoachMessage={setCoachMessage}
           geometry={gameMap?.geometry ?? null}
           npcs={npcs}
           activeNpcId={activeNpcId}
-          onNpcClick={handleNpcClick}
+          onNpcClick={MODAL_PHASES.has(phase) || tourActive ? undefined : handleNpcClick}
           guideNpcId={tour?.guide?.npc ?? null}
           guidePosition={guidePosition}
         />
@@ -689,10 +720,30 @@ export function ScenarioGamePage() {
         {/* 1단계 컷신 — 사수가 팀원을 소개하는 동안 자막. 이동은 자동. */}
         {tourActive && tour ? (
           <TourBanner
-            guideName={tour.guide?.name ?? "사수"}
-            line={tourStop ? tourStop.line : tour.closing}
-            stepLabel={tourStop ? `${tourIndex + 1}/${tour.stops.length}` : "마무리"}
-            isLast={!tourStop}
+            speakerName={
+              phase === "tour_closing" || phase === "tour_intro"
+                ? tour.guide?.name ?? "사수"
+                : tourStop?.name ?? ""
+            }
+            line={
+              phase === "tour_closing"
+                ? tour.closing
+                : phase === "tour_intro"
+                  ? tourStop?.line ?? ""
+                  : phase === "tour_greet"
+                    ? `${tourStop?.name ?? "동료"} 님에게 직접 인사를 건네보세요. (아래 채팅창)`
+                    : npcMessage || "…"
+            }
+            stepLabel={phase === "tour_closing" ? "마무리" : `${tourIndex + 1}/${tour.stops.length}`}
+            mode={
+              phase === "tour_intro"
+                ? "intro"
+                : phase === "tour_greet"
+                  ? "greet"
+                  : phase === "tour_reply"
+                    ? "reply"
+                    : "closing"
+            }
             onNext={handleTourNext}
           />
         ) : null}
@@ -746,7 +797,8 @@ export function ScenarioGamePage() {
             npcMessage={npcMessage}
             userMessage={userMessage}
             isStreaming={isStreaming}
-            disabled={connStatus !== "open"}
+            // 자유 대화, 그리고 투어 중 '직접 인사'(tour_greet)일 때만 입력을 받는다.
+            disabled={connStatus !== "open" || !canChat(phase)}
             onSend={handleSendToNpc}
           />
           <AiCoachPanel message={coachMessage} />
@@ -757,8 +809,10 @@ export function ScenarioGamePage() {
         </span>
       </div>
 
-      {/* 1·3단계 — 사수가 업무 절차를 알려주는 브리핑. 과제 창보다 먼저 뜬다. */}
-      {briefingOpen && activeStep ? (
+      {/* ── 페이즈별 화면 — 조건 조합 대신 페이즈 하나로 결정된다 ── */}
+
+      {/* 2·3단계 앞 — 사수가 이번 업무 절차를 알려준다 */}
+      {phase === "briefing" && activeStep ? (
         <BriefingPanel
           npcName={activeNpc?.name ?? "사수"}
           npcRole={activeNpc?.role}
@@ -769,31 +823,38 @@ export function ScenarioGamePage() {
         />
       ) : null}
 
-      {/* 4단계 — 실무 미니게임(빈 창). 소감문 미션보다 먼저 뜨고, 완료하면 5단계로 넘어간다. */}
-      {miniGameOpen && !briefingOpen ? (
-        <MiniGamePanel
-          missionTitle={activeStep?.title || "신입의 주 업무"}
-          onClear={() => {
-            setMiniGameCleared(true);
-            setMiniGameOpen(false);
-          }}
-        />
-      ) : null}
-
-      {isMissionOpen && activeMission && !miniGameOpen && !briefingOpen ? (
+      {/* 2단계 — 과제 풀이·채점·결과(재도전 포함) */}
+      {MISSION_PHASES.has(phase) && activeMission ? (
         <MissionPanel
           key={quest ? "quest" : activeStep?.id}
           mission={activeMission}
-          submitting={taskSubmitting}
+          submitting={phase === "mission_grading"}
           result={taskResult}
           onSubmit={handleTaskSubmit}
           onSkip={handleSkip}
-          onClose={() => setIsMissionOpen(false)}
+          onClose={() => setPhase("exploring")}
           onClearResult={() => setTaskResult(null)}
         />
       ) : null}
 
-      {isCompleted ? (
+      {/* 4단계 — 실무 미니게임 (지금은 빈 창) */}
+      {phase === "minigame" ? (
+        <MiniGamePanel
+          missionTitle="신입의 주 업무"
+          onClear={() => setPhase("reflection")}
+        />
+      ) : null}
+
+      {/* 5단계 — 체험 소감문 (채점하지 않음. 최종 리포트의 재료) */}
+      {phase === "reflection" ? (
+        <ReflectionPanel
+          scenarioTitle={scenarioTitle}
+          submitting={reflectionSending}
+          onSubmit={handleReflectionSubmit}
+        />
+      ) : null}
+
+      {phase === "completed" ? (
         <div
           className={styles.completionOverlay}
           role="dialog"

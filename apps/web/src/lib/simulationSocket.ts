@@ -197,6 +197,13 @@ export class SimulationSocket {
     return true;
   }
 
+  /** 5단계 체험 소감문 전송 — 채점하지 않고 최종 리포트 재료로 저장된다. */
+  sendReflection(content: string): boolean {
+    if (this.ws?.readyState !== WebSocket.OPEN) return false;
+    this.ws.send(JSON.stringify({ type: "reflection", content }));
+    return true;
+  }
+
   /** 담당 NPC 실시간 인사 요청 — 응답은 npc_greeting 프레임. */
   sendGreet(): boolean {
     if (this.ws?.readyState !== WebSocket.OPEN) return false;

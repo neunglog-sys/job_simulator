@@ -206,6 +206,13 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, token: str | N
                         await websocket.send_json(
                             {"type": "state_updated", **await service.finish_tour(session, simulation, scenario)}
                         )
+                    elif data.get("type") == "reflection":
+                        # 5단계 — 체험 소감문. 채점하지 않고 리포트 재료로만 저장한다.
+                        await websocket.send_json(
+                            {"type": "state_updated", **await service.save_reflection(
+                                session, simulation, data.get("content", "")
+                            )}
+                        )
                     elif data.get("type") == "choice":
                         result = await service.submit_choice(
                             session, simulation, scenario, data.get("choice_id", "")

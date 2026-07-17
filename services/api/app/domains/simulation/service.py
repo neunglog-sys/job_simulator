@@ -637,6 +637,29 @@ async def finish_tour(
     return {"state": public_state(state), "step_changed": None}
 
 
+REFLECTION_MAX = 2000
+
+
+async def save_reflection(
+    session: AsyncSession, simulation: Simulation, content: str
+) -> dict:
+    """5단계 — 체험자가 직접 쓴 소감문 저장.
+
+    업무 산출물(미션)과 달리 **채점하지 않는다**. 점수·통과 판정 없이 최종 리포트의
+    재료로만 쓰인다 (리포트 = 상담 + 수행 + 소감). 체험자 본인의 말이므로 내용을
+    고치거나 평가하지 않고 그대로 보관한다.
+    """
+    text = (content or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="소감을 입력해주세요")
+    state = dict(simulation.state)
+    state["reflection"] = text[:REFLECTION_MAX]
+    simulation.state = state
+    flag_modified(simulation, "state")
+    await session.commit()
+    return {"state": public_state(state), "step_changed": None}
+
+
 async def npc_farewell(
     session: AsyncSession, simulation: Simulation, scenario: Scenario, step: dict
 ) -> dict | None:
