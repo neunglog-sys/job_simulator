@@ -93,6 +93,21 @@ def public_task(task: dict) -> dict:
     return out
 
 
+_STEP_MARKS = re.compile(r"\s*[①②③④⑤⑥⑦⑧⑨⑩]\s*")
+
+
+def briefing_steps(step: dict) -> list[str]:
+    """사수가 업무 시작 전에 알려주는 '업무 절차' — 콘텐츠의 action_steps(①②③…)를 항목별로.
+
+    과제 정답 키(answer)와는 다르다. 절차는 말로 알려주고(들어야 일을 할 수 있다),
+    보기는 섞여서 내려가므로 들은 절차를 보기와 직접 매칭하는 건 사용자 몫이다.
+    """
+    guide = ((step.get("task") or {}).get("hints") or {}).get("answer_guide")
+    if not guide:
+        return []
+    return [part.strip(" ,.·") for part in _STEP_MARKS.split(guide) if part.strip(" ,.·")]
+
+
 def public_step(step: dict) -> dict:
     """클라이언트에 보낼 스텝 정보 — 선택지의 effects(정답 힌트)는 숨김."""
     task = step.get("task")
@@ -102,6 +117,8 @@ def public_step(step: dict) -> dict:
         "mission": step["mission"],
         "npcs": step.get("npcs", []),
         "guide": step.get("guide"),
+        # 사수 브리핑 — 업무 시작 전에 절차를 알려준다(1·3단계 '대화로 익힘'의 재료)
+        "briefing": briefing_steps(step),
         "choices": [
             {"id": c["id"], "text": c["text"]} for c in step.get("choices", [])
         ],

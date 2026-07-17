@@ -2027,6 +2027,47 @@ button.headerOrb:active {
   gap: 12px;
 }
 
+/* 1·3단계 업무 브리핑 — 사수가 절차를 알려주는 창 */
+.briefingSpeaker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.briefingSpeaker small {
+  opacity: 0.7;
+}
+
+.briefingLead {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.briefingSteps {
+  display: flex;
+  margin: 0;
+  padding: 14px 18px 14px 34px;
+  border: 1px solid rgb(120 140 255 / 0.35);
+  border-radius: 14px;
+  background: rgb(120 140 255 / 0.1);
+  flex-direction: column;
+  gap: 7px;
+}
+
+.briefingSteps li {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.briefingNote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 0.75;
+}
+
 /* 4단계 실무 미니게임 — 지금은 빈 창(자리만 잡아둔 상태) */
 .miniGameStage {
   display: flex;

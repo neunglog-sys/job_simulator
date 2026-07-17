@@ -1,6 +1,7 @@
 import { UserCircle } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { AiCoachPanel } from "../components/scenario/AiCoachPanel";
+import { BriefingPanel } from "../components/scenario/BriefingPanel";
 import { DashboardHeader } from "../components/scenario/DashboardHeader";
 import { GameMapLayer } from "../components/scenario/GameMapLayer";
 import { HintPanel } from "../components/scenario/HintPanel";
@@ -60,8 +61,18 @@ function buildHints(
   step: GameStep | null,
   advice: AdviceCard[],
   coach: CoachCardsFrame | null,
+  briefed: boolean,
 ): HintCardData[] {
   const cards: HintCardData[] = [];
+  // 사수에게 들은 업무 절차 — 브리핑을 들은 뒤에만 노트에 남는다(안 듣고는 못 본다).
+  if (briefed && step?.briefing?.length) {
+    cards.push({
+      id: "briefing",
+      category: "업무 노트 · 사수에게 들은 절차",
+      title: step.title || "이번 업무",
+      description: step.briefing.map((line, index) => `${index + 1}. ${line}`).join("\n"),
+    });
+  }
   if (step?.guide) {
     cards.push({
       id: "guide",
@@ -173,6 +184,9 @@ export function ScenarioGamePage() {
   // 4단계(실무 미니게임) — 마지막 스텝(소감문) 직전에 1회. 지금은 빈 창 → 바로 완료.
   const [miniGameOpen, setMiniGameOpen] = useState(false);
   const [miniGameCleared, setMiniGameCleared] = useState(false);
+  // 1·3단계 — 업무를 받기 전 사수 브리핑(절차 설명). 스텝당 1회.
+  const [briefingOpen, setBriefingOpen] = useState(false);
+  const [briefedSteps, setBriefedSteps] = useState<string[]>([]); // 브리핑 본 스텝 id
   const socketRef = useRef<SimulationSocket | null>(null);
 
   // 현재 스텝의 대화 상대 NPC (step.npcs[0]) — 표시정보는 npcs 로스터에서 조회
@@ -182,8 +196,8 @@ export function ScenarioGamePage() {
   const chatTargetId = chatNpcId ?? activeNpcId;
   const chatNpc = npcs.find((npc) => npc.npc_id === chatTargetId) ?? activeNpc;
   const hints = useMemo(
-    () => buildHints(activeStep, adviceCards, coachCards),
-    [activeStep, adviceCards, coachCards],
+    () => buildHints(activeStep, adviceCards, coachCards, briefedSteps.includes(activeStep?.id ?? "")),
+    [activeStep, adviceCards, coachCards, briefedSteps],
   );
   // 진행률 = 완료한 본편 미션 수 / 전체 (완주 시 100%). 돌발 퀘스트는 stepIds에 없어 제외됨.
   const progress = isCompleted
@@ -475,14 +489,29 @@ export function ScenarioGamePage() {
     setFinalScore(null);
     setMiniGameOpen(false);
     setMiniGameCleared(false); // 처음부터 다시 = 4단계도 다시
+    setBriefingOpen(false);
+    setBriefedSteps([]); // 브리핑도 다시 듣는다
     setConnStatus("creating");
     setRetryKey((key) => key + 1);
   }, []);
 
+  // 업무 받기 — 이 스텝의 브리핑을 아직 안 들었으면 사수 설명부터(1·3단계), 들었으면 바로 과제(2단계).
   const handleOpenMission = useCallback(() => {
     setTaskResult(null);
+    const stepId = activeStep?.id;
+    if (stepId && !quest && !briefedSteps.includes(stepId) && (activeStep?.briefing?.length ?? 0) > 0) {
+      setBriefingOpen(true);
+      return;
+    }
     setIsMissionOpen(true);
-  }, []);
+  }, [activeStep, briefedSteps, quest]);
+
+  // 브리핑을 다 들으면 그 스텝은 들은 것으로 기록하고 과제로 넘어간다.
+  const handleBriefingDone = useCallback(() => {
+    if (activeStep?.id) setBriefedSteps((current) => [...current, activeStep.id]);
+    setBriefingOpen(false);
+    setIsMissionOpen(true);
+  }, [activeStep]);
 
   // 미션(과제) 제출 — WS task_submit. 통과 시 step_changed로 다음 미션, 마지막이면 완료.
   const handleTaskSubmit = useCallback((content: string | string[]) => {
@@ -600,8 +629,20 @@ export function ScenarioGamePage() {
         </span>
       </div>
 
+      {/* 1·3단계 — 사수가 업무 절차를 알려주는 브리핑. 과제 창보다 먼저 뜬다. */}
+      {briefingOpen && activeStep ? (
+        <BriefingPanel
+          npcName={activeNpc?.name ?? "사수"}
+          npcRole={activeNpc?.role}
+          missionTitle={activeStep.title}
+          mission={activeStep.mission}
+          steps={activeStep.briefing ?? []}
+          onClose={handleBriefingDone}
+        />
+      ) : null}
+
       {/* 4단계 — 실무 미니게임(빈 창). 소감문 미션보다 먼저 뜨고, 완료하면 5단계로 넘어간다. */}
-      {miniGameOpen ? (
+      {miniGameOpen && !briefingOpen ? (
         <MiniGamePanel
           missionTitle={activeStep?.title || "신입의 주 업무"}
           onClear={() => {
@@ -611,7 +652,7 @@ export function ScenarioGamePage() {
         />
       ) : null}
 
-      {isMissionOpen && activeMission && !miniGameOpen ? (
+      {isMissionOpen && activeMission && !miniGameOpen && !briefingOpen ? (
         <MissionPanel
           key={quest ? "quest" : activeStep?.id}
           mission={activeMission}

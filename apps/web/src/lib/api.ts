@@ -118,6 +118,9 @@ export type GameStep = {
   mission: string;
   npcs: string[]; // npc_id 목록 (표시정보는 Simulation.npcs에서 조회)
   guide: string | null;
+  // 사수가 업무 시작 전에 알려주는 절차 — 브리핑 창 + 업무 노트에 표시.
+  // 정답 키(task.answer)는 서버가 내려주지 않으므로, 들은 절차를 섞인 보기와 맞추는 건 사용자 몫.
+  briefing: string[];
   choices: Array<Record<string, unknown>>;
   task: GameTask | null;
 };

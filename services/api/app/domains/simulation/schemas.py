@@ -41,6 +41,7 @@ class StepOut(BaseModel):
     mission: str
     npcs: list[str]  # npc_id 목록 (표시정보는 SimulationOut.npcs에서 조회)
     guide: str | None = None
+    briefing: list[str] = []  # 사수가 알려주는 업무 절차 (업무 시작 전 브리핑 + 업무 노트)
     choices: list[dict] = []
     task: TaskOut | None = None
 
