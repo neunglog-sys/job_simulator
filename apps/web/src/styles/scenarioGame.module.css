@@ -1708,6 +1708,54 @@ button.headerOrb:active {
   backdrop-filter: blur(10px);
 }
 
+/* 완주 결과 — 리포트에 실릴 수행 근거를 사용자에게도 보여준다 */
+.completionScore {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border: 1px solid rgb(255 255 255 / 0.35);
+  border-radius: 18px;
+  background: rgb(255 255 255 / 0.1);
+}
+
+.completionTotal {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.completionTotal strong {
+  font-size: 20px;
+}
+
+.completionCompetencies {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 4px 18px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  list-style: none;
+}
+
+.completionCompetencies li {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  border-bottom: 1px solid rgb(255 255 255 / 0.15);
+  font-size: 13px;
+  gap: 10px;
+}
+
+.completionConduct,
+.completionNote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 0.85;
+}
+
 .completionCard {
   display: flex;
   flex-direction: column;
@@ -1979,14 +2027,45 @@ button.headerOrb:active {
   gap: 12px;
 }
 
-.missionResult {
+/* 채점 결과 + 조언 카드 묶음 — 미달해도 창을 닫지 않고 그 자리에서 힌트를 보고 재제출 */
+.missionResultBlock {
+  display: flex;
   flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.missionResult {
   min-width: 0;
   padding: 12px 16px;
   border-radius: 14px;
   font-size: 13px;
   font-weight: 700;
   line-height: 1.5;
+}
+
+/* 조언 카드 — 시도가 거듭될수록 깊어지는 단계별 힌트(항목별 불릿) */
+.missionAdvice {
+  padding: 12px 16px;
+  border: 1px solid rgb(120 140 255 / 0.35);
+  border-radius: 14px;
+  background: rgb(120 140 255 / 0.1);
+}
+
+.missionAdvice strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.missionAdvice p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-line; /* 백엔드가 '• 항목' 줄바꿈으로 보냄 */
 }
 
 .missionResultPass {

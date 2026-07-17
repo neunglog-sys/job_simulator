@@ -124,14 +124,23 @@ export function MissionPanel({
             다음 문제로 스킵 →
           </button>
           {result ? (
-            <p
-              className={`${styles.missionResult} ${
-                result.passed ? styles.missionResultPass : styles.missionResultFail
-              }`}
-            >
-              {result.passed ? "통과! " : `아직 미달 (${result.total}점) — `}
-              {result.feedback}
-            </p>
+            <div className={styles.missionResultBlock}>
+              <p
+                className={`${styles.missionResult} ${
+                  result.passed ? styles.missionResultPass : styles.missionResultFail
+                }`}
+              >
+                {result.passed ? "통과! " : `아직 미달 (${result.total}점) — `}
+                {result.feedback}
+              </p>
+              {/* 미달 시 조언 카드 — 시도가 거듭될수록 깊어진다(방향 → 미충족 기준 → 정답 골격) */}
+              {result.advice_card ? (
+                <div className={styles.missionAdvice}>
+                  <strong>{result.advice_card.title}</strong>
+                  <p>{result.advice_card.content}</p>
+                </div>
+              ) : null}
+            </div>
           ) : null}
           <button
             className={styles.missionSubmit}

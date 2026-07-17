@@ -2,9 +2,7 @@ import { wsSimulation } from "../config/endpoints";
 import { getToken, type GameStep, type GameTask, type Simulation } from "./api";
 
 // 백엔드 WS 프레임(services/api/.../simulation/router.py)과 1:1.
-// 이번 테스트 단계에서 다루는 것: session / token / coach_tip / npc_reply / step_changed / error.
-// task_result·quest_result·state_updated·sudden_quest·simulation_completed·coach_cards는
-// 과제 제출 UI를 붙이는 다음 단계에서 사용 — 지금은 조용히 무시한다.
+// 미처리: state_updated (choice 타입 제출용 — 현재 프론트는 choice를 보내지 않는다).
 
 export type NpcReplyFrame = {
   npc: string;
@@ -15,12 +13,31 @@ export type NpcReplyFrame = {
   state?: Record<string, unknown>;
 };
 
+// 미달 시 나오는 조언 카드 — 시도가 거듭될수록 깊어진다 (1 방향 → 2 미충족 기준 전부 → 3 정답 골격).
+// 필드명은 백엔드 hints.advice_card 반환과 1:1 (level/title/content).
+export type AdviceCard = { level: number; title: string; content: string };
+
 export type TaskResultFrame = {
   passed: boolean;
   total: number;
   feedback: string;
-  advice_card?: { level?: number; title?: string; body?: string } | null;
+  advice_card?: AdviceCard | null;
   farewell?: { npc?: string; name?: string; text: string } | null; // 통과 시 담당 NPC 격려
+};
+
+// AI 코치 사후 리뷰 (coach.response.v1) — 미션 통과 시 1회. 근거 기반 카드 최대 3장.
+export type CoachCard = {
+  card_id: string;
+  card_type: "safety_stop" | "error_correction" | "requirement_check" | "better_expression" | "success";
+  severity: "critical" | "warning" | "info" | "success";
+  title: string;
+  summary: string;
+};
+
+export type CoachCardsFrame = {
+  coach_message: string;
+  cards: CoachCard[];
+  retry_instruction?: string;
 };
 
 // 돌발 퀘스트 — 스텝 전환 시 확률 발동. 별도 미션처럼 등장.
@@ -48,6 +65,7 @@ export type SimulationSocketHandlers = {
   onCoachTip?: (text: string) => void;
   onNpcReply?: (reply: NpcReplyFrame) => void;
   onTaskResult?: (result: TaskResultFrame) => void;
+  onCoachCards?: (cards: CoachCardsFrame) => void;
   onNpcGreeting?: (greeting: NpcGreetingFrame) => void;
   onSuddenQuest?: (quest: SuddenQuestFrame) => void;
   onQuestResult?: (result: QuestResultFrame) => void;
@@ -102,6 +120,9 @@ export class SimulationSocket {
         break;
       case "task_result":
         this.handlers.onTaskResult?.(msg as unknown as TaskResultFrame);
+        break;
+      case "coach_cards":
+        this.handlers.onCoachCards?.(msg as unknown as CoachCardsFrame);
         break;
       case "npc_greeting":
         this.handlers.onNpcGreeting?.(msg as unknown as NpcGreetingFrame);

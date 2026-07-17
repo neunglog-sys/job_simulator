@@ -160,3 +160,19 @@ export function createSimulation(scenarioSlug: string): Promise<Simulation> {
     body: JSON.stringify({ scenario_slug: scenarioSlug }),
   });
 }
+
+// 수행 점수 — 완주 화면·리포트 근거. 진행 중이면 부분 집계.
+export type SimulationScore = {
+  total: number;
+  mission_avg: number;
+  missions: Array<{ step: string; type: string | null; adjusted: number; attempts: number }>;
+  quest: { status: string; adjusted: number } | null;
+  competencies: Record<string, number | null>;
+  // 대화 태도(사회생활 화법) — NPC를 어떻게 대했는가. 대화 이력이 없으면 null.
+  conduct: { average: number; band: string; npc_count: number; lowest: number } | null;
+  percentile?: { sample_size: number; top_percent: number | null };
+};
+
+export function fetchSimulationScore(id: number): Promise<SimulationScore> {
+  return request(API_ENDPOINTS.simulations.score(id));
+}

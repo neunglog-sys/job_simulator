@@ -14,56 +14,87 @@ import type { MissionView } from "../components/scenario/MissionPanel";
 import {
   ApiError,
   createSimulation,
+  fetchSimulationScore,
   type GameNpc,
   type GameStep,
   type GameTask,
   type Simulation,
+  type SimulationScore,
 } from "../lib/api";
 import { logout } from "../lib/auth";
-import { SimulationSocket, type TaskResultFrame } from "../lib/simulationSocket";
+import {
+  SimulationSocket,
+  type AdviceCard,
+  type CoachCardsFrame,
+  type TaskResultFrame,
+} from "../lib/simulationSocket";
 import styles from "../styles/scenarioGame.module.css";
 
-// 기존 힌트 3종(가이드 카드) — 원래 디자인 그대로. '확인하기'를 누르면 현재 미션 정답이 함께 공개된다(테스트용).
-const BASE_HINTS: Array<Omit<HintCardData, "answer">> = [
-  {
-    id: "request",
-    title: "요청의 핵심을 먼저 찾기",
-    category: "상황 파악",
-    description: "고객이 말한 현상과 실제로 원하는 결과를 구분하면 해결 순서가 선명해집니다.",
-  },
-  {
-    id: "history",
-    title: "이전 처리 이력 확인하기",
-    category: "정보 탐색",
-    description: "같은 문제가 반복되었는지 확인하고, 이미 시도한 방법은 다시 안내하지 않도록 주의하세요.",
-  },
-  {
-    id: "explain",
-    title: "다음 행동까지 안내하기",
-    category: "고객 안내",
-    description: "처리 결과뿐 아니라 고객이 다음에 해야 할 일을 짧고 분명하게 전달해보세요.",
-  },
-];
+// 힌트는 백엔드가 주는 것만 쓴다 — 정답은 클라이언트로 내려오지 않는다(대화로 알아내는 게 게임).
+//   스텝 시작 → step.guide (이번 업무의 방향·제공 자료)
+//   미달할수록 → advice_card 1~3단계 (방향 → 미충족 기준 전부 → 정답 골격)
+const ADVICE_CATEGORY: Record<number, string> = {
+  1: "조언 · 방향",
+  2: "조언 · 미충족 기준",
+  3: "조언 · 정답 골격",
+};
 
-// 현재 미션의 정답 텍스트 (선택·배열형은 보기 라벨, 서술형은 정답 해설).
-function missionAnswer(step: GameStep | null): string {
-  const task = step?.task;
-  if (!task) return "";
-  const labelByKey = new Map((task.options ?? []).map((option) => [option.key, option.label]));
-  const keys = task.answer?.keys ?? (task.answer?.key ? [task.answer.key] : []);
-  if (keys.length) {
-    const labels = keys.map((key) => labelByKey.get(key) ?? key);
-    return task.kind === "order"
-      ? labels.map((label, index) => `${index + 1}. ${label}`).join("   →   ")
-      : labels.join("   /   ");
+const COACH_SEVERITY: Record<string, string> = {
+  critical: "꼭 고칠 것",
+  warning: "주의",
+  info: "참고",
+  success: "잘한 점",
+};
+
+// 백엔드 리포트 PDF(reporting/pdf.py COMPETENCY_NAMES)와 같은 표기를 쓴다.
+const COMPETENCY_NAMES: Record<string, string> = {
+  situation_judgment: "상황 판단력",
+  problem_solving: "문제해결력",
+  communication: "커뮤니케이션",
+  collaboration: "협업",
+  task_management: "업무 관리",
+};
+
+function buildHints(
+  step: GameStep | null,
+  advice: AdviceCard[],
+  coach: CoachCardsFrame | null,
+): HintCardData[] {
+  const cards: HintCardData[] = [];
+  if (step?.guide) {
+    cards.push({
+      id: "guide",
+      category: "업무 안내",
+      title: step.title || "이번 업무",
+      description: step.guide,
+    });
   }
-  return task.answer_guide ?? "";
-}
-
-function buildHints(step: GameStep | null): HintCardData[] {
-  const answer =
-    missionAnswer(step) || "서술형 미션이에요 — 대화에서 확인한 내용으로 답을 작성하세요.";
-  return BASE_HINTS.map((hint) => ({ ...hint, answer }));
+  for (const card of advice) {
+    cards.push({
+      id: `advice-${card.level}`,
+      category: ADVICE_CATEGORY[card.level] ?? "조언",
+      title: card.title,
+      description: card.content,
+    });
+  }
+  // 통과 후 AI 코치 사후 리뷰 — 잘한 점·놓친 점을 근거와 함께 되짚어 준다.
+  for (const card of coach?.cards ?? []) {
+    cards.push({
+      id: `coach-${card.card_id}`,
+      category: `코치 리뷰 · ${COACH_SEVERITY[card.severity] ?? "참고"}`,
+      title: card.title,
+      description: card.summary,
+    });
+  }
+  if (cards.length === 0) {
+    cards.push({
+      id: "empty",
+      category: "힌트",
+      title: "아직 힌트가 없어요",
+      description: "담당자에게 다가가 대화로 업무에 필요한 정보를 먼저 모아보세요.",
+    });
+  }
+  return cards;
 }
 
 const DEFAULT_COACH_MESSAGE =
@@ -132,6 +163,12 @@ export function ScenarioGamePage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [chatNpcId, setChatNpcId] = useState<string | null>(null); // 대화 상대(마커 클릭). null=미션 담당 NPC
   const [mapImage, setMapImage] = useState<string>(DEFAULT_SCENARIO_MAP_IMAGE);
+  // 미달할수록 깊어지는 조언 카드 — 스텝(또는 퀘스트)당 누적, 힌트 패널에 쌓인다.
+  const [adviceCards, setAdviceCards] = useState<AdviceCard[]>([]);
+  // 미션 통과 후 AI 코치 사후 리뷰 (근거 기반 카드)
+  const [coachCards, setCoachCards] = useState<CoachCardsFrame | null>(null);
+  // 완주 시 수행 결과 — 리포트에 실릴 근거를 사용자에게도 보여준다
+  const [finalScore, setFinalScore] = useState<SimulationScore | null>(null);
   const socketRef = useRef<SimulationSocket | null>(null);
 
   // 현재 스텝의 대화 상대 NPC (step.npcs[0]) — 표시정보는 npcs 로스터에서 조회
@@ -140,7 +177,10 @@ export function ScenarioGamePage() {
   // 대화 상대 = 마커로 선택한 NPC(chatNpcId), 없으면 미션 담당 NPC.
   const chatTargetId = chatNpcId ?? activeNpcId;
   const chatNpc = npcs.find((npc) => npc.npc_id === chatTargetId) ?? activeNpc;
-  const hints = useMemo(() => buildHints(activeStep), [activeStep]);
+  const hints = useMemo(
+    () => buildHints(activeStep, adviceCards, coachCards),
+    [activeStep, adviceCards, coachCards],
+  );
   // 진행률 = 완료한 본편 미션 수 / 전체 (완주 시 100%). 돌발 퀘스트는 stepIds에 없어 제외됨.
   const progress = isCompleted
     ? 100
@@ -269,6 +309,14 @@ export function ScenarioGamePage() {
             if (cancelled) return;
             setTaskResult(taskResultFrame);
             setTaskSubmitting(false);
+            // 미달 → 조언 카드 누적 (같은 단계는 한 번만). 힌트 패널에서 계속 볼 수 있게.
+            const advice = taskResultFrame.advice_card;
+            if (advice) {
+              setAdviceCards((current) =>
+                current.some((card) => card.level === advice.level) ? current : [...current, advice],
+              );
+              setIsHintOpen(true); // 도움이 도착했음을 바로 보이게
+            }
             if (taskResultFrame.passed) {
               // 통과 → 미션 패널 닫음(자동으로 다음 미션 X) + 담당 NPC 격려 배너 표시
               setIsMissionOpen(false);
@@ -308,6 +356,13 @@ export function ScenarioGamePage() {
             }
           },
           onCoachTip: (text) => !cancelled && setCoachMessage(text),
+          onCoachCards: (frame) => {
+            if (cancelled) return;
+            // 통과한 제출물에 대한 AI 코치 사후 리뷰 (근거 기반 카드 최대 3장)
+            setCoachCards(frame);
+            if (frame.coach_message) setCoachMessage(frame.coach_message);
+            if (frame.cards?.length) setIsHintOpen(true); // 리뷰가 왔음을 바로 보이게
+          },
           onStepChanged: (step) => {
             if (cancelled || !step) return;
             setActiveStep(step);
@@ -318,12 +373,18 @@ export function ScenarioGamePage() {
             setTaskResult(null); // 다음 미션으로 넘어가며 채점 결과 초기화
             setTaskSubmitting(false);
             setGreetSent(false); // 다음 담당 NPC 인사를 새로 요청
+            setAdviceCards([]); // 조언 카드는 미션별 — 다음 미션으로 넘기지 않는다
+            setCoachCards(null);
             setCoachMessage(approachGuide(step, npcsRef.current));
           },
           onCompleted: () => {
             if (cancelled) return;
             setIsMissionOpen(false);
             setIsCompleted(true);
+            // 완주 결과 = 리포트에 실릴 수행 근거 (총점·역량·대화 태도). 실패해도 완주 화면은 유지.
+            fetchSimulationScore(sim.id)
+              .then((score) => !cancelled && setFinalScore(score))
+              .catch(() => undefined);
           },
         });
         socketRef.current = socket;
@@ -396,6 +457,8 @@ export function ScenarioGamePage() {
     setNpcMessage("");
     setUserMessage("");
     setIsStreaming(false);
+    setAdviceCards([]);
+    setCoachCards(null);
     setConnStatus("creating");
     setRetryKey((key) => key + 1);
   }, []);
@@ -546,11 +609,36 @@ export function ScenarioGamePage() {
               🎉
             </span>
             <h2>시나리오 완수!</h2>
-            <p>
-              {scenarioTitle || "시나리오"}를 완료했어요.
-              <br />
-              (테스트용 스킵 — 과제 제출·채점 흐름은 다음 단계에서 연결됩니다.)
-            </p>
+            <p>{scenarioTitle || "시나리오"}를 완료했어요.</p>
+            {finalScore ? (
+              <div className={styles.completionScore}>
+                <p className={styles.completionTotal}>
+                  수행 점수 <strong>{finalScore.total}점</strong>
+                  {finalScore.percentile?.top_percent != null
+                    ? ` · 상위 ${finalScore.percentile.top_percent}%`
+                    : ""}
+                </p>
+                <ul className={styles.completionCompetencies}>
+                  {Object.entries(finalScore.competencies)
+                    .filter(([, value]) => value != null)
+                    .map(([key, value]) => (
+                      <li key={key}>
+                        <span>{COMPETENCY_NAMES[key] ?? key}</span>
+                        <strong>{value}점</strong>
+                      </li>
+                    ))}
+                </ul>
+                {finalScore.conduct ? (
+                  <p className={styles.completionConduct}>
+                    동료 대응 태도 · 평균 호감도 {finalScore.conduct.average}/100 (
+                    {finalScore.conduct.band})
+                  </p>
+                ) : null}
+                <p className={styles.completionNote}>
+                  이 결과는 최종 진로 리포트의 수행 근거로 반영됩니다.
+                </p>
+              </div>
+            ) : null}
             <div className={styles.completionActions}>
               <button
                 className={styles.completionPrimary}
