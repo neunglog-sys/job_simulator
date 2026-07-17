@@ -395,6 +395,8 @@ button.headerOrb:active {
 .npcMarker {
   position: absolute;
   z-index: 1;
+  /* 온보딩 투어에서 사수 마커가 자리를 옮길 때 걸어가는 것처럼 보이게 */
+  transition: left 900ms ease-in-out, top 900ms ease-in-out;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -495,6 +497,8 @@ button.headerOrb:active {
   top: 0;
   left: 0;
   z-index: 2;
+  /* 컷신에서 사수를 따라 이동할 때 부드럽게 (키보드 이동은 18px 단위라 체감상 영향 없음) */
+  transition: transform 900ms ease-in-out;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -2025,6 +2029,51 @@ button.headerOrb:active {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+/* 1단계 온보딩 투어 자막 — 사수가 팀원을 소개하는 동안 뜬다 */
+.tourBanner {
+  position: absolute;
+  z-index: 6;
+  top: 24px;
+  left: 50%;
+  display: flex;
+  width: min(900px, calc(100% - 80px));
+  align-items: center;
+  padding: 14px 18px;
+  border: 1px solid rgb(255 255 255 / 0.35);
+  border-radius: 20px;
+  background: linear-gradient(120deg, rgb(88 60 190 / 0.95), rgb(150 60 170 / 0.95));
+  box-shadow: 0 18px 40px rgb(20 10 50 / 0.35);
+  color: #ffffff;
+  gap: 14px;
+  transform: translateX(-50%);
+}
+
+.tourBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.tourBody strong {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  gap: 8px;
+}
+
+.tourBody p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.tourProgress {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.22);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 /* 1·3단계 업무 브리핑 — 사수가 절차를 알려주는 창 */

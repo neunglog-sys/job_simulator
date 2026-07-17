@@ -26,6 +26,9 @@ type MovementAreaProps = {
   npcs?: GameNpc[];
   activeNpcId?: string | null; // 현재 미션 담당 NPC — 마커를 그 이름으로 강조
   onNpcClick?: (npcId: string) => void; // NPC 마커 클릭 → 그 NPC와 대화
+  // 온보딩 투어(컷신) — 사수가 신입을 데리고 다니는 동안 그 마커를 이 좌표로 옮긴다.
+  guideNpcId?: string | null;
+  guidePosition?: Position | null;
 };
 
 type GameObject = {
@@ -109,6 +112,8 @@ export function MovementArea({
   npcs = [],
   activeNpcId = null,
   onNpcClick,
+  guideNpcId = null,
+  guidePosition = null,
 }: MovementAreaProps) {
   const areaRef = useRef<HTMLDivElement>(null);
 
@@ -143,17 +148,19 @@ export function MovementArea({
     for (const [slot, npc] of bySlot) {
       const spot = byId.get(slot);
       if (spot) {
+        // 투어 중인 사수는 자기 자리가 아니라 지금 안내하고 있는 위치에 그린다(걸어다니는 연출).
+        const touring = guideNpcId === npc.npc_id && guidePosition;
         markers.push({
           npc_id: npc.npc_id,
           name: npc.name,
-          x: spot.x - origin.x,
-          y: spot.y - origin.y,
+          x: touring ? guidePosition.x : spot.x - origin.x,
+          y: touring ? guidePosition.y : spot.y - origin.y,
           isActive: npc.npc_id === activeNpcId,
         });
       }
     }
     return markers;
-  }, [geometry, npcs, origin, activeNpcId]);
+  }, [geometry, npcs, origin, activeNpcId, guideNpcId, guidePosition]);
 
   const collidesAt = useCallback(
     (pos: Position) => {

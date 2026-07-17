@@ -2,7 +2,7 @@ import { wsSimulation } from "../config/endpoints";
 import { getToken, type GameStep, type GameTask, type Simulation } from "./api";
 
 // 백엔드 WS 프레임(services/api/.../simulation/router.py)과 1:1.
-// 미처리: state_updated (choice 타입 제출용 — 현재 프론트는 choice를 보내지 않는다).
+// 전 프레임 처리 — state_updated는 choice 제출·투어 완료 시 온다.
 
 export type NpcReplyFrame = {
   npc: string;
@@ -52,6 +52,13 @@ export type QuestResultFrame = TaskResultFrame & {
   quest_status: string; // active(진행중) | passed | failed
 };
 
+// 1단계 온보딩 투어 — 사수가 신입을 데리고 다니며 팀원을 한 명씩 소개한다(컷신 재료).
+export type TourFrame = {
+  guide: { npc: string; name: string; role: string } | null;
+  stops: Array<{ npc: string; name: string; role: string; line: string }>;
+  closing: string; // 소개를 마치고 오늘 업무 흐름을 짚는 말
+};
+
 // NPC 실시간 인사 (플레이어가 담당 NPC에게 다가왔을 때)
 export type NpcGreetingFrame = {
   npc?: string;
@@ -66,6 +73,8 @@ export type SimulationSocketHandlers = {
   onNpcReply?: (reply: NpcReplyFrame) => void;
   onTaskResult?: (result: TaskResultFrame) => void;
   onCoachCards?: (cards: CoachCardsFrame) => void;
+  onTour?: (tour: TourFrame) => void;
+  onStateUpdated?: (state: Record<string, unknown>) => void;
   onNpcGreeting?: (greeting: NpcGreetingFrame) => void;
   onSuddenQuest?: (quest: SuddenQuestFrame) => void;
   onQuestResult?: (result: QuestResultFrame) => void;
@@ -124,6 +133,12 @@ export class SimulationSocket {
       case "coach_cards":
         this.handlers.onCoachCards?.(msg as unknown as CoachCardsFrame);
         break;
+      case "tour":
+        this.handlers.onTour?.(msg as unknown as TourFrame);
+        break;
+      case "state_updated":
+        this.handlers.onStateUpdated?.((msg.state ?? {}) as Record<string, unknown>);
+        break;
       case "npc_greeting":
         this.handlers.onNpcGreeting?.(msg as unknown as NpcGreetingFrame);
         break;
@@ -165,6 +180,20 @@ export class SimulationSocket {
   sendTaskSubmit(content: string | string[]): boolean {
     if (this.ws?.readyState !== WebSocket.OPEN) return false;
     this.ws.send(JSON.stringify({ type: "task_submit", content }));
+    return true;
+  }
+
+  /** 1단계 온보딩 투어 대사 요청 — 응답은 tour 프레임. */
+  requestTour(): boolean {
+    if (this.ws?.readyState !== WebSocket.OPEN) return false;
+    this.ws.send(JSON.stringify({ type: "tour" }));
+    return true;
+  }
+
+  /** 투어를 끝까지 봤음 — 전원과 인사한 것으로 기록(업무 게이트 해제). */
+  sendTourDone(): boolean {
+    if (this.ws?.readyState !== WebSocket.OPEN) return false;
+    this.ws.send(JSON.stringify({ type: "tour_done" }));
     return true;
   }
 

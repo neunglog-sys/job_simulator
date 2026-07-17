@@ -196,6 +196,16 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, token: str | N
                         if coach_cards:
                             # AI 코치 사후 리뷰 — 통과한 제출물에 대해 완료당 1회
                             await websocket.send_json({"type": "coach_cards", **coach_cards})
+                    elif data.get("type") == "tour":
+                        # 1단계 — 사수가 팀원을 소개하는 투어 대사(컷신 재료). 부작용 없음.
+                        await websocket.send_json(
+                            {"type": "tour", **await service.onboarding_tour(session, simulation, scenario)}
+                        )
+                    elif data.get("type") == "tour_done":
+                        # 투어를 끝까지 봤다 = 전원과 인사한 것으로 기록 (새로고침해도 유지)
+                        await websocket.send_json(
+                            {"type": "state_updated", **await service.finish_tour(session, simulation, scenario)}
+                        )
                     elif data.get("type") == "choice":
                         result = await service.submit_choice(
                             session, simulation, scenario, data.get("choice_id", "")

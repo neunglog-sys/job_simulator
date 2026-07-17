@@ -504,6 +504,132 @@ async def npc_greeting(
     return {"npc": npc_id, "name": persona["name"], "text": text or fallback}
 
 
+_TOUR_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "stops": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "npc": {"type": "string", "minLength": 1},
+                    "line": {"type": "string", "minLength": 1, "maxLength": 160},
+                },
+                "required": ["npc", "line"],
+            },
+        },
+        "closing": {"type": "string", "minLength": 1, "maxLength": 260},
+    },
+    "required": ["stops", "closing"],
+}
+
+
+async def onboarding_tour(
+    session: AsyncSession, simulation: Simulation, scenario: Scenario
+) -> dict:
+    """1단계 — 사수가 신입을 데리고 다니며 팀원을 한 명씩 소개하는 투어 대사.
+
+    사수(현재 스텝 담당 NPC)가 각 동료 앞에서 "이 사람은 누구고 무슨 일을 한다"를 소개하고,
+    마지막에 오늘 업무가 어떻게 흘러가는지 큰 흐름을 짚는다. 개별 과제의 정답·절차 상세는
+    각 업무 브리핑(step.briefing)이 담당하므로 여기서는 말하지 않는다.
+
+    LLM 실패 시 페르소나(역할·담당)로 만든 문구로 폴백 — 투어가 게임을 막지 않게.
+    """
+    step = _resolve_step(scenario, simulation.state)
+    guide_id = (step.get("npcs") or [None])[0]
+    roster = await npc_map(session, scenario.id)
+    guide = roster.get(guide_id or "")
+    others = [v for k, v in roster.items() if k != guide_id]
+    if guide is None or not others:
+        return {"guide": None, "stops": [], "closing": ""}
+
+    def fallback() -> dict:
+        return {
+            "stops": [
+                {
+                    "npc": o["npc_id"],
+                    "line": f"이쪽은 {o['name']}. {o['role']}"
+                    + (f" 맡고 있고, {o['responsibilities'][0]} 쪽을 봐." if o.get("responsibilities") else " 맡고 있어."),
+                }
+                for o in others
+            ],
+            "closing": f"오늘은 {step['title']}부터 시작할 거야. 준비되면 나한테 와.",
+        }
+
+    listing = "\n".join(
+        f"- {o['npc_id']} / {o['name']} / 역할: {o['role']} / 직급: {o['rank'] or '-'}"
+        f" / 담당: {', '.join(o.get('responsibilities') or []) or '-'}"
+        for o in others
+    )
+    kind = npc_kind(guide["role"], guide["rank"])
+    system = render_prompt(
+        "npc/system.md",
+        scenario_title=scenario.title,
+        register=register_for_npc(scenario.slug, kind),
+        npc_kind=kind,
+        mission=step["mission"],
+        name=guide["name"], role=guide["role"], rank=guide["rank"],
+        personality=guide["personality"], likes=guide["likes"],
+        dislikes=guide["dislikes"], speech_habits=guide["speech_habits"],
+        responsibilities=guide["responsibilities"],
+        state=simulation.state,
+        affinity=50, affinity_band=affinity.band(50),
+        knowledge=None,
+        phase="orientation",
+    )
+    user = (
+        "오늘 첫 출근한 신입을 데리고 팀을 한 바퀴 돌며 동료들을 소개하는 중입니다.\n"
+        f"[동료 명단]\n{listing}\n\n"
+        "각 동료 앞에 멈출 때마다 신입에게 그 사람을 소개하는 말을 1~2문장으로 만드세요. "
+        "이름과 무슨 일을 하는 사람인지가 드러나야 합니다. 명단에 없는 사실은 지어내지 마세요.\n"
+        "stops의 npc는 위 명단의 id를 그대로 씁니다.\n"
+        "closing에는 소개를 마치고 오늘 업무가 전체적으로 어떻게 흘러가는지 2~3문장으로 짚어 주세요. "
+        "구체적인 정답이나 풀이는 말하지 않습니다."
+    )
+    try:
+        out = await get_llm().chat_json(
+            [ChatMessage(role="user", content=user)], system=system, json_schema=_TOUR_SCHEMA
+        )
+        valid = {o["npc_id"] for o in others}
+        stops = [s for s in out["stops"] if s["npc"] in valid]
+        if len(stops) != len(others):  # 빠뜨린 동료가 있으면 통째로 폴백 (전원 소개가 계약)
+            raise ValueError("투어 대사가 일부 동료를 빠뜨림")
+        out = {"stops": stops, "closing": out["closing"]}
+    except Exception:  # noqa: BLE001 — 투어 생성 실패가 게임을 막지 않게
+        logger.warning("투어 대사 생성 실패 (simulation=%d) — 페르소나 문구로 폴백", simulation.id)
+        out = fallback()
+
+    by_id = {o["npc_id"]: o for o in others}
+    return {
+        "guide": {"npc": guide["npc_id"], "name": guide["name"], "role": guide["role"]},
+        "stops": [
+            {**s, "name": by_id[s["npc"]]["name"], "role": by_id[s["npc"]]["role"]}
+            for s in out["stops"]
+        ],
+        "closing": _clean_npc(out["closing"]),
+    }
+
+
+async def finish_tour(
+    session: AsyncSession, simulation: Simulation, scenario: Scenario
+) -> dict:
+    """투어를 끝까지 본 것으로 처리 — 팀 전원을 만난 것으로 기록해 업무 게이트를 연다.
+
+    사수가 데리고 다니며 소개했으므로 신입이 한 명씩 말을 걸 필요는 없다. 호감도는
+    건드리지 않는다(직접 대화한 태도만 호감도에 반영되어야 하므로).
+    """
+    roster = await npc_map(session, scenario.id)
+    state = dict(simulation.state)
+    state["met_npcs"] = list(roster.keys())
+    state["tour_done"] = True
+    simulation.state = state
+    flag_modified(simulation, "state")
+    await session.commit()
+    return {"state": public_state(state), "step_changed": None}
+
+
 async def npc_farewell(
     session: AsyncSession, simulation: Simulation, scenario: Scenario, step: dict
 ) -> dict | None:

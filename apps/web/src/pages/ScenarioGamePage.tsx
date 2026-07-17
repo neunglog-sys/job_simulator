@@ -10,6 +10,7 @@ import { MissionPanel } from "../components/scenario/MissionPanel";
 import { MovementArea } from "../components/scenario/MovementArea";
 import { PLAYER_SIZE } from "../components/scenario/PlayerSprite";
 import { ScenarioControlPanel } from "../components/scenario/ScenarioControlPanel";
+import { TourBanner } from "../components/scenario/TourBanner";
 import type { HintCardData, Position } from "../components/scenario/types";
 import { API_BASE_URL } from "../config/endpoints";
 import type { MissionView } from "../components/scenario/MissionPanel";
@@ -29,6 +30,7 @@ import {
   type AdviceCard,
   type CoachCardsFrame,
   type TaskResultFrame,
+  type TourFrame,
 } from "../lib/simulationSocket";
 import styles from "../styles/scenarioGame.module.css";
 
@@ -197,6 +199,10 @@ export function ScenarioGamePage() {
   const [briefedSteps, setBriefedSteps] = useState<string[]>([]); // 브리핑 본 스텝 id
   // 1단계 진행도 — 인사를 나눈 동료 목록(서버 state.met_npcs). 전원과 인사해야 업무가 열린다.
   const [metNpcs, setMetNpcs] = useState<string[]>([]);
+  // 1단계 온보딩 투어(컷신) — 사수가 데리고 다니며 팀원을 소개한다. index: 0..stops-1, stops면 마무리.
+  const [tour, setTour] = useState<TourFrame | null>(null);
+  const [tourIndex, setTourIndex] = useState(0);
+  const [tourDone, setTourDone] = useState(false);
   const socketRef = useRef<SimulationSocket | null>(null);
 
   // 현재 스텝의 대화 상대 NPC (step.npcs[0]) — 표시정보는 npcs 로스터에서 조회
@@ -246,12 +252,60 @@ export function ScenarioGamePage() {
 
   // 담당 NPC 근처 + 미션 미진행일 때만 업무 배너 표시 (순차 진행 — 현재 스텝 NPC에게만 뜬다).
   const showEncounter =
+    !tourActive && // 투어(컷신) 중에는 업무 배너를 띄우지 않는다
     isNearActiveNpc &&
     !isMissionOpen &&
     !isCompleted &&
     !quest &&
     !farewell && // 격려 배너가 떠 있는 동안은 업무 배너 숨김
     Boolean(activeStep?.task);
+
+  // ── 1단계 온보딩 투어(컷신) ──
+  // 사수가 앞장서고 신입이 따라붙는다. 각 동료의 spawn 옆에 멈춰 사수가 소개하고, 마지막에
+  // 오늘 업무 흐름을 짚어준 뒤 끝난다. 좌표는 geometry.spawns 기준(로컬 = spawn - walkable 원점).
+  const spawnPos = useCallback(
+    (npcId: string): Position | null => {
+      const geo = gameMap?.geometry;
+      const origin = geo?.walkable?.[0];
+      const slot = npcs.find((npc) => npc.npc_id === npcId)?.spawn;
+      const spot = geo?.spawns?.find((s) => s.id === slot);
+      if (!geo || !origin || !spot) return null;
+      return { x: spot.x - origin.x, y: spot.y - origin.y };
+    },
+    [gameMap, npcs],
+  );
+
+  const tourStop = tour && tourIndex < tour.stops.length ? tour.stops[tourIndex] : null;
+  const tourActive = Boolean(tour && !tourDone);
+  // 투어 중 사수·플레이어가 서 있을 자리 — 소개 대상 옆(마무리 때는 사수 자리로 돌아온다).
+  const tourAnchor = useMemo(() => {
+    if (!tour) return null;
+    const target = tourStop?.npc ?? tour.guide?.npc;
+    return target ? spawnPos(target) : null;
+  }, [tour, tourStop, spawnPos]);
+  const guidePosition = useMemo(
+    () => (tourActive && tourAnchor ? { x: tourAnchor.x - 70, y: tourAnchor.y } : null),
+    [tourActive, tourAnchor],
+  );
+
+  // 사수가 이동하면 신입은 자동으로 따라붙는다(컷신 — 플레이어 조작 없음).
+  useEffect(() => {
+    if (!tourActive || !tourAnchor) return;
+    setPlayerPosition({
+      x: tourAnchor.x - 140 - PLAYER_SIZE.width / 2,
+      y: tourAnchor.y - PLAYER_SIZE.height,
+    });
+  }, [tourActive, tourAnchor]);
+
+  const handleTourNext = useCallback(() => {
+    if (!tour) return;
+    if (tourIndex < tour.stops.length) {
+      setTourIndex((current) => current + 1); // 다음 동료 (마지막 다음은 closing)
+      return;
+    }
+    setTourDone(true); // 마무리까지 봤다 → 전원과 인사한 것으로 서버에 기록
+    socketRef.current?.sendTourDone();
+  }, [tour, tourIndex]);
 
   // 1단계 안내 — 인사가 남았으면 누구를 만나야 하는지, 다 만났으면 업무를 받으러 가라고 안내한다.
   // (대화 중 코치 TIP·리뷰가 떠 있을 때 덮어쓰지 않도록 스트리밍 중에는 건드리지 않는다)
@@ -310,8 +364,9 @@ export function ScenarioGamePage() {
     const applySim = (sim: Simulation) => {
       setActiveStep(sim.step);
       setNpcs(sim.npcs);
-      // 1단계 진행도 복원 — 새로고침해도 인사한 동료는 기억된다(서버 state).
+      // 1단계 진행도 복원 — 새로고침해도 인사한 동료·투어 완료는 기억된다(서버 state).
       setMetNpcs((sim.state?.met_npcs as string[] | undefined) ?? []);
+      setTourDone(Boolean(sim.state?.tour_done));
       npcsRef.current = sim.npcs;
       setGameMap(sim.map);
       setScenarioTitle(sim.scenario_title);
@@ -346,7 +401,12 @@ export function ScenarioGamePage() {
         applySim(sim);
 
         socket = new SimulationSocket(sim.id, {
-          onOpen: () => !cancelled && setConnStatus("open"),
+          onOpen: () => {
+            if (cancelled) return;
+            setConnStatus("open");
+            // 첫 출근이면 사수의 팀 소개 투어부터 (이미 봤으면 서버 state로 걸러진다)
+            if (!sim.state?.tour_done) socket?.requestTour();
+          },
           onClose: () => !cancelled && setConnStatus("closed"),
           onError: (detail) => {
             if (cancelled) return;
@@ -414,6 +474,17 @@ export function ScenarioGamePage() {
             }
           },
           onCoachTip: (text) => !cancelled && setCoachMessage(text),
+          onTour: (frame) => {
+            if (cancelled) return;
+            setTour(frame);
+            setTourIndex(0);
+          },
+          onStateUpdated: (state) => {
+            if (cancelled) return;
+            const met = state.met_npcs as string[] | undefined;
+            if (met) setMetNpcs(met);
+            if (state.tour_done) setTourDone(true);
+          },
           onCoachCards: (frame) => {
             if (cancelled) return;
             // 통과한 제출물에 대한 AI 코치 사후 리뷰 (근거 기반 카드 최대 3장)
@@ -522,6 +593,10 @@ export function ScenarioGamePage() {
     setMiniGameCleared(false); // 처음부터 다시 = 4단계도 다시
     setBriefingOpen(false);
     setBriefedSteps([]); // 브리핑도 다시 듣는다
+    setTour(null);
+    setTourIndex(0);
+    setTourDone(false);
+    setMetNpcs([]);
     setConnStatus("creating");
     setRetryKey((key) => key + 1);
   }, []);
@@ -598,6 +673,8 @@ export function ScenarioGamePage() {
           npcs={npcs}
           activeNpcId={activeNpcId}
           onNpcClick={handleNpcClick}
+          guideNpcId={tour?.guide?.npc ?? null}
+          guidePosition={guidePosition}
         />
         <DashboardHeader
           progress={progress}
@@ -621,6 +698,17 @@ export function ScenarioGamePage() {
           onMission={handleOpenMission}
         />
         <HintPanel isOpen={isHintOpen} hints={hints} />
+
+        {/* 1단계 컷신 — 사수가 팀원을 소개하는 동안 자막. 이동은 자동. */}
+        {tourActive && tour ? (
+          <TourBanner
+            guideName={tour.guide?.name ?? "사수"}
+            line={tourStop ? tourStop.line : tour.closing}
+            stepLabel={tourStop ? `${tourIndex + 1}/${tour.stops.length}` : "마무리"}
+            isLast={!tourStop}
+            onNext={handleTourNext}
+          />
+        ) : null}
 
         {showEncounter ? (
           <div className={styles.encounterBanner}>
