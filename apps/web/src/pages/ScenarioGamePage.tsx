@@ -3,6 +3,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { AiCoachPanel } from "../components/scenario/AiCoachPanel";
 import { BriefingPanel } from "../components/scenario/BriefingPanel";
 import { DashboardHeader } from "../components/scenario/DashboardHeader";
+import type { ScenarioTheme } from "../components/scenario/DashboardHeader";
+import {
+  DialogueHistoryPanel,
+  type DialogueHistoryEntry,
+} from "../components/scenario/DialogueHistoryPanel";
 import { GameMapLayer } from "../components/scenario/GameMapLayer";
 import { HintPanel } from "../components/scenario/HintPanel";
 import { MiniGamePanel } from "../components/scenario/MiniGamePanel";
@@ -180,6 +185,11 @@ function introGuide(step: GameStep | null, roster: GameNpc[]): string {
 
 export function ScenarioGamePage() {
   const [isHintOpen, setIsHintOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [scenarioTheme, setScenarioTheme] = useState<ScenarioTheme>(() => {
+    const savedTheme = localStorage.getItem("scenario-theme");
+    return savedTheme === "deep-space" || savedTheme === "aurora" ? savedTheme : "nebula";
+  });
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [coachMessage, setCoachMessage] = useState(DEFAULT_COACH_MESSAGE);
   const [playerPosition, setPlayerPosition] = useState<Position>({ x: 420, y: 290 });
@@ -203,6 +213,8 @@ export function ScenarioGamePage() {
   const [npcMessage, setNpcMessage] = useState("");
   const [userMessage, setUserMessage] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [dialogueHistory, setDialogueHistory] = useState<DialogueHistoryEntry[]>([]);
+  const dialogueSequenceRef = useRef(0);
   const [chatNpcId, setChatNpcId] = useState<string | null>(null); // 대화 상대(마커 클릭). null=미션 담당 NPC
   const [mapImage, setMapImage] = useState<string>(DEFAULT_SCENARIO_MAP_IMAGE);
   // 미달할수록 깊어지는 조언 카드 — 스텝(또는 퀘스트)당 누적, 힌트 패널에 쌓인다.
@@ -211,13 +223,27 @@ export function ScenarioGamePage() {
   const [coachCards, setCoachCards] = useState<CoachCardsFrame | null>(null);
   const [briefedSteps, setBriefedSteps] = useState<string[]>([]); // 브리핑을 본 스텝 id (스텝당 1회)
   // 1단계 진행도 — 인사를 나눈 동료 목록(서버 state.met_npcs). 전원과 인사해야 업무가 열린다.
-  const [metNpcs, setMetNpcs] = useState<string[]>([]);
+  const [, setMetNpcs] = useState<string[]>([]);
   // 1단계 온보딩 투어(컷신) — 사수가 데리고 다니며 팀원을 소개한다. index: 0..stops-1, stops면 마무리.
   const [tour, setTour] = useState<TourFrame | null>(null);
   const [tourIndex, setTourIndex] = useState(0);
   const [tourDone, setTourDone] = useState(false); // 서버 state.tour_done 미러 — 업무 게이트
   const [reflectionSending, setReflectionSending] = useState(false);
   const socketRef = useRef<SimulationSocket | null>(null);
+
+  const appendDialogue = useCallback(
+    (speaker: string, role: DialogueHistoryEntry["role"], rawText: string) => {
+      const text = rawText.replace(/^\s*\[[^\]]{1,20}\]\s*/, "").trim();
+      if (!text) return;
+      setDialogueHistory((current) => {
+        const previous = current.at(-1);
+        if (previous?.speaker === speaker && previous.role === role && previous.text === text) return current;
+        dialogueSequenceRef.current += 1;
+        return [...current, { id: dialogueSequenceRef.current, speaker, role, text }];
+      });
+    },
+    [],
+  );
 
   // 현재 스텝의 대화 상대 NPC (step.npcs[0]) — 표시정보는 npcs 로스터에서 조회
   const activeNpcId = activeStep?.npcs?.[0] ?? null;
@@ -375,6 +401,10 @@ export function ScenarioGamePage() {
   }, []);
 
   useEffect(() => {
+    localStorage.setItem("scenario-theme", scenarioTheme);
+  }, [scenarioTheme]);
+
+  useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(Boolean(document.fullscreenElement));
       setStageScale(getStageScale());
@@ -446,6 +476,7 @@ export function ScenarioGamePage() {
             if (cancelled) return;
             setNpcMessage(reply.content);
             setIsStreaming(false);
+            appendDialogue(reply.name || "NPC", "npc", reply.content);
             const met = reply.state?.met_npcs as string[] | undefined;
             if (met) setMetNpcs(met); // 방금 인사한 동료 반영 → 1단계 진행도 갱신
             // 투어 중이었다면 그 동료가 인사를 받아준 것 → '다음' 버튼이 열린다.
@@ -476,6 +507,7 @@ export function ScenarioGamePage() {
             if (cancelled || !greeting.text) return;
             setChatNpcId(null); // 인사는 미션 담당 NPC 것 — 대화창을 그 NPC로 맞춤
             setNpcMessage(greeting.text); // 인사·업무 문구는 채팅창(NPC 대화창)에만 표시 (배너엔 '오늘의 업무')
+            appendDialogue(greeting.name || "NPC", "npc", greeting.text);
           },
           onSuddenQuest: (questFrame) => {
             if (cancelled) return;
@@ -568,22 +600,24 @@ export function ScenarioGamePage() {
       socketRef.current = null;
     };
     // retryKey가 바뀌면(리트라이) 이전 시뮬을 정리하고 새 시뮬을 처음부터 다시 생성한다.
-  }, [retryKey]);
+  }, [retryKey, appendDialogue]);
 
   const handleSendToNpc = useCallback(
     (message: string) => {
       const socket = socketRef.current;
       if (!socket || !chatTargetId) return;
-      setUserMessage(message);
-      setNpcMessage("");
-      setIsStreaming(true);
       const sent = socket.sendChat(chatTargetId, message);
       if (!sent) {
         setIsStreaming(false);
         setCoachMessage("게임 서버에 연결 중이에요. 잠시 후 다시 보내주세요.");
+        return;
       }
+      setUserMessage(message);
+      setNpcMessage("");
+      setIsStreaming(true);
+      appendDialogue("나", "user", message);
     },
-    [chatTargetId],
+    [chatTargetId, appendDialogue],
   );
 
   // NPC 마커 클릭 → 그 NPC와 대화 (미션 진행과 무관한 자유 대화). 대화창 초기화.
@@ -621,6 +655,9 @@ export function ScenarioGamePage() {
     setNpcMessage("");
     setUserMessage("");
     setIsStreaming(false);
+    setDialogueHistory([]);
+    dialogueSequenceRef.current = 0;
+    setIsHistoryOpen(false);
     setReflectionSending(false);
     setAdviceCards([]);
     setCoachCards(null);
@@ -703,7 +740,12 @@ export function ScenarioGamePage() {
   return (
     <main className={styles.gameScreen} style={screenStyle}>
       <div className={styles.mapBackdrop} aria-hidden="true" />
-      <div className={styles.designStage} style={stageStyle} data-debug="false">
+      <div
+        className={styles.designStage}
+        style={stageStyle}
+        data-debug="false"
+        data-scenario-theme={scenarioTheme}
+      >
         <GameMapLayer imageUrl={mapImage} />
         <MovementArea
           position={playerPosition}
@@ -719,15 +761,16 @@ export function ScenarioGamePage() {
         />
         <DashboardHeader
           progress={progress}
+          theme={scenarioTheme}
           isHintOpen={isHintOpen}
           isFullscreen={isFullscreen}
+          onThemeChange={setScenarioTheme}
           onHintToggle={() => setIsHintOpen((current) => !current)}
           onFullscreenToggle={toggleFullscreen}
           onLogout={() => {
             logout();
             window.location.assign("/");
           }}
-          onMenuOpen={() => setCoachMessage("메뉴 기능은 다음 시나리오 단계와 연결될 예정이에요.")}
           onSettingsOpen={() => setCoachMessage("설정 메뉴에서 사운드와 이동 방식을 조정할 수 있게 될 예정이에요.")}
           onHome={() => window.location.assign("/")}
           onBack={() => {
@@ -738,7 +781,12 @@ export function ScenarioGamePage() {
           onRetry={handleRetry}
           onMission={handleOpenMission}
         />
-        <HintPanel isOpen={isHintOpen} hints={hints} />
+        <HintPanel isOpen={isHintOpen} hints={hints} onClose={() => setIsHintOpen(false)} />
+        <DialogueHistoryPanel
+          isOpen={isHistoryOpen}
+          entries={dialogueHistory}
+          onClose={() => setIsHistoryOpen(false)}
+        />
 
         {/* 1단계 컷신 — 사수가 팀원을 소개하는 동안 자막. 이동은 자동. */}
         {tourActive && tour ? (
@@ -808,6 +856,7 @@ export function ScenarioGamePage() {
             npcMessage={npcMessage}
             userMessage={userMessage}
             isStreaming={isStreaming}
+            isHistoryOpen={isHistoryOpen}
             // 자유 대화, 그리고 투어 중 '직접 인사'(tour_greet)일 때만 입력을 받는다.
             disabled={connStatus !== "open" || !canChat(phase)}
             // 막힌 이유를 구분해서 보여준다 — 서버 문제가 아닌데 '연결 중'이라고 하면 장애로 오해한다.
@@ -819,6 +868,7 @@ export function ScenarioGamePage() {
                   : "지금은 대화할 수 없어요."
             }
             onSend={handleSendToNpc}
+            onHistoryToggle={() => setIsHistoryOpen((current) => !current)}
           />
           <AiCoachPanel message={coachMessage} />
         </div>
