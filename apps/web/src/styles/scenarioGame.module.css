@@ -1712,47 +1712,7 @@ button.headerOrb:active {
   backdrop-filter: blur(10px);
 }
 
-/* 완주 결과 — 리포트에 실릴 수행 근거를 사용자에게도 보여준다 */
-.completionScore {
-  display: flex;
-  width: 100%;
-  flex-direction: column;
-  gap: 10px;
-  padding: 16px 18px;
-  border: 1px solid rgb(255 255 255 / 0.35);
-  border-radius: 18px;
-  background: rgb(255 255 255 / 0.1);
-}
-
-.completionTotal {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.completionTotal strong {
-  font-size: 20px;
-}
-
-.completionCompetencies {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  gap: 4px 18px;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  list-style: none;
-}
-
-.completionCompetencies li {
-  display: flex;
-  justify-content: space-between;
-  padding: 3px 0;
-  border-bottom: 1px solid rgb(255 255 255 / 0.15);
-  font-size: 13px;
-  gap: 10px;
-}
-
-.completionConduct,
+/* 완주 안내 — 점수·역량은 게임에서 보여주지 않는다(최종 리포트에서만) */
 .completionNote {
   margin: 0;
   font-size: 12px;

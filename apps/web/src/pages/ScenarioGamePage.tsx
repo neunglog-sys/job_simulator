@@ -17,12 +17,10 @@ import type { MissionView } from "../components/scenario/MissionPanel";
 import {
   ApiError,
   createSimulation,
-  fetchSimulationScore,
   type GameNpc,
   type GameStep,
   type GameTask,
   type Simulation,
-  type SimulationScore,
 } from "../lib/api";
 import { logout } from "../lib/auth";
 import {
@@ -48,15 +46,6 @@ const COACH_SEVERITY: Record<string, string> = {
   warning: "주의",
   info: "참고",
   success: "잘한 점",
-};
-
-// 백엔드 리포트 PDF(reporting/pdf.py COMPETENCY_NAMES)와 같은 표기를 쓴다.
-const COMPETENCY_NAMES: Record<string, string> = {
-  situation_judgment: "상황 판단력",
-  problem_solving: "문제해결력",
-  communication: "커뮤니케이션",
-  collaboration: "협업",
-  task_management: "업무 관리",
 };
 
 function buildHints(
@@ -189,8 +178,6 @@ export function ScenarioGamePage() {
   const [adviceCards, setAdviceCards] = useState<AdviceCard[]>([]);
   // 미션 통과 후 AI 코치 사후 리뷰 (근거 기반 카드)
   const [coachCards, setCoachCards] = useState<CoachCardsFrame | null>(null);
-  // 완주 시 수행 결과 — 리포트에 실릴 근거를 사용자에게도 보여준다
-  const [finalScore, setFinalScore] = useState<SimulationScore | null>(null);
   // 4단계(실무 미니게임) — 마지막 스텝(소감문) 직전에 1회. 지금은 빈 창 → 바로 완료.
   const [miniGameOpen, setMiniGameOpen] = useState(false);
   const [miniGameCleared, setMiniGameCleared] = useState(false);
@@ -515,10 +502,6 @@ export function ScenarioGamePage() {
             if (cancelled) return;
             setIsMissionOpen(false);
             setIsCompleted(true);
-            // 완주 결과 = 리포트에 실릴 수행 근거 (총점·역량·대화 태도). 실패해도 완주 화면은 유지.
-            fetchSimulationScore(sim.id)
-              .then((score) => !cancelled && setFinalScore(score))
-              .catch(() => undefined);
           },
         });
         socketRef.current = socket;
@@ -593,7 +576,6 @@ export function ScenarioGamePage() {
     setIsStreaming(false);
     setAdviceCards([]);
     setCoachCards(null);
-    setFinalScore(null);
     setMiniGameOpen(false);
     setMiniGameCleared(false); // 처음부터 다시 = 4단계도 다시
     setBriefingOpen(false);
@@ -824,35 +806,11 @@ export function ScenarioGamePage() {
             </span>
             <h2>시나리오 완수!</h2>
             <p>{scenarioTitle || "시나리오"}를 완료했어요.</p>
-            {finalScore ? (
-              <div className={styles.completionScore}>
-                <p className={styles.completionTotal}>
-                  수행 점수 <strong>{finalScore.total}점</strong>
-                  {finalScore.percentile?.top_percent != null
-                    ? ` · 상위 ${finalScore.percentile.top_percent}%`
-                    : ""}
-                </p>
-                <ul className={styles.completionCompetencies}>
-                  {Object.entries(finalScore.competencies)
-                    .filter(([, value]) => value != null)
-                    .map(([key, value]) => (
-                      <li key={key}>
-                        <span>{COMPETENCY_NAMES[key] ?? key}</span>
-                        <strong>{value}점</strong>
-                      </li>
-                    ))}
-                </ul>
-                {finalScore.conduct ? (
-                  <p className={styles.completionConduct}>
-                    동료 대응 태도 · 평균 호감도 {finalScore.conduct.average}/100 (
-                    {finalScore.conduct.band})
-                  </p>
-                ) : null}
-                <p className={styles.completionNote}>
-                  이 결과는 최종 진로 리포트의 수행 근거로 반영됩니다.
-                </p>
-              </div>
-            ) : null}
+            {/* 점수·역량·화법은 게임에서 보여주지 않는다(팀 결정) — 상담 + 체험을 합쳐
+                최종 진로 리포트에서만 공개한다. 점수 쫓기가 아니라 체험이 되도록. */}
+            <p className={styles.completionNote}>
+              오늘 체험한 내용은 상담 결과와 함께 최종 진로 리포트에 반영됩니다.
+            </p>
             <div className={styles.completionActions}>
               <button
                 className={styles.completionPrimary}

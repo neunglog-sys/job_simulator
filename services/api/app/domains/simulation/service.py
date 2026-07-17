@@ -382,8 +382,15 @@ async def stream_npc_chat(
         state=simulation.state,
         affinity=aff_value, affinity_band=affinity.band(aff_value),
         knowledge=knowledge,
-        # 첫 대면 = 소개하는 자리(짧은 메신저 말투·업무 복귀 규칙 완화), 그다음부터는 평소 업무 대화
-        phase="orientation" if first_meeting else "work",
+        # 첫 대면은 소개하는 자리 — 짧은 메신저 말투·업무 복귀 규칙을 완화한다.
+        #   투어 중(tour_done 전) = 사수가 방금 소개했으니 인사만 짧게 받는다(자기소개 중복 방지)
+        #   투어 밖에서 처음 만남 = 스스로 소개한다
+        #   그 뒤부터 = 평소 업무 대화
+        phase=(
+            ("tour_greeting" if not simulation.state.get("tour_done") else "orientation")
+            if first_meeting
+            else "work"
+        ),
     )
 
     full: list[str] = []
