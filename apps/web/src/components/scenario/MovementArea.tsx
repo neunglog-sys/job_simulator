@@ -198,20 +198,28 @@ export function MovementArea({
     };
   }, []);
 
+  // 최신 좌표를 ref로 들고 간다 — 키를 꾹 누르면 키 리피트가 리렌더보다 빨라서, 클로저의
+  // position으로 계산하면 그 사이 입력들이 같은 낡은 좌표를 읽고 마지막 것만 남는다(이동 유실).
+  const positionRef = useRef(position);
+  positionRef.current = position;
+
   const movePlayer = useCallback(
     (deltaX: number, deltaY: number) => {
+      const from = positionRef.current;
       // 축 분리 이동 — 벽에 부딪혀도 다른 축으로는 미끄러진다.
-      let nextX = position.x;
-      let nextY = position.y;
-      const tryX = clampPosition({ x: position.x + deltaX, y: position.y });
+      let nextX = from.x;
+      let nextY = from.y;
+      const tryX = clampPosition({ x: from.x + deltaX, y: from.y });
       if (!collidesAt(tryX)) nextX = tryX.x;
-      const tryY = clampPosition({ x: nextX, y: position.y + deltaY });
+      const tryY = clampPosition({ x: nextX, y: from.y + deltaY });
       if (!collidesAt(tryY)) nextY = tryY.y;
-      if (nextX !== position.x || nextY !== position.y) {
-        onPositionChange({ x: nextX, y: nextY });
+      if (nextX !== from.x || nextY !== from.y) {
+        const next = { x: nextX, y: nextY };
+        positionRef.current = next; // 다음 입력이 곧바로 이어지도록 즉시 반영
+        onPositionChange(next);
       }
     },
-    [clampPosition, collidesAt, onPositionChange, position.x, position.y],
+    [clampPosition, collidesAt, onPositionChange],
   );
 
   // 이동 키는 window에서 받는다 — 이동영역 div에 포커스가 있어야만 동작하던 탓에
