@@ -332,11 +332,13 @@ export function ScenarioGamePage() {
   }, [phase, needsTour, npcs.length, isStreaming, activeStep]);
 
   // 담당 NPC에게 처음 다가가면 실시간 인사를 1회 요청 (스텝당 1회, 응답 오면 채팅창에 표시).
+  // 담당 NPC 인사는 업무를 건네는 대사다 — 팀 소개(투어)를 받기 전에 다가갔다고 해서
+  // "왔어? 이것부터 점검해 줘"가 튀어나오면 안 된다. 투어를 마친 뒤부터 요청한다.
   useEffect(() => {
-    if (showEncounter && !greetSent && socketRef.current?.sendGreet()) {
+    if (showEncounter && !needsTour && !greetSent && socketRef.current?.sendGreet()) {
       setGreetSent(true);
     }
-  }, [showEncounter, greetSent]);
+  }, [showEncounter, needsTour, greetSent]);
 
   // 격려('고생했다') 배너는 약 3초 뒤 자동으로 닫힌다.
   useEffect(() => {
@@ -786,6 +788,14 @@ export function ScenarioGamePage() {
             isStreaming={isStreaming}
             // 자유 대화, 그리고 투어 중 '직접 인사'(tour_greet)일 때만 입력을 받는다.
             disabled={connStatus !== "open" || !canChat(phase)}
+            // 막힌 이유를 구분해서 보여준다 — 서버 문제가 아닌데 '연결 중'이라고 하면 장애로 오해한다.
+            disabledHint={
+              connStatus !== "open"
+                ? "게임 서버에 연결 중이에요…"
+                : TOUR_PHASES.has(phase)
+                  ? "사수가 팀을 소개하는 중이에요. 인사할 차례가 되면 여기에 입력할 수 있어요."
+                  : "지금은 대화할 수 없어요."
+            }
             onSend={handleSendToNpc}
           />
           <AiCoachPanel message={coachMessage} />
