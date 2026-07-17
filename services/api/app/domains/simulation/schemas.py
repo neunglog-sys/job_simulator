@@ -13,8 +13,10 @@ class TaskOut(BaseModel):
     criteria: list[str]
     pass_score: int
     options: list[dict] = []  # 선택·배열형 보기 (kind가 choice/checklist/order일 때)
-    answer: dict | None = None  # ⚠️ 테스트용 정답 공개 ('확인하기'·미션 스킵). 운영 시 게이트 필요.
-    answer_guide: str | None = None  # ⚠️ 테스트용 정답 해설
+    # 정답·정답 해설 — settings.expose_answers=true(개발 편의)일 때만 값이 실린다. 기본은 null.
+    # 미달 시의 단계별 도움은 힌트 카드(task_result.advice_card)가 담당한다.
+    answer: dict | None = None
+    answer_guide: str | None = None
 
 
 class NpcOut(BaseModel):

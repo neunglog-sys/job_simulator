@@ -10,6 +10,8 @@
 
 import re
 
+from app.core.config import settings
+
 STATE_MIN, STATE_MAX = 0, 100
 
 _COND_RE = re.compile(r"^(>=|<=|==|>|<)\s*(-?\d+)$")
@@ -71,8 +73,9 @@ END = "__end__"  # task.on_pass 특수값 — 시뮬레이션 완료
 def public_task(task: dict) -> dict:
     """클라이언트에 보낼 과제 정보. 본편·퀘스트 공용.
 
-    ⚠️ 테스트 편의: 정답(answer)과 정답 해설(answer_guide)을 함께 노출한다 —
-    프론트 '확인하기' 버튼·미션 스킵용. 운영 배포 시에는 반드시 게이트/제거할 것.
+    정답(answer)·정답 해설(answer_guide)은 settings.expose_answers=true일 때만 실린다
+    (기본 차단). 정답이 클라이언트에 있으면 NPC 대화로 정보를 얻을 이유가 사라져 게임이
+    성립하지 않는다 — 미달 시의 단계별 도움은 힌트 카드(hints.advice_card)가 담당한다.
     """
     out = {
         "kind": task.get("kind", "write"),
@@ -82,10 +85,11 @@ def public_task(task: dict) -> dict:
     }
     if task.get("options"):  # 선택·배열형 보기 (표시 순서는 빌드 시 결정적 셔플)
         out["options"] = [{"key": o["key"], "label": o["label"]} for o in task["options"]]
-    if task.get("answer"):  # 테스트용 정답 공개
-        out["answer"] = task["answer"]
-    if (task.get("hints") or {}).get("answer_guide"):  # 테스트용 정답 해설 공개
-        out["answer_guide"] = task["hints"]["answer_guide"]
+    if settings.expose_answers:  # 개발 편의 — 시연·운영에서는 false
+        if task.get("answer"):
+            out["answer"] = task["answer"]
+        if (task.get("hints") or {}).get("answer_guide"):
+            out["answer_guide"] = task["hints"]["answer_guide"]
     return out
 
 

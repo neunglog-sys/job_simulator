@@ -29,6 +29,14 @@
 - 역량별 점수: {% for k, v in performance.competencies.items() %}{% if v is not none %}{{ k }}={{ v }} {% endif %}{% endfor %}
 - 미션 수행: {% for m in performance.missions %}{{ m.type }}({{ m.adjusted }}점, {{ m.attempts }}회 시도) {% endfor %}
 {% if performance.quest %}- 돌발 퀘스트: {{ "통과" if performance.quest.status == "passed" else "미통과" }} ({{ performance.quest.adjusted }}점){% endif %}
+{% if performance.conduct %}- 동료 대응 태도: 평균 호감도 {{ performance.conduct.average }}/100 ({{ performance.conduct.band }}), 대화한 동료 {{ performance.conduct.npc_count }}명 중 최저 {{ performance.conduct.lowest }}
+
+태도 해석 지침: 호감도는 체험 중 사용자가 동료 NPC를 대한 말투·협조 태도로만 오르내립니다
+(무례·정답 요구는 하락, 공손·성의 있는 질문은 상승). 이는 직무 역량이 아니라 **함께 일하는
+방식**의 근거이므로 점수로 단정하지 말고, 낮으면(≤30) 보완점에서 협업 태도를 구체적으로
+짚고, 높으면(≥70) 강점의 근거로 인용하세요. 최저값이 평균보다 크게 낮으면 특정 상대에게만
+태도가 달랐다는 뜻이니 그 점을 짚으세요. 태도만으로 적합도(fit_score)를 낮추지는 마세요.
+{% endif %}
 
 수행 데이터 해석 지침: 시도 횟수가 적고 점수가 높은 미션은 강점의 직접 증거,
 여러 번 시도한 미션 유형은 보완점의 직접 증거로 인용하세요.
