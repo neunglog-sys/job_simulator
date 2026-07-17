@@ -107,6 +107,28 @@ def test_report_prompt_with_performance():
     assert "시나리오 총점: 82점" in out
     assert "돌발 퀘스트: 통과" in out
     assert "collaboration" not in out  # None 역량은 미표기
+    # conduct 없는 수행 데이터도 렌더돼야 한다 (대화 이력 없는 시뮬)
+    assert "동료 대응 태도" not in out
+
+
+def test_report_prompt_includes_conduct_when_present():
+    # 대화 태도가 있으면 리포트가 근거로 쓸 수 있게 프롬프트에 실린다
+    out = render_prompt(
+        "job-master/consult-report.md",
+        recommendations=[{"job_title": "백엔드 개발자", "score": 80, "reason": "근거"}],
+        competencies=[{"key": "communication", "name": "커뮤니케이션", "description": "설명"}],
+        performance={
+            "scenario_title": "웹·앱 개발 — 신입의 하루",
+            "total": 82,
+            "mission_avg": 85,
+            "competencies": {"communication": 81},
+            "missions": [{"type": "정상업무", "adjusted": 85, "attempts": 1}],
+            "quest": None,
+            "conduct": {"average": 48, "band": "보통", "npc_count": 2, "lowest": 44},
+        },
+    )
+    assert "동료 대응 태도: 평균 호감도 48/100 (보통)" in out
+    assert "최저 44" in out  # 한 명에게만 무례한 경우가 드러나야 함
 
 
 def test_npc_system_is_instruction_only_and_renders():

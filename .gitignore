@@ -57,3 +57,6 @@ maps/**/debug-overlay.html
 maps/**/playtest.html
 maps/**/*.mp4
 maps/**/*.webm
+
+# Playwright MCP 검증 산출물 (스냅샷·콘솔 로그)
+.playwright-mcp/
