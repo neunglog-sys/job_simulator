@@ -1,4 +1,4 @@
-import { ArrowLeft, GearSix, House, List } from "@phosphor-icons/react";
+import { ArrowLeft, GameController, GearSix, House, SignOut } from "@phosphor-icons/react";
 import { FRONTEND_ENDPOINTS } from "../../config/endpoints";
 import { logout } from "../../lib/auth";
 import styles from "../../styles/oneToOneConversation.module.css";
@@ -38,25 +38,18 @@ export function ConversationHeader() {
         <button
           className={styles.logoutButton}
           type="button"
-          style={{ width: "auto" }}
-          onClick={goToScenario}
-        >
-          시나리오 게임 시작
-        </button>
-        <button
-          className={styles.logoutButton}
-          type="button"
           onClick={() => {
             logout();
             goHome();
           }}
         >
+          <SignOut aria-hidden="true" />
           로그아웃
         </button>
         <GlassIconButton
-          icon={List}
-          label="메뉴 열기"
-          onClick={() => window.dispatchEvent(new CustomEvent("jobiverse:open-menu"))}
+          icon={GameController}
+          label="시나리오 화면으로 이동"
+          onClick={goToScenario}
         />
         <GlassIconButton
           icon={GearSix}

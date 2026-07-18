@@ -27,4 +27,10 @@ export const initialConversationMessages: ConversationMessage[] = [
     content:
       "예상하지 못한 문제가 생겼을 때는 보통 어떤 방식으로 해결하는 편인가요?\n그리고 만약 해결이 되지 않는다면 어떻게 하시나요?",
   },
+  {
+    id: "message-6",
+    role: "assistant",
+    content: "조금 더 정확한 직무 추천을 위해 간단한 설문을 진행해볼까요?",
+    action: "open-survey",
+  },
 ];
