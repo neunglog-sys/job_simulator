@@ -4,6 +4,7 @@ import { AvatarStatusBadge } from "../components/conversation/AvatarStatusBadge"
 import { ConversationHeader } from "../components/conversation/ConversationHeader";
 import { ConversationPanel } from "../components/conversation/ConversationPanel";
 import { initialConversationMessages } from "../data/conversationMockData";
+import { createConsultation, speakAvatar, streamConsultationReply } from "../lib/api";
 import styles from "../styles/oneToOneConversation.module.css";
 import type {
   AvatarStatus,
@@ -25,18 +26,31 @@ const STAR_POINTS = Array.from({ length: 54 }, (_, index) => ({
   delay: `${-(index % 9) * 0.38}s`,
 }));
 
-async function requestJobMasterResponse(_messages: ConversationMessage[]) {
-  // AI API 연결 지점: 응답을 받은 뒤 assistant 메시지를 messages에 추가한다.
-  return Promise.resolve();
-}
 
 export function OneToOneConversationPage() {
   const [stageScale, setStageScale] = useState(1);
   const [messages, setMessages] = useState<ConversationMessage[]>(initialConversationMessages);
   const [inputValue, setInputValue] = useState("");
-  const [avatarStatus, setAvatarStatus] = useState<AvatarStatus>("thinking");
+  const [avatarStatus, setAvatarStatus] = useState<AvatarStatus>("idle");
+  const [avatarHlsUrl, setAvatarHlsUrl] = useState<string | null>(null);
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const voiceStreamRef = useRef<MediaStream | null>(null);
+  const consultationIdRef = useRef<number | null>(null);
+
+  // 상담 세션은 화면 진입 시 한 번만 만든다 (메시지 전송 때 이 id로 SSE 스트리밍).
+  useEffect(() => {
+    let alive = true;
+    createConsultation()
+      .then((c) => {
+        if (alive) consultationIdRef.current = c.id;
+      })
+      .catch(() => {
+        // 로그인 안 됨/백엔드 다운 — 전송 시점에 사용자에게 알린다
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     const updateScale = () => {
@@ -69,11 +83,68 @@ export function OneToOneConversationPage() {
 
     setMessages(nextMessages);
     setInputValue("");
+    // 아바타 첫 프레임까지 약 7초 걸린다(Gradio 큐 오버헤드 — 실측). 그동안 계속 thinking 유지.
+    // 인위적 타임아웃을 두면 안 된다 — 응답이 오기 전에 idle로 돌아가버린다.
     setAvatarStatus("thinking");
+    setAvatarHlsUrl(null);
 
-    await requestJobMasterResponse(nextMessages);
-    setAvatarStatus("idle");
+    const consultationId = consultationIdRef.current;
+    if (consultationId == null) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `message-${Date.now()}-err`,
+          role: "assistant",
+          content: "상담 세션을 시작하지 못했어요. 로그인 상태와 서버를 확인해주세요.",
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+      setAvatarStatus("idle");
+      return;
+    }
+
+    // LLM 응답을 토큰 단위로 받아 말풍선에 바로 흘린다.
+    // 아바타 영상보다 텍스트가 훨씬 먼저 나오므로, 7초 기다리는 동안 읽을 거리가 생긴다.
+    const aiId = `message-${Date.now()}-ai`;
+    setMessages((prev) => [
+      ...prev,
+      { id: aiId, role: "assistant", content: "", createdAt: new Date().toISOString() },
+    ]);
+
+    let reply = "";
+    try {
+      for await (const token of streamConsultationReply(consultationId, content)) {
+        reply += token;
+        setMessages((prev) => prev.map((m) => (m.id === aiId ? { ...m, content: reply } : m)));
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "응답을 받지 못했어요.";
+      setMessages((prev) => prev.map((m) => (m.id === aiId ? { ...m, content: detail } : m)));
+      setAvatarStatus("idle");
+      return;
+    }
+
+    if (!reply.trim()) {
+      setAvatarStatus("idle");
+      return;
+    }
+
+    try {
+      const { hls_url } = await speakAvatar(reply);
+      setAvatarHlsUrl(hls_url);
+      setAvatarStatus("speaking"); // 재생 종료는 AiAvatarStage의 onEnded → handleSpeakingEnd
+    } catch {
+      // 아바타 미설정(Colab 세션 없음)·장애 → 텍스트만 보여주고 idle 루프 유지
+      setAvatarHlsUrl(null);
+      setAvatarStatus("idle");
+    }
   }, [inputValue, messages]);
+
+  const handleSpeakingEnd = useCallback(() => {
+    // hlsUrl은 여기서 지우지 않는다 — 지우면 <video>가 즉시 비워져 페이드 도중에 깜빡인다.
+    // 다음 발화를 보낼 때 어차피 교체되므로 마지막 프레임을 남겨둔 채 idle로 페이드하면 된다.
+    setAvatarStatus("idle");
+  }, []);
 
   const handleVoiceInput = useCallback(async () => {
     if (recordingState === "recording") {
@@ -129,7 +200,11 @@ export function OneToOneConversationPage() {
         <ConversationHeader />
         <div className={styles.conversationMain}>
           <div className={styles.avatarColumn}>
-            <AiAvatarStage status={avatarStatus} />
+            <AiAvatarStage
+              status={avatarStatus}
+              hlsUrl={avatarHlsUrl}
+              onSpeakingEnd={handleSpeakingEnd}
+            />
             <AvatarStatusBadge status={avatarStatus} />
           </div>
           <ConversationPanel

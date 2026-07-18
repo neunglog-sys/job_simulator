@@ -37,6 +37,30 @@ class Settings(BaseSettings):
     tts_model: str = "tts-1"
     tts_voice: str = "nova"
 
+    # ── 아바타 (SoulX-FlashHead) ──────────────────────────────────────────
+    # Colab에서 `gradio_app_streaming.py`를 share=True로 띄운 공개 URL.
+    # ⚠️ URL은 **Colab 세션 재시작마다 바뀜** → .env 갱신 + 백엔드 재시작 필요.
+    #    (gradio.live 링크 수명은 1주일이지만, 실제로는 Colab 세션이 먼저 끊겨서 그때 죽음)
+    # 🔒 share 링크는 **공개**다 — URL을 아는 누구나 우리 GPU로 추론을 돌릴 수 있음.
+    #    유출 주의. 프로덕션에선 인증 있는 자체 GPU로 교체할 것.
+    # 비어 있으면 아바타 API가 503(미설정)으로 응답 → 프론트는 idle 영상으로 폴백.
+    avatar_gradio_url: str = ""
+    # 응답은 mp4가 아니라 **HLS 재생목록(.m3u8) URL**. 프론트에서 hls.js로 재생.
+    # (gradio_client 기본 다운로드는 /gradio_api/file= 경로라 403 → download_files=False 필수)
+    avatar_api_name: str = "/run_inference_streaming"
+    avatar_ckpt_dir: str = "models/SoulX-FlashHead-1_3B"  # Colab 서버 기준 경로
+    avatar_wav2vec_dir: str = "models/wav2vec2-base-960h"  # Colab 서버 기준 경로
+    # lite | pro — pro는 단일 A100 실시간 불가 (실측: 간격 4.54s > 분량 3.36s = 끊김).
+    # idle은 미리 만드니 pro도 되지만, 발화(lite)와 화질이 달라 전환 때 티남 → 둘 다 lite.
+    avatar_model_type: str = "lite"
+    # 소스가 정확히 512×512 → SoulX 출력과 같아서 리사이즈·크롭이 전혀 없음.
+    avatar_image_path: str = "assets/ai_avatar_6_2.png"  # 백엔드 로컬 (매 호출 업로드)
+    # 소스가 이미 512라 크롭 불필요. 크롭하면 idle 영상과 구도가 어긋나 전환 때 튐.
+    avatar_use_face_crop: bool = False
+    # idle 시드 스윕에서 채택 — 발화도 같은 시드를 써야 모션 성격이 일치한다.
+    avatar_seed: int = 123
+    avatar_timeout_ms: int = 60_000  # 첫 HLS URL 수신 대기 상한 (실측 첫 세그먼트 ≈ 1.8~2.0초)
+
     # CORS — 프론트 개발 서버 주소 (콤마 구분)
     cors_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost"
 

@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.core.db import SessionFactory, engine
 from app.core.redis import redis_client
 from app.domains.auth.router import router as auth_router
+from app.domains.avatar.router import router as avatar_router
 from app.domains.consultation.router import router as consultation_router
 from app.domains.jobs.router import router as jobs_router
 from app.domains.recommendation.router import router as recommendation_router
@@ -69,6 +70,7 @@ app.include_router(jobs_router)
 app.include_router(reporting_router)
 app.include_router(simulation_router)
 app.include_router(tts_router)
+app.include_router(avatar_router)
 
 # 게임 맵 정적 서빙 — /maps/<맵폴더>/<배경>.png 등. 폴더가 없으면(배포 초기 등) 조용히 생략:
 # 게임 API의 map 필드도 None이 되어 프론트는 기존 module 배경으로 폴백한다.

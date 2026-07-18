@@ -347,6 +347,16 @@
   object-position: center;
 }
 
+/* idle 루프와 발화 스트림을 같은 자리에 겹쳐두고 opacity로 크로스페이드한다.
+   (src를 갈아끼우면 로딩 중 검은 화면이 번쩍임)
+   ⚠️ 영상은 512×512인데 이 박스는 780×684 → 1.52배 확대되어 흐려진다.
+      화질을 지키려면 박스를 512 이하로 잡아야 함 (디자인 확인 필요). */
+.avatarVideo {
+  position: absolute;
+  inset: 0;
+  transition: opacity 220ms ease-in-out;
+}
+
 .avatarStatusBadge {
   position: relative;
   display: grid;

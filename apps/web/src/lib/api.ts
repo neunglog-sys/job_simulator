@@ -101,6 +101,99 @@ export function createConsultation(): Promise<Consultation> {
   return request(API_ENDPOINTS.consultations.create, { method: "POST" });
 }
 
+/**
+ * 상담 메시지 전송 → 아바타 응답을 **토큰 단위로 스트리밍**.
+ *
+ * 백엔드가 SSE(`event: token` → `event: done`)로 보내는데, 브라우저 `EventSource`는 GET만
+ * 지원해서 못 쓴다. 그래서 fetch로 POST한 뒤 본문 스트림을 직접 파싱한다.
+ *
+ * 토큰이 오는 대로 화면에 흘려주면, 아바타 영상(첫 발화까지 ~7초)을 기다리는 동안
+ * 사용자가 답변을 먼저 읽을 수 있어 체감 지연이 줄어든다.
+ */
+export async function* streamConsultationReply(
+  consultationId: number,
+  content: string,
+): AsyncGenerator<string, void, unknown> {
+  const headers: HeadersInit = { "Content-Type": "application/json" };
+  if (token) (headers as Record<string, string>).Authorization = `Bearer ${token}`;
+
+  let res: Response;
+  try {
+    res = await fetch(API_ENDPOINTS.consultations.messages(consultationId), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ content }),
+    });
+  } catch {
+    throw new ApiError(0, null, "서버에 연결할 수 없어요. 백엔드가 켜져 있는지 확인해주세요.");
+  }
+
+  if (!res.ok || !res.body) {
+    const raw = await res.text().catch(() => "");
+    const detail = (safeJson(raw) as { detail?: unknown } | null)?.detail;
+    throw new ApiError(res.status, detail, messageFromDetail(detail, res.status));
+  }
+
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = "";
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += value;
+
+      // SSE는 빈 줄로 이벤트를 구분한다. 마지막 조각은 아직 안 끝났을 수 있으니 buffer에 남긴다.
+      const blocks = buffer.split("\n\n");
+      buffer = blocks.pop() ?? "";
+
+      for (const block of blocks) {
+        let event = "message";
+        const dataLines: string[] = [];
+        for (const rawLine of block.split("\n")) {
+          const l = rawLine.trimEnd();
+          if (l.startsWith("event:")) event = l.slice(6).trim();
+          else if (l.startsWith("data:")) dataLines.push(l.slice(5).trim());
+        }
+        const data = dataLines.join("\n");
+        if (event === "done") return;
+        if (event === "error") {
+          const detail = (safeJson(data) as { detail?: unknown } | null)?.detail;
+          throw new ApiError(500, detail, messageFromDetail(detail, 500));
+        }
+        if (event === "token") {
+          const text = (safeJson(data) as { text?: unknown } | null)?.text;
+          if (typeof text === "string" && text) yield text;
+        }
+      }
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+}
+
+// --- 아바타 (SoulX-FlashHead) ---
+export type AvatarStatusOut = { enabled: boolean; model_type: string };
+/** hls_url = HLS 재생목록(.m3u8). mp4가 아니라 스트림이라 hls.js로 재생해야 한다. */
+export type AvatarSpeakOut = { hls_url: string; model_type: string };
+
+export function fetchAvatarStatus(): Promise<AvatarStatusOut> {
+  return request(API_ENDPOINTS.avatar.status, { method: "GET" });
+}
+
+/**
+ * 발화 텍스트 → 아바타 HLS 스트림 URL.
+ *
+ * ⚠️ **첫 URL까지 약 7초** 걸린다(Gradio 큐/SSE 오버헤드 — 실측). 영상 자체는 1.8초면
+ * 만들어지지만 URL이 늦게 온다. 호출부는 그동안 avatarStatus를 "thinking"으로 유지할 것.
+ * 아바타 미설정(Colab 세션 없음)이면 503 → 호출부에서 idle 유지로 폴백.
+ */
+export function speakAvatar(text: string, voice?: string): Promise<AvatarSpeakOut> {
+  return request(API_ENDPOINTS.avatar.speak, {
+    method: "POST",
+    body: JSON.stringify(voice ? { text, voice } : { text }),
+  });
+}
+
 // --- 시뮬레이션(게임) 타입 — 백엔드 SimulationOut 스키마와 1:1 ---
 export type GameTaskOption = { key: string; label: string };
 export type GameTask = {
