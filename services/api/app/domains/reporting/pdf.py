@@ -100,6 +100,17 @@ def render_report_pdf(
             ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
         ]))
         story.append(comp_table)
+        # 동료 대응 태도 — 역량 점수와 별개 신호(대화 태도). 대화 이력이 없으면 생략.
+        conduct = performance.get("conduct")
+        if conduct:
+            story.append(Spacer(1, 4))
+            story.append(
+                Paragraph(
+                    f"동료 대응 태도: 평균 호감도 {conduct['average']}/100"
+                    f" ({conduct['band']}) · 대화한 동료 {conduct['npc_count']}명",
+                    _body,
+                )
+            )
 
     story.append(Paragraph("강점", _h2))
     for s in strengths:

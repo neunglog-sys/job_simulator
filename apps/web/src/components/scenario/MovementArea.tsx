@@ -10,7 +10,6 @@ import {
   useEffect,
   useMemo,
   useRef,
-  type KeyboardEvent,
   type PointerEvent,
 } from "react";
 import type { GameMapData, GameNpc } from "../../lib/api";
@@ -26,6 +25,10 @@ type MovementAreaProps = {
   geometry?: GameMapData["geometry"] | null;
   npcs?: GameNpc[];
   activeNpcId?: string | null; // 현재 미션 담당 NPC — 마커를 그 이름으로 강조
+  onNpcClick?: (npcId: string) => void; // NPC 마커 클릭 → 그 NPC와 대화
+  // 온보딩 투어(컷신) — 사수가 신입을 데리고 다니는 동안 그 마커를 이 좌표로 옮긴다.
+  guideNpcId?: string | null;
+  guidePosition?: Position | null;
 };
 
 type GameObject = {
@@ -40,6 +43,38 @@ type Rect = { x: number; y: number; w: number; h: number };
 type NpcMarker = { npc_id: string; name: string; x: number; y: number; isActive: boolean };
 
 const MOVE_STEP = 18;
+// 같은 spawn 자리를 쓰는 NPC들을 좌우로 벌리는 간격(px) — 맵 자리(3개)보다 인원이 많을 때.
+// 투어 앵커 계산(ScenarioGamePage)도 같은 값을 써야 마커와 어긋나지 않는다.
+export const SLOT_SPREAD = 92;
+
+// WASD·방향키 → 이동량. 대소문자·한글 자판(ㅈㅁㄴㅇ) 모두 받는다 —
+// 한글 입력 상태에서도 게임이 멈추지 않게 (event.key가 자모로 들어옴).
+const MOVEMENT_KEYS: Record<string, Position> = {
+  ArrowUp: { x: 0, y: -MOVE_STEP },
+  w: { x: 0, y: -MOVE_STEP },
+  W: { x: 0, y: -MOVE_STEP },
+  ㅈ: { x: 0, y: -MOVE_STEP },
+  ArrowDown: { x: 0, y: MOVE_STEP },
+  s: { x: 0, y: MOVE_STEP },
+  S: { x: 0, y: MOVE_STEP },
+  ㄴ: { x: 0, y: MOVE_STEP },
+  ArrowLeft: { x: -MOVE_STEP, y: 0 },
+  a: { x: -MOVE_STEP, y: 0 },
+  A: { x: -MOVE_STEP, y: 0 },
+  ㅁ: { x: -MOVE_STEP, y: 0 },
+  ArrowRight: { x: MOVE_STEP, y: 0 },
+  d: { x: MOVE_STEP, y: 0 },
+  D: { x: MOVE_STEP, y: 0 },
+  ㅇ: { x: MOVE_STEP, y: 0 },
+};
+
+/** 지금 글자를 입력 중인가 — 채팅창에 타이핑할 때 캐릭터가 같이 움직이면 안 된다. */
+function isTypingTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable === true;
+}
 // 충돌은 스프라이트 전체가 아니라 발밑 영역으로 판정 — 벽에 자연스럽게 붙는다.
 const FOOT_WIDTH = 46;
 const FOOT_HEIGHT = 26;
@@ -79,6 +114,9 @@ export function MovementArea({
   geometry = null,
   npcs = [],
   activeNpcId = null,
+  onNpcClick,
+  guideNpcId = null,
+  guidePosition = null,
 }: MovementAreaProps) {
   const areaRef = useRef<HTMLDivElement>(null);
 
@@ -101,29 +139,38 @@ export function MovementArea({
   const npcMarkers = useMemo<NpcMarker[]>(() => {
     if (!geometry?.spawns) return [];
     const byId = new Map(geometry.spawns.map((s) => [s.id, s]));
-    // 시나리오 NPC가 spawn 자리보다 많으면 백엔드가 한 자리에 여러 명을 배정한다(순환).
-    // 자리당 1명만 표시하되, 현재 미션 담당 NPC가 그 자리에 있으면 그를 대표로(정확한 이름·강조).
-    const bySlot = new Map<string, GameNpc>();
+    // 맵의 NPC 자리는 3개(teamjang/sasu/bujang)인데 시나리오 NPC는 평균 5명이라 백엔드가
+    // 한 자리에 여러 명을 배정한다(순환). 예전엔 자리당 1명만 그려서 6명짜리 팀이 3명으로
+    // 보였다 → 같은 자리를 쓰는 사람들을 가로로 벌려 전원을 표시한다.
+    // (맵에 자리가 늘어나면 자연히 겹침이 사라진다)
+    const slotMembers = new Map<string, GameNpc[]>();
     for (const npc of npcs) {
       if (!npc.spawn || !byId.has(npc.spawn)) continue;
-      const existing = bySlot.get(npc.spawn);
-      if (!existing || npc.npc_id === activeNpcId) bySlot.set(npc.spawn, npc);
+      const list = slotMembers.get(npc.spawn);
+      if (list) list.push(npc);
+      else slotMembers.set(npc.spawn, [npc]);
     }
+
     const markers: NpcMarker[] = [];
-    for (const [slot, npc] of bySlot) {
+    for (const [slot, members] of slotMembers) {
       const spot = byId.get(slot);
-      if (spot) {
+      if (!spot) continue;
+      for (const [index, npc] of members.entries()) {
+        // 같은 자리 인원은 좌우로 번갈아 벌린다: 0 → 0, 1 → +90, 2 → -90, 3 → +180 …
+        const step = Math.ceil(index / 2) * SLOT_SPREAD * (index % 2 === 1 ? 1 : -1);
+        // 투어 중인 사수는 자기 자리가 아니라 지금 안내하는 위치에 그린다(걸어다니는 연출).
+        const touring = guideNpcId === npc.npc_id && guidePosition;
         markers.push({
           npc_id: npc.npc_id,
           name: npc.name,
-          x: spot.x - origin.x,
-          y: spot.y - origin.y,
+          x: touring ? guidePosition.x : spot.x - origin.x + step,
+          y: touring ? guidePosition.y : spot.y - origin.y,
           isActive: npc.npc_id === activeNpcId,
         });
       }
     }
     return markers;
-  }, [geometry, npcs, origin, activeNpcId]);
+  }, [geometry, npcs, origin, activeNpcId, guideNpcId, guidePosition]);
 
   const collidesAt = useCallback(
     (pos: Position) => {
@@ -151,42 +198,45 @@ export function MovementArea({
     };
   }, []);
 
+  // 최신 좌표를 ref로 들고 간다 — 키를 꾹 누르면 키 리피트가 리렌더보다 빨라서, 클로저의
+  // position으로 계산하면 그 사이 입력들이 같은 낡은 좌표를 읽고 마지막 것만 남는다(이동 유실).
+  const positionRef = useRef(position);
+  positionRef.current = position;
+
   const movePlayer = useCallback(
     (deltaX: number, deltaY: number) => {
+      const from = positionRef.current;
       // 축 분리 이동 — 벽에 부딪혀도 다른 축으로는 미끄러진다.
-      let nextX = position.x;
-      let nextY = position.y;
-      const tryX = clampPosition({ x: position.x + deltaX, y: position.y });
+      let nextX = from.x;
+      let nextY = from.y;
+      const tryX = clampPosition({ x: from.x + deltaX, y: from.y });
       if (!collidesAt(tryX)) nextX = tryX.x;
-      const tryY = clampPosition({ x: nextX, y: position.y + deltaY });
+      const tryY = clampPosition({ x: nextX, y: from.y + deltaY });
       if (!collidesAt(tryY)) nextY = tryY.y;
-      if (nextX !== position.x || nextY !== position.y) {
-        onPositionChange({ x: nextX, y: nextY });
+      if (nextX !== from.x || nextY !== from.y) {
+        const next = { x: nextX, y: nextY };
+        positionRef.current = next; // 다음 입력이 곧바로 이어지도록 즉시 반영
+        onPositionChange(next);
       }
     },
-    [clampPosition, collidesAt, onPositionChange, position.x, position.y],
+    [clampPosition, collidesAt, onPositionChange],
   );
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const movementKeys: Record<string, Position> = {
-      ArrowUp: { x: 0, y: -MOVE_STEP },
-      w: { x: 0, y: -MOVE_STEP },
-      W: { x: 0, y: -MOVE_STEP },
-      ArrowDown: { x: 0, y: MOVE_STEP },
-      s: { x: 0, y: MOVE_STEP },
-      S: { x: 0, y: MOVE_STEP },
-      ArrowLeft: { x: -MOVE_STEP, y: 0 },
-      a: { x: -MOVE_STEP, y: 0 },
-      A: { x: -MOVE_STEP, y: 0 },
-      ArrowRight: { x: MOVE_STEP, y: 0 },
-      d: { x: MOVE_STEP, y: 0 },
-      D: { x: MOVE_STEP, y: 0 },
+  // 이동 키는 window에서 받는다 — 이동영역 div에 포커스가 있어야만 동작하던 탓에
+  // '맵을 한 번 클릭해야 키보드가 먹고, 채팅창에 타이핑하면 다시 먹통'이 됐다.
+  // 글자 입력 중(채팅·서술형 답안)에는 무시한다.
+  useEffect(() => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (isTypingTarget(event.target)) return;
+      const delta = MOVEMENT_KEYS[event.key];
+      if (!delta) return;
+      event.preventDefault();
+      movePlayer(delta.x, delta.y);
     };
-    const delta = movementKeys[event.key];
-    if (!delta) return;
-    event.preventDefault();
-    movePlayer(delta.x, delta.y);
-  };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [movePlayer]);
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.target instanceof Element && event.target.closest("button")) return;
@@ -200,9 +250,21 @@ export function MovementArea({
       x: (event.clientX - bounds.left) * scaleX - PLAYER_SIZE.width / 2,
       y: (event.clientY - bounds.top) * scaleY - PLAYER_SIZE.height / 2,
     });
-    // 마우스 클릭 이동은 tile 충돌을 무시하고 자유 이동 (키보드 이동만 충돌 판정 유지).
-    onPositionChange(target);
-    areaRef.current?.focus();
+    // 클릭한 지점까지 '걸어간다' — 벽·집기를 뚫지 않되, 막혔다고 그 자리에 멈춰 서지도 않는다.
+    // NPC는 책상 앞에 있어서 NPC를 누르면 목적지가 충돌 안이 되는데, 예전처럼 무시해 버리면
+    // "눌러도 아무 일이 없다"가 된다(다가가려고 누른 건데). 갈 수 있는 데까지 이동한다.
+    const from = positionRef.current;
+    const steps = Math.max(1, Math.ceil(Math.hypot(target.x - from.x, target.y - from.y) / MOVE_STEP));
+    let reachable = from;
+    for (let i = 1; i <= steps; i++) {
+      const point = {
+        x: from.x + ((target.x - from.x) * i) / steps,
+        y: from.y + ((target.y - from.y) * i) / steps,
+      };
+      if (collidesAt(point)) break; // 처음 막히는 지점 직전까지만
+      reachable = point;
+    }
+    if (reachable !== from) onPositionChange(reachable);
   };
 
   useEffect(() => {
@@ -223,18 +285,19 @@ export function MovementArea({
     <div
       ref={areaRef}
       className={styles.movementArea}
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
       onPointerDown={handlePointerDown}
       aria-label="플레이어 이동 영역. 방향키 또는 WASD로 이동할 수 있습니다."
     >
       <div className={styles.objectLayer}>
         {geometry ? (
           npcMarkers.map((marker) => (
-            <div
+            <button
               className={`${styles.npcMarker} ${marker.isActive ? styles.npcMarkerActive : ""}`}
+              type="button"
               key={marker.npc_id}
               style={{ left: marker.x, top: marker.y }}
+              onClick={() => onNpcClick?.(marker.npc_id)}
+              aria-label={`${marker.name}와 대화하기`}
             >
               {marker.isActive ? (
                 <span className={styles.npcMarkerBadge} aria-hidden="true">
@@ -245,7 +308,7 @@ export function MovementArea({
                 <UserCircle weight="duotone" />
               </span>
               <span className={styles.npcMarkerName}>{marker.name}</span>
-            </div>
+            </button>
           ))
         ) : (
           GAME_OBJECTS.map((object) => {

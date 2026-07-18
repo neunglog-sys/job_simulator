@@ -102,6 +102,9 @@ async def generate_report(report_id: int) -> None:
                     exclude_simulation_id=simulation.id,
                 )
                 performance = {**score, "scenario_title": scenario.title}
+                # 체험자가 직접 쓴 소감 — 채점 대상이 아니라 리포트의 세 번째 재료
+                # (리포트 = 상담 + 수행 + 소감). 본인의 말이므로 그대로 넘긴다.
+                performance["reflection"] = simulation.state.get("reflection")
 
             transcript = "\n".join(
                 f"{'사용자' if m.role == 'user' else '상담사'}: {m.content}"

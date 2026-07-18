@@ -38,6 +38,10 @@ export function MissionPanel({
   const kind = task.kind ?? "write";
   const [selected, setSelected] = useState<string[]>([]); // checklist/choice/order 공용 (order는 누른 순서)
   const [text, setText] = useState("");
+  // 마지막으로 제출한 답 — 같은 답을 다시 내는 걸 막는다. 채점이 빨리 끝나면(룰 채점) 버튼이
+  // 곧바로 다시 열려서, 더블클릭 한 번에 두 번 제출되고 시도 횟수가 2가 된다.
+  // attempts는 힌트 단계와 인정점수(자력 보정)에 쓰이므로 사용자가 점수를 손해 본다.
+  const [lastSubmitted, setLastSubmitted] = useState<string | null>(null);
 
   const onOptionClick = (key: string) => {
     onClearResult();
@@ -51,16 +55,23 @@ export function MissionPanel({
     }
   };
 
-  const canSubmit =
+  const content = kind === "write" ? text.trim() : selected;
+  const fingerprint = JSON.stringify(content);
+  const filledIn =
     kind === "write"
       ? text.trim().length > 0
       : kind === "order"
         ? selected.length === task.options.length
         : selected.length > 0;
+  // 방금 낸 답 그대로는 다시 못 낸다 — 실수로 두 번 채점되어 시도 횟수만 깎이는 걸 막는다.
+  const isRepeat = fingerprint === lastSubmitted;
+  const canSubmit = filledIn && !isRepeat;
 
   const submit = () => {
+    if (!canSubmit || submitting) return;
+    setLastSubmitted(fingerprint);
     onClearResult();
-    onSubmit(kind === "write" ? text.trim() : selected);
+    onSubmit(content);
   };
 
   return (
@@ -124,20 +135,30 @@ export function MissionPanel({
             다음 문제로 스킵 →
           </button>
           {result ? (
-            <p
-              className={`${styles.missionResult} ${
-                result.passed ? styles.missionResultPass : styles.missionResultFail
-              }`}
-            >
-              {result.passed ? "통과! " : `아직 미달 (${result.total}점) — `}
-              {result.feedback}
-            </p>
+            <div className={styles.missionResultBlock}>
+              <p
+                className={`${styles.missionResult} ${
+                  result.passed ? styles.missionResultPass : styles.missionResultFail
+                }`}
+              >
+                {result.passed ? "통과! " : `아직 미달 (${result.total}점) — `}
+                {result.feedback}
+              </p>
+              {/* 미달 시 조언 카드 — 시도가 거듭될수록 깊어진다(방향 → 미충족 기준 → 정답 골격) */}
+              {result.advice_card ? (
+                <div className={styles.missionAdvice}>
+                  <strong>{result.advice_card.title}</strong>
+                  <p>{result.advice_card.content}</p>
+                </div>
+              ) : null}
+            </div>
           ) : null}
           <button
             className={styles.missionSubmit}
             type="button"
             onClick={submit}
             disabled={!canSubmit || submitting}
+            title={isRepeat && filledIn ? "답을 바꾼 뒤에 다시 제출할 수 있어요." : undefined}
           >
             {submitting ? "채점 중…" : result && !result.passed ? "다시 제출" : "제출"}
           </button>

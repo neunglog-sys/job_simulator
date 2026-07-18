@@ -67,6 +67,11 @@ class Settings(BaseSettings):
     # Auth — 시연/배포 전 .env에서 jwt_secret 교체 필수 (HS256 권장 최소 32바이트)
     jwt_secret: str = "dev-only-secret-change-me-before-demo-0123456789"
 
+    # 과제 정답 노출 — 기본 차단. true면 /api/simulations 응답의 task에 answer·answer_guide가
+    # 실린다(프론트 '확인하기'·개발 편의용). 정답이 보이면 대화로 정보를 얻을 이유가 사라져
+    # 게임이 성립하지 않고, 리포트의 백분위·점수도 무의미해진다 → 시연·운영에서는 반드시 false.
+    expose_answers: bool = False
+
     # 개인정보 암호화 (AES-256-GCM) — base64 인코딩된 32바이트 키.
     # 생성: openssl rand -base64 32 / 비우면 개발용 고정키 파생(경고 로그).
     # ⚠️ 팀 전원이 같은 키를 써야 함 (공용 DB의 암호문을 서로 복호화해야 하므로)

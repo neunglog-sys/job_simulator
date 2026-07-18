@@ -130,7 +130,9 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, token: str | N
 
     인증: 쿼리스트링 ?token=<JWT> (WS는 헤더 불가). 없으면 데모 사용자. 원시 user_id는
     더 이상 받지 않는다 — 토큰 없이 임의 사용자 사칭이 가능했기 때문 (deps.resolve_user 공유).
-    수신: {"type":"chat","npc":"김민지","content":"..."} | {"type":"choice","choice_id":"..."}
+    수신: {"type":"chat","npc":"npc_yg-03_02","content":"..."} | {"type":"choice","choice_id":"..."}
+          — npc는 반드시 npc_id (시뮬 응답 npcs[].npc_id). 이름(예: "김세라")을 보내면 404.
+            로스터의 아무 NPC나 지목 가능하지만(자유 대화), 미션 채점·전이는 현재 스텝 NPC만.
     송신: {"type":"session"...} → {"type":"token"...}* → {"type":"npc_reply"...}
           / {"type":"state_updated"...} / {"type":"step_changed"...} / {"type":"error"...}
     """
@@ -194,6 +196,23 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, token: str | N
                         if coach_cards:
                             # AI 코치 사후 리뷰 — 통과한 제출물에 대해 완료당 1회
                             await websocket.send_json({"type": "coach_cards", **coach_cards})
+                    elif data.get("type") == "tour":
+                        # 1단계 — 사수가 팀원을 소개하는 투어 대사(컷신 재료). 부작용 없음.
+                        await websocket.send_json(
+                            {"type": "tour", **await service.onboarding_tour(session, simulation, scenario)}
+                        )
+                    elif data.get("type") == "tour_done":
+                        # 투어를 끝까지 봤다 = 전원과 인사한 것으로 기록 (새로고침해도 유지)
+                        await websocket.send_json(
+                            {"type": "state_updated", **await service.finish_tour(session, simulation, scenario)}
+                        )
+                    elif data.get("type") == "reflection":
+                        # 5단계 — 체험 소감문. 채점하지 않고 리포트 재료로만 저장한다.
+                        await websocket.send_json(
+                            {"type": "state_updated", **await service.save_reflection(
+                                session, simulation, data.get("content", "")
+                            )}
+                        )
                     elif data.get("type") == "choice":
                         result = await service.submit_choice(
                             session, simulation, scenario, data.get("choice_id", "")

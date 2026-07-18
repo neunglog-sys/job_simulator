@@ -10,8 +10,9 @@
   position: relative;
   isolation: isolate;
   width: 100vw;
+  /* 보이는 만큼만 차지한다. min-height:100vh를 함께 주면 vh>dvh인 환경(모바일 주소창 등)에서
+     화면보다 큰 박스가 되고, 스테이지가 그 박스 중앙에 놓여 아래(채팅·코치 패널)가 잘린다. */
   height: 100dvh;
-  min-height: 100vh;
   overflow: hidden;
   color: var(--ink);
   background-color: #d8dadd;
@@ -395,13 +396,29 @@ button.headerOrb:active {
 .npcMarker {
   position: absolute;
   z-index: 1;
+  /* 온보딩 투어에서 사수 마커가 자리를 옮길 때 걸어가는 것처럼 보이게 */
+  transition: left 900ms ease-in-out, top 900ms ease-in-out;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  pointer-events: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  pointer-events: auto; /* 클릭 → 대화 */
+  cursor: pointer;
   transform: translate(-50%, -50%);
   animation: objectFloat 4s ease-in-out infinite alternate;
+}
+
+.npcMarkerAvatar {
+  transition: transform 150ms ease;
+}
+
+.npcMarker:hover .npcMarkerAvatar {
+  transform: scale(1.1);
 }
 
 .npcMarkerAvatar {
@@ -481,6 +498,8 @@ button.headerOrb:active {
   top: 0;
   left: 0;
   z-index: 2;
+  /* 컷신에서 사수를 따라 이동할 때 부드럽게 (키보드 이동은 18px 단위라 체감상 영향 없음) */
+  transition: transform 900ms ease-in-out;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -1694,6 +1713,14 @@ button.headerOrb:active {
   backdrop-filter: blur(10px);
 }
 
+/* 완주 안내 — 점수·역량은 게임에서 보여주지 않는다(최종 리포트에서만) */
+.completionNote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 0.85;
+}
+
 .completionCard {
   display: flex;
   flex-direction: column;
@@ -1965,14 +1992,183 @@ button.headerOrb:active {
   gap: 12px;
 }
 
-.missionResult {
+/* 1단계 온보딩 투어 자막 — 사수가 팀원을 소개하는 동안 뜬다 */
+.tourBanner {
+  position: absolute;
+  z-index: 15;
+  top: 88px; /* 헤더(높이 60px + top 10px) 아래 — 업무 배너와 같은 줄 */
+  left: 50%;
+  display: flex;
+  width: min(900px, calc(100% - 80px));
+  align-items: center;
+  padding: 14px 18px;
+  border: 1px solid rgb(255 255 255 / 0.35);
+  border-radius: 20px;
+  background: linear-gradient(120deg, rgb(88 60 190 / 0.95), rgb(150 60 170 / 0.95));
+  box-shadow: 0 18px 40px rgb(20 10 50 / 0.35);
+  color: #ffffff;
+  gap: 14px;
+  transform: translateX(-50%);
+}
+
+.tourBody {
   flex: 1;
+  min-width: 0;
+}
+
+.tourBody strong {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  gap: 8px;
+}
+
+.tourBody p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.tourProgress {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.22);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* 5단계 소감문 — 채점 없는 자유 서술 */
+.reflectionPrompts {
+  display: flex;
+  margin: 0;
+  padding: 12px 16px 12px 30px;
+  border-radius: 14px;
+  background: rgb(120 140 255 / 0.08);
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  line-height: 1.55;
+  opacity: 0.85;
+}
+
+.reflectionHint {
+  flex: 1;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* 1·3단계 업무 브리핑 — 사수가 절차를 알려주는 창 */
+.briefingSpeaker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.briefingSpeaker small {
+  opacity: 0.7;
+}
+
+.briefingLead {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.briefingSteps {
+  display: flex;
+  margin: 0;
+  padding: 14px 18px 14px 34px;
+  border: 1px solid rgb(120 140 255 / 0.35);
+  border-radius: 14px;
+  background: rgb(120 140 255 / 0.1);
+  flex-direction: column;
+  gap: 7px;
+}
+
+.briefingSteps li {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.briefingNote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 0.75;
+}
+
+/* 4단계 실무 미니게임 — 지금은 빈 창(자리만 잡아둔 상태) */
+.miniGameStage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 24px;
+  border: 1px dashed rgb(120 140 255 / 0.5);
+  border-radius: 18px;
+  background: rgb(120 140 255 / 0.08);
+  gap: 10px;
+  text-align: center;
+}
+
+.miniGameStage svg {
+  width: 46px;
+  height: 46px;
+  opacity: 0.65;
+}
+
+.miniGameTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.miniGameBody {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  opacity: 0.85;
+}
+
+/* 채점 결과 + 조언 카드 묶음 — 미달해도 창을 닫지 않고 그 자리에서 힌트를 보고 재제출 */
+.missionResultBlock {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.missionResult {
   min-width: 0;
   padding: 12px 16px;
   border-radius: 14px;
   font-size: 13px;
   font-weight: 700;
   line-height: 1.5;
+}
+
+/* 조언 카드 — 시도가 거듭될수록 깊어지는 단계별 힌트(항목별 불릿) */
+.missionAdvice {
+  padding: 12px 16px;
+  border: 1px solid rgb(120 140 255 / 0.35);
+  border-radius: 14px;
+  background: rgb(120 140 255 / 0.1);
+}
+
+.missionAdvice strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.missionAdvice p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-line; /* 백엔드가 '• 항목' 줄바꿈으로 보냄 */
 }
 
 .missionResultPass {

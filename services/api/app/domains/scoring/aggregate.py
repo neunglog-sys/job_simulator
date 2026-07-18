@@ -169,6 +169,28 @@ def competency_scores(
     return result
 
 
+def conduct_from_affinity(state: dict) -> dict | None:
+    """대화 태도(사회생활 화법) 요약 — state['affinity'] {npc_id: 0~100} 기반.
+
+    역량 5종(팀 확정 공식)에는 손대지 않고 별도 신호로 리포트에 싣는다. NPC별 호감도는
+    사용자 발화의 태도(무례·스푼피딩 요구·공손)로만 오르내리므로, 평균이 곧 '동료들에게
+    어떻게 대했는가'다. 아무와도 대화하지 않았으면 None (근거 없음 → 리포트에서 생략).
+    """
+    values = [
+        v for v in (state.get("affinity") or {}).values()
+        if isinstance(v, (int, float)) and not isinstance(v, bool)
+    ]
+    if not values:
+        return None
+    average = round(sum(values) / len(values))
+    return {
+        "average": average,
+        "band": "낮음" if average <= 30 else ("높음" if average >= 70 else "보통"),
+        "npc_count": len(values),
+        "lowest": min(values),  # 한 명에게만 무례했어도 드러나게 (평균에 묻히지 않도록)
+    }
+
+
 async def simulation_score(session: AsyncSession, simulation, scenario) -> dict:
     """DB에서 로그를 모아 시나리오 점수·역량 점수 산출 (진행 중이면 부분 집계)."""
     logs = [
@@ -192,6 +214,8 @@ async def simulation_score(session: AsyncSession, simulation, scenario) -> dict:
         "status": simulation.status,
         **score,
         "competencies": competencies,
+        # 대화 태도 — 총점·역량 공식에는 넣지 않고 리포트가 관찰 소견으로 쓴다 (팀 확정 공식 보존)
+        "conduct": conduct_from_affinity(simulation.state),
     }
 
 

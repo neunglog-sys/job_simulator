@@ -10,6 +10,8 @@ type ScenarioControlPanelProps = {
   isStreaming?: boolean;
   disabled?: boolean;
   placeholder?: string;
+  /** 입력이 막힌 이유 — 서버 문제인지 '지금은 입력할 때가 아닌지'를 구분해 보여준다. */
+  disabledHint?: string;
   onSend: (message: string) => void;
 };
 
@@ -21,6 +23,7 @@ export function ScenarioControlPanel({
   isStreaming = false,
   disabled = false,
   placeholder = "NPC에게 보낼 답변을 입력하세요",
+  disabledHint = "게임 서버에 연결 중이에요…",
   onSend,
 }: ScenarioControlPanelProps) {
   const [draft, setDraft] = useState("");
@@ -70,7 +73,7 @@ export function ScenarioControlPanel({
           type="text"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder={disabled ? "게임 서버에 연결 중이에요…" : placeholder}
+          placeholder={disabled ? disabledHint : placeholder}
           aria-label="NPC에게 보낼 답변"
           disabled={disabled}
         />

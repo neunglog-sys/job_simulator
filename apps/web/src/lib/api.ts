@@ -211,6 +211,9 @@ export type GameStep = {
   mission: string;
   npcs: string[]; // npc_id 목록 (표시정보는 Simulation.npcs에서 조회)
   guide: string | null;
+  // 사수가 업무 시작 전에 알려주는 절차 — 브리핑 창 + 업무 노트에 표시.
+  // 정답 키(task.answer)는 서버가 내려주지 않으므로, 들은 절차를 섞인 보기와 맞추는 건 사용자 몫.
+  briefing: string[];
   choices: Array<Record<string, unknown>>;
   task: GameTask | null;
 };
@@ -252,4 +255,25 @@ export function createSimulation(scenarioSlug: string): Promise<Simulation> {
     method: "POST",
     body: JSON.stringify({ scenario_slug: scenarioSlug }),
   });
+}
+
+/** 진행 중이던 시뮬 이어받기 — 새로고침·뒤로가기로 진행도(투어·인사·미션)가 날아가지 않게. */
+export function fetchSimulation(id: number): Promise<Simulation> {
+  return request(API_ENDPOINTS.simulations.detail(id));
+}
+
+// 수행 점수 — 완주 화면·리포트 근거. 진행 중이면 부분 집계.
+export type SimulationScore = {
+  total: number;
+  mission_avg: number;
+  missions: Array<{ step: string; type: string | null; adjusted: number; attempts: number }>;
+  quest: { status: string; adjusted: number } | null;
+  competencies: Record<string, number | null>;
+  // 대화 태도(사회생활 화법) — NPC를 어떻게 대했는가. 대화 이력이 없으면 null.
+  conduct: { average: number; band: string; npc_count: number; lowest: number } | null;
+  percentile?: { sample_size: number; top_percent: number | null };
+};
+
+export function fetchSimulationScore(id: number): Promise<SimulationScore> {
+  return request(API_ENDPOINTS.simulations.score(id));
 }
