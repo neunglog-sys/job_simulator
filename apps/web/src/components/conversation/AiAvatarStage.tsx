@@ -3,6 +3,37 @@ import { AVATAR_IDLE_SRC } from "../../config/endpoints";
 import styles from "../../styles/oneToOneConversation.module.css";
 import type { AvatarStatus } from "../../types/conversation";
 
+/**
+ * 발화 앞부분 잘림 대응 방식 스위치.
+ *
+ * true  = **완성 대기(A)**: 재생목록에 `#EXT-X-ENDLIST`(생성 완료)가 붙을 때까지 기다렸다 재생.
+ *         완성된 재생목록은 VOD로 인식돼 처음부터 깔끔하게 재생 → 첫 문장 안 씹힘.
+ *         대가: 첫 발화가 ~5초 더 늦음(생성 완료까지 대기). 단 말풍선 텍스트는 이미 떠 있음.
+ * false = **즉시 재생(B)**: 첫 조각 오자마자 재생(빠르지만 앞부분 씹힐 수 있음 — 스트림이 비정상).
+ *
+ * 팀 반응 보고 이 한 줄만 바꾸면 방식 전환됨. (근본 해결은 백엔드 FastAPI 래핑 = 별도 작업)
+ */
+const WAIT_FOR_COMPLETE = true;
+/** 완성 대기 폴링 간격/상한 — 상한 넘으면 안전하게 그냥 재생(무한 대기 방지). */
+const PLAYLIST_POLL_MS = 400;
+const PLAYLIST_WAIT_MAX_MS = 20_000;
+
+/** 재생목록이 완성(ENDLIST)될 때까지 폴링. 완성됐거나 상한 초과 시 resolve. */
+async function waitForPlaylistComplete(url: string, signal: AbortSignal): Promise<void> {
+  const deadline = Date.now() + PLAYLIST_WAIT_MAX_MS;
+  for (;;) {
+    if (signal.aborted) return;
+    try {
+      const text = await (await fetch(url, { cache: "no-store", signal })).text();
+      if (text.includes("#EXT-X-ENDLIST")) return; // 생성 완료
+    } catch {
+      return; // 네트워크 오류 등 — 그냥 재생 시도로 넘어감
+    }
+    if (Date.now() > deadline) return; // 상한 — 무한 대기 방지
+    await new Promise((r) => setTimeout(r, PLAYLIST_POLL_MS));
+  }
+}
+
 type AiAvatarStageProps = {
   children?: ReactNode;
   status?: AvatarStatus;
@@ -38,6 +69,7 @@ export function AiAvatarStage({
 
     let disposed = false;
     let hls: { destroy: () => void } | null = null;
+    const abort = new AbortController();
 
     // 발화 앞부분이 잘리는 문제 대응.
     // 서버 재생목록은 `EXT-X-PLAYLIST-TYPE:EVENT`이고 생성 중이라 계속 자란다. 이 경우 hls.js가
@@ -56,28 +88,39 @@ export function AiAvatarStage({
       void video.play().catch(() => undefined);
     };
 
-    if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = hlsUrl;
-      video.addEventListener("loadeddata", seekToBufferStartThenPlay, { once: true });
+    const attachAndPlay = () => {
+      if (disposed) return;
+      if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = hlsUrl;
+        video.addEventListener("loadeddata", seekToBufferStartThenPlay, { once: true });
+      } else {
+        void import("hls.js").then(({ default: Hls }) => {
+          if (disposed) return;
+          if (!Hls.isSupported()) {
+            video.src = hlsUrl; // 최후 폴백
+            video.addEventListener("loadeddata", seekToBufferStartThenPlay, { once: true });
+            return;
+          }
+          const instance = new Hls({ startPosition: 0 });
+          hls = instance;
+          instance.loadSource(hlsUrl);
+          instance.attachMedia(video);
+          // 첫 조각이 실제로 버퍼에 올라온 뒤에 위치를 잡고 재생 — MANIFEST_PARSED는 너무 이르다
+          instance.once(Hls.Events.FRAG_BUFFERED, seekToBufferStartThenPlay);
+        });
+      }
+    };
+
+    // 완성 대기(A) 모드면 ENDLIST 붙을 때까지 기다렸다 재생 → 첫 문장 안 씹힘.
+    if (WAIT_FOR_COMPLETE) {
+      void waitForPlaylistComplete(hlsUrl, abort.signal).then(attachAndPlay);
     } else {
-      void import("hls.js").then(({ default: Hls }) => {
-        if (disposed) return;
-        if (!Hls.isSupported()) {
-          video.src = hlsUrl; // 최후 폴백
-          video.addEventListener("loadeddata", seekToBufferStartThenPlay, { once: true });
-          return;
-        }
-        const instance = new Hls({ startPosition: 0 });
-        hls = instance;
-        instance.loadSource(hlsUrl);
-        instance.attachMedia(video);
-        // 첫 조각이 실제로 버퍼에 올라온 뒤에 위치를 잡고 재생 — MANIFEST_PARSED는 너무 이르다
-        instance.once(Hls.Events.FRAG_BUFFERED, seekToBufferStartThenPlay);
-      });
+      attachAndPlay();
     }
 
     return () => {
       disposed = true;
+      abort.abort();
       hls?.destroy();
       video.removeAttribute("src");
       video.load();

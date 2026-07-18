@@ -142,14 +142,16 @@ export async function* streamConsultationReply(
       if (done) break;
       buffer += value;
 
-      // SSE는 빈 줄로 이벤트를 구분한다. 마지막 조각은 아직 안 끝났을 수 있으니 buffer에 남긴다.
-      const blocks = buffer.split("\n\n");
+      // SSE는 빈 줄로 이벤트를 구분한다. 서버(sse-starlette)는 CRLF(\r\n)를 쓰므로
+      // 구분자가 "\r\n\r\n"이다 — "\n\n"으로만 쪼개면 매치가 안 돼 토큰을 하나도 못 뽑는다.
+      // 마지막 조각은 아직 안 끝났을 수 있으니 buffer에 남긴다.
+      const blocks = buffer.split(/\r?\n\r?\n/);
       buffer = blocks.pop() ?? "";
 
       for (const block of blocks) {
         let event = "message";
         const dataLines: string[] = [];
-        for (const rawLine of block.split("\n")) {
+        for (const rawLine of block.split(/\r?\n/)) {
           const l = rawLine.trimEnd();
           if (l.startsWith("event:")) event = l.slice(6).trim();
           else if (l.startsWith("data:")) dataLines.push(l.slice(5).trim());
