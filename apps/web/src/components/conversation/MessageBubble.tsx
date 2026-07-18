@@ -1,19 +1,29 @@
 import styles from "../../styles/oneToOneConversation.module.css";
 import type { ConversationMessage } from "../../types/conversation";
+import { SurveyStartMessageButton } from "./SurveyStartMessageButton";
 
 type MessageBubbleProps = {
   message: ConversationMessage;
+  onOpenSurvey: () => void;
 };
 
-export function MessageBubble({ message }: MessageBubbleProps) {
-  const isMultiline = message.content.includes("\n") || message.content.length > 42;
-  const className = [
-    styles.messageBubble,
-    message.role === "assistant" ? styles.assistantBubble : styles.userBubble,
-    isMultiline ? styles.multilineBubble : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+export function MessageBubble({ message, onOpenSurvey }: MessageBubbleProps) {
+  const assistant = message.role === "assistant";
+  const rowClassName = `${styles.messageRow} ${
+    assistant ? styles.messageRowAssistant : styles.messageRowUser
+  }`;
+  const bubbleClassName = `${styles.messageBubble} ${
+    assistant ? styles.assistantBubble : styles.userBubble
+  }`;
 
-  return <div className={className}>{message.content}</div>;
+  return (
+    <div className={rowClassName}>
+      <div className={bubbleClassName}>
+        <span>{message.content}</span>
+        {message.action === "open-survey" ? (
+          <SurveyStartMessageButton onClick={onOpenSurvey} />
+        ) : null}
+      </div>
+    </div>
+  );
 }
