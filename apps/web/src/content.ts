@@ -22,4 +22,4 @@ export const LANDING_COPY = {
 } as const;
 
 // 실제 사용자 아바타로 교체할 때 public 경로만 변경하세요.
-export const AVATAR_IMAGE: string | null = "/assets/career-explorer.png";
+export const AVATAR_IMAGE: string | null = "/assets/career-explorer.webp";
