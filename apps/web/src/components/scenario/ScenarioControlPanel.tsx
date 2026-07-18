@@ -1,4 +1,4 @@
-import { Microphone, PaperPlaneTilt, UserCircle } from "@phosphor-icons/react";
+import { ChatTeardropText, Microphone, PaperPlaneTilt, UserCircle } from "@phosphor-icons/react";
 import { useState, type FormEvent } from "react";
 import styles from "../../styles/scenarioGame.module.css";
 
@@ -8,11 +8,13 @@ type ScenarioControlPanelProps = {
   npcMessage: string;
   userMessage: string;
   isStreaming?: boolean;
+  isHistoryOpen?: boolean;
   disabled?: boolean;
   placeholder?: string;
   /** 입력이 막힌 이유 — 서버 문제인지 '지금은 입력할 때가 아닌지'를 구분해 보여준다. */
   disabledHint?: string;
   onSend: (message: string) => void;
+  onHistoryToggle: () => void;
 };
 
 export function ScenarioControlPanel({
@@ -21,10 +23,12 @@ export function ScenarioControlPanel({
   npcMessage,
   userMessage,
   isStreaming = false,
+  isHistoryOpen = false,
   disabled = false,
   placeholder = "NPC에게 보낼 답변을 입력하세요",
   disabledHint = "게임 서버에 연결 중이에요…",
   onSend,
+  onHistoryToggle,
 }: ScenarioControlPanelProps) {
   const [draft, setDraft] = useState("");
   const [isVoiceActive, setIsVoiceActive] = useState(false);
@@ -78,12 +82,14 @@ export function ScenarioControlPanel({
           disabled={disabled}
         />
         <button
-          className={styles.sendDialogueButton}
-          type="submit"
-          aria-label="답변 보내기"
-          disabled={disabled || !draft.trim()}
+          className={`${styles.voiceDialogueButton} ${isHistoryOpen ? styles.voiceDialogueButtonActive : ""}`}
+          type="button"
+          onClick={onHistoryToggle}
+          aria-label={isHistoryOpen ? "이전 대화 닫기" : "이전 대화 보기"}
+          aria-expanded={isHistoryOpen}
+          title="이전 대화"
         >
-          <PaperPlaneTilt weight="fill" aria-hidden="true" />
+          <ChatTeardropText weight={isHistoryOpen ? "fill" : "duotone"} aria-hidden="true" />
         </button>
         <button
           className={`${styles.voiceDialogueButton} ${isVoiceActive ? styles.voiceDialogueButtonActive : ""}`}
@@ -94,6 +100,14 @@ export function ScenarioControlPanel({
           disabled={disabled}
         >
           <Microphone weight={isVoiceActive ? "fill" : "duotone"} aria-hidden="true" />
+        </button>
+        <button
+          className={styles.sendDialogueButton}
+          type="submit"
+          aria-label="답변 보내기"
+          disabled={disabled || !draft.trim()}
+        >
+          <PaperPlaneTilt weight="fill" aria-hidden="true" />
         </button>
       </form>
     </section>
