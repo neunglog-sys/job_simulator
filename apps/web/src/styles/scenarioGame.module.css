@@ -1030,7 +1030,7 @@ button.headerOrb:active {
 
 .dialogueComposer {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 60px 60px 60px;
+  grid-template-columns: minmax(0, 1fr) 60px 60px;
   align-items: center;
   gap: 15px;
   height: 60px;
@@ -1078,11 +1078,11 @@ button.headerOrb:active {
   padding: 0;
   border: 1px solid rgb(255 255 255 / 0.5);
   border-radius: 50%;
-  color: #5f4a9e;
-  background: rgb(255 255 255 / 0.16);
+  color: var(--scenario-accent);
+  background: var(--scenario-accent-soft);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.7),
-    0 10px 24px rgb(42 30 93 / 0.12);
+    0 10px 24px var(--scenario-accent-soft);
   cursor: pointer;
   transition: color 180ms ease, background-color 180ms ease, transform 180ms ease;
 }
@@ -1095,15 +1095,15 @@ button.headerOrb:active {
 .voiceDialogueButton:hover,
 .voiceDialogueButtonActive {
   color: #ffffff;
-  background: rgb(188 61 145 / 0.58);
+  background: linear-gradient(145deg, var(--scenario-accent), var(--scenario-accent-2));
   transform: translateY(-1px);
 }
 
 .voiceDialogueButtonActive {
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.45),
-    0 0 0 6px rgb(221 83 164 / 0.16),
-    0 10px 26px rgb(135 46 115 / 0.2);
+    0 0 0 6px var(--scenario-accent-soft),
+    0 10px 26px var(--scenario-banner-shadow);
 }
 
 .dialogueHeader {
@@ -2081,10 +2081,10 @@ button.headerOrb:active {
   width: min(900px, calc(100% - 80px));
   align-items: center;
   padding: 14px 18px;
-  border: 1px solid rgb(255 255 255 / 0.35);
+  border: 1px solid var(--scenario-glass-border);
   border-radius: 20px;
-  background: linear-gradient(120deg, rgb(88 60 190 / 0.95), rgb(150 60 170 / 0.95));
-  box-shadow: 0 18px 40px rgb(20 10 50 / 0.35);
+  background: var(--scenario-banner-surface);
+  box-shadow: 0 18px 40px var(--scenario-banner-shadow);
   color: #ffffff;
   gap: 14px;
   transform: translateX(-50%);
@@ -2314,11 +2314,11 @@ button.headerOrb:active {
   gap: 16px;
   width: min(720px, calc(100% - 200px));
   padding: 16px 18px 16px 20px;
-  border: 1px solid rgb(255 255 255 / 0.6);
+  border: 1px solid var(--scenario-glass-border);
   border-radius: 22px;
   color: #ffffff;
-  background: linear-gradient(135deg, rgb(120 83 214 / 0.96), rgb(217 96 178 / 0.94));
-  box-shadow: 0 22px 52px rgb(60 40 130 / 0.42);
+  background: var(--scenario-banner-surface);
+  box-shadow: 0 22px 52px var(--scenario-banner-shadow);
   transform: translateX(-50%);
   animation: encounterPop 300ms cubic-bezier(0.23, 1, 0.32, 1);
 }
@@ -2342,7 +2342,7 @@ button.headerOrb:active {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  color: #6a4bb0;
+  color: var(--scenario-accent);
   background: rgb(255 255 255 / 0.92);
 }
 
@@ -2380,7 +2380,7 @@ button.headerOrb:active {
   padding: 13px 22px;
   border: 0;
   border-radius: 999px;
-  color: #5b3aa0;
+  color: var(--scenario-banner-button-ink);
   background: #ffffff;
   box-shadow: 0 10px 22px rgb(40 25 90 / 0.24);
   font-size: 14px;
@@ -2454,8 +2454,14 @@ button.headerOrb:active {
   --scenario-glass-surface: linear-gradient(135deg, rgb(34 23 76 / 0.52), rgb(98 54 132 / 0.28));
   --scenario-glass-border: rgb(255 255 255 / 0.3);
   --scenario-reading-surface: linear-gradient(160deg, rgb(25 17 57 / 0.97), rgb(48 29 82 / 0.96));
+  --scenario-history-surface:
+    radial-gradient(circle at 14% 8%, rgb(138 99 238 / 0.3), transparent 38%),
+    linear-gradient(160deg, rgb(25 17 57 / 0.98), rgb(58 27 84 / 0.97));
   --scenario-reading-card: rgb(255 255 255 / 0.075);
   --scenario-reading-muted: rgb(241 234 255 / 0.74);
+  --scenario-banner-surface: linear-gradient(120deg, rgb(105 70 205 / 0.96), rgb(178 64 174 / 0.95));
+  --scenario-banner-shadow: rgb(64 33 121 / 0.42);
+  --scenario-banner-button-ink: #5b3aa0;
   --scenario-progress-track: rgb(255 255 255 / 0.32);
   --scenario-progress-glow: rgb(236 118 205 / 0.72);
 }
@@ -2467,8 +2473,14 @@ button.headerOrb:active {
   --scenario-glass-surface: linear-gradient(135deg, rgb(5 20 55 / 0.7), rgb(18 62 111 / 0.42));
   --scenario-glass-border: rgb(141 207 255 / 0.26);
   --scenario-reading-surface: linear-gradient(160deg, rgb(6 18 45 / 0.98), rgb(12 42 76 / 0.97));
+  --scenario-history-surface:
+    radial-gradient(circle at 14% 8%, rgb(79 156 255 / 0.32), transparent 38%),
+    linear-gradient(160deg, rgb(5 18 47 / 0.99), rgb(8 54 88 / 0.98));
   --scenario-reading-card: rgb(95 177 255 / 0.085);
   --scenario-reading-muted: rgb(218 240 255 / 0.78);
+  --scenario-banner-surface: linear-gradient(120deg, rgb(22 76 142 / 0.96), rgb(39 150 195 / 0.95));
+  --scenario-banner-shadow: rgb(8 48 92 / 0.46);
+  --scenario-banner-button-ink: #12558a;
   --scenario-progress-track: rgb(149 216 255 / 0.34);
   --scenario-progress-glow: rgb(85 200 255 / 0.78);
 }
@@ -2480,8 +2492,14 @@ button.headerOrb:active {
   --scenario-glass-surface: linear-gradient(135deg, rgb(10 48 70 / 0.59), rgb(74 45 117 / 0.36));
   --scenario-glass-border: rgb(172 255 237 / 0.28);
   --scenario-reading-surface: linear-gradient(160deg, rgb(8 36 49 / 0.97), rgb(45 31 78 / 0.97));
+  --scenario-history-surface:
+    radial-gradient(circle at 14% 8%, rgb(55 203 183 / 0.34), transparent 38%),
+    linear-gradient(160deg, rgb(5 45 51 / 0.98), rgb(55 30 84 / 0.98));
   --scenario-reading-card: rgb(103 233 213 / 0.08);
   --scenario-reading-muted: rgb(220 255 248 / 0.78);
+  --scenario-banner-surface: linear-gradient(120deg, rgb(12 130 118 / 0.96), rgb(111 75 176 / 0.95));
+  --scenario-banner-shadow: rgb(18 71 78 / 0.44);
+  --scenario-banner-button-ink: #126d66;
   --scenario-progress-track: rgb(166 255 235 / 0.34);
   --scenario-progress-glow: rgb(75 232 209 / 0.76);
 }
@@ -2566,7 +2584,7 @@ button.headerIconButton:active {
 
 .headerActions {
   grid-column: 3;
-  gap: 4px;
+  gap: 24px;
 }
 
 .headerActionButton {
@@ -2603,6 +2621,7 @@ button.headerIconButton:active {
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.28),
     0 9px 22px var(--scenario-accent-soft);
+  transform: translateY(1px);
 }
 
 .progressGroup {
@@ -2912,11 +2931,12 @@ button.headerIconButton:active {
 
 .hintPanelHeader small {
   color: var(--scenario-reading-muted);
+  font-size: 9px;
 }
 
 .hintPanelHeader strong {
   color: #ffffff;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .hintPanelHeader button {
@@ -2941,10 +2961,14 @@ button.headerIconButton:active {
   background: var(--scenario-accent-soft);
 }
 
+.hintCard h3 {
+  font-size: 13px;
+}
+
 .hintCard p {
   color: var(--scenario-reading-muted);
-  font-size: calc(12px * var(--scenario-ui-text-scale));
-  line-height: 1.62;
+  font-size: 10px;
+  line-height: 1.5;
 }
 
 .historyPanel {
@@ -2964,7 +2988,7 @@ button.headerIconButton:active {
   opacity: 0;
   visibility: hidden;
   color: #ffffff;
-  background: var(--scenario-reading-surface);
+  background: var(--scenario-history-surface);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.16),
     0 30px 70px rgb(5 4 27 / 0.45);
@@ -3147,6 +3171,107 @@ button.headerIconButton:active {
 
 .historyCollapseButton svg { width: 14px; height: 14px; }
 
+.dialogueHudGroup {
+  position: relative;
+  min-width: 0;
+  height: 100%;
+}
+
+.dialogueUtilityBar {
+  position: absolute;
+  top: -48px;
+  left: 15px;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+}
+
+.dialogueUtilityButton {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: hidden;
+  padding: 0 7px;
+  border: 1px solid var(--scenario-glass-border);
+  border-radius: 20px;
+  color: var(--scenario-accent);
+  background: var(--scenario-accent-soft);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.42),
+    0 10px 24px var(--scenario-accent-soft);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-radius 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+.dialogueUtilityButton svg {
+  flex: 0 0 auto;
+  width: 25px;
+  height: 25px;
+}
+
+.dialogueUtilityButton span {
+  max-width: 0;
+  margin-left: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateX(-5px);
+  transition:
+    max-width 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    margin-left 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 120ms ease,
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dialogueUtilityButton:hover,
+.dialogueUtilityButton:focus-visible {
+  border-radius: 12px;
+}
+
+.dialogueUtilityButton:hover,
+.dialogueUtilityButton:focus-visible,
+.historyDialogueButtonActive {
+  color: #ffffff;
+  background: linear-gradient(145deg, var(--scenario-accent), var(--scenario-accent-2));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    0 0 0 6px var(--scenario-accent-soft),
+    0 10px 26px var(--scenario-banner-shadow);
+  transform: translateY(-1px);
+}
+
+.dialogueUtilityButton:hover span,
+.dialogueUtilityButton:focus-visible span {
+  max-width: 130px;
+  margin-left: 7px;
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.dialogueUtilityButton:focus-visible {
+  outline: 2px solid var(--scenario-accent);
+  outline-offset: 2px;
+}
+
+.dialogueUtilityButton:active {
+  transform: scale(0.97);
+}
+
 .userSpeechBubble,
 .sendDialogueButton,
 .speakerPortrait {
@@ -3162,7 +3287,9 @@ button.headerIconButton:active {
   .progressRocket,
   .historyPanel,
   .themeMenu,
-  .headerIconButton {
+  .headerIconButton,
+  .dialogueUtilityButton,
+  .dialogueUtilityButton span {
     transition-duration: 0.01ms;
   }
 
