@@ -211,6 +211,15 @@ export class SimulationSocket {
     return true;
   }
 
+  /** 플레이어 메모 저장 — 사수에게 배운 내용을 직접 받아적는 학습 노트.
+   *  저장할 때마다 덮어쓰기(단일 노트), 빈 문자열 = 지움. 채점·리포트에 쓰지 않는다.
+   *  복원: 세션 state.memo (새로고침·이어하기 시 그대로 내려온다). */
+  sendMemo(content: string): boolean {
+    if (this.ws?.readyState !== WebSocket.OPEN) return false;
+    this.ws.send(JSON.stringify({ type: "memo", content }));
+    return true;
+  }
+
   /** 5단계 체험 소감문 전송 — 채점하지 않고 최종 리포트 재료로 저장된다. */
   sendReflection(content: string): boolean {
     if (this.ws?.readyState !== WebSocket.OPEN) return false;
