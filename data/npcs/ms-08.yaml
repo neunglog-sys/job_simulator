@@ -28,7 +28,7 @@ npcs:
     - m3
 - npc_id: npc_ms-08_02
   name: 윤지안
-  role: 고객·보호자
+  role: 고객
   rank: null
   personality:
   - 응대 대상
@@ -101,7 +101,7 @@ npcs:
     - m1
 - npc_id: npc_ms-08_05
   name: 한시윤
-  role: 반려동물 미용 선임
+  role: 헤어 미용 선임
   rank: 선임
   personality:
   - 경험 많고 실무에 밝다
@@ -118,7 +118,7 @@ npcs:
   - 핵심부터 봅시다.
   responsibilities:
   - 사전상태 기록
-  - 보호자동의
+  - 고객동의
   appearance:
     location: sasu
     available_steps:
