@@ -206,6 +206,13 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, token: str | N
                         await websocket.send_json(
                             {"type": "state_updated", **await service.finish_tour(session, simulation, scenario)}
                         )
+                    elif data.get("type") == "minigame_result":
+                        # 4단계 미니게임 결과 — 역량 블렌드·리포트 재료로 저장 (채점 아님)
+                        await websocket.send_json(
+                            {"type": "state_updated", **await service.save_minigame_result(
+                                session, simulation, data
+                            )}
+                        )
                     elif data.get("type") == "reflection":
                         # 5단계 — 체험 소감문. 채점하지 않고 리포트 재료로만 저장한다.
                         await websocket.send_json(
