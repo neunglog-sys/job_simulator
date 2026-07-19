@@ -481,6 +481,39 @@ button.headerOrb:active {
   }
 }
 
+/* 주인공 도트 스프라이트 — 시트 열 순서가 NPC와 다름: 0=왼발, 1=idle, 2=오른발 */
+.heroSprite {
+  display: block;
+  width: 64px;
+  height: 96px;
+  margin: 0 auto;
+  background-repeat: no-repeat;
+  background-position-x: -64px; /* idle */
+  image-rendering: pixelated;
+}
+
+.heroSpriteWalking {
+  animation: heroWalkCycle 667ms step-end infinite;
+}
+
+@keyframes heroWalkCycle {
+  0% {
+    background-position-x: 0;
+  }
+  25% {
+    background-position-x: -64px;
+  }
+  50% {
+    background-position-x: -128px;
+  }
+  75% {
+    background-position-x: -64px;
+  }
+  100% {
+    background-position-x: 0;
+  }
+}
+
 .npcMarkerName {
   padding: 3px 11px;
   border: 1px solid rgb(255 255 255 / 0.62);
