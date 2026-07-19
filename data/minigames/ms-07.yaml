@@ -1,0 +1,99 @@
+# 4단계 미니게임 — ms-07 조리·식품제조 현장
+# 근거: 1스텝 "점심 식재료 검수 및 전처리(재료 다듬기)" — 조리장: "점심 주문 20인분의
+#       식재료를 검수하고 전처리 순서를 정하세요." / mission "수량·신선도·유통기한·
+#       보관온도를 확인하고 조리순서에 맞춰 준비한다."
+#       모범답안 ① "작업 전 손 위생을 철저히 실시한다" → 시작 게이트
+#       모범답안 ③ "인원수에 맞추어 배수 계량(곱절로 무게 재기)을 진행한다"
+#          → 구역마다 다듬을 마디 수가 다르다(= 비율대로 다듬기)
+#       모범답안 ④ "식재료 간의 교차 오염(세균이 옮겨 묻음)을 방지하기 위해 분리한다"
+#       2스텝 모범답안 ④ "교차 오염을 방지하기 위해 조리도구를 분리한다"
+#          → 구역이 바뀔 때 칼·도마를 교체하는 swap 노트
+#       hints.warning "상한 재료 사용 또는 계량·보관순서 오류" → 상한 재료 = 치면 안 되는 노트
+#
+# ※ 3스텝 "동시 주문 조리 순서 배치"는 2단계 order 퀴즈와 그대로 겹치므로 게임에 넣지
+#    않았다(_SCHEMA.md 규칙 3). 여기서 다루는 순서는 칼질 타이밍뿐이다.
+# ※ 화면에 수량·시간 숫자를 띄우지 않는다. 마디 수는 내려오는 노트로만 읽힌다(규칙 1).
+scenario_id: ms-07
+engine: physics
+title: 재료 전처리 리듬
+intro: 도마 위로 내려오는 재료를 판정선에서 스페이스로 다듬으세요. 상한 재료는 치지 말고, 구역이 바뀌면 칼과 도마를 교체하세요.
+time_limit: 60
+pass_score: 70
+
+data:
+  mode: rhythm
+  bpm: 100
+  hit_window: 0.12           # 판정선 앞뒤 허용 시간(초)
+
+  # 레인 = 교차 오염을 막기 위해 분리해 둔 보관·손질 구역 (1스텝 모범답안 ④)
+  # portion = 20인분 배수 계량 결과. 구역마다 다듬을 양이 다르다.
+  lanes:
+    - { id: 구역_1, label: 분리 구역 1, portion: 많음 }
+    - { id: 구역_2, label: 분리 구역 2, portion: 적음 }
+    - { id: 구역_3, label: 분리 구역 3, portion: 중간 }
+    - { id: 구역_4, label: 분리 구역 4, portion: 소량 정밀 }
+
+  # 노트 종류
+  #   wash  — 손 위생. 이걸 치기 전엔 칼이 잡히지 않는다 (모범답안 ①)
+  #   cut   — 스페이스로 칼질
+  #   swap  — 칼·도마 교체. 구역이 바뀌는 지점 (조리도구 분리)
+  #   avoid — 검수 탈락 재료. 치면 실수 (warning "상한 재료 사용")
+  beats:
+    - { at: 1.5,  key: space, type: wash, sprite: 손세정_소독, label: 작업 전 손 위생 }
+
+    # 구역 1 — 배수 계량상 가장 많은 양
+    - { at: 3.0,  key: space, type: cut, lane: 구역_1 }
+    - { at: 3.5,  key: space, type: cut, lane: 구역_1 }
+    - { at: 4.0,  key: space, type: cut, lane: 구역_1 }
+    - { at: 4.5,  key: space, type: cut, lane: 구역_1 }
+    - { at: 5.0,  key: space, type: cut, lane: 구역_1 }
+    - { at: 5.5,  key: space, type: cut, lane: 구역_1 }
+    - { at: 6.0,  key: space, type: cut, lane: 구역_1 }
+    - { at: 6.5,  type: avoid, lane: 구역_1, sprite: 재료_무름, label: 신선도 불량 }
+    - { at: 7.0,  key: space, type: cut, lane: 구역_1 }
+    - { at: 7.5,  key: space, type: cut, lane: 구역_1 }
+
+    - { at: 8.5,  key: shift, type: swap, from: 구역_1, to: 구역_2, sprite: 칼_도마_교체 }
+
+    # 구역 2 — 적은 양
+    - { at: 10.0, key: space, type: cut, lane: 구역_2 }
+    - { at: 10.6, key: space, type: cut, lane: 구역_2 }
+    - { at: 11.2, key: space, type: cut, lane: 구역_2 }
+    - { at: 11.8, type: avoid, lane: 구역_2, sprite: 재료_기한경과, label: 유통기한 경과 }
+    - { at: 12.4, key: space, type: cut, lane: 구역_2 }
+    - { at: 13.0, key: space, type: cut, lane: 구역_2 }
+
+    - { at: 14.0, key: shift, type: swap, from: 구역_2, to: 구역_3, sprite: 칼_도마_교체 }
+
+    # 구역 3 — 중간 양
+    - { at: 15.5, key: space, type: cut, lane: 구역_3 }
+    - { at: 16.0, key: space, type: cut, lane: 구역_3 }
+    - { at: 16.5, key: space, type: cut, lane: 구역_3 }
+    - { at: 17.0, key: space, type: cut, lane: 구역_3 }
+    - { at: 17.5, type: avoid, lane: 구역_3, sprite: 재료_온도이탈, label: 보관온도 이탈 }
+    - { at: 18.0, key: space, type: cut, lane: 구역_3 }
+    - { at: 18.5, key: space, type: cut, lane: 구역_3 }
+    - { at: 19.0, key: space, type: cut, lane: 구역_3 }
+
+    - { at: 20.0, key: shift, type: swap, from: 구역_3, to: 구역_4, sprite: 칼_도마_교체 }
+
+    # 구역 4 — 소량 정밀. 간격이 좁아 제일 어렵다
+    - { at: 21.5, key: space, type: cut, lane: 구역_4 }
+    - { at: 22.2, key: space, type: cut, lane: 구역_4 }
+    - { at: 22.9, key: space, type: cut, lane: 구역_4 }
+    - { at: 23.6, type: avoid, lane: 구역_4, sprite: 재료_이물혼입, label: 이물 혼입 }
+    - { at: 24.2, key: space, type: cut, lane: 구역_4 }
+    - { at: 24.8, key: space, type: cut, lane: 구역_4 }
+
+scoring:
+  # 쳐야 할 노트 30 = cut 26 + swap 3 + wash 1. avoid 4개는 치면 안 된다.
+  hit_count: 30
+  miss_penalty: 4            # 놓친 노트
+  spoiled_hit_penalty: 12    # 상한 재료를 친 경우 (검수 실패)
+  swap_miss_penalty: 15      # 칼·도마를 안 바꾸고 다음 구역으로 넘어간 경우 (교차 오염)
+  overcut_penalty: 6         # 노트가 없는데 연타 — 배수 계량을 넘긴 과다 손질
+  fail:
+    - when: 손위생_생략
+      reason: 손 위생 노트를 놓치고 칼을 잡음 — 모범답안 ①번 위반이라 즉시 실패
+    - when: 상한재료_3회
+      reason: 상한 재료를 3회 이상 손질 — 검수 자체가 성립하지 않음

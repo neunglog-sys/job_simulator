@@ -1,0 +1,80 @@
+# 4단계 미니게임 — kts-05 안내·접수·예약·프론트(호텔)
+# 근거: 2스텝 "예약 정보 불일치 체크인" — 미션 "확인 질문(예약번호·앱 화면·여권명)으로
+#       실제 예약을 특정해 체크인을 처리한다" 제공 자료 "PMS 예약 화면(동일 성 3건)"
+#       모범답안 ③ "여권의 영문명과 예약자명의 표기 차이를 대조하여 확인한다"
+#       흔한 실수 "동일 성 다른 예약에 오배정" → 같은 성(Kim) 손님을 다른 여권에 이으면 감점.
+#       1스텝 제공 자료 "당일 예약 현황(만실·VIP 1), 객실 배정표" → 확인 후 맞는 색 객실 키 전달.
+# kts-05 주의: 픽셀 얼굴은 미세 위조가 어려워, 차이를 안경·모자·머리색·점 같은 굵은 특징으로만
+#       설계했다. 여권 사진에는 모자가 없으므로 손님이 쓴 모자는 착시용 방해물이다.
+# 라벨 규약(검증 지적 반영): label 은 '손님 A'·'여권 1' 수준 중립 표기만 쓴다.
+#       특징·트릭('모자 착용'·'미도착' 등)을 라벨에 병기하면 스프라이트를 안 보고
+#       글자 대조만으로 풀리고 함정이 유출된다(규칙 1·8). 판별 근거는 features 와 주석에만.
+# 형식 정의는 _SCHEMA.md 참조. 이 폴더는 build_scenarios 가 건드리지 않는다.
+scenario_id: kts-05
+engine: match
+title: 여권 대조 체크인
+intro: 손님과 여권 사진을 이어 본인 확인을 하세요. 안경·머리색·점 같은 굵은 특징으로 대조합니다. 같은 성이라도 사람이 다르면 잇지 마세요. 확인이 끝나면 맞는 색 객실 키가 전달됩니다.
+time_limit: 80
+pass_score: 70
+
+data:
+  # 왼쪽 = 체크인 손님. 특징은 아이콘·색으로만(글자 판독 금지 — _SCHEMA.md 규칙 1).
+  # features: glasses(안경) / hair(머리색) / mole(점) / hat(현장 착용 모자 = 방해물)
+  left:
+    - { id: 손님_Kim_안경, sprite: 손님_안경_흑발,        features: { glasses: true,  hair: black, mole: none,  hat: false }, label: 손님 A }
+    - { id: 손님_Kim_점,   sprite: 손님_흑발_오른뺨점,    features: { glasses: false, hair: black, mole: right, hat: false }, label: 손님 B }
+    - { id: 손님_Lee_갈색, sprite: 손님_갈색머리,         features: { glasses: false, hair: brown, mole: none,  hat: false }, label: 손님 C }
+    # 모자는 착시용 방해물 — 여권 사진에는 모자가 없다. 라벨로 알려주지 않는다(규칙 8).
+    - { id: 손님_Park_모자, sprite: 손님_모자_흑발,        features: { glasses: false, hair: black, mole: none,  hat: true  }, label: 손님 D }
+    - { id: 손님_Choi_금발, sprite: 손님_금발_안경,        features: { glasses: true,  hair: blond, mole: none,  hat: false }, label: 손님 E }
+
+  # 오른쪽 = 여권 사진 카드. 같은 특징 체계로. 여권엔 모자가 없다.
+  right:
+    - { id: 여권_안경흑발,   sprite: 여권_안경_흑발,      features: { glasses: true,  hair: black, mole: none,  hat: false }, label: 여권 1 }
+    - { id: 여권_흑발점,     sprite: 여권_흑발_오른뺨점,  features: { glasses: false, hair: black, mole: right, hat: false }, label: 여권 2 }
+    - { id: 여권_갈색,       sprite: 여권_갈색머리,       features: { glasses: false, hair: brown, mole: none,  hat: false }, label: 여권 3 }
+    - { id: 여권_흑발민머리, sprite: 여권_흑발_모자없음,  features: { glasses: false, hair: black, mole: none,  hat: false }, label: 여권 4 }
+    - { id: 여권_금발안경,   sprite: 여권_금발_안경,      features: { glasses: true,  hair: blond, mole: none,  hat: false }, label: 여권 5 }
+    # 짝 없음 — PMS '동일 성 3건' 중 아직 도착하지 않은 세 번째 Kim의 여권. 이으면 오배정.
+    # '미도착'을 라벨로 알려주지 않는다 — 콧수염(beard) 특징이 어느 손님과도 안 맞는 것으로 판별.
+    - { id: 여권_흑발콧수염, sprite: 여권_흑발_콧수염,    features: { glasses: false, hair: black, mole: none,  hat: false, beard: true }, label: 여권 6 }
+
+  # 정답 짝 — 굵은 특징이 모두 일치하는 손님↔여권.
+  pairs:
+    - [손님_Kim_안경, 여권_안경흑발]
+    - [손님_Kim_점,   여권_흑발점]
+    - [손님_Lee_갈색, 여권_갈색]
+    - [손님_Park_모자, 여권_흑발민머리]   # 모자를 벗겨 놓고 봐야 맞다
+    - [손님_Choi_금발, 여권_금발안경]
+
+  # 짝 없음 — 콧수염 여권은 남겨야 정답(해당 손님 미도착).
+  unmatched: [여권_흑발콧수염]
+
+  # 금기 조합 — 동일 성(Kim) 오배정. 특징 하나(안경/점)가 어긋나면 다른 사람이다.
+  # 미도착 여권(콧수염) 오배정은 두 Kim 모두에게 같은 위반 — 대칭으로 정의(검증 지적 반영).
+  forbidden_pairs:
+    - { left: 손님_Kim_안경, right: 여권_흑발점,     reason: 동일 성 오배정 — 점 특징 불일치 }
+    - { left: 손님_Kim_점,   right: 여권_안경흑발,   reason: 동일 성 오배정 — 안경 특징 불일치 }
+    - { left: 손님_Kim_안경, right: 여권_흑발콧수염, reason: 동일 성 오배정 — 미도착 예약에 배정 }
+    - { left: 손님_Kim_점,   right: 여권_흑발콧수염, reason: 동일 성 오배정 — 미도착 예약에 배정 }
+    - { left: 손님_Park_모자, right: 여권_흑발점,     reason: 검은 머리만 같고 점이 다른 오배정 }
+
+  # 본인 확인이 끝난 손님에게 배정표 색에 맞는 객실 키를 전달한다(만실·VIP 1).
+  # 짝을 맞게 이어야 그 손님의 key_color 키가 활성화된다. 색이 틀리면 감점.
+  keys:
+    - { guest: 손님_Kim_안경, key_color: blue,  label: 일반실 · 파란 키 }
+    - { guest: 손님_Kim_점,   key_color: blue,  label: 일반실 · 파란 키 }
+    - { guest: 손님_Lee_갈색, key_color: green, label: 일반실 · 초록 키 }
+    - { guest: 손님_Park_모자, key_color: green, label: 일반실 · 초록 키 }
+    - { guest: 손님_Choi_금발, key_color: gold,  label: VIP · 금색 키 }
+
+# 채점 — 5명을 맞는 여권에 대조하고 콧수염 여권을 남겼나 + 맞는 색 키를 전달했나
+# accuracy = (맞은 pairs / 5) * 100 − 감점, 하한 0
+# 감점 중첩 금지 — 한 선(사건)에 wrong_pair·forbidden_pair·matched_unmatched 가 겹치면
+# 가장 무거운 감점 하나만 적용한다(_SCHEMA 표준 채점 키 — 전 엔진 공통, 검증 지적 반영).
+scoring:
+  pair_count: 5
+  wrong_pair_penalty: 14
+  forbidden_penalty: 40        # 표준 키 — 금기 페어 공통(변형 금지)     # 동일 성 오배정 — 금지행동, 합격선을 뚫는다(규칙 7)
+  matched_unmatched_penalty: 15  # 남겨야 할 콧수염 여권을 억지로 이은 경우(금기 조합이면 40 쪽 하나만)
+  wrong_key_penalty: 10          # 확인 후 색이 틀린 객실 키를 전달한 경우
