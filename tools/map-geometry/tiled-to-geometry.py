@@ -38,12 +38,17 @@ LAYER_ALIASES = {
     "interactions": "interactions",
     "spawn": "spawns",
     "spawns": "spawns",
+    "overhead": "overhead",
+    "occluder": "overhead",
+    "occluders": "overhead",
+    "foreground": "overhead",
 }
 
 OVERLAY_COLORS = {
     "playable": "rgba(241, 196, 15, 0.18)",
     "walkable": "rgba(46, 204, 113, 0.35)",
     "collision": "rgba(231, 76, 60, 0.40)",
+    "overhead": "rgba(155, 89, 182, 0.40)",
     "interactions": "rgba(52, 152, 219, 0.50)",
     "spawns": "rgba(230, 126, 34, 0.95)",
     "npc_paths": "rgba(155, 89, 182, 0.9)",
@@ -97,6 +102,11 @@ def _load_tmx(path: Path) -> dict:
                         {"x": float(pair.split(",")[0]), "y": float(pair.split(",")[1])}
                         for pair in poly.get("points", "").split()
                     ]
+                props = o.find("properties")
+                if props is not None:
+                    obj["properties"] = {
+                        p.get("name"): p.get("value") for p in props.findall("property")
+                    }
                 objects.append(obj)
             doc["layers"].append({
                 "type": "objectgroup", "name": el.get("name", ""), "objects": objects,
@@ -121,6 +131,38 @@ def _point(obj: dict) -> dict:
     return out
 
 
+def _poly(obj: dict) -> dict:
+    """폴리곤 오브젝트 → 절대좌표 꼭짓점 목록. Tiled는 오브젝트 기준점의 상대좌표로 저장한다."""
+    pts = [[_round(obj["x"] + p["x"]), _round(obj["y"] + p["y"])] for p in obj.get("polyline") or []]
+    out: dict = {"points": pts}
+    if obj.get("name"):
+        out["id"] = obj["name"]
+    return out
+
+
+def _occluder(obj: dict) -> dict:
+    """overhead(가림) 오브젝트 — 사각형 또는 폴리곤 + baseline(밑변 y).
+
+    baseline보다 발이 위(작은 y)면 캐릭터가 '뒤' → 이 영역이 캐릭터를 가린다.
+    폴리곤엔 bbox를 같이 실어 프론트가 배경 크롭 + clip-path로 바로 그릴 수 있게 한다.
+    """
+    if obj.get("polyline"):
+        out = _poly(obj)
+        xs = [p[0] for p in out["points"]]
+        ys = [p[1] for p in out["points"]]
+        out["bbox"] = {"x": min(xs), "y": min(ys), "w": max(xs) - min(xs), "h": max(ys) - min(ys)}
+        out["baseline"] = max(ys)
+    else:
+        out = _rect(obj)
+        out["baseline"] = out["y"] + out["h"]
+    # Tiled 커스텀 속성 mask=파일명 → 픽셀 알파 마스크 누끼 (케이블·틈새까지 픽셀 단위,
+    # 폴리곤 한 줄 경계로 못 따는 가구용). 파일은 맵 폴더에 bbox 크기로 둔다.
+    mask = (obj.get("properties") or {}).get("mask")
+    if mask:
+        out["mask"] = mask
+    return out
+
+
 def _path(obj: dict) -> dict:
     pts = obj.get("polyline") or []
     base_x, base_y = obj["x"], obj["y"]
@@ -141,6 +183,8 @@ def convert(tiled_path: Path) -> dict:
         "playable": [],
         "walkable": [],
         "collision": [],
+        "collision_polys": [],
+        "overhead": [],
         "npc_paths": [],
         "interactions": [],
         "spawns": [],
@@ -161,6 +205,14 @@ def convert(tiled_path: Path) -> dict:
                 geometry["npc_paths"].append(_path(obj))
             elif obj.get("point"):
                 geometry[key].append(_point(obj))
+            elif key == "overhead":
+                # 가구 상단부 — 캐릭터를 가리는 영역. 프론트가 배경을 이 모양대로 잘라
+                # 캐릭터 위에 y-정렬로 겹친다. baseline(밑변) = 앞/뒤 판정 기준.
+                geometry["overhead"].append(_occluder(obj))
+            elif obj.get("polyline") and key == "collision":
+                # 대각선 구조물 등 — 사각형으로 못 따는 충돌은 폴리곤으로.
+                # 기존 collision(사각형) 배열과 분리해 구버전 프론트가 깨지지 않게 한다.
+                geometry["collision_polys"].append(_poly(obj))
             else:
                 geometry[key].append(_rect(obj))
 
@@ -189,6 +241,13 @@ def write_csv(geometry: dict, path: Path) -> None:
                 "npc_paths", p["id"], "", "", "", "",
                 " → ".join(f"({x},{y})" for x, y in p["points"]),
             ])
+        for kind in ("collision_polys", "overhead"):
+            for item in geometry[kind]:
+                writer.writerow([
+                    kind, item.get("id", ""), item.get("x", ""), item.get("y", ""),
+                    item.get("w", ""), item.get("h", ""),
+                    " → ".join(f"({x},{y})" for x, y in item.get("points", [])),
+                ])
 
 
 def write_overlay(geometry: dict, path: Path) -> None:
@@ -218,6 +277,21 @@ def write_overlay(geometry: dict, path: Path) -> None:
         parts.append(box(r, "walkable"))
     for r in geometry["collision"]:
         parts.append(box(r, "collision"))
+    for o in geometry["collision_polys"]:
+        pts = " ".join(f"{x},{y}" for x, y in o["points"])
+        parts.append(
+            f'<svg class="path"><polygon points="{pts}" fill="{OVERLAY_COLORS["collision"]}" '
+            f'stroke="rgba(0,0,0,.45)" stroke-width="2"/></svg>'
+        )
+    for o in geometry["overhead"]:
+        if "points" in o:
+            pts = " ".join(f"{x},{y}" for x, y in o["points"])
+            parts.append(
+                f'<svg class="path"><polygon points="{pts}" fill="{OVERLAY_COLORS["overhead"]}" '
+                f'stroke="rgba(0,0,0,.45)" stroke-width="2"/></svg>'
+            )
+        else:
+            parts.append(box(o, "overhead"))
     for r in geometry["interactions"]:
         parts.append(box(r, "interactions") if "w" in r and r.get("w") else dot(r, "interactions"))
     for s in geometry["spawns"]:
@@ -262,7 +336,7 @@ def write_playtest(geometry: dict, path: Path) -> None:
     h = geometry["size"]["height"] or 1080
     bg = geometry.get("background") or "background.png"
     data = json.dumps(
-        {k: geometry[k] for k in ("playable", "walkable", "collision", "spawns", "npc_paths")},
+        {k: geometry[k] for k in ("playable", "walkable", "collision", "collision_polys", "overhead", "spawns", "npc_paths")},
         ensure_ascii=False,
     )
     path.write_text(
@@ -273,8 +347,12 @@ body{{margin:0;background:#1a1a1a;font-family:sans-serif;overflow:hidden}}
   transform-origin:0 0}}
 .ov{{position:absolute;border:1px solid rgba(0,0,0,.4);display:none}}
 .show .ov{{display:block}}
-#player{{position:absolute;width:34px;height:44px;margin:-40px 0 0 -17px;z-index:10;
+#player{{position:absolute;width:34px;height:44px;margin:-40px 0 0 -17px;
   transition:left 70ms linear,top 70ms linear}}
+.occ-line .occ{{outline:2px dashed #e91e63}}
+.occtag{{position:absolute;display:none;color:#ff4081;font-size:13px;font-weight:700;
+  text-shadow:0 1px 3px #000;z-index:9999;white-space:nowrap}}
+.occ-line .occtag{{display:block}}
 #player .body{{width:34px;height:34px;border-radius:50% 50% 42% 42%;
   background:linear-gradient(160deg,#6143ca,#d963aa);border:3px solid #fff;
   box-shadow:0 6px 14px rgba(0,0,0,.45)}}
@@ -291,7 +369,7 @@ body{{margin:0;background:#1a1a1a;font-family:sans-serif;overflow:hidden}}
 </style>
 <div id="stage"></div>
 <div id="hint"></div>
-<div id="help">이동: WASD/방향키 · 오버레이: G</div>
+<div id="help">이동: WASD/방향키 · 오버레이: G · 오클루더 윤곽: O</div>
 <script>
 const G = {data};
 const STEP = 18, FOOT_W = 28, FOOT_H = 16, TALK_DIST = 130;  // NPC가 책상 뒤라 책상 너머 대화 가능한 반경
@@ -309,7 +387,7 @@ const npcs = G.spawns.filter(s => s.id !== "player");
 for (const n of npcs) {{
   const d = document.createElement("div");
   d.className = "npc";
-  d.style.cssText = `left:${{n.x}}px;top:${{n.y}}px`;
+  d.style.cssText = `left:${{n.x}}px;top:${{n.y}}px;z-index:${{Math.round(n.y)}}`;
   d.innerHTML = `<b>${{n.id}}</b>`;
   stage.appendChild(d);
 }}
@@ -321,14 +399,52 @@ player.id = "player";
 player.innerHTML = '<div class="body"></div><div class="shadow"></div>';
 stage.appendChild(player);
 
+// overhead 오클루더 — 같은 배경에서 그 영역만 잘라(크롭+clip-path) 겹침. z = 밑변(baseline).
+// 플레이어 z = 발 y → 발이 밑변보다 위(뒤)면 가려지고, 아래(앞)면 안 가려짐. 프론트 구현 방식 그대로.
+for (const o of (G.overhead || [])) {{
+  const b = o.bbox || o;
+  const d = document.createElement("div");
+  d.className = "occ";
+  let shape = "";
+  if (o.mask)  // 픽셀 알파 마스크 누끼 — 폴리곤보다 우선
+    shape = `-webkit-mask:url("${{o.mask}}") 0 0/${{b.w}}px ${{b.h}}px no-repeat;` +
+            `mask:url("${{o.mask}}") 0 0/${{b.w}}px ${{b.h}}px no-repeat;`;
+  else if (o.points)
+    shape = `clip-path:polygon(${{o.points.map(p => `${{p[0] - b.x}}px ${{p[1] - b.y}}px`).join(",")}});`;
+  d.style.cssText = `position:absolute;left:${{b.x}}px;top:${{b.y}}px;width:${{b.w}}px;height:${{b.h}}px;` +
+    `background:url("{bg}") -${{b.x}}px -${{b.y}}px/{w}px {h}px no-repeat;` + shape +
+    `z-index:${{Math.round(o.baseline)}};pointer-events:none`;
+  stage.appendChild(d);
+  if (o.id) {{  // clip-path가 자식까지 자르므로 이름표는 별도 요소로
+    const t = document.createElement("b");
+    t.className = "occtag";
+    t.textContent = o.id;
+    t.style.cssText = `left:${{b.x}}px;top:${{b.y - 20}}px`;
+    stage.appendChild(t);
+  }}
+}}
+
 const inWalkable = (x, y) => G.walkable.some(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
 const hitsCollision = (x, y) => G.collision.some(r =>
   x - FOOT_W / 2 < r.x + r.w && x + FOOT_W / 2 > r.x && y - FOOT_H < r.y + r.h && y > r.y);
-const canStand = (x, y) => inWalkable(x, y) && !hitsCollision(x, y);
+const pip = (x, y, pts) => {{  // point-in-polygon (레이 캐스팅)
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {{
+    const [xi, yi] = pts[i], [xj, yj] = pts[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+  }}
+  return inside;
+}};
+const hitsPoly = (x, y) => (G.collision_polys || []).some(p =>
+  [[x - FOOT_W / 2, y - FOOT_H], [x + FOOT_W / 2, y - FOOT_H],
+   [x - FOOT_W / 2, y], [x + FOOT_W / 2, y], [x, y - FOOT_H / 2]]
+    .some(([cx, cy]) => pip(cx, cy, p.points)));
+const canStand = (x, y) => inWalkable(x, y) && !hitsCollision(x, y) && !hitsPoly(x, y);
 
 function render() {{
   player.style.left = px + "px";
   player.style.top = py + "px";
+  player.style.zIndex = Math.round(py);  // y-정렬: 발 y가 오클루더 baseline과 경쟁
   const near = npcs.map(n => ({{n, d: Math.hypot(n.x - px, n.y - py)}}))
     .filter(o => o.d < TALK_DIST).sort((a, b) => a.d - b.d)[0];
   const hint = document.getElementById("hint");
@@ -339,6 +455,7 @@ function render() {{
 document.addEventListener("keydown", (e) => {{
   const k = e.key.toLowerCase();
   if (k === "g") {{ stage.classList.toggle("show"); return; }}
+  if (k === "o") {{ stage.classList.toggle("occ-line"); return; }}
   const d = {{arrowup:[0,-STEP], w:[0,-STEP], arrowdown:[0,STEP], s:[0,STEP],
              arrowleft:[-STEP,0], a:[-STEP,0], arrowright:[STEP,0], d:[STEP,0]}}[k];
   if (!d) return;
@@ -350,6 +467,8 @@ document.addEventListener("keydown", (e) => {{
 
 const fit = () => stage.style.transform = `scale(${{Math.min(1, innerWidth / {w}, innerHeight / {h})}})`;
 addEventListener("resize", fit); fit(); render();
+if (!canStand(px, py))  // 스폰이 충돌 영역과 겹치면 그 자리에서 갇힘 — 좌표 실수 즉시 표시
+  document.getElementById("help").textContent += " · ⚠ 스폰이 충돌 영역과 겹쳐 못 움직입니다 (spawn 좌표 수정 필요)";
 // 자동 검증용 훅 (게임과 무관)
 window.__pt = {{ get pos() {{ return [px, py]; }}, set(x, y) {{ px = x; py = y; render(); }},
   canStand, players: document.querySelectorAll("#player").length }};
@@ -374,7 +493,7 @@ def main() -> None:
 
     counts = {
         k: len(geometry[k])
-        for k in ("playable", "walkable", "collision", "npc_paths", "interactions", "spawns")
+        for k in ("playable", "walkable", "collision", "collision_polys", "overhead", "npc_paths", "interactions", "spawns")
     }
     print(f"[{geometry['map_id']}] geometry.json / review.csv / debug-overlay.html 생성")
     print("  " + " · ".join(f"{k} {v}" for k, v in counts.items())
