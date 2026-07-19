@@ -669,6 +669,25 @@ async def save_minigame_result(
     return {"state": public_state(state), "step_changed": None}
 
 
+MEMO_MAX = 4000
+
+
+async def save_memo(session: AsyncSession, simulation: Simulation, content: str) -> dict:
+    """플레이어 메모 저장 — 사수가 알려주는 업무 내용을 직접 받아적는 학습 노트.
+
+    자동 기록되는 업무 노트(브리핑 절차)와 달리 **플레이어가 스스로 적는** 글이다 — 직접
+    적어야 학습이 된다는 팀 설계. 채점·리포트에 쓰지 않는 개인 메모장이므로 내용 검증 없이
+    그대로 보관한다. 빈 문자열은 '지움'으로 허용, 저장할 때마다 덮어쓴다(단일 노트).
+    새로고침·이어하기 시 state로 복원된다.
+    """
+    state = dict(simulation.state)
+    state["memo"] = str(content or "")[:MEMO_MAX]
+    simulation.state = state
+    flag_modified(simulation, "state")
+    await session.commit()
+    return {"state": public_state(state), "step_changed": None}
+
+
 REFLECTION_MAX = 2000
 
 
