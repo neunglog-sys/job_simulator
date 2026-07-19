@@ -777,8 +777,6 @@ export function ScenarioGamePage() {
             if (window.history.length > 1) window.history.back();
             else window.location.assign("/");
           }}
-          onSkip={handleSkip}
-          onRetry={handleRetry}
           onMission={handleOpenMission}
         />
         <HintPanel isOpen={isHintOpen} hints={hints} onClose={() => setIsHintOpen(false)} />
@@ -869,6 +867,8 @@ export function ScenarioGamePage() {
             }
             onSend={handleSendToNpc}
             onHistoryToggle={() => setIsHistoryOpen((current) => !current)}
+            onMemoOpen={() => setCoachMessage("메모 기능은 준비 중이에요.")}
+            onWorkflowOpen={() => setCoachMessage("업무 프로세스 보기는 준비 중이에요.")}
           />
           <AiCoachPanel message={coachMessage} />
         </div>
