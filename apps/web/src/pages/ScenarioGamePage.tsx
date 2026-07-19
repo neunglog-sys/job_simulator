@@ -868,7 +868,8 @@ export function ScenarioGamePage() {
             onSend={handleSendToNpc}
             onHistoryToggle={() => setIsHistoryOpen((current) => !current)}
             onMemoOpen={() => setCoachMessage("메모 기능은 준비 중이에요.")}
-            onWorkflowOpen={() => setCoachMessage("업무 프로세스 보기는 준비 중이에요.")}
+            // '업무 프로세스 보기' = 업무 노트 — 사수 브리핑에서 들은 절차가 힌트 패널에 있다
+            onWorkflowOpen={() => setIsHintOpen(true)}
           />
           <AiCoachPanel message={coachMessage} />
         </div>
