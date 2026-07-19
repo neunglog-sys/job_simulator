@@ -197,6 +197,20 @@ export class SimulationSocket {
     return true;
   }
 
+  /** 4단계 미니게임 결과 전송 — 역량 지표에 블렌드되고 리포트 근거가 된다 (팀 결정 B안).
+   *  engine은 설계 문서의 엔진 키(spot·match·sort·gauge·sequence·route·pour·trace·physics·place).
+   *  스텁 등 모르는 engine은 저장만 되고 점수에 반영되지 않는다. */
+  sendMinigameResult(result: {
+    engine: string;
+    accuracy: number; // 0~100
+    time_seconds?: number;
+    mistakes?: number;
+  }): boolean {
+    if (this.ws?.readyState !== WebSocket.OPEN) return false;
+    this.ws.send(JSON.stringify({ type: "minigame_result", ...result }));
+    return true;
+  }
+
   /** 5단계 체험 소감문 전송 — 채점하지 않고 최종 리포트 재료로 저장된다. */
   sendReflection(content: string): boolean {
     if (this.ws?.readyState !== WebSocket.OPEN) return false;

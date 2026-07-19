@@ -777,8 +777,6 @@ export function ScenarioGamePage() {
             if (window.history.length > 1) window.history.back();
             else window.location.assign("/");
           }}
-          onSkip={handleSkip}
-          onRetry={handleRetry}
           onMission={handleOpenMission}
         />
         <HintPanel isOpen={isHintOpen} hints={hints} onClose={() => setIsHintOpen(false)} />
@@ -869,6 +867,8 @@ export function ScenarioGamePage() {
             }
             onSend={handleSendToNpc}
             onHistoryToggle={() => setIsHistoryOpen((current) => !current)}
+            onMemoOpen={() => setCoachMessage("메모 기능은 준비 중이에요.")}
+            onWorkflowOpen={() => setCoachMessage("업무 프로세스 보기는 준비 중이에요.")}
           />
           <AiCoachPanel message={coachMessage} />
         </div>
@@ -906,11 +906,16 @@ export function ScenarioGamePage() {
         />
       ) : null}
 
-      {/* 4단계 — 실무 미니게임 (지금은 빈 창) */}
+      {/* 4단계 — 실무 미니게임 (지금은 빈 창). 실제 엔진이 붙으면 onClear에서
+          그 게임의 engine 키·정확도·실수를 보내면 역량·리포트에 반영된다.
+          스텁은 engine:"stub"로 보내 파이프라인만 태우고 점수엔 반영되지 않는다. */}
       {phase === "minigame" ? (
         <MiniGamePanel
           missionTitle="신입의 주 업무"
-          onClear={() => setPhase("reflection")}
+          onClear={() => {
+            socketRef.current?.sendMinigameResult({ engine: "stub", accuracy: 0 });
+            setPhase("reflection");
+          }}
         />
       ) : null}
 

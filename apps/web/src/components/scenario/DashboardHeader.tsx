@@ -1,9 +1,7 @@
 import {
-  ArrowCounterClockwise,
   ArrowLeft,
   CornersIn,
   CornersOut,
-  FastForward,
   GearSix,
   House,
   LightbulbFilament,
@@ -45,8 +43,6 @@ type DashboardHeaderProps = {
   onSettingsOpen: () => void;
   onHome: () => void;
   onBack: () => void;
-  onSkip: () => void;
-  onRetry: () => void;
   onMission: () => void;
 };
 
@@ -62,8 +58,6 @@ export function DashboardHeader({
   onSettingsOpen,
   onHome,
   onBack,
-  onSkip,
-  onRetry,
   onMission,
 }: DashboardHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -116,7 +110,7 @@ export function DashboardHeader({
         aria-valuenow={progress}
         style={progressStyle}
       >
-        <span className={styles.progressLabel}>직무 여정</span>
+        <span className={styles.progressLabel}>진행도</span>
         <span className={styles.progressTrack} aria-hidden="true">
           <span className={styles.progressValue} />
           <span className={styles.progressRocket}>
@@ -131,12 +125,6 @@ export function DashboardHeader({
         <button className={`${styles.headerActionButton} ${styles.missionCtaButton}`} type="button" onClick={onMission}>
           <Target weight="fill" aria-hidden="true" />
           <span>미션</span>
-        </button>
-        <button className={styles.headerIconButton} type="button" onClick={onRetry} aria-label="시나리오 다시 시작" title="리트라이">
-          <ArrowCounterClockwise weight="bold" aria-hidden="true" />
-        </button>
-        <button className={styles.headerIconButton} type="button" onClick={onSkip} aria-label="현재 미션 건너뛰기" title="미션 스킵">
-          <FastForward weight="fill" aria-hidden="true" />
         </button>
         <button
           className={`${styles.headerIconButton} ${isHintOpen ? styles.headerIconButtonActive : ""}`}
