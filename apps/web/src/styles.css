@@ -3194,9 +3194,14 @@ a:focus-visible {
   font-weight: 700;
 }
 
+.auth-social-divider > span {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .auth-social-divider::before,
 .auth-social-divider::after {
-  width: 100%;
+  flex: 1 1 auto;
   height: 1px;
   content: "";
   background: rgb(108 76 205 / 0.14);
