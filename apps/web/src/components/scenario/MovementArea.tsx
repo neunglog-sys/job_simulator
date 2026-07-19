@@ -2,7 +2,6 @@ import {
   Briefcase,
   ClipboardText,
   DesktopTower,
-  UserCircle,
   type Icon,
 } from "@phosphor-icons/react";
 import {
@@ -10,9 +9,11 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   type PointerEvent,
 } from "react";
 import type { GameMapData, GameNpc } from "../../lib/api";
+import { NpcSprite, type NpcFacing } from "./NpcSprite";
 import { PlayerSprite, PLAYER_SIZE } from "./PlayerSprite";
 import type { Position } from "./types";
 import styles from "../../styles/scenarioGame.module.css";
@@ -135,6 +136,40 @@ export function MovementArea({
       h: c.h,
     }));
   }, [geometry, origin]);
+
+  // 투어 중인 사수의 진행 방향 — 좌표 변화의 지배 축으로 판정해 스프라이트가 걷는 쪽을 본다.
+  // ref에 이전 좌표와 함께 저장: 좌표가 실제로 바뀐 렌더에서만 갱신 (StrictMode 이중 렌더 안전).
+  const guideTrack = useRef<{ pos: Position | null; facing: NpcFacing }>({
+    pos: null,
+    facing: "front",
+  });
+  if (guidePosition) {
+    const prev = guideTrack.current.pos;
+    if (prev && (prev.x !== guidePosition.x || prev.y !== guidePosition.y)) {
+      const dx = guidePosition.x - prev.x;
+      const dy = guidePosition.y - prev.y;
+      guideTrack.current.facing =
+        Math.abs(dx) >= Math.abs(dy)
+          ? dx > 0
+            ? "screen_right"
+            : "screen_left"
+          : dy > 0
+            ? "front"
+            : "back";
+    }
+    guideTrack.current.pos = guidePosition;
+  } else {
+    guideTrack.current = { pos: null, facing: "front" };
+  }
+
+  // 마커 이동은 CSS transition(900ms)이라, 좌표가 바뀔 때마다 그 시간만큼만 걷기 애니메이션을 켠다.
+  const [guideWalking, setGuideWalking] = useState(false);
+  useEffect(() => {
+    if (!guidePosition) return;
+    setGuideWalking(true);
+    const timer = setTimeout(() => setGuideWalking(false), 900);
+    return () => clearTimeout(timer);
+  }, [guidePosition]);
 
   const npcMarkers = useMemo<NpcMarker[]>(() => {
     if (!geometry?.spawns) return [];
@@ -304,9 +339,13 @@ export function MovementArea({
                   !
                 </span>
               ) : null}
-              <span className={styles.npcMarkerAvatar} aria-hidden="true">
-                <UserCircle weight="duotone" />
-              </span>
+              <NpcSprite
+                npcId={marker.npc_id}
+                facing={
+                  guideNpcId === marker.npc_id ? guideTrack.current.facing : "front"
+                }
+                walking={guideNpcId === marker.npc_id && guideWalking}
+              />
               <span className={styles.npcMarkerName}>{marker.name}</span>
             </button>
           ))
