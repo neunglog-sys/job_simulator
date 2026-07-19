@@ -20,6 +20,28 @@ MISSION_WEIGHT = 0.8
 QUEST_WEIGHT = 0.2
 STATE_BLEND = 0.3  # 협업·커뮤니케이션에 섞는 대화 상태값 비중
 
+# 4단계 실무 미니게임 → 역량 블렌드 (팀 결정: 결과를 리포트 역량 지표로 연결)
+# 시나리오 총점(미션 80% + 퀘스트 20%)은 팀 확정 공식이라 건드리지 않고, 역량 5종에만
+# 대화 상태값(STATE_BLEND)과 같은 방식으로 섞는다. 비중은 팀 튜닝 대상.
+MINIGAME_BLEND = 0.25
+# 엔진 → 강화하는 역량 (설계 문서 '46 콘셉트 → 엔진 ~10종'의 태그 기반).
+# communication·collaboration은 NPC 대화에서 오는 역량이라 미니게임이 건드리지 않는다.
+MINIGAME_COMPETENCY = {
+    # 결함·이상 찾기, 계기 판독 → 관찰·판정
+    "spot": "situation_judgment",
+    "gauge": "situation_judgment",
+    # 분류·트리아지, 경로 설계, 매칭 → 우선순위·논리
+    "sort": "problem_solving",
+    "match": "problem_solving",
+    "route": "problem_solving",
+    # 절차, 계량, 트레이싱, 배치·조작 → 절차 준수·정밀
+    "sequence": "task_management",
+    "pour": "task_management",
+    "trace": "task_management",
+    "physics": "task_management",
+    "place": "task_management",
+}
+
 # 미션 상황유형 → 역량 가중치 (주역량 1.0, 보조 0.5)
 TYPE_COMPETENCY = {
     "정상업무": {"task_management": 1.0},
@@ -166,7 +188,35 @@ def competency_scores(
         else:
             value = mission_based
         result[key] = round(value) if value is not None else None
+
+    # 4단계 미니게임 — 해당 엔진이 강화하는 역량 하나에만 블렌드. 미완주(결과 없음)·모르는
+    # 엔진(프론트 스텁 등)은 조용히 무시해 점수를 오염시키지 않는다.
+    game = minigame_of(state)
+    if game is not None:
+        key = MINIGAME_COMPETENCY[game["engine"]]
+        base = result[key]
+        result[key] = round(
+            game["score"] if base is None
+            else base * (1 - MINIGAME_BLEND) + game["score"] * MINIGAME_BLEND
+        )
     return result
+
+
+def minigame_of(state: dict) -> dict | None:
+    """역량·리포트에 반영할 미니게임 결과 — 실제 엔진의 유효한 점수만 인정.
+
+    스텁('stub')이나 아직 매핑 없는 엔진은 저장은 되지만 여기서 걸러진다 — 파이프라인은
+    돌되 가짜 점수가 역량·리포트를 오염시키지 않게.
+    """
+    game = state.get("minigame")
+    if not isinstance(game, dict):
+        return None
+    score = game.get("score")
+    if game.get("engine") not in MINIGAME_COMPETENCY:
+        return None
+    if not isinstance(score, (int, float)) or isinstance(score, bool):
+        return None
+    return game
 
 
 def conduct_from_affinity(state: dict) -> dict | None:
@@ -216,6 +266,8 @@ async def simulation_score(session: AsyncSession, simulation, scenario) -> dict:
         "competencies": competencies,
         # 대화 태도 — 총점·역량 공식에는 넣지 않고 리포트가 관찰 소견으로 쓴다 (팀 확정 공식 보존)
         "conduct": conduct_from_affinity(simulation.state),
+        # 4단계 미니게임 — 역량에 블렌드된 그 결과. 리포트가 근거로 인용한다 (스텁·미완주는 None)
+        "minigame": minigame_of(simulation.state),
     }
 
 

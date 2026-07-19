@@ -38,6 +38,14 @@
 태도가 달랐다는 뜻이니 그 점을 짚으세요. 태도만으로 적합도(fit_score)를 낮추지는 마세요.
 {% endif %}
 
+{% set minigame = performance.get('minigame') %}{% if minigame %}- 실무 미니게임(손 조작 과제): {{ minigame.engine }} 유형 · 정확도 {{ minigame.score }}점{% if minigame.get('mistakes') is not none %} · 실수 {{ minigame.mistakes }}회{% endif %}{% if minigame.get('time_seconds') is not none %} · {{ minigame.time_seconds }}초{% endif %}
+
+미니게임 해석 지침: 대화·문서형 미션과 달리 **손으로 직접 해본 실무 조작**(결함 찾기·분류·
+계량 등)의 결과입니다. 이미 해당 역량 점수에 일부 반영되어 있으니 점수를 다시 얹지 말고,
+정확도가 높으면 "직접 해보는 일에 강함"의 근거로, 실수가 잦으면 신중함·꼼꼼함 관련
+보완점의 근거로 인용하세요.
+{% endif %}
+
 수행 데이터 해석 지침: 시도 횟수가 적고 점수가 높은 미션은 강점의 직접 증거,
 여러 번 시도한 미션 유형은 보완점의 직접 증거로 인용하세요.
 "말한 것"(상담)과 "해본 것"(수행)이 다르면 수행 쪽을 더 신뢰하세요.
