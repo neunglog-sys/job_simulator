@@ -6,7 +6,7 @@ import {
   PaperPlaneTilt,
   UserCircle,
 } from "@phosphor-icons/react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import styles from "../../styles/scenarioGame.module.css";
 
 type ScenarioControlPanelProps = {
@@ -16,7 +16,10 @@ type ScenarioControlPanelProps = {
   userMessage: string;
   isStreaming?: boolean;
   isHistoryOpen?: boolean;
+  isMemoOpen?: boolean;
+  isWorkflowOpen?: boolean;
   disabled?: boolean;
+  focusInput?: boolean;
   placeholder?: string;
   /** 입력이 막힌 이유 — 서버 문제인지 '지금은 입력할 때가 아닌지'를 구분해 보여준다. */
   disabledHint?: string;
@@ -33,7 +36,10 @@ export function ScenarioControlPanel({
   userMessage,
   isStreaming = false,
   isHistoryOpen = false,
+  isMemoOpen = false,
+  isWorkflowOpen = false,
   disabled = false,
+  focusInput = false,
   placeholder = "NPC에게 보낼 답변을 입력하세요",
   disabledHint = "게임 서버에 연결 중이에요…",
   onSend,
@@ -43,9 +49,22 @@ export function ScenarioControlPanel({
 }: ScenarioControlPanelProps) {
   const [draft, setDraft] = useState("");
   const [isVoiceActive, setIsVoiceActive] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const conversationRef = useRef<HTMLDivElement>(null);
 
   // 스트리밍 중 백엔드 정리 전에 잠깐 새어나올 수 있는 화자 태그("[이름] ")를 표시 단계에서도 제거.
   const displayNpcMessage = npcMessage.replace(/^\s*\[[^\]]{1,20}\]\s*/, "");
+
+  useEffect(() => {
+    if (!focusInput || disabled) return;
+    inputRef.current?.focus();
+  }, [disabled, focusInput]);
+
+  useEffect(() => {
+    const conversation = conversationRef.current;
+    if (!conversation) return;
+    conversation.scrollTop = conversation.scrollHeight;
+  }, [displayNpcMessage, isStreaming, userMessage]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -60,21 +79,33 @@ export function ScenarioControlPanel({
     <div className={styles.dialogueHudGroup}>
       <div className={styles.dialogueUtilityBar} aria-label="대화 보조 기능">
         <button
-          className={`${styles.dialogueUtilityButton} ${isHistoryOpen ? styles.historyDialogueButtonActive : ""}`}
+          className={`${styles.dialogueUtilityButton} ${isHistoryOpen ? styles.dialogueUtilityButtonActive : ""}`}
           type="button"
           onClick={onHistoryToggle}
           aria-label={isHistoryOpen ? "이전 대화 닫기" : "이전 대화 보기"}
           aria-expanded={isHistoryOpen}
         >
-          <ChatTeardropText weight={isHistoryOpen ? "fill" : "duotone"} aria-hidden="true" />
+          <ChatTeardropText weight={isHistoryOpen ? "fill" : "bold"} aria-hidden="true" />
           <span>이전 대화 보기</span>
         </button>
-        <button className={styles.dialogueUtilityButton} type="button" onClick={onMemoOpen}>
-          <NotePencil weight="duotone" aria-hidden="true" />
+        <button
+          className={`${styles.dialogueUtilityButton} ${isMemoOpen ? styles.dialogueUtilityButtonActive : ""}`}
+          type="button"
+          onClick={onMemoOpen}
+          aria-label={isMemoOpen ? "메모장 닫기" : "메모하기"}
+          aria-expanded={isMemoOpen}
+        >
+          <NotePencil weight="bold" aria-hidden="true" />
           <span>메모하기</span>
         </button>
-        <button className={styles.dialogueUtilityButton} type="button" onClick={onWorkflowOpen}>
-          <ListChecks weight="duotone" aria-hidden="true" />
+        <button
+          className={`${styles.dialogueUtilityButton} ${isWorkflowOpen ? styles.dialogueUtilityButtonActive : ""}`}
+          type="button"
+          onClick={onWorkflowOpen}
+          aria-label={isWorkflowOpen ? "업무 프로세스 닫기" : "업무 프로세스 보기"}
+          aria-expanded={isWorkflowOpen}
+        >
+          <ListChecks weight="bold" aria-hidden="true" />
           <span>업무 프로세스 보기</span>
         </button>
       </div>
@@ -89,12 +120,12 @@ export function ScenarioControlPanel({
             <small>{npcRole || "NPC"}</small>
           </div>
 
-          <div className={styles.conversationBubbles}>
-            {userMessage ? (
-              <div className={styles.userSpeechBubble} aria-label="내 답변" aria-live="polite">
-                <p>{userMessage}</p>
-              </div>
-            ) : null}
+          <div
+            className={styles.conversationBubbles}
+            ref={conversationRef}
+            role="log"
+            aria-label="현재 대화 한 턴"
+          >
             <div className={styles.npcSpeechBubble} aria-live="polite">
               <p>
                 {displayNpcMessage ||
@@ -102,11 +133,17 @@ export function ScenarioControlPanel({
                 {isStreaming ? <span aria-hidden="true">▍</span> : null}
               </p>
             </div>
+            {userMessage ? (
+              <div className={styles.userSpeechBubble} aria-label="내 답변" aria-live="polite">
+                <p>{userMessage}</p>
+              </div>
+            ) : null}
           </div>
         </div>
 
         <form className={styles.dialogueComposer} onSubmit={handleSubmit}>
           <input
+            ref={inputRef}
             type="text"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
