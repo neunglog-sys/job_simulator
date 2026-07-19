@@ -8,7 +8,7 @@ type SurveyStartMessageButtonProps = {
 export function SurveyStartMessageButton({ onClick }: SurveyStartMessageButtonProps) {
   return (
     <button className={styles.surveyStartMessageButton} type="button" onClick={onClick}>
-      <span>설문 시작하기</span>
+      <span>설문하기</span>
       <ArrowRight aria-hidden="true" />
     </button>
   );
