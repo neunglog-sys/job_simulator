@@ -6,6 +6,7 @@ import type { RecordingState } from "../../types/conversation";
 type ChatComposerProps = {
   inputValue: string;
   recordingState: RecordingState;
+  voiceIssue: string | null;
   onInputChange: (value: string) => void;
   onSend: () => void;
   onVoiceInput: () => void;
@@ -18,6 +19,7 @@ const MAX_COMPOSER_HEIGHT = 142;
 export function ChatComposer({
   inputValue,
   recordingState,
+  voiceIssue,
   onInputChange,
   onSend,
   onVoiceInput,
@@ -59,6 +61,11 @@ export function ChatComposer({
 
   return (
     <form className={styles.chatComposer} onSubmit={handleSubmit}>
+      {voiceIssue ? (
+        <p className={styles.voiceIssue} role="alert">
+          {voiceIssue}
+        </p>
+      ) : null}
       <div className={styles.messageInputWrapper}>
         <textarea
           ref={textareaRef}
@@ -86,8 +93,10 @@ export function ChatComposer({
           type="button"
           onClick={onVoiceInput}
           disabled={isVoiceBusy}
+          data-state={recordingState}
           aria-label={recordingState === "recording" ? "음성 입력 중지" : "음성 입력 시작"}
           aria-pressed={recordingState === "recording"}
+          title={voiceIssue ?? undefined}
         >
           {isVoiceBusy ? (
             <CircleNotch className={styles.voiceSpinner} aria-hidden="true" />

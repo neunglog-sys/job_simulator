@@ -1,4 +1,3 @@
-import { X } from "@phosphor-icons/react";
 import { useRef, type FormEvent } from "react";
 import { surveyQuestions } from "../../data/surveyMockData";
 import styles from "../../styles/oneToOneConversation.module.css";
@@ -7,18 +6,14 @@ import { GlassScrollbar } from "./GlassScrollbar";
 import { SurveyQuestion } from "./SurveyQuestion";
 
 type SurveyDrawerProps = {
-  open: boolean;
   answers: SurveyAnswers;
   onAnswerChange: (questionId: string, value: string) => void;
-  onClose: () => void;
   onSubmit: () => void;
 };
 
 export function SurveyDrawer({
-  open,
   answers,
   onAnswerChange,
-  onClose,
   onSubmit,
 }: SurveyDrawerProps) {
   const questionViewportRef = useRef<HTMLDivElement>(null);
@@ -29,21 +24,12 @@ export function SurveyDrawer({
   };
 
   return (
-    <div
-      className={`${styles.surveyDrawerLayer} ${open ? styles.surveyDrawerLayerOpen : ""}`}
-      aria-hidden={!open}
-    >
-      <form className={styles.surveyDrawer} onSubmit={handleSubmit}>
-        <button
-          className={styles.surveyCloseButton}
-          type="button"
-          onClick={onClose}
-          disabled={!open}
-          aria-label="설문 패널 닫기"
-        >
-          <X aria-hidden="true" />
-        </button>
-
+    <form className={styles.surveyDrawer} onSubmit={handleSubmit} aria-label="직무 추천 설문">
+      <div className={styles.panelHeading}>
+        <span>CAREER SURVEY</span>
+        <h2>나에게 맞는 직무를 찾기 위한 설문</h2>
+        <p>응답은 탭을 이동해도 그대로 저장됩니다.</p>
+      </div>
         <div
           ref={questionViewportRef}
           className={styles.surveyQuestionViewport}
@@ -55,7 +41,7 @@ export function SurveyDrawer({
                 key={question.id}
                 question={question}
                 value={answers[question.id]}
-                disabled={!open}
+                disabled={false}
                 onChange={onAnswerChange}
               />
             ))}
@@ -64,13 +50,12 @@ export function SurveyDrawer({
         <GlassScrollbar
           viewportRef={questionViewportRef}
           className={styles.surveyScrollbar}
-          refreshKey={`${open}-${surveyQuestions.length}`}
+          refreshKey={surveyQuestions.length}
         />
 
-        <button className={styles.surveySubmitButton} type="submit" disabled={!open}>
+        <button className={styles.surveySubmitButton} type="submit">
           제출하기
         </button>
-      </form>
-    </div>
+    </form>
   );
 }
