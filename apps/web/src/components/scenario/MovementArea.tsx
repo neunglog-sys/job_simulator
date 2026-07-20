@@ -45,7 +45,8 @@ type GameObject = {
 type Rect = { x: number; y: number; w: number; h: number };
 type NpcMarker = { npc_id: string; name: string; x: number; y: number; isActive: boolean };
 
-const MOVE_STEP = 18;
+const MOVE_STEP = 18;             // 클릭 이동의 경로 샘플링 간격
+const MOVE_SPEED = 260;           // 키보드 이동 속도 (px/초) — 프레임 루프 기준
 // 화면 확대 배율 (팀 확정 2026-07-20). 배경·NPC·플레이어가 같은 world 래퍼 안에서
 // 함께 확대되고, 카메라가 플레이어를 따라가며 맵 밖으로는 나가지 않게 clamp된다.
 const ZOOM = 1.25;
@@ -140,6 +141,8 @@ export function MovementArea({
   // NPC 마커 clamp용 컨테이너 크기 — 플레이어(clampPosition)와 달리 마커는 렌더 시점에
   // area.clientWidth/Height를 직접 읽을 수 없어(첫 렌더엔 ref가 비어있음) state로 들고 간다.
   const [areaSize, setAreaSize] = useState<{ width: number; height: number } | null>(null);
+  // 지금 눌려 있는 이동 키 — 프레임 루프가 매 프레임 읽는다 (리렌더 유발 안 함)
+  const heldKeysRef = useRef<Set<string>>(new Set());
 
   // geometry 좌표계(스테이지 1920×1080)의 원점 = walkable 영역의 좌상단. movementArea 로컬좌표 = (x-origin).
   const origin = useMemo(() => {
@@ -247,7 +250,7 @@ export function MovementArea({
     );
     setPlayerWalking(true);
     if (playerWalkTimer.current) clearTimeout(playerWalkTimer.current);
-    playerWalkTimer.current = setTimeout(() => setPlayerWalking(false), 220);
+    playerWalkTimer.current = setTimeout(() => setPlayerWalking(false), 120);
   }, []);
 
   const npcMarkers = useMemo<NpcMarker[]>(() => {
@@ -411,17 +414,54 @@ export function MovementArea({
   // 이동 키는 window에서 받는다 — 이동영역 div에 포커스가 있어야만 동작하던 탓에
   // '맵을 한 번 클릭해야 키보드가 먹고, 채팅창에 타이핑하면 다시 먹통'이 됐다.
   // 글자 입력 중(채팅·서술형 답안)에는 무시한다.
+  //
+  // 키를 누른 '상태'를 모아두고 매 프레임 움직인다 — 예전엔 keydown 이벤트마다 18px씩
+  // 튀었는데, OS 키 반복 속도에 끌려다녀서 처음엔 멈칫하고 이후엔 덜컹거렸다.
+  // 프레임 루프로 바꾸면 속도가 일정하고 대각선 이동도 자연스럽다.
   useEffect(() => {
+    const held = heldKeysRef.current;
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (isTypingTarget(event.target)) return;
-      const delta = MOVEMENT_KEYS[event.key];
-      if (!delta) return;
+      if (!MOVEMENT_KEYS[event.key]) return;
       event.preventDefault();
-      movePlayer(delta.x, delta.y);
+      held.add(event.key);
     };
+    const onKeyUp = (event: globalThis.KeyboardEvent) => held.delete(event.key);
+    const onBlur = () => held.clear(); // 창을 벗어나면 키가 눌린 채로 남지 않게
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+      held.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    let raf = 0;
+    let last = performance.now();
+    const loop = (now: number) => {
+      raf = requestAnimationFrame(loop);
+      const dt = Math.min(0.05, (now - last) / 1000); // 탭 전환 등으로 크게 튀는 것 방지
+      last = now;
+      let dx = 0;
+      let dy = 0;
+      for (const key of heldKeysRef.current) {
+        const d = MOVEMENT_KEYS[key];
+        if (!d) continue;
+        dx += Math.sign(d.x);
+        dy += Math.sign(d.y);
+      }
+      if (dx === 0 && dy === 0) return;
+      const len = Math.hypot(dx, dy) || 1; // 대각선이 빨라지지 않게 정규화
+      const step = MOVE_SPEED * dt;
+      movePlayer((dx / len) * step, (dy / len) * step);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
   }, [movePlayer]);
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -491,7 +531,8 @@ export function MovementArea({
                 left: 0,
                 top: 0,
                 transformOrigin: "0 0",
-                transform: `scale(${ZOOM}) translate(${-camera.x}px, ${-camera.y}px)`,
+                // 화면 픽셀 격자에 맞춰 반올림 — 소수점 오프셋이 남으면 픽셀아트가 일렁인다
+        transform: `scale(${ZOOM}) translate(${-Math.round(camera.x * ZOOM) / ZOOM}px, ${-Math.round(camera.y * ZOOM) / ZOOM}px)`,
                 willChange: "transform",
               }
             : undefined
@@ -601,11 +642,17 @@ export function MovementArea({
             facing={playerFacing}
             walking={playerWalking}
             zIndex={Math.round(position.y + PLAYER_SIZE.height)}
+            smooth={guidePosition != null}
           />
         ) : null}
       </div>
       {occluders.length === 0 ? (
-        <PlayerSprite position={position} facing={playerFacing} walking={playerWalking} />
+        <PlayerSprite
+          position={position}
+          facing={playerFacing}
+          walking={playerWalking}
+          smooth={guidePosition != null}
+        />
       ) : null}
       </div>
     </div>

@@ -602,15 +602,16 @@ button.headerOrb:active {
   top: 0;
   left: 0;
   z-index: 2;
-  /* 컷신에서 사수를 따라 이동할 때 부드럽게 (키보드 이동은 18px 단위라 체감상 영향 없음) */
-  transition: transform 900ms ease-in-out;
+  /* 기본은 전환 없음 — 매 프레임 좌표가 갱신되는 조작 중에 전환이 걸리면 카메라와
+     어긋나 캐릭터가 떨려 보인다. 컷신 이동만 .playerSpriteSmooth로 부드럽게 처리. */
   display: flex;
   align-items: center;
   justify-content: flex-start;
   width: 76px;
   height: 96px;
   pointer-events: none;
-  transition: transform 115ms ease-out;
+  /* 전환은 컷신에서만 (인라인 style로 지정) — 매 프레임 좌표가 갱신되는 조작 중에
+     transform 전환이 걸리면 카메라와 어긋나 캐릭터가 떨려 보인다 */
   will-change: transform;
 }
 
