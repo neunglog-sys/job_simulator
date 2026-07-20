@@ -48,8 +48,8 @@ const MOVE_STEP = 18;
 // 투어 앵커 계산(ScenarioGamePage)도 같은 값을 써야 마커와 어긋나지 않는다.
 export const SLOT_SPREAD = 92;
 
-// 걷기 애니메이션을 끄는 NPC — 재작업(v2)으로 보폭은 생겼지만 발 패치 주변
-// 반투명 사각 자국이 밝은 바닥에서 비쳐 유지 (투어 가이드 46명 중 5명). 패치 정리되면 제거.
+// 걷기 애니메이션을 끄는 NPC — step 프레임이 실제 보폭 없이 옷·골반만 뒤바뀌어
+// 재생하면 파닥거려 보이는 에셋 불량 (투어 가이드 46명 중 5명). 에셋 재생성 시 제거.
 const WALK_DISABLED_NPCS = new Set([
   "npc_kts-02_02",
   "npc_ms-04_01",
