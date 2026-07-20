@@ -121,7 +121,7 @@ export const PREVIEW_GAMES = {
   "ys-03": {
     "engine": "match",
     "title": "정문 검색대 출입통제",
-    "intro": "입장객 얼굴과 출입증 초상을 선으로 이으세요. 짝이 없는 쪽은 '불일치' 도장, 탐지기가 울린 사람은 직접 손대지 말고 2차 검색 벨을 누르세요.",
+    "intro": "입장객 얼굴과 출입증 초상을 선으로 이으세요. 짝이 없는 쪽은 '불가능' 도장, 탐지기가 울린 사람은 직접 손대지 말고 2차 검색 벨을 누르세요.",
     "time_limit": 75,
     "pass_score": 70,
     "data": {
@@ -184,6 +184,7 @@ export const PREVIEW_GAMES = {
           "출입증_C"
         ]
       ],
+      "unmatched_action": "불가능",
       "unmatched": [
         "입장객_D",
         "출입증_D"
@@ -575,6 +576,7 @@ export const PREVIEW_GAMES = {
             88
           ],
           "zone": "확인_표지판",
+          "beacon": true,
           "label": "선행공정(트렌치 굴착) 완료 확인"
         },
         {
@@ -586,6 +588,7 @@ export const PREVIEW_GAMES = {
             368
           ],
           "zone": "바닥_큰_홈",
+          "locked_hint": "잠김 — 선행공정 확인(표지판)이 끝나야 시공을 시작할 수 있습니다",
           "label": "배관을 트렌치 바닥 홈에 안착"
         },
         {
@@ -597,6 +600,7 @@ export const PREVIEW_GAMES = {
             288
           ],
           "zone": "배관_위_받침",
+          "locked_hint": "잠김 — 아직 걸 받침이 없습니다. 받침이 생기면 배선할 수 있습니다",
           "label": "전선관을 위 받침대에 배선"
         },
         {
@@ -1018,7 +1022,7 @@ export const PREVIEW_GAMES = {
   "ms-06": {
     "engine": "pour",
     "title": "개체별 정량 급이",
-    "intro": "구유마다 표시선 높이가 다릅니다. 눌러서 붓고, 선에 맞춰 손을 떼세요. 넘치면 사료가 흩어집니다.",
+    "intro": "구유마다 표시선 높이가 다릅니다. 원하는 구유의 사료 포대를 누르고 있으면 부어집니다 — 선에 맞춰 손을 떼세요. 넘치면 사료가 흩어집니다.",
     "time_limit": 75,
     "pass_score": 70,
     "data": {
@@ -1147,7 +1151,7 @@ export const PREVIEW_GAMES = {
     "time_limit": 90,
     "pass_score": 70,
     "data": {
-      "fall_seconds": 9,
+      "fall_seconds": 14,
       "presentation": "dev_desk",
       "lines": [
         {

@@ -197,7 +197,19 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
   const [drag, setDrag] = useState<{ key: string; x: number; y: number } | null>(null);
   const [dropHover, setDropHover] = useState<string | null>(null);
   const dragRef = useRef<DragRef | null>(null);
-  const suppressClick = useRef(false); // 드래그 직후 따라오는 click으로 선택이 토글되는 것 방지
+  // 드래그 직후 따라오는 유령 click 무시 시한(wall-clock). 드롭이 성공하면 포인터 캡처를
+  // 쥔 트레이 버튼이 언마운트되고, 브라우저가 뒤따르는 click을 포인터 아래 요소(=방금 채운
+  // 슬롯)로 떨어뜨릴 수 있다. 이 click이 clickSlot의 '빈손 클릭 = 배치 해제'로 해석되면
+  // 조각이 곧장 트레이로 되돌아가 "배치해도 트레이에 남는" 버그가 된다(ms-03 디자이너
+  // 피드백) — 시한 안의 첫 click은 어느 핸들러가 받든 한 번만 소비하고 무시한다.
+  const suppressClickUntil = useRef(0);
+
+  /** 드래그 직후의 유령 click이면 소비하고 true — 트레이·슬롯 클릭 핸들러 공통 게이트. */
+  const consumeGhostClick = () => {
+    if (Date.now() >= suppressClickUntil.current) return false;
+    suppressClickUntil.current = 0;
+    return true;
+  };
 
   const forbiddenAnywhere = (pieceId: string) =>
     forbiddenRules.some((r) => r.id === pieceId && !r.slots);
@@ -307,7 +319,7 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
   };
 
   const clickSlot = (slot: PlaceSlot) => {
-    if (done) return;
+    if (consumeGhostClick() || done) return;
     const existing = placed[slot.id];
     if (!selected) {
       // 빈손으로 채워진 슬롯 클릭 → 조각을 카트로 되돌린다(재배치 허용)
@@ -323,11 +335,19 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
     placePiece(slot, selected);
   };
 
-  /** 뷰포트 좌표에서 드롭 대상 슬롯 id — 맵 슬롯 버튼의 data-slot-id 로 판정한다. */
+  /** 뷰포트 좌표에서 드롭 대상 슬롯 id — 맵 슬롯 버튼의 data-slot-id 로 판정한다.
+   *  드래그 고스트가 포인터 위쪽(-110%)에 떠 있어 사용자는 '카드가 슬롯에 겹친' 순간
+   *  놓는다 — 포인터 지점이 슬롯을 살짝 빗나가면 고스트가 있던 위쪽 지점들도 차례로
+   *  판정해, 드롭 미스로 조각이 트레이로 튕겨 돌아가는 것을 막는다(포인터 직격이 우선).
+   *  dropHover 하이라이트도 같은 판정을 쓰므로 미리보기와 실제 드롭이 늘 일치한다. */
   const slotIdAtPoint = (x: number, y: number): string | null => {
-    const el = document.elementFromPoint(x, y);
-    const hit = el instanceof Element ? el.closest("[data-slot-id]") : null;
-    return hit?.getAttribute("data-slot-id") ?? null;
+    for (const lift of [0, 26, 52]) {
+      const el = document.elementFromPoint(x, y - lift);
+      const hit = el instanceof Element ? el.closest("[data-slot-id]") : null;
+      const id = hit?.getAttribute("data-slot-id");
+      if (id) return id;
+    }
+    return null;
   };
 
   const dragStart = (e: ReactPointerEvent<HTMLButtonElement>, key: string) => {
@@ -360,10 +380,8 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
     setDrag(null);
     setDropHover(null);
     if (!st.active) return; // 이동 없는 탭 — 뒤따르는 click 이벤트가 선택을 토글한다
-    suppressClick.current = true;
-    window.setTimeout(() => {
-      suppressClick.current = false;
-    }, 0);
+    // 유령 click 소비 시한 — 언마운트 재렌더 커밋이 끼어도 같은 제스처의 click 은 이 안에 온다
+    suppressClickUntil.current = Date.now() + 250;
     if (done) return;
     const slotId = slotIdAtPoint(e.clientX, e.clientY);
     const slot = slotId ? slots.find((s) => s.id === slotId) : undefined;
@@ -377,10 +395,7 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
   };
 
   const clickTrayPiece = (key: string) => {
-    if (suppressClick.current) {
-      suppressClick.current = false;
-      return;
-    }
+    if (consumeGhostClick()) return;
     pickPiece(key);
   };
 
@@ -474,7 +489,7 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
         type="button"
         className={`${styles.piece} ${styles.trayPiece}${person ? ` ${styles.personPiece}` : ""}`}
         data-selected={selected === p.key}
-        data-dragging={drag && drag.key === p.key ? true : undefined}
+        data-dragging={!done && drag && drag.key === p.key ? true : undefined}
         aria-pressed={selected === p.key}
         disabled={done}
         onClick={() => clickTrayPiece(p.key)}
@@ -626,7 +641,7 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
                   className={styles.mapSlot}
                   data-kind={seat ? "seat" : "dock"}
                   data-filled={Boolean(pieceId)}
-                  data-drop={dropHover === slot.id ? true : undefined}
+                  data-drop={!done && dropHover === slot.id ? true : undefined}
                   data-verdict={verdict}
                   disabled={done}
                   style={{ left: `${(at[0] / SCENE.w) * 100}%`, top: `${(at[1] / SCENE.h) * 100}%` }}
@@ -798,7 +813,9 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
         </div>
       ) : null}
 
-      {drag && dragPieceId
+      {/* !done — 제한시간이 드래그 도중 끝나면 버튼이 disabled 되어 pointerup 이 오지 않아
+          고스트가 화면에 남는다. 종료 후엔 그리지 않는 것으로 정리한다. */}
+      {drag && dragPieceId && !done
         ? createPortal(
             <div className={styles.dragGhost} style={{ left: drag.x, top: drag.y }} aria-hidden="true">
               {isPerson(dragPieceId) ? (
