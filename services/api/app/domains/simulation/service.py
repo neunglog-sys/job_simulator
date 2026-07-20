@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.content import game_map
+from app.content import minigame
 from app.content.kb_map import kb_jobs_for
 from app.content.knowledge import search_knowledge
 from app.domains.coach import service as coach
@@ -240,6 +241,8 @@ async def to_out(session: AsyncSession, simulation: Simulation, scenario: Scenar
         "step_ids": [s["id"] for s in scenario.steps],
         "npcs": _public_npcs(roster, slots),  # 시나리오 NPC 표시정보 (step.npcs는 npc_id 목록)
         "map": map_info,
+        # 4단계 미니게임 정의 — null이면 프론트는 '준비 중' 빈 창으로 폴백
+        "minigame": minigame.minigame_for(scenario.slug),
         "created_at": simulation.created_at,
     }
 
@@ -637,15 +640,13 @@ async def finish_tour(
     return {"state": public_state(state), "step_changed": None}
 
 
-async def save_minigame_result(
-    session: AsyncSession, simulation: Simulation, payload: dict
-) -> dict:
-    """4단계 실무 미니게임 결과 저장 — 역량 블렌드·리포트의 재료 (팀 결정: B안).
+def _minigame_result(payload: dict, declared: dict | None) -> dict:
+    """미니게임 결과 페이로드 검증·정합 대조 → 저장할 결과 dict (순수 로직, 테스트 대상).
 
-    받는 것: {engine, accuracy(0~100), time_seconds?, mistakes?}
-    점수는 정확도 기반(score = round(accuracy)). 시간·실수는 리포트 서술용으로만 보관하고
-    당장 점수화하지 않는다(튜닝은 팀 논의 대상). 재도전하면 마지막 결과로 덮어쓴다.
-    모르는 엔진(프론트 스텁 포함)도 저장은 한다 — 반영 여부는 aggregate.minigame_of가 거른다.
+    declared = 시나리오에 선언된 게임 정의(content.minigame). 선언이 있으면 그 엔진만
+    인정한다 — 프론트 자진신고를 믿지 않고 데이터와 대조 (사양 도착 후 전환, 2026-07-20).
+    엔진 불일치는 에러로 끊지 않고 rejected 표시로 저장만 한다: 4단계 흐름은 막지 않되
+    가짜 점수가 역량 블렌드에 못 들어가게 (aggregate.minigame_of가 거른다).
     """
     engine = str(payload.get("engine") or "").strip()
     if not engine:
@@ -660,11 +661,58 @@ async def save_minigame_result(
         if isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0:
             result[key] = round(float(value), 1)
 
+    if declared:
+        if engine != declared["engine"]:
+            logger.warning(
+                "미니게임 engine 불일치 — 시나리오 선언 '%s' ≠ 수신 '%s' (저장만, 반영 안 함)",
+                declared["engine"], engine,
+            )
+            result["rejected"] = "engine_mismatch"
+            result["declared_engine"] = declared["engine"]
+        else:
+            # 통과 여부 — 리포트 서술용 ("재도전 끝에 통과" 등). 점수엔 이미 accuracy로 반영됨.
+            result["pass_score"] = declared["pass_score"]
+            result["passed"] = result["score"] >= declared["pass_score"]
+    return result
+
+
+async def save_minigame_result(
+    session: AsyncSession, simulation: Simulation, scenario: Scenario, payload: dict
+) -> dict:
+    """4단계 실무 미니게임 결과 저장 — 역량 블렌드·리포트의 재료 (팀 결정: B안).
+
+    받는 것: {engine, accuracy(0~100), time_seconds?, mistakes?}
+    점수는 정확도 기반(score = round(accuracy)). 시간·실수는 리포트 서술용으로만 보관하고
+    당장 점수화하지 않는다(튜닝은 팀 논의 대상). 재도전하면 마지막 결과로 덮어쓴다.
+    엔진은 시나리오의 게임 선언과 대조하고(_minigame_result), 스텁·불일치도 저장은 한다 —
+    반영 여부는 aggregate.minigame_of가 거른다.
+    """
+    result = _minigame_result(payload, minigame.minigame_for(scenario.slug))
+
     state = dict(simulation.state)
     state["minigame"] = result
     simulation.state = state
     flag_modified(simulation, "state")
     await scoring.log_action(session, simulation.id, "minigame", result, {})
+    await session.commit()
+    return {"state": public_state(state), "step_changed": None}
+
+
+MEMO_MAX = 4000
+
+
+async def save_memo(session: AsyncSession, simulation: Simulation, content: str) -> dict:
+    """플레이어 메모 저장 — 사수가 알려주는 업무 내용을 직접 받아적는 학습 노트.
+
+    자동 기록되는 업무 노트(브리핑 절차)와 달리 **플레이어가 스스로 적는** 글이다 — 직접
+    적어야 학습이 된다는 팀 설계. 채점·리포트에 쓰지 않는 개인 메모장이므로 내용 검증 없이
+    그대로 보관한다. 빈 문자열은 '지움'으로 허용, 저장할 때마다 덮어쓴다(단일 노트).
+    새로고침·이어하기 시 state로 복원된다.
+    """
+    state = dict(simulation.state)
+    state["memo"] = str(content or "")[:MEMO_MAX]
+    simulation.state = state
+    flag_modified(simulation, "state")
     await session.commit()
     return {"state": public_state(state), "step_changed": None}
 

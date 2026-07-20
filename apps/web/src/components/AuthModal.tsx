@@ -165,7 +165,7 @@ export function AuthModal({ mode, onClose, onModeChange, onSuccess }: Props) {
         </form>
 
         <div className="auth-social-divider" aria-hidden="true">
-          <span>간편 로그인</span>
+          <span>또는</span>
         </div>
         <div className="auth-social-actions" aria-label="소셜 로그인">
           <a className="auth-social-button auth-social-google" href={API_ENDPOINTS.auth.oauth.google}>

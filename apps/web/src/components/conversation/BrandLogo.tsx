@@ -1,4 +1,3 @@
-import { LANDING_COPY } from "../../content";
 import styles from "../../styles/oneToOneConversation.module.css";
 
 type BrandLogoProps = {
@@ -11,7 +10,7 @@ export function BrandLogo({ onClick }: BrandLogoProps) {
       <span className={styles.brandMark} aria-hidden="true">
         <span />
       </span>
-      <span className={styles.brandWordmark}>{LANDING_COPY.brand}</span>
+      <span className={styles.brandWordmark}>JOBIVERSE</span>
     </button>
   );
 }

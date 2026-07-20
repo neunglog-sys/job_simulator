@@ -12,12 +12,14 @@ import { GameMapLayer } from "../components/scenario/GameMapLayer";
 import { HintPanel } from "../components/scenario/HintPanel";
 import { MiniGamePanel } from "../components/scenario/MiniGamePanel";
 import { MissionPanel } from "../components/scenario/MissionPanel";
+import { MemoPanel, type MemoSaveStatus } from "../components/scenario/MemoPanel";
 import { MovementArea, SLOT_SPREAD } from "../components/scenario/MovementArea";
 import { canChat, canMove, MODAL_PHASES, TOUR_PHASES, type GamePhase } from "../components/scenario/phase";
 import { ReflectionPanel } from "../components/scenario/ReflectionPanel";
 import { PLAYER_SIZE } from "../components/scenario/PlayerSprite";
 import { ScenarioControlPanel } from "../components/scenario/ScenarioControlPanel";
 import { TourBanner } from "../components/scenario/TourBanner";
+import { WorkflowModal } from "../components/scenario/WorkflowModal";
 import type { HintCardData, Position } from "../components/scenario/types";
 import { API_BASE_URL } from "../config/endpoints";
 import type { MissionView } from "../components/scenario/MissionPanel";
@@ -186,6 +188,8 @@ function introGuide(step: GameStep | null, roster: GameNpc[]): string {
 export function ScenarioGamePage() {
   const [isHintOpen, setIsHintOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isMemoOpen, setIsMemoOpen] = useState(false);
+  const [isWorkflowOpen, setIsWorkflowOpen] = useState(false);
   const [scenarioTheme, setScenarioTheme] = useState<ScenarioTheme>(() => {
     const savedTheme = localStorage.getItem("scenario-theme");
     return savedTheme === "deep-space" || savedTheme === "aurora" ? savedTheme : "nebula";
@@ -200,6 +204,7 @@ export function ScenarioGamePage() {
   const [activeStep, setActiveStep] = useState<GameStep | null>(null);
   const [npcs, setNpcs] = useState<GameNpc[]>([]);
   const [gameMap, setGameMap] = useState<Simulation["map"]>(null);
+  const [minigame, setMinigame] = useState<Simulation["minigame"]>(null);
   const [scenarioTitle, setScenarioTitle] = useState("");
   const [stepIds, setStepIds] = useState<string[]>([]); // 본편 미션 순서 (진행률 계산용)
   // 진행 페이즈 — "지금 무엇을 하는 중인지"의 단일 출처. 전이는 아래 handle*/소켓 핸들러에서만.
@@ -228,7 +233,15 @@ export function ScenarioGamePage() {
   const [tour, setTour] = useState<TourFrame | null>(null);
   const [tourIndex, setTourIndex] = useState(0);
   const [tourDone, setTourDone] = useState(false); // 서버 state.tour_done 미러 — 업무 게이트
+  const [tourRequestPending, setTourRequestPending] = useState(false);
+  // 빠른 연속 클릭은 React가 다시 렌더링하기 전에도 들어올 수 있어 ref로 즉시 잠근다.
+  const tourRequestPendingRef = useRef(false);
+  // 이미 시작된 투어에 뒤늦은 중복 응답이 도착해 입력 단계를 처음으로 되감지 못하게 한다.
+  const tourStartedRef = useRef(false);
   const [reflectionSending, setReflectionSending] = useState(false);
+  const [memo, setMemo] = useState("");
+  const [memoSaveStatus, setMemoSaveStatus] = useState<MemoSaveStatus>("idle");
+  const pendingMemoRef = useRef<string | null>(null);
   const socketRef = useRef<SimulationSocket | null>(null);
 
   const appendDialogue = useCallback(
@@ -293,6 +306,7 @@ export function ScenarioGamePage() {
   // 자유 이동 중(exploring) 담당 NPC 근처일 때만 업무 배너 — 컷신·모달 중에는 뜨지 않는다.
   const showEncounter =
     phase === "exploring" &&
+    !tourRequestPending &&
     isNearActiveNpc &&
     !farewell && // 격려 배너가 떠 있는 동안은 업무 배너 숨김
     Boolean(activeStep?.task);
@@ -319,6 +333,35 @@ export function ScenarioGamePage() {
 
   const tourStop = tour && tourIndex < tour.stops.length ? tour.stops[tourIndex] : null;
   const tourActive = TOUR_PHASES.has(phase);
+  // 투어 자막과 하단 대화창이 서로 다른 상태를 보지 않도록 현재 발화자와 대사를 한곳에서 계산한다.
+  // 직접 인사를 입력하는 동안에는 직전에 말한 사수의 소개를 유지하고, 동료 답변 토큰이 도착하면
+  // 그때부터 발화자를 해당 동료로 전환한다.
+  const tourReplyStarted =
+    phase === "tour_reply" || (phase === "tour_greet" && npcMessage.trim().length > 0);
+  const tourDialogueSpeaker =
+    phase === "tour_closing" || !tourReplyStarted
+      ? tour?.guide ?? tourStop
+      : tourStop ?? tour?.guide;
+  const tourDialogueMessage =
+    phase === "tour_closing"
+      ? tour?.closing ?? ""
+      : tourReplyStarted
+        ? npcMessage
+        : tourStop?.line ?? "";
+  const visibleChatNpc = tourActive ? tourDialogueSpeaker ?? chatNpc : chatNpc;
+  const visibleNpcMessage = tourActive ? tourDialogueMessage : npcMessage;
+
+  // 위 자막에서 지나간 사수의 소개와 마무리도 이전 대화 목록에 남긴다.
+  // 동료 답변은 onNpcReply에서 완성된 문장으로 별도 기록한다.
+  useEffect(() => {
+    if (!tour?.guide) return;
+    if (phase === "tour_intro" && tourStop?.line) {
+      appendDialogue(tour.guide.name || "사수", "npc", tourStop.line);
+    } else if (phase === "tour_closing" && tour.closing) {
+      appendDialogue(tour.guide.name || "사수", "npc", tour.closing);
+    }
+  }, [appendDialogue, phase, tour, tourStop]);
+
   // 투어 중 사수·플레이어가 서 있을 자리 — 소개 대상 옆(마무리 때는 사수 자리로 돌아온다).
   const tourAnchor = useMemo(() => {
     if (!tour) return null;
@@ -353,6 +396,8 @@ export function ScenarioGamePage() {
     }
     if (phase === "tour_reply") {
       const next = tourIndex + 1;
+      setNpcMessage("");
+      setUserMessage("");
       if (next < tour.stops.length) {
         setTourIndex(next);
         setPhase("tour_intro");
@@ -423,11 +468,18 @@ export function ScenarioGamePage() {
       setNpcs(sim.npcs);
       // 1단계 진행도 복원 — 새로고침해도 인사한 동료·투어 완료는 기억된다(서버 state).
       setMetNpcs((sim.state?.met_npcs as string[] | undefined) ?? []);
+      setMemo(typeof sim.state?.memo === "string" ? sim.state.memo : "");
+      setMemoSaveStatus("idle");
+      pendingMemoRef.current = null;
       // 접속하면 언제나 자유 이동부터 — 투어는 플레이어가 사수에게 다가가 시작한다.
       setTourDone(Boolean(sim.state?.tour_done));
+      tourRequestPendingRef.current = false;
+      setTourRequestPending(false);
+      tourStartedRef.current = Boolean(sim.state?.tour_done);
       setPhase("exploring");
       npcsRef.current = sim.npcs;
       setGameMap(sim.map);
+      setMinigame(sim.minigame ?? null);
       setScenarioTitle(sim.scenario_title);
       setStepIds(sim.step_ids ?? []);
       setCoachMessage(approachGuide(sim.step, sim.npcs));
@@ -461,13 +513,28 @@ export function ScenarioGamePage() {
 
         socket = new SimulationSocket(sim.id, {
           onOpen: () => !cancelled && setConnStatus("open"),
-          onClose: () => !cancelled && setConnStatus("closed"),
+          onClose: () => {
+            if (cancelled) return;
+            setConnStatus("closed");
+            tourRequestPendingRef.current = false;
+            setTourRequestPending(false);
+            if (pendingMemoRef.current !== null) {
+              pendingMemoRef.current = null;
+              setMemoSaveStatus("error");
+            }
+          },
           onError: (detail) => {
             if (cancelled) return;
             setConnStatus("error");
+            tourRequestPendingRef.current = false;
+            setTourRequestPending(false);
             setCoachMessage(detail);
             setIsStreaming(false);
             setReflectionSending(false);
+            if (pendingMemoRef.current !== null) {
+              pendingMemoRef.current = null;
+              setMemoSaveStatus("error");
+            }
             // 채점 중 오류면 과제 창을 유지한 채 다시 제출할 수 있게 되돌린다.
             setPhase((current) => (current === "mission_grading" ? "mission" : current));
           },
@@ -535,8 +602,16 @@ export function ScenarioGamePage() {
           onCoachTip: (text) => !cancelled && setCoachMessage(text),
           onTour: (frame) => {
             if (cancelled) return;
+            // 같은 요청이 여러 번 큐에 쌓였더라도 첫 응답만 사용한다.
+            if (tourStartedRef.current) return;
+            tourStartedRef.current = true;
+            tourRequestPendingRef.current = false;
+            setTourRequestPending(false);
             setTour(frame);
             setTourIndex(0);
+            setNpcMessage("");
+            setUserMessage("");
+            setIsStreaming(false);
             // 소개할 동료가 없으면(1인 시나리오 등) 투어를 건너뛴다.
             if (frame.stops.length === 0) {
               socketRef.current?.sendTourDone();
@@ -550,7 +625,15 @@ export function ScenarioGamePage() {
             if (cancelled) return;
             const met = state.met_npcs as string[] | undefined;
             if (met) setMetNpcs(met);
+            if (typeof state.memo === "string") {
+              setMemo(state.memo);
+              if (pendingMemoRef.current === state.memo) {
+                pendingMemoRef.current = null;
+                setMemoSaveStatus("saved");
+              }
+            }
             if (state.tour_done) setTourDone(true);
+            if (state.tour_done) tourStartedRef.current = true;
             if (state.reflection) {
               // 5단계 소감문 저장 완료 → 완주 화면 (점수는 게임에서 공개하지 않는다)
               setReflectionSending(false);
@@ -628,6 +711,42 @@ export function ScenarioGamePage() {
     setIsStreaming(false);
   }, []);
 
+  const handleMemoSave = useCallback((content: string) => {
+    const nextMemo = content.slice(0, 4000);
+    pendingMemoRef.current = nextMemo;
+    setMemoSaveStatus("saving");
+    if (!socketRef.current?.sendMemo(nextMemo)) {
+      pendingMemoRef.current = null;
+      setMemoSaveStatus("error");
+      setCoachMessage("메모를 저장하려면 게임 서버 연결이 필요해요.");
+    }
+  }, []);
+
+  const handleHistoryToggle = useCallback(() => {
+    setIsHistoryOpen((current) => !current);
+    setIsWorkflowOpen(false);
+    setIsHintOpen(false);
+  }, []);
+
+  const handleMemoToggle = useCallback(() => {
+    setIsMemoOpen((current) => !current);
+    setIsHintOpen(false);
+  }, []);
+
+  const handleWorkflowToggle = useCallback(() => {
+    setIsWorkflowOpen((current) => !current);
+    setIsHistoryOpen(false);
+    setIsHintOpen(false);
+  }, []);
+
+  const handleHistoryClose = useCallback(() => setIsHistoryOpen(false), []);
+  const handleMemoOpen = useCallback(() => {
+    setIsMemoOpen(true);
+    setIsHintOpen(false);
+  }, []);
+  const handleMemoClose = useCallback(() => setIsMemoOpen(false), []);
+  const handleWorkflowClose = useCallback(() => setIsWorkflowOpen(false), []);
+
   // 테스트용 — 현재 미션을 채점 없이 통과 처리하고 다음 미션으로 (WS skip_step). 마지막이면 완료 오버레이.
   const handleSkip = useCallback(() => {
     const socket = socketRef.current;
@@ -658,13 +777,21 @@ export function ScenarioGamePage() {
     setDialogueHistory([]);
     dialogueSequenceRef.current = 0;
     setIsHistoryOpen(false);
+    setIsMemoOpen(false);
+    setIsWorkflowOpen(false);
     setReflectionSending(false);
+    setMemo("");
+    setMemoSaveStatus("idle");
+    pendingMemoRef.current = null;
     setAdviceCards([]);
     setCoachCards(null);
     setBriefedSteps([]);
     setTour(null);
     setTourIndex(0);
     setTourDone(false);
+    setTourRequestPending(false);
+    tourRequestPendingRef.current = false;
+    tourStartedRef.current = false;
     setMetNpcs([]);
     setConnStatus("creating");
     setRetryKey((key) => key + 1);
@@ -675,9 +802,15 @@ export function ScenarioGamePage() {
   const handleOpenMission = useCallback(() => {
     // 아직 팀 소개를 못 받았으면, 업무 대신 사수의 인솔 투어부터 시작한다(1단계).
     if (needsTour) {
+      // 투어가 준비 중이거나 이미 시작됐다면 추가 요청을 보내지 않는다.
+      if (tourRequestPendingRef.current || tourStartedRef.current || tourActive) return;
+      tourRequestPendingRef.current = true;
+      setTourRequestPending(true);
       // 투어 대사는 LLM이 생성해 몇 초 걸린다 — 누르고 멈춘 것처럼 보이지 않게 안내.
       setCoachMessage("사수가 팀을 소개해 주려고 해요. 잠시만요…");
       if (!socketRef.current?.requestTour()) {
+        tourRequestPendingRef.current = false;
+        setTourRequestPending(false);
         setCoachMessage("게임 서버에 연결 중이에요. 잠시 후 다시 시도해주세요.");
       }
       return;
@@ -688,7 +821,7 @@ export function ScenarioGamePage() {
     const needsBriefing =
       Boolean(stepId) && !quest && !briefedSteps.includes(stepId!) && (activeStep?.briefing?.length ?? 0) > 0;
     setPhase(needsBriefing ? "briefing" : "mission");
-  }, [activeStep, briefedSteps, quest, needsTour]);
+  }, [activeStep, briefedSteps, quest, needsTour, tourActive]);
 
   // 브리핑을 다 들으면 그 스텝은 들은 것으로 기록하고 과제로 넘어간다.
   const handleBriefingDone = useCallback(() => {
@@ -750,12 +883,12 @@ export function ScenarioGamePage() {
         <MovementArea
           position={playerPosition}
           // 컷신·모달 중에는 조작을 뺏지 않는다 — 이동은 exploring에서만.
-          onPositionChange={canMove(phase) ? setPlayerPosition : NOOP}
+          onPositionChange={canMove(phase) && !isMemoOpen && !isWorkflowOpen ? setPlayerPosition : NOOP}
           onCoachMessage={setCoachMessage}
           geometry={gameMap?.geometry ?? null}
           npcs={npcs}
           activeNpcId={activeNpcId}
-          onNpcClick={MODAL_PHASES.has(phase) || tourActive ? undefined : handleNpcClick}
+          onNpcClick={MODAL_PHASES.has(phase) || tourActive || isMemoOpen || isWorkflowOpen ? undefined : handleNpcClick}
           guideNpcId={tour?.guide?.npc ?? null}
           guidePosition={guidePosition}
         />
@@ -778,16 +911,46 @@ export function ScenarioGamePage() {
             else window.location.assign("/");
           }}
           onMission={handleOpenMission}
+          missionDisabled={connStatus !== "open" || tourRequestPending || tourActive}
+          missionPending={tourRequestPending}
         />
         <HintPanel isOpen={isHintOpen} hints={hints} onClose={() => setIsHintOpen(false)} />
         <DialogueHistoryPanel
           isOpen={isHistoryOpen}
+          isCompanion={isMemoOpen}
           entries={dialogueHistory}
-          onClose={() => setIsHistoryOpen(false)}
+          onClose={handleHistoryClose}
+        />
+        <MemoPanel
+          isOpen={isMemoOpen}
+          memo={memo}
+          saveStatus={memoSaveStatus}
+          canSave={connStatus === "open"}
+          isEscapeBlocked={isHistoryOpen || isWorkflowOpen}
+          onSave={handleMemoSave}
+          onClose={handleMemoClose}
+        />
+        <WorkflowModal
+          isOpen={isWorkflowOpen}
+          missionTitle={activeStep?.title ?? ""}
+          missionDescription={activeStep?.mission ?? ""}
+          steps={activeStep?.briefing ?? []}
+          isUnlocked={Boolean(activeStep && briefedSteps.includes(activeStep.id))}
+          isCompanion={isMemoOpen}
+          onMemoOpen={handleMemoOpen}
+          onClose={handleWorkflowClose}
         />
 
         {/* 1단계 컷신 — 사수가 팀원을 소개하는 동안 자막. 이동은 자동. */}
-        {tourActive && tour ? (
+        {tourRequestPending ? (
+          <TourBanner
+            speakerName={activeNpc?.name ?? "사수"}
+            line="팀 소개 내용을 준비하고 있어요. 잠시만 기다려주세요."
+            stepLabel="준비 중"
+            mode="loading"
+            onNext={NOOP}
+          />
+        ) : tourActive && tour ? (
           <TourBanner
             speakerName={
               phase === "tour_closing" || phase === "tour_intro"
@@ -830,8 +993,14 @@ export function ScenarioGamePage() {
               {/* 첫 출근이면 업무 대신 팀 소개부터 — 사수가 데리고 다니며 인사시켜 준다 */}
               <p>{needsTour ? "첫 출근 — 팀 소개받기" : "오늘의 업무"}</p>
             </div>
-            <button className={styles.encounterButton} type="button" onClick={handleOpenMission}>
-              {needsTour ? "인사하러 가기 →" : "업무 받기 →"}
+            <button
+              className={styles.encounterButton}
+              type="button"
+              onClick={handleOpenMission}
+              disabled={tourRequestPending}
+              aria-busy={tourRequestPending}
+            >
+              {tourRequestPending ? "준비 중…" : needsTour ? "인사하러 가기 →" : "업무 받기 →"}
             </button>
           </div>
         ) : null}
@@ -849,14 +1018,17 @@ export function ScenarioGamePage() {
         ) : null}
         <div className={styles.bottomHud}>
           <ScenarioControlPanel
-            npcName={chatNpc?.name ?? "NPC"}
-            npcRole={chatNpc?.role}
-            npcMessage={npcMessage}
+            npcName={visibleChatNpc?.name ?? "NPC"}
+            npcRole={visibleChatNpc?.role}
+            npcMessage={visibleNpcMessage}
             userMessage={userMessage}
             isStreaming={isStreaming}
             isHistoryOpen={isHistoryOpen}
+            isMemoOpen={isMemoOpen}
+            isWorkflowOpen={isWorkflowOpen}
             // 자유 대화, 그리고 투어 중 '직접 인사'(tour_greet)일 때만 입력을 받는다.
             disabled={connStatus !== "open" || !canChat(phase)}
+            focusInput={phase === "tour_greet"}
             // 막힌 이유를 구분해서 보여준다 — 서버 문제가 아닌데 '연결 중'이라고 하면 장애로 오해한다.
             disabledHint={
               connStatus !== "open"
@@ -866,9 +1038,9 @@ export function ScenarioGamePage() {
                   : "지금은 대화할 수 없어요."
             }
             onSend={handleSendToNpc}
-            onHistoryToggle={() => setIsHistoryOpen((current) => !current)}
-            onMemoOpen={() => setCoachMessage("메모 기능은 준비 중이에요.")}
-            onWorkflowOpen={() => setCoachMessage("업무 프로세스 보기는 준비 중이에요.")}
+            onHistoryToggle={handleHistoryToggle}
+            onMemoOpen={handleMemoToggle}
+            onWorkflowOpen={handleWorkflowToggle}
           />
           <AiCoachPanel message={coachMessage} />
         </div>
@@ -912,8 +1084,11 @@ export function ScenarioGamePage() {
       {phase === "minigame" ? (
         <MiniGamePanel
           missionTitle="신입의 주 업무"
-          onClear={() => {
-            socketRef.current?.sendMinigameResult({ engine: "stub", accuracy: 0 });
+          game={minigame}
+          onClear={(result) => {
+            // 실제 엔진이면 성적을 그대로, 게임 데이터가 없는 시나리오는 스텁으로.
+            // 스텁의 engine:"stub"은 백엔드 aggregate가 걸러내 점수를 오염시키지 않는다.
+            socketRef.current?.sendMinigameResult(result ?? { engine: "stub", accuracy: 0 });
             setPhase("reflection");
           }}
         />

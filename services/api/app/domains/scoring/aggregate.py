@@ -40,6 +40,11 @@ MINIGAME_COMPETENCY = {
     "trace": "task_management",
     "physics": "task_management",
     "place": "task_management",
+    # 타이핑 정확도 (backend 시나리오) — 팀 확정 2026-07-20.
+    # ⚠ 전제: 타자 '속도'는 점수화하지 않는다. accuracy에는 오타 없이 정확히 입력했는지만
+    # 반영하고, 걸린 시간은 time_seconds로 따로 보내 리포트 서술용으로만 쓴다.
+    # 속도를 accuracy에 섞으면 리포트가 '업무관리 역량'을 타자 실력으로 판정하게 된다.
+    "typing": "task_management",
 }
 
 # 미션 상황유형 → 역량 가중치 (주역량 1.0, 보조 0.5)
@@ -212,6 +217,8 @@ def minigame_of(state: dict) -> dict | None:
     if not isinstance(game, dict):
         return None
     score = game.get("score")
+    if game.get("rejected"):  # 시나리오 선언과 엔진 불일치 — 저장만 된 기록
+        return None
     if game.get("engine") not in MINIGAME_COMPETENCY:
         return None
     if not isinstance(score, (int, float)) or isinstance(score, bool):
