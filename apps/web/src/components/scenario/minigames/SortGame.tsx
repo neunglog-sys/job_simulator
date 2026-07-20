@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import shared from "../../../styles/minigame.module.css";
+import { PixelSprite } from "./PixelSprite";
 import styles from "../../../styles/sortGame.module.css";
 import {
   GameHud,
@@ -647,7 +648,12 @@ export function SortGame({ game, onComplete }: EngineProps) {
                 disabled={done}
                 onClick={() => setSelected((current) => (current === SUDDEN_KEY ? null : SUDDEN_KEY))}
               >
-                <span className={styles.cardSprite}>{suddenDef.sprite ?? suddenDef.id}</span>
+                <PixelSprite
+                  id={suddenDef.sprite ?? suddenDef.id ?? ""}
+                  label={suddenDef.label ?? suddenDef.id}
+                  size={56}
+                  fallbackClassName={styles.cardSprite}
+                />
                 <span className={styles.cardLabel}>카드를 든 채 안내할 곳(통)을 누르세요</span>
               </button>
               {queueFrozen ? <p className={styles.suddenNote}>대기열이 멈췄습니다 — 이 상황부터 처리해야 합니다.</p> : null}
@@ -706,7 +712,12 @@ export function SortGame({ game, onComplete }: EngineProps) {
               aria-label={entry ? `${title} — ${entry.destLabel} 처리됨` : `${title} 선택`}
               onClick={() => setSelected((current) => (current === instanceKey ? null : instanceKey))}
             >
-              <span className={styles.cardSprite}>{item.sprite ?? item.id}</span>
+              <PixelSprite
+                id={item.sprite ?? item.id ?? ""}
+                label={title}
+                size={56}
+                fallbackClassName={styles.cardSprite}
+              />
               {item.icon || item.time_badge ? (
                 <span className={styles.cardChips}>
                   {item.icon ? <span className={styles.chip}>{item.icon}</span> : null}
