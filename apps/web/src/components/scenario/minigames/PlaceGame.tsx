@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import base from "../../../styles/minigame.module.css";
 import styles from "../../../styles/placeGame.module.css";
+import { PixelSprite } from "./PixelSprite";
 import {
   GameHud,
   ResultBar,
@@ -54,7 +55,7 @@ type Summary = {
   missedCount: number;
 };
 
-/** 스프라이트 아트가 아직 없어 id·단서를 라벨 마커로 그린다(SpotGame과 같은 규약). */
+/** 스프라이트가 있으면 도트로 그리고, 없으면 id·단서를 라벨 마커로 폴백(SortGame과 같은 규약). */
 const pretty = (raw: string) => raw.replace(/_/g, " ");
 
 export function PlaceGame({ game, onComplete }: EngineProps) {
@@ -345,10 +346,22 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
               onClick={() => clickSlot(slot)}
               aria-label={`${title} 슬롯${pieceId ? ` — ${pretty(pieceId)} 배치됨` : " — 비어 있음"}`}
             >
-              {slot.marker ? <span className={styles.marker}>{pretty(slot.marker)}</span> : null}
+              {slot.marker ? (
+                <PixelSprite
+                  id={slot.marker}
+                  label={pretty(slot.marker)}
+                  size={44}
+                  fallbackClassName={styles.marker}
+                />
+              ) : null}
               <span className={styles.slotTitle}>{title}</span>
               {pieceId ? (
-                <span className={styles.placedPiece}>{pretty(pieceId)}</span>
+                <PixelSprite
+                  id={pieceId}
+                  label={pretty(pieceId)}
+                  size={48}
+                  fallbackClassName={styles.placedPiece}
+                />
               ) : (
                 <span className={styles.emptyMark}>빈 자리</span>
               )}
@@ -387,7 +400,12 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
                 onClick={() => pickPiece(p.key)}
                 aria-label={`${pretty(p.id)} 조각${cue ? `, ${pretty(cue)}` : ""}`}
               >
-                <span className={styles.pieceName}>{pretty(p.id)}</span>
+                <PixelSprite
+                  id={p.id}
+                  label={pretty(p.id)}
+                  size={48}
+                  fallbackClassName={styles.pieceName}
+                />
                 {cue ? <span className={styles.pieceCue}>{pretty(cue)}</span> : null}
               </button>
             );

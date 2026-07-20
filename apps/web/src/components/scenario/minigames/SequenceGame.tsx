@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import shared from "../../../styles/minigame.module.css";
+import { PixelSprite } from "./PixelSprite";
 import styles from "../../../styles/sequenceGame.module.css";
 import {
   clampScore,
@@ -223,7 +224,12 @@ export function SequenceGame({ game, onComplete }: EngineProps) {
                   {card.step.index + 1}
                 </span>
               ) : null}
-              <span className={styles.face}>{card.face}</span>
+              <PixelSprite
+                id={(card.kind === "step" ? card.step.sprite : card.forbidden.sprite) ?? ""}
+                label={card.face}
+                size={52}
+                fallbackClassName={styles.face}
+              />
               {stepDone && card.kind === "step" && card.step.label ? (
                 <span className={styles.stepLabel}>{card.step.label}</span>
               ) : null}

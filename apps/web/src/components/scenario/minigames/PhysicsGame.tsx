@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import shared from "../../../styles/minigame.module.css";
 import styles from "../../../styles/physicsGame.module.css";
+import { PixelSprite } from "./PixelSprite";
 import {
   GameHud,
   ResultBar,
@@ -48,7 +49,10 @@ type Beat = {
 
 type RhythmData = {
   hit_window?: number;
-  lanes?: Array<{ id: string; label?: string }>;
+  /** 판정선 위에 얹는 도트 마커(ms-07 칼날) — 없으면 선만 그린다 */
+  judge_marker?: string;
+  /** lane.sprite = 그 레인의 정상 아이템 도트 — sprite 없는 cut 노트가 이걸 쓴다 */
+  lanes?: Array<{ id: string; label?: string; sprite?: string }>;
   beats?: Beat[];
   decoy_beats?: Beat[];
   fails?: Array<{ when?: string; reason?: string }>;
@@ -368,14 +372,30 @@ export function RhythmGame({ game, onComplete }: EngineProps) {
   };
   const hitCount = countsRef.current.hits;
 
-  const noteBody = (beat: Beat, kind: string, judged: Judged | undefined) => (
-    <>
-      <span>{beat.label ?? beat.sprite ?? beat.action ?? beat.cue ?? ""}</span>
-      {beat.key && kind !== "decoy" ? <span className={styles.noteKey}>{KEY_HINT[beat.key] ?? beat.key.toUpperCase()}</span> : null}
-      {judged === "hit" && kind !== "avoid" ? <span aria-hidden="true">✓</span> : null}
-      {judged === "miss" || judged === "spoiled" ? <span aria-hidden="true">✕</span> : null}
-    </>
-  );
+  /** 노트 도트 — 노트 자체 sprite 우선, 없으면 레인의 정상 재료 sprite(ms-07 cut) */
+  const spriteOf = (beat: Beat) => {
+    if (beat.sprite) return beat.sprite;
+    if (!beat.lane) return undefined;
+    return lanes.find((l) => l.id === beat.lane)?.sprite;
+  };
+
+  const noteBody = (beat: Beat, kind: string, judged: Judged | undefined) => {
+    const sprite = spriteOf(beat);
+    const text = beat.label ?? beat.sprite ?? beat.action ?? beat.cue ?? "";
+    return (
+      <>
+        {sprite ? (
+          // 도트 스프라이트 — 파일이 없으면 PixelSprite가 지금까지의 라벨 칩으로 폴백한다
+          <PixelSprite id={sprite} label={text || sprite} size={40} />
+        ) : (
+          <span>{text}</span>
+        )}
+        {beat.key && kind !== "decoy" ? <span className={styles.noteKey}>{KEY_HINT[beat.key] ?? beat.key.toUpperCase()}</span> : null}
+        {judged === "hit" && kind !== "avoid" ? <span aria-hidden="true">✓</span> : null}
+        {judged === "miss" || judged === "spoiled" ? <span aria-hidden="true">✕</span> : null}
+      </>
+    );
+  };
 
   return (
     <div className={shared.shell}>
@@ -433,6 +453,15 @@ export function RhythmGame({ game, onComplete }: EngineProps) {
             );
           })}
           <span className={styles.judgeLine} data-flash={flash ?? undefined} aria-hidden="true" />
+          {data.judge_marker ? (
+            // 판정선 마커(ms-07 칼날) — 데이터에 있을 때만, 장식이라 판정에는 관여하지 않는다
+            <span
+              aria-hidden="true"
+              style={{ position: "absolute", left: 8, bottom: "14%", transform: "translateY(50%)", pointerEvents: "none" }}
+            >
+              <PixelSprite id={data.judge_marker} label="" size={40} />
+            </span>
+          ) : null}
         </div>
       )}
 

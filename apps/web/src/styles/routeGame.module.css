@@ -6,6 +6,36 @@
   cursor: crosshair;
 }
 
+/* ── 도트 아트(jm-01) ── */
+
+/* 배경 노선도 — 캔버스(960x440 비율과 동일한 48x22 그리드)에 꽉 채워 깔리고,
+   경로선·구역 SVG 오버레이와 노드가 그 위에 얹힌다. PixelSprite 의 인라인
+   width/height 를 덮어써야 해서 !important 가 필요하다. */
+.mapLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mapLayer img {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* 침범해 드러난 구역의 표지(어린이보호구역_표지) — 사전에는 그리지 않는다 */
+.zoneSprite {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  filter: drop-shadow(0 2px 6px rgb(0 0 0 / 0.5));
+}
+
+/* 스프라이트 파일이 없을 때 폴백 칩 대신 아무것도 안 그린다 — 라벨·이름표가
+   이미 있어 중복 표기를 막는다(도트 아트 전과 동일한 화면으로 폴백) */
+.spriteHidden {
+  display: none;
+}
+
 /* 배경 지도 이름표 (jm-01 노선도, stn-02 도면) — 아트 자산 전 자리표시 */
 .mapTag {
   position: absolute;

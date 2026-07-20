@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, type MouseEvent } from "react";
 import shared from "../../../styles/minigame.module.css";
 import styles from "../../../styles/routeGame.module.css";
+import { PixelSprite } from "./PixelSprite";
 import { SCENE } from "./types";
 import {
   clampScore,
@@ -41,10 +42,12 @@ type RouteNode = {
   at: Pt;
   label?: string;
   color?: string;
+  /** 도트 아트 id(jm-01) — 파일이 없으면 라벨만 보인다 */
+  sprite?: string;
   arrival?: boolean;
 };
 
-type Zone = { id: string; at: Pt; radius: number; penalty: number; reason?: string };
+type Zone = { id: string; at: Pt; radius: number; penalty: number; reason?: string; sprite?: string };
 
 type BlockerDef = {
   id: string;
@@ -102,7 +105,7 @@ const AUTO_ARC_Y = 90; // 정답 경유지 호(위쪽)
 const AUTO_EXTRA_Y = 370; // 신호만 있는 갈래 노드(아래쪽)
 const AUTO_ZONE_RADIUS = 55;
 
-type RawNode = { id: string; at: Pt | null; label?: string; color?: string; arrival?: boolean };
+type RawNode = { id: string; at: Pt | null; label?: string; color?: string; sprite?: string; arrival?: boolean };
 
 function parseNodeRaw(v: unknown): RawNode | null {
   const s = str(v);
@@ -111,7 +114,7 @@ function parseNodeRaw(v: unknown): RawNode | null {
   if (!r) return null;
   const id = str(r.id);
   if (!id) return null;
-  return { id, at: pt(r.at), label: str(r.label), color: str(r.color), arrival: r.arrival === true };
+  return { id, at: pt(r.at), label: str(r.label), color: str(r.color), sprite: str(r.sprite), arrival: r.arrival === true };
 }
 
 type RouteModel = {
@@ -161,7 +164,14 @@ function buildModel(data: Record<string, unknown>): RouteModel {
     Math.round(startAt[1] + (arrivalAt[1] - startAt[1]) * t),
   ];
 
-  const start: RouteNode = { id: startRaw.id, kind: "start", at: startAt, label: startRaw.label, color: startRaw.color };
+  const start: RouteNode = {
+    id: startRaw.id,
+    kind: "start",
+    at: startAt,
+    label: startRaw.label,
+    color: startRaw.color,
+    sprite: startRaw.sprite,
+  };
   const interCount = Math.max(0, arrivalIdx);
   const waypoints: RouteNode[] = wpRaw.map((w, i) => {
     let at = w.at;
@@ -169,7 +179,15 @@ function buildModel(data: Record<string, unknown>): RouteModel {
       // 도착지는 우측, 중간 경유지는 위쪽 호 — 직선 회랑(decoy·구역)에서 비켜난다
       at = i === arrivalIdx ? arrivalAt : [lerp((i + 1) / (interCount + 1))[0], AUTO_ARC_Y];
     }
-    return { id: w.id, kind: "waypoint", at, label: w.label, color: w.color, arrival: w.arrival || i === arrivalIdx };
+    return {
+      id: w.id,
+      kind: "waypoint",
+      at,
+      label: w.label,
+      color: w.color,
+      sprite: w.sprite,
+      arrival: w.arrival || i === arrivalIdx,
+    };
   });
   const decoys: RouteNode[] = decoyRaw.map((d, j) => ({
     id: d.id,
@@ -177,6 +195,7 @@ function buildModel(data: Record<string, unknown>): RouteModel {
     at: d.at ?? lerp((j + 1) / (decoyRaw.length + 1)),
     label: d.label,
     color: d.color,
+    sprite: d.sprite,
   }));
   const extras: RouteNode[] = extraIds.map((id, e) => ({
     id,
@@ -197,6 +216,7 @@ function buildModel(data: Record<string, unknown>): RouteModel {
       radius: num(z.radius),
       penalty: num(z.penalty) ?? 0,
       reason: str(z.reason),
+      sprite: str(z.sprite),
     }));
   const anchorOf = (zoneId: string) => allNodes.find((n) => zoneId.includes(n.id)) ?? null;
   const floatCount = zonesPre.filter((z) => !z.at && !anchorOf(z.id)).length;
@@ -211,7 +231,7 @@ function buildModel(data: Record<string, unknown>): RouteModel {
         at = lerp(floatIdx / (floatCount + 1));
       }
     }
-    return { id: z.id, at, radius: z.radius ?? AUTO_ZONE_RADIUS, penalty: z.penalty, reason: z.reason };
+    return { id: z.id, at, radius: z.radius ?? AUTO_ZONE_RADIUS, penalty: z.penalty, reason: z.reason, sprite: z.sprite };
   });
 
   // 경로상 발견·보고물(stn-02) — 회피가 아니라 '발견해 보고'가 정답
@@ -428,6 +448,13 @@ export function RouteGame({ game, onComplete }: EngineProps) {
         onClick={clickScene}
       >
         {model.map ? (
+          // 도트 배경 노선도 — 캔버스에 꽉 채워 깔린다. 파일이 없으면 조용히 빠지고
+          // 기존 이름표(mapTag)·반투명 오버레이만 남는다.
+          <div className={styles.mapLayer} aria-hidden="true">
+            <PixelSprite id={model.map} label={pretty(model.map)} size={SCENE.w} fallbackClassName={styles.spriteHidden} />
+          </div>
+        ) : null}
+        {model.map ? (
           <span className={styles.mapTag} aria-hidden="true">
             {pretty(model.map)}
           </span>
@@ -456,6 +483,20 @@ export function RouteGame({ game, onComplete }: EngineProps) {
           ))}
         </svg>
 
+        {/* 구역 표지 스프라이트(jm-01 어린이보호구역_표지) — 침범해 드러난 뒤에만 */}
+        {model.zones.map((zone) =>
+          zone.sprite !== undefined && revealed.includes(zone.id) ? (
+            <span
+              key={`zone-sprite-${zone.id}`}
+              className={styles.zoneSprite}
+              style={{ left: `${(zone.at[0] / SCENE.w) * 100}%`, top: `${(zone.at[1] / SCENE.h) * 100}%` }}
+              aria-hidden="true"
+            >
+              <PixelSprite id={zone.sprite} label={pretty(zone.id)} size={34} fallbackClassName={styles.spriteHidden} />
+            </span>
+          ) : null,
+        )}
+
         {nodes.map((node) => {
           const light = model.lights.get(node.id);
           const hint = [light?.hint, model.logHints.get(node.id)].filter(Boolean).join(" · ");
@@ -483,6 +524,10 @@ export function RouteGame({ game, onComplete }: EngineProps) {
                   style={{ background: NODE_COLORS[node.color] ?? "#c9c9d9" }}
                   aria-hidden="true"
                 />
+              ) : null}
+              {node.sprite !== undefined ? (
+                // 도트 마커(트럭·배송지·창고) — 파일이 없으면 숨고 라벨만 남는다
+                <PixelSprite id={node.sprite} label={text} size={24} fallbackClassName={styles.spriteHidden} />
               ) : null}
               <span className={styles.nodeText}>{text}</span>
               {isStart ? (
