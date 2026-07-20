@@ -106,3 +106,13 @@ def test_total_formula_untouched():
     missions = {"m1": {"raw": 80, "max_hint": 0, "attempts": 1}}
     with_game = scenario_score(steps, missions, None)
     assert with_game["total"] == 80  # 미션 평균 80% + 퀘스트 대체 20% = 80
+
+
+def test_simulation_schema_exposes_minigame():
+    """to_out이 실은 minigame을 채워도 응답 스키마에 필드가 없으면 Pydantic이 잘라낸다.
+
+    실제로 그렇게 45개 게임 정의가 프론트에 하나도 전달되지 않고 있었다(E2E에서 발견).
+    """
+    from app.domains.simulation.schemas import SimulationOut
+
+    assert "minigame" in SimulationOut.model_fields

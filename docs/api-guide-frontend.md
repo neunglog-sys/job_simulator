@@ -17,7 +17,7 @@
 
 | 방법 | 사용 시점 |
 |---|---|
-| `POST /api/auth/signup` `{email, password(8자+), name}` → `{access_token}` | 회원가입 (즉시 토큰) |
+| `POST /api/auth/signup` `{email, password(8자+), name, terms_agreed: true, privacy_agreed: true}` → `{access_token}` | 회원가입 (필수 약관 동의 시각·버전 저장 후 즉시 토큰) |
 | `POST /api/auth/login` `{email, password}` → `{access_token}` | 로그인 |
 | `GET /api/auth/me` | 내 정보 |
 

@@ -1,8 +1,21 @@
-import { X } from "@phosphor-icons/react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { CaretRight, Check, X } from "@phosphor-icons/react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type MouseEvent,
+  type RefObject,
+} from "react";
 import { API_ENDPOINTS } from "../config/endpoints";
 import { ApiError } from "../lib/api";
 import { authenticate } from "../lib/auth";
+import {
+  AUTH_LEGAL_META,
+  AuthLegalDocument,
+  type AuthLegalDocumentId,
+} from "./AuthLegalDocument";
 
 // 소셜 로그인 정식 브랜드 로고 (공식 "OO로 계속하기" 버튼용 마크)
 function GoogleIcon() {
@@ -37,6 +50,148 @@ function NaverIcon() {
 
 export type AuthMode = "signIn" | "signUp";
 
+type ScrollMetrics = {
+  visible: boolean;
+  thumbHeight: number;
+  thumbTop: number;
+};
+
+const INITIAL_SCROLL_METRICS: ScrollMetrics = {
+  visible: false,
+  thumbHeight: 100,
+  thumbTop: 0,
+};
+
+function AuthScrollbar({
+  viewportRef,
+  refreshKey,
+  variant,
+}: {
+  viewportRef: RefObject<HTMLElement | null>;
+  refreshKey: string;
+  variant: "main" | "legal";
+}) {
+  const [metrics, setMetrics] = useState(INITIAL_SCROLL_METRICS);
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const updateMetrics = () => {
+      const maximumScroll = viewport.scrollHeight - viewport.clientHeight;
+      if (maximumScroll <= 1) {
+        setMetrics(INITIAL_SCROLL_METRICS);
+        return;
+      }
+
+      const thumbHeight = Math.max(12, (viewport.clientHeight / viewport.scrollHeight) * 100);
+      const thumbTop = (viewport.scrollTop / maximumScroll) * (100 - thumbHeight);
+      setMetrics({ visible: true, thumbHeight, thumbTop });
+    };
+
+    updateMetrics();
+    const animationFrame = window.requestAnimationFrame(updateMetrics);
+    viewport.addEventListener("scroll", updateMetrics, { passive: true });
+
+    const resizeObserver = new ResizeObserver(updateMetrics);
+    resizeObserver.observe(viewport);
+    if (viewport.firstElementChild) resizeObserver.observe(viewport.firstElementChild);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      viewport.removeEventListener("scroll", updateMetrics);
+      resizeObserver.disconnect();
+    };
+  }, [refreshKey, viewportRef]);
+
+  return (
+    <div
+      className={`auth-custom-scrollbar auth-custom-scrollbar--${variant} ${
+        metrics.visible ? "is-visible" : ""
+      }`}
+      aria-hidden="true"
+    >
+      <span
+        style={{
+          height: `${metrics.thumbHeight}%`,
+          top: `${metrics.thumbTop}%`,
+        }}
+      />
+    </div>
+  );
+}
+
+function LegalDocumentPanel({
+  documentId,
+  onClose,
+  onAgree,
+}: {
+  documentId: AuthLegalDocumentId;
+  onClose: () => void;
+  onAgree: (documentId: AuthLegalDocumentId) => void;
+}) {
+  const [canAgree, setCanAgree] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const meta = AUTH_LEGAL_META[documentId];
+
+  useLayoutEffect(() => {
+    const viewport = scrollRef.current;
+    if (!viewport) return;
+    viewport.scrollTop = 0;
+    setCanAgree(viewport.scrollHeight <= viewport.clientHeight + 2);
+    headingRef.current?.focus();
+  }, [documentId]);
+
+  const updateAgreementGate = () => {
+    const viewport = scrollRef.current;
+    if (!viewport) return;
+    const reachedEnd = viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop <= 4;
+    if (reachedEnd) setCanAgree(true);
+  };
+
+  return (
+    <section
+      className="auth-legal-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="auth-legal-title"
+    >
+      <header className="auth-legal-header">
+        <div>
+          <p>{meta.eyebrow}</p>
+          <h2 id="auth-legal-title" ref={headingRef} tabIndex={-1}>
+            {meta.title}
+          </h2>
+          <span>끝까지 확인한 뒤 동의할 수 있어요.</span>
+        </div>
+        <button className="auth-legal-close" type="button" onClick={onClose} aria-label="약관 닫기">
+          <X weight="bold" />
+        </button>
+      </header>
+
+      <div className="auth-legal-scroll-region" ref={scrollRef} onScroll={updateAgreementGate}>
+        <AuthLegalDocument documentId={documentId} />
+      </div>
+      <AuthScrollbar viewportRef={scrollRef} refreshKey={documentId} variant="legal" />
+
+      <footer className="auth-legal-footer">
+        <p aria-live="polite">
+          {canAgree ? "문서를 모두 확인했어요." : "문서를 끝까지 내려 확인해주세요."}
+        </p>
+        <button
+          className="button button-primary auth-legal-agree"
+          type="button"
+          disabled={!canAgree}
+          onClick={() => onAgree(documentId)}
+        >
+          동의하고 돌아가기
+        </button>
+      </footer>
+    </section>
+  );
+}
+
 type Props = {
   mode: AuthMode;
   onClose: () => void;
@@ -50,24 +205,37 @@ export function AuthModal({ mode, onClose, onModeChange, onSuccess }: Props) {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [isMainScrolled, setIsMainScrolled] = useState(false);
+  const [activeLegalDocument, setActiveLegalDocument] = useState<AuthLegalDocumentId | null>(null);
+  const [consents, setConsents] = useState<Record<AuthLegalDocumentId, boolean>>({
+    terms: false,
+    privacy: false,
+  });
   const formRef = useRef<HTMLFormElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const isSignUp = mode === "signUp";
+  const hasRequiredConsents = consents.terms && consents.privacy;
+  const consentRequired = isSignUp && !hasRequiredConsents;
 
   // 모드 전환/최초 진입 시 첫 입력칸에 포커스, 이전 에러 초기화.
   useEffect(() => {
     setError("");
+    setIsMainScrolled(false);
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
     formRef.current?.querySelector("input")?.focus();
   }, [mode]);
 
   // ESC로 닫기.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key !== "Escape") return;
+      if (activeLegalDocument) setActiveLegalDocument(null);
+      else onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [activeLegalDocument, onClose]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -79,15 +247,38 @@ export function AuthModal({ mode, onClose, onModeChange, onSuccess }: Props) {
       return;
     }
 
+    if (consentRequired) {
+      setError("회원가입을 계속하려면 필수 약관을 모두 확인하고 동의해주세요.");
+      return;
+    }
+
     setBusy(true);
     try {
-      await authenticate(mode, { email, password, name });
+      await authenticate(mode, {
+        email,
+        password,
+        name,
+        termsAgreed: consents.terms,
+        privacyAgreed: consents.privacy,
+      });
       onSuccess();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "잠시 후 다시 시도해주세요.");
     } finally {
       setBusy(false);
     }
+  };
+
+  const acceptLegalDocument = (documentId: AuthLegalDocumentId) => {
+    setConsents((current) => ({ ...current, [documentId]: true }));
+    setActiveLegalDocument(null);
+    setError("");
+  };
+
+  const guardSocialAuthentication = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (!consentRequired) return;
+    event.preventDefault();
+    setError("소셜 계정으로 가입하려면 필수 약관을 먼저 확인해주세요.");
   };
 
   return (
@@ -98,102 +289,173 @@ export function AuthModal({ mode, onClose, onModeChange, onSuccess }: Props) {
       aria-label={isSignUp ? "회원가입" : "로그인"}
     >
       <div className="auth-backdrop" onClick={onClose} />
-      <div className="auth-card">
+      <div className="auth-card" data-main-scrolled={isMainScrolled && !activeLegalDocument}>
         <button className="auth-close" type="button" onClick={onClose} aria-label="닫기">
           <X weight="bold" />
         </button>
 
-        <p className="auth-eyebrow">직무 아카데미아</p>
-        <h2 className="auth-title">{isSignUp ? "새 계정 만들기" : "다시 오셨네요"}</h2>
-        <p className="auth-subtitle">
-          {isSignUp
-            ? "AI 아바타와 함께 나의 직무 여정을 시작해요."
-            : "이어서 나의 직무 여정을 계속해요."}
-        </p>
+        <div
+          className="auth-scroll-region"
+          ref={scrollRef}
+          onScroll={(event) => setIsMainScrolled(event.currentTarget.scrollTop > 4)}
+        >
+          <div className="auth-scroll-content">
+            <p className="auth-eyebrow">직무 아카데미아</p>
+            <h2 className="auth-title">{isSignUp ? "새 계정 만들기" : "다시 오셨네요"}</h2>
+            <p className="auth-subtitle">
+              {isSignUp
+                ? "AI 아바타와 함께 나의 직무 여정을 시작해요."
+                : "이어서 나의 직무 여정을 계속해요."}
+            </p>
 
-        <form className="auth-form" ref={formRef} onSubmit={submit} noValidate>
-          {isSignUp && (
+            <form className="auth-form" ref={formRef} onSubmit={submit} noValidate>
+            {isSignUp && (
+              <label className="auth-field">
+                <span>이름</span>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="홍길동"
+                  autoComplete="name"
+                  required
+                  maxLength={100}
+                />
+              </label>
+            )}
+
             <label className="auth-field">
-              <span>이름</span>
+              <span>이메일</span>
               <input
-                type="text"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="홍길동"
-                autoComplete="name"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
                 required
-                maxLength={100}
               />
             </label>
-          )}
 
-          <label className="auth-field">
-            <span>이메일</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@example.com"
-              autoComplete="email"
-              required
-            />
-          </label>
+            <label className="auth-field">
+              <span>비밀번호</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder={isSignUp ? "8자 이상" : "비밀번호"}
+                autoComplete={isSignUp ? "new-password" : "current-password"}
+                required
+                minLength={isSignUp ? 8 : undefined}
+                maxLength={72}
+              />
+            </label>
 
-          <label className="auth-field">
-            <span>비밀번호</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder={isSignUp ? "8자 이상" : "비밀번호"}
-              autoComplete={isSignUp ? "new-password" : "current-password"}
-              required
-              minLength={isSignUp ? 8 : undefined}
-              maxLength={72}
-            />
-          </label>
+              {isSignUp && (
+                <fieldset className="auth-consents">
+                  <legend>필수 약관 동의</legend>
+                  {(["terms", "privacy"] as AuthLegalDocumentId[]).map((documentId) => {
+                    const meta = AUTH_LEGAL_META[documentId];
+                    const agreed = consents[documentId];
+                    return (
+                      <button
+                        className="auth-consent-row"
+                        type="button"
+                        key={documentId}
+                        onClick={() => setActiveLegalDocument(documentId)}
+                      >
+                        <span className="auth-consent-check" data-checked={agreed} aria-hidden="true">
+                          <Check weight="bold" />
+                        </span>
+                        <span className="auth-consent-copy">
+                          <strong>
+                            <b>[필수]</b> {meta.consentLabel} 동의
+                          </strong>
+                          <small>{agreed ? "확인 및 동의 완료" : "내용을 읽고 동의해주세요"}</small>
+                        </span>
+                        <span className="auth-consent-open">
+                          내용 보기 <CaretRight weight="bold" />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </fieldset>
+              )}
 
-          {error && (
-            <p className="auth-error" role="alert">
-              {error}
+              {error && (
+                <p className="auth-error" role="alert">
+                  {error}
+                </p>
+              )}
+
+              <button
+                className="button button-primary auth-submit"
+                type="submit"
+                disabled={busy || consentRequired}
+              >
+                {busy ? "처리 중…" : isSignUp ? "가입하고 시작하기" : "로그인"}
+              </button>
+            </form>
+
+            <div className="auth-social-divider" aria-hidden="true">
+              <span>또는</span>
+            </div>
+            <div className="auth-social-actions" aria-label="소셜 로그인">
+              <a
+                className="auth-social-button auth-social-google"
+                href={API_ENDPOINTS.auth.oauth.google}
+                aria-disabled={consentRequired}
+                onClick={guardSocialAuthentication}
+              >
+                <span className="auth-social-mark" aria-hidden="true">
+                  <GoogleIcon />
+                </span>
+                Google로 계속하기
+              </a>
+              <a
+                className="auth-social-button auth-social-kakao"
+                href={API_ENDPOINTS.auth.oauth.kakao}
+                aria-disabled={consentRequired}
+                onClick={guardSocialAuthentication}
+              >
+                <span className="auth-social-mark" aria-hidden="true">
+                  <KakaoIcon />
+                </span>
+                카카오로 계속하기
+              </a>
+              <a
+                className="auth-social-button auth-social-naver"
+                href={API_ENDPOINTS.auth.oauth.naver}
+                aria-disabled={consentRequired}
+                onClick={guardSocialAuthentication}
+              >
+                <span className="auth-social-mark" aria-hidden="true">
+                  <NaverIcon />
+                </span>
+                네이버로 계속하기
+              </a>
+            </div>
+
+            <p className="auth-switch">
+              {isSignUp ? "이미 계정이 있으세요? " : "아직 계정이 없으세요? "}
+              <button type="button" onClick={() => onModeChange(isSignUp ? "signIn" : "signUp")}>
+                {isSignUp ? "로그인" : "회원가입"}
+              </button>
             </p>
-          )}
-
-          <button className="button button-primary auth-submit" type="submit" disabled={busy}>
-            {busy ? "처리 중…" : isSignUp ? "가입하고 시작하기" : "로그인"}
-          </button>
-        </form>
-
-        <div className="auth-social-divider" aria-hidden="true">
-          <span>또는</span>
+          </div>
         </div>
-        <div className="auth-social-actions" aria-label="소셜 로그인">
-          <a className="auth-social-button auth-social-google" href={API_ENDPOINTS.auth.oauth.google}>
-            <span className="auth-social-mark" aria-hidden="true">
-              <GoogleIcon />
-            </span>
-            Google로 계속하기
-          </a>
-          <a className="auth-social-button auth-social-kakao" href={API_ENDPOINTS.auth.oauth.kakao}>
-            <span className="auth-social-mark" aria-hidden="true">
-              <KakaoIcon />
-            </span>
-            카카오로 계속하기
-          </a>
-          <a className="auth-social-button auth-social-naver" href={API_ENDPOINTS.auth.oauth.naver}>
-            <span className="auth-social-mark" aria-hidden="true">
-              <NaverIcon />
-            </span>
-            네이버로 계속하기
-          </a>
-        </div>
+        <AuthScrollbar
+          viewportRef={scrollRef}
+          refreshKey={`${mode}:${String(error)}:${String(hasRequiredConsents)}`}
+          variant="main"
+        />
 
-        <p className="auth-switch">
-          {isSignUp ? "이미 계정이 있으세요? " : "아직 계정이 없으세요? "}
-          <button type="button" onClick={() => onModeChange(isSignUp ? "signIn" : "signUp")}>
-            {isSignUp ? "로그인" : "회원가입"}
-          </button>
-        </p>
+        {activeLegalDocument && (
+          <LegalDocumentPanel
+            documentId={activeLegalDocument}
+            onClose={() => setActiveLegalDocument(null)}
+            onAgree={acceptLegalDocument}
+          />
+        )}
       </div>
     </div>
   );
