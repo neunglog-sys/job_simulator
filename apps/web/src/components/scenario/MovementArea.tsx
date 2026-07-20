@@ -46,6 +46,10 @@ type Rect = { x: number; y: number; w: number; h: number };
 type NpcMarker = { npc_id: string; name: string; x: number; y: number; isActive: boolean };
 
 const MOVE_STEP = 18;
+// 화면 확대 배율 (팀 확정 2026-07-20). 배경·NPC·플레이어가 같은 world 래퍼 안에서
+// 함께 확대되고, 카메라가 플레이어를 따라가며 맵 밖으로는 나가지 않게 clamp된다.
+const ZOOM = 1.25;
+const MAP_SIZE = { width: 1920, height: 1080 };
 // 같은 spawn 자리를 쓰는 NPC들을 좌우로 벌리는 간격(px) — 맵 자리(3개)보다 인원이 많을 때.
 // 투어 앵커 계산(ScenarioGamePage)도 같은 값을 써야 마커와 어긋나지 않는다.
 export const SLOT_SPREAD = 92;
@@ -278,12 +282,10 @@ export function MovementArea({
         markers.push({
           npc_id: npc.npc_id,
           name: npc.name,
-          x: areaSize
-            ? clamp(rawX, NPC_FRAME.width / 2, areaSize.width - NPC_FRAME.width / 2)
-            : rawX,
-          y: areaSize
-            ? clamp(rawY, NPC_FRAME.height / 2, areaSize.height - NPC_FRAME.height / 2)
-            : rawY,
+          // 카메라가 있으면 맵 전체가 무대라 이동영역 크기로 자를 필요가 없다 —
+          // 맵 경계로만 살짝 여며 스프라이트가 캔버스 밖으로 삐져나가지 않게 한다.
+          x: clamp(rawX, -origin.x + NPC_FRAME.width / 2, -origin.x + MAP_SIZE.width - NPC_FRAME.width / 2),
+          y: clamp(rawY, -origin.y + NPC_FRAME.height / 2, -origin.y + MAP_SIZE.height - NPC_FRAME.height / 2),
           isActive: npc.npc_id === activeNpcId,
         });
       }
@@ -333,15 +335,53 @@ export function MovementArea({
     [collisions, collisionPolys],
   );
 
-  const clampPosition = useCallback((nextPosition: Position) => {
-    const area = areaRef.current;
-    if (!area) return nextPosition;
-
+  // 맵 전체의 로컬좌표 경계 — geometry는 스테이지(1920×1080) 좌표, 로컬은 origin만큼 뺀 값.
+  // 카메라가 생기기 전엔 이동영역 크기로 잘랐지만, 이제 맵 전체를 돌아다닐 수 있어야 한다.
+  const worldBounds = useMemo(() => {
+    const size = (geometry?.size as { width: number; height: number } | undefined) ?? MAP_SIZE;
     return {
-      x: clamp(nextPosition.x, 0, area.clientWidth - PLAYER_SIZE.width),
-      y: clamp(nextPosition.y, 0, area.clientHeight - PLAYER_SIZE.height),
+      minX: -origin.x,
+      minY: -origin.y,
+      maxX: -origin.x + size.width,
+      maxY: -origin.y + size.height,
     };
-  }, []);
+  }, [geometry, origin]);
+
+  const clampPosition = useCallback(
+    (nextPosition: Position) => {
+      const area = areaRef.current;
+      if (!area) return nextPosition;
+      // 맵이 없으면(폴백 배경) 예전처럼 이동영역 안으로 가둔다
+      const bounds = geometry
+        ? worldBounds
+        : { minX: 0, minY: 0, maxX: area.clientWidth, maxY: area.clientHeight };
+      return {
+        x: clamp(nextPosition.x, bounds.minX, bounds.maxX - PLAYER_SIZE.width),
+        y: clamp(nextPosition.y, bounds.minY, bounds.maxY - PLAYER_SIZE.height),
+      };
+    },
+    [geometry, worldBounds],
+  );
+
+  // 카메라 — 플레이어를 화면 중앙에 두되 맵 경계를 넘어가지 않는다.
+  const camera = useMemo(() => {
+    if (!geometry || !areaSize) return { x: 0, y: 0 };
+    const viewW = areaSize.width / ZOOM;
+    const viewH = areaSize.height / ZOOM;
+    const focusX = position.x + PLAYER_SIZE.width / 2;
+    const focusY = position.y + PLAYER_SIZE.height / 2;
+    const spanX = worldBounds.maxX - worldBounds.minX;
+    const spanY = worldBounds.maxY - worldBounds.minY;
+    return {
+      // 맵이 화면보다 작으면 가운데 정렬 (가장자리에 빈 공간이 생기지 않게)
+      x: spanX <= viewW
+        ? worldBounds.minX - (viewW - spanX) / 2
+        : clamp(focusX - viewW / 2, worldBounds.minX, worldBounds.maxX - viewW),
+      y: spanY <= viewH
+        ? worldBounds.minY - (viewH - spanY) / 2
+        : clamp(focusY - viewH / 2, worldBounds.minY, worldBounds.maxY - viewH),
+    };
+  }, [geometry, areaSize, position, worldBounds]);
 
   // 최신 좌표를 ref로 들고 간다 — 키를 꾹 누르면 키 리피트가 리렌더보다 빨라서, 클로저의
   // position으로 계산하면 그 사이 입력들이 같은 낡은 좌표를 읽고 마지막 것만 남는다(이동 유실).
@@ -391,10 +431,14 @@ export function MovementArea({
     if (!bounds || !area) return;
     const scaleX = area.clientWidth / bounds.width;
     const scaleY = area.clientHeight / bounds.height;
+    // 화면 좌표 → 월드 좌표: 배율로 나누고 카메라 오프셋을 더한다 (카메라 없으면 zoom=1·cam=0과 동일)
+    const zoom = geometry ? ZOOM : 1;
+    const worldX = (event.clientX - bounds.left) * scaleX / zoom + (geometry ? camera.x : 0);
+    const worldY = (event.clientY - bounds.top) * scaleY / zoom + (geometry ? camera.y : 0);
 
     const target = clampPosition({
-      x: (event.clientX - bounds.left) * scaleX - PLAYER_SIZE.width / 2,
-      y: (event.clientY - bounds.top) * scaleY - PLAYER_SIZE.height / 2,
+      x: worldX - PLAYER_SIZE.width / 2,
+      y: worldY - PLAYER_SIZE.height / 2,
     });
     // 클릭한 지점까지 '걸어간다' — 벽·집기를 뚫지 않되, 막혔다고 그 자리에 멈춰 서지도 않는다.
     // NPC는 책상 앞에 있어서 NPC를 누르면 목적지가 충돌 안이 되는데, 예전처럼 무시해 버리면
@@ -438,6 +482,40 @@ export function MovementArea({
       onPointerDown={handlePointerDown}
       aria-label="플레이어 이동 영역. 방향키 또는 WASD로 이동할 수 있습니다."
     >
+      <div
+        className={styles.mapWorld}
+        style={
+          geometry
+            ? {
+                position: "absolute",
+                left: 0,
+                top: 0,
+                transformOrigin: "0 0",
+                transform: `scale(${ZOOM}) translate(${-camera.x}px, ${-camera.y}px)`,
+                willChange: "transform",
+              }
+            : undefined
+        }
+      >
+        {geometry && mapImage ? (
+          // 배경을 world 안에 원본 크기로 둔다 — 좌표(스테이지)와 그림이 1:1로 맞아
+          // 오클루더 크롭 위치가 어긋나지 않는다. 페이지 배경 레이어는 뒤에 남아 여백을 채운다.
+          <img
+            src={mapImage}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            style={{
+              position: "absolute",
+              left: worldBounds.minX,
+              top: worldBounds.minY,
+              width: worldBounds.maxX - worldBounds.minX,
+              height: worldBounds.maxY - worldBounds.minY,
+              imageRendering: "pixelated",
+              pointerEvents: "none",
+            }}
+          />
+        ) : null}
       <div className={styles.objectLayer}>
         {occluders.map((o) => (
           <div
@@ -529,6 +607,7 @@ export function MovementArea({
       {occluders.length === 0 ? (
         <PlayerSprite position={position} facing={playerFacing} walking={playerWalking} />
       ) : null}
+      </div>
     </div>
   );
 }
