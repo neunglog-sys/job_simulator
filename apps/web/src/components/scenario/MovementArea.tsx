@@ -45,7 +45,12 @@ type GameObject = {
 type Rect = { x: number; y: number; w: number; h: number };
 type NpcMarker = { npc_id: string; name: string; x: number; y: number; isActive: boolean };
 
-const MOVE_STEP = 18;
+const MOVE_STEP = 18;             // 클릭 이동의 경로 샘플링 간격
+const MOVE_SPEED = 260;           // 키보드 이동 속도 (px/초) — 프레임 루프 기준
+// 화면 확대 배율 (팀 확정 2026-07-20). 배경·NPC·플레이어가 같은 world 래퍼 안에서
+// 함께 확대되고, 카메라가 플레이어를 따라가며 맵 밖으로는 나가지 않게 clamp된다.
+const ZOOM = 1.25;
+const MAP_SIZE = { width: 1920, height: 1080 };
 // 같은 spawn 자리를 쓰는 NPC들을 좌우로 벌리는 간격(px) — 맵 자리(3개)보다 인원이 많을 때.
 // 투어 앵커 계산(ScenarioGamePage)도 같은 값을 써야 마커와 어긋나지 않는다.
 export const SLOT_SPREAD = 92;
@@ -136,6 +141,12 @@ export function MovementArea({
   // NPC 마커 clamp용 컨테이너 크기 — 플레이어(clampPosition)와 달리 마커는 렌더 시점에
   // area.clientWidth/Height를 직접 읽을 수 없어(첫 렌더엔 ref가 비어있음) state로 들고 간다.
   const [areaSize, setAreaSize] = useState<{ width: number; height: number } | null>(null);
+  // 월드 좌표 1px이 실제 화면에서 몇 px인가 — 게임 화면 전체가 --scenario-stage-scale로
+  // 축소돼 있어 ZOOM만으로는 알 수 없다. 잔상(픽셀 어긋남) 억제에 쓴다.
+  const [deviceScale, setDeviceScale] = useState(ZOOM);
+  // 지금 눌려 있는 이동 키 — 누른 순서대로 보관한다(마지막 것이 유효).
+  // 프레임 루프가 매 프레임 읽는다 (리렌더 유발 안 함).
+  const heldKeysRef = useRef<string[]>([]);
 
   // geometry 좌표계(스테이지 1920×1080)의 원점 = walkable 영역의 좌상단. movementArea 로컬좌표 = (x-origin).
   const origin = useMemo(() => {
@@ -243,7 +254,7 @@ export function MovementArea({
     );
     setPlayerWalking(true);
     if (playerWalkTimer.current) clearTimeout(playerWalkTimer.current);
-    playerWalkTimer.current = setTimeout(() => setPlayerWalking(false), 220);
+    playerWalkTimer.current = setTimeout(() => setPlayerWalking(false), 120);
   }, []);
 
   const npcMarkers = useMemo<NpcMarker[]>(() => {
@@ -278,12 +289,10 @@ export function MovementArea({
         markers.push({
           npc_id: npc.npc_id,
           name: npc.name,
-          x: areaSize
-            ? clamp(rawX, NPC_FRAME.width / 2, areaSize.width - NPC_FRAME.width / 2)
-            : rawX,
-          y: areaSize
-            ? clamp(rawY, NPC_FRAME.height / 2, areaSize.height - NPC_FRAME.height / 2)
-            : rawY,
+          // 카메라가 있으면 맵 전체가 무대라 이동영역 크기로 자를 필요가 없다 —
+          // 맵 경계로만 살짝 여며 스프라이트가 캔버스 밖으로 삐져나가지 않게 한다.
+          x: clamp(rawX, -origin.x + NPC_FRAME.width / 2, -origin.x + MAP_SIZE.width - NPC_FRAME.width / 2),
+          y: clamp(rawY, -origin.y + NPC_FRAME.height / 2, -origin.y + MAP_SIZE.height - NPC_FRAME.height / 2),
           isActive: npc.npc_id === activeNpcId,
         });
       }
@@ -333,15 +342,61 @@ export function MovementArea({
     [collisions, collisionPolys],
   );
 
-  const clampPosition = useCallback((nextPosition: Position) => {
-    const area = areaRef.current;
-    if (!area) return nextPosition;
-
+  // 맵 전체의 로컬좌표 경계 — geometry는 스테이지(1920×1080) 좌표, 로컬은 origin만큼 뺀 값.
+  // 카메라가 생기기 전엔 이동영역 크기로 잘랐지만, 이제 맵 전체를 돌아다닐 수 있어야 한다.
+  const worldBounds = useMemo(() => {
+    const size = (geometry?.size as { width: number; height: number } | undefined) ?? MAP_SIZE;
     return {
-      x: clamp(nextPosition.x, 0, area.clientWidth - PLAYER_SIZE.width),
-      y: clamp(nextPosition.y, 0, area.clientHeight - PLAYER_SIZE.height),
+      minX: -origin.x,
+      minY: -origin.y,
+      maxX: -origin.x + size.width,
+      maxY: -origin.y + size.height,
     };
-  }, []);
+  }, [geometry, origin]);
+
+  const clampPosition = useCallback(
+    (nextPosition: Position) => {
+      const area = areaRef.current;
+      if (!area) return nextPosition;
+      // 맵이 없으면(폴백 배경) 예전처럼 이동영역 안으로 가둔다
+      const bounds = geometry
+        ? worldBounds
+        : { minX: 0, minY: 0, maxX: area.clientWidth, maxY: area.clientHeight };
+      return {
+        x: clamp(nextPosition.x, bounds.minX, bounds.maxX - PLAYER_SIZE.width),
+        y: clamp(nextPosition.y, bounds.minY, bounds.maxY - PLAYER_SIZE.height),
+      };
+    },
+    [geometry, worldBounds],
+  );
+
+  /** 화면 픽셀 격자에 맞춘 좌표 — 소수점 위치로 그리면 확대된 픽셀아트에 잔상이 남는다.
+   *  (상태값은 소수점을 유지해야 매 프레임 누적 이동이 매끄럽다) */
+  const snap = useCallback(
+    (value: number) =>
+      geometry && deviceScale > 0 ? Math.round(value * deviceScale) / deviceScale : value,
+    [geometry, deviceScale],
+  );
+
+  // 카메라 — 플레이어를 화면 중앙에 두되 맵 경계를 넘어가지 않는다.
+  const camera = useMemo(() => {
+    if (!geometry || !areaSize) return { x: 0, y: 0 };
+    const viewW = areaSize.width / ZOOM;
+    const viewH = areaSize.height / ZOOM;
+    const focusX = position.x + PLAYER_SIZE.width / 2;
+    const focusY = position.y + PLAYER_SIZE.height / 2;
+    const spanX = worldBounds.maxX - worldBounds.minX;
+    const spanY = worldBounds.maxY - worldBounds.minY;
+    return {
+      // 맵이 화면보다 작으면 가운데 정렬 (가장자리에 빈 공간이 생기지 않게)
+      x: spanX <= viewW
+        ? worldBounds.minX - (viewW - spanX) / 2
+        : clamp(focusX - viewW / 2, worldBounds.minX, worldBounds.maxX - viewW),
+      y: spanY <= viewH
+        ? worldBounds.minY - (viewH - spanY) / 2
+        : clamp(focusY - viewH / 2, worldBounds.minY, worldBounds.maxY - viewH),
+    };
+  }, [geometry, areaSize, position, worldBounds]);
 
   // 최신 좌표를 ref로 들고 간다 — 키를 꾹 누르면 키 리피트가 리렌더보다 빨라서, 클로저의
   // position으로 계산하면 그 사이 입력들이 같은 낡은 좌표를 읽고 마지막 것만 남는다(이동 유실).
@@ -371,17 +426,52 @@ export function MovementArea({
   // 이동 키는 window에서 받는다 — 이동영역 div에 포커스가 있어야만 동작하던 탓에
   // '맵을 한 번 클릭해야 키보드가 먹고, 채팅창에 타이핑하면 다시 먹통'이 됐다.
   // 글자 입력 중(채팅·서술형 답안)에는 무시한다.
+  //
+  // 키를 누른 '상태'를 모아두고 매 프레임 움직인다 — 예전엔 keydown 이벤트마다 18px씩
+  // 튀었는데, OS 키 반복 속도에 끌려다녀서 처음엔 멈칫하고 이후엔 덜컹거렸다.
+  // 프레임 루프로 바꾸면 속도가 일정하고 대각선 이동도 자연스럽다.
   useEffect(() => {
+    const held = heldKeysRef.current;
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (isTypingTarget(event.target)) return;
-      const delta = MOVEMENT_KEYS[event.key];
-      if (!delta) return;
+      if (!MOVEMENT_KEYS[event.key]) return;
       event.preventDefault();
-      movePlayer(delta.x, delta.y);
+      if (!held.includes(event.key)) held.push(event.key); // 키 반복으로 중복 쌓이지 않게
     };
+    const onKeyUp = (event: globalThis.KeyboardEvent) => {
+      const at = held.indexOf(event.key);
+      if (at >= 0) held.splice(at, 1);
+    };
+    const onBlur = () => held.splice(0); // 창을 벗어나면 키가 눌린 채로 남지 않게
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+      held.splice(0);
+    };
+  }, []);
+
+  useEffect(() => {
+    let raf = 0;
+    let last = performance.now();
+    const loop = (now: number) => {
+      raf = requestAnimationFrame(loop);
+      const dt = Math.min(0.05, (now - last) / 1000); // 탭 전환 등으로 크게 튀는 것 방지
+      last = now;
+      // 대각선 이동은 쓰지 않는다 — 두 축이 동시에 소수점으로 움직이면 확대 화면에서
+      // 잔상이 두드러진다. 가장 마지막에 누른 방향 하나로만 걷는다(팀 결정).
+      const held = heldKeysRef.current;
+      const active = held.length ? MOVEMENT_KEYS[held[held.length - 1]] : undefined;
+      if (!active) return;
+      const step = MOVE_SPEED * dt;
+      movePlayer(Math.sign(active.x) * step, Math.sign(active.y) * step);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
   }, [movePlayer]);
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -391,10 +481,14 @@ export function MovementArea({
     if (!bounds || !area) return;
     const scaleX = area.clientWidth / bounds.width;
     const scaleY = area.clientHeight / bounds.height;
+    // 화면 좌표 → 월드 좌표: 배율로 나누고 카메라 오프셋을 더한다 (카메라 없으면 zoom=1·cam=0과 동일)
+    const zoom = geometry ? ZOOM : 1;
+    const worldX = (event.clientX - bounds.left) * scaleX / zoom + (geometry ? camera.x : 0);
+    const worldY = (event.clientY - bounds.top) * scaleY / zoom + (geometry ? camera.y : 0);
 
     const target = clampPosition({
-      x: (event.clientX - bounds.left) * scaleX - PLAYER_SIZE.width / 2,
-      y: (event.clientY - bounds.top) * scaleY - PLAYER_SIZE.height / 2,
+      x: worldX - PLAYER_SIZE.width / 2,
+      y: worldY - PLAYER_SIZE.height / 2,
     });
     // 클릭한 지점까지 '걸어간다' — 벽·집기를 뚫지 않되, 막혔다고 그 자리에 멈춰 서지도 않는다.
     // NPC는 책상 앞에 있어서 NPC를 누르면 목적지가 충돌 안이 되는데, 예전처럼 무시해 버리면
@@ -422,6 +516,10 @@ export function MovementArea({
 
     const resizeObserver = new ResizeObserver(() => {
       setAreaSize({ width: area.clientWidth, height: area.clientHeight });
+      const rect = area.getBoundingClientRect();
+      if (area.clientWidth > 0) {
+        setDeviceScale((rect.width / area.clientWidth) * ZOOM * (window.devicePixelRatio || 1));
+      }
       const nextPosition = clampPosition(position);
       if (nextPosition.x !== position.x || nextPosition.y !== position.y) {
         onPositionChange(nextPosition);
@@ -438,6 +536,40 @@ export function MovementArea({
       onPointerDown={handlePointerDown}
       aria-label="플레이어 이동 영역. 방향키 또는 WASD로 이동할 수 있습니다."
     >
+      <div
+        className={styles.mapWorld}
+        style={
+          geometry
+            ? {
+                position: "absolute",
+                left: 0,
+                top: 0,
+                transformOrigin: "0 0",
+                // 실제 화면 픽셀 격자에 맞춰 반올림 — 어긋난 채로 두면 확대된 픽셀아트가 일렁인다
+        transform: `scale(${ZOOM}) translate(${-snap(camera.x)}px, ${-snap(camera.y)}px)`,
+                willChange: "transform",
+              }
+            : undefined
+        }
+      >
+        {geometry && mapImage ? (
+          // 배경을 world 안에 원본 크기로 둔다 — 좌표(스테이지)와 그림이 1:1로 맞아
+          // 오클루더 크롭 위치가 어긋나지 않는다. 페이지 배경 레이어는 뒤에 남아 여백을 채운다.
+          <img
+            src={mapImage}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            style={{
+              position: "absolute",
+              left: worldBounds.minX,
+              top: worldBounds.minY,
+              width: worldBounds.maxX - worldBounds.minX,
+              height: worldBounds.maxY - worldBounds.minY,
+              pointerEvents: "none",
+            }}
+          />
+        ) : null}
       <div className={styles.objectLayer}>
         {occluders.map((o) => (
           <div
@@ -445,6 +577,11 @@ export function MovementArea({
             className={styles.occluder}
             aria-hidden="true"
             style={{
+              // 레이아웃에 필수인 값은 인라인으로 둔다 — CSS 모듈 클래스가 유실되면
+              // (머지 사고 등) position:static이 되어 오클루더가 화면을 밀어버린다
+              position: "absolute",
+              pointerEvents: "none",
+              backgroundRepeat: "no-repeat",
               left: o.left,
               top: o.top,
               width: o.width,
@@ -514,16 +651,23 @@ export function MovementArea({
           // 오클루전 맵: 플레이어를 오클루더와 같은 스태킹 컨텍스트에 넣고 발 y로 z-정렬 —
           // 가구 밑변(baseline)보다 발이 위면 가려지고, 아래면 캐릭터가 가구 위에 그려진다.
           <PlayerSprite
-            position={position}
+            position={{ x: snap(position.x), y: snap(position.y) }}
             facing={playerFacing}
             walking={playerWalking}
             zIndex={Math.round(position.y + PLAYER_SIZE.height)}
+            smooth={guidePosition != null}
           />
         ) : null}
       </div>
       {occluders.length === 0 ? (
-        <PlayerSprite position={position} facing={playerFacing} walking={playerWalking} />
+        <PlayerSprite
+          position={{ x: snap(position.x), y: snap(position.y) }}
+          facing={playerFacing}
+          walking={playerWalking}
+          smooth={guidePosition != null}
+        />
       ) : null}
+      </div>
     </div>
   );
 }

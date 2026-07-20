@@ -579,21 +579,44 @@ button.headerOrb:active {
   font-weight: 900;
 }
 
+/* 카메라 무대 — 배경·NPC·오클루더·플레이어가 이 안에서 함께 확대·이동한다 */
+.mapWorld {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+  /* image-rendering: pixelated는 쓰지 않는다 — 게임 화면 전체 배율(0.76)×확대(1.25)×화면밀도가
+     정수배가 아니라, 픽셀 경계를 강제하면 움직일 때마다 경계가 밀려 일렁인다(잔상).
+     브라우저 기본 보간에 맡기는 편이 안정적이다. */
+}
+
+/* overhead 오클루더 — 배경의 가구 상단부 크롭. z-index(=밑변 y)로 캐릭터와 앞뒤 경쟁 */
+.occluder {
+  position: absolute;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+}
+
 .playerSprite {
   position: absolute;
   top: 0;
   left: 0;
   z-index: 2;
-  /* 컷신에서 사수를 따라 이동할 때 부드럽게 (키보드 이동은 18px 단위라 체감상 영향 없음) */
-  transition: transform 900ms ease-in-out;
+  /* 기본은 전환 없음 — 매 프레임 좌표가 갱신되는 조작 중에 전환이 걸리면 카메라와
+     어긋나 캐릭터가 떨려 보인다. 컷신 이동만 .playerSpriteSmooth로 부드럽게 처리. */
   display: flex;
   align-items: center;
   justify-content: flex-start;
   width: 76px;
   height: 96px;
   pointer-events: none;
-  transition: transform 115ms ease-out;
-  will-change: transform;
+  /* 전환은 컷신에서만 (인라인 style로 지정) — 매 프레임 좌표가 갱신되는 조작 중에
+     transform 전환이 걸리면 카메라와 어긋나 캐릭터가 떨려 보인다.
+     will-change는 두지 않는다: 부모 무대가 확대되는데 자식이 따로 래스터화되면
+     확대 과정에서 번져 잔상으로 보인다. */
 }
 
 .playerAura {
