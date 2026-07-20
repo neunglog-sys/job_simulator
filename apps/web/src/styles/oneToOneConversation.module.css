@@ -476,6 +476,15 @@
   transform: scale(1.4063);
 }
 
+.navigationMenuItem[aria-current="page"] .navigationMenuIcon {
+  border-color: rgb(255 255 255 / 0.76);
+  color: #6e45c7;
+  background: rgb(255 255 255 / 0.82);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 8px 22px rgb(91 52 177 / 0.18);
+}
+
 .avatarStage {
   position: absolute;
   top: var(--avatar-top);
@@ -1287,6 +1296,551 @@
   .surveyStartMessageButton,
   .surveyTestToggleButton {
     transition: none;
+  }
+}
+
+.conversationModalBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 74px 90px 56px;
+  background: rgb(50 35 96 / 0.24);
+  -webkit-backdrop-filter: blur(8px) saturate(118%);
+  backdrop-filter: blur(8px) saturate(118%);
+}
+
+.conversationModal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.78);
+  border-radius: 30px;
+  color: #3b2d58;
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 0.98), rgb(249 243 255 / 0.97)),
+    #ffffff;
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 32px 90px rgb(57 34 119 / 0.3);
+}
+
+.conversationModalHistory {
+  width: 790px;
+  height: 610px;
+}
+
+.conversationModalRecommendations {
+  width: 1160px;
+  height: 650px;
+}
+
+.conversationModalHeader {
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 40px;
+  align-items: center;
+  flex: 0 0 auto;
+  min-height: 98px;
+  gap: 14px;
+  padding: 22px 24px 20px 26px;
+  border-bottom: 1px solid rgb(112 78 165 / 0.11);
+  background: linear-gradient(180deg, #ffffff, rgb(253 249 255 / 0.96));
+}
+
+.conversationModalIcon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 16px;
+  color: #ffffff;
+  background: linear-gradient(145deg, #7c6adb, #d67bc1);
+  box-shadow: 0 10px 24px rgb(104 71 180 / 0.18);
+}
+
+.conversationModalIcon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.conversationModalHeader h2 {
+  margin: 0;
+  color: #34234f;
+  font-size: 22px;
+  font-weight: 750;
+  line-height: 1.35;
+  letter-spacing: -0.025em;
+}
+
+.conversationModalHeader p {
+  margin: 3px 0 0;
+  color: #85769c;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.conversationModalClose {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 12px;
+  color: #756491;
+  background: #f3eef9;
+  cursor: pointer;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    transform 150ms ease;
+}
+
+.conversationModalClose:hover {
+  color: #593f83;
+  background: #eae0f5;
+  transform: rotate(4deg);
+}
+
+.conversationModalClose:active {
+  transform: scale(0.96);
+}
+
+.conversationModalClose:focus-visible,
+.conversationHistoryItem:focus-visible,
+.conversationModalState button:focus-visible,
+.recommendedJobContent button:focus-visible {
+  outline: 3px solid rgb(126 82 207 / 0.46);
+  outline-offset: 3px;
+}
+
+.conversationModalClose svg {
+  width: 18px;
+  height: 18px;
+}
+
+.conversationModalBody {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  padding: 20px 24px 24px;
+}
+
+.conversationHistoryList {
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-color: rgb(157 108 211 / 0.72) transparent;
+  scrollbar-width: thin;
+}
+
+.conversationHistoryList::-webkit-scrollbar {
+  width: 5px;
+}
+
+.conversationHistoryList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.conversationHistoryList::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: linear-gradient(#a477df, #d17dbc);
+}
+
+.conversationHistoryItem {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 178px;
+  align-items: center;
+  width: 100%;
+  min-height: 88px;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 0;
+  border-bottom: 1px solid rgb(103 77 145 / 0.1);
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color 160ms ease,
+    transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.conversationHistoryItem:first-child {
+  border-radius: 17px 17px 0 0;
+}
+
+.conversationHistoryItem:last-child {
+  border-bottom: 0;
+  border-radius: 0 0 17px 17px;
+}
+
+.conversationHistoryItem:only-child {
+  border-radius: 17px;
+}
+
+.conversationHistoryItem:hover,
+.conversationHistoryItem[aria-current="true"] {
+  background: rgb(130 90 197 / 0.075);
+}
+
+.conversationHistoryItem:hover {
+  transform: translateX(2px);
+}
+
+.conversationHistoryItemIcon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 14px;
+  color: #7a58b7;
+  background: linear-gradient(145deg, #f1eaff, #ffe9f8);
+}
+
+.conversationHistoryItemIcon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.conversationHistoryCopy,
+.conversationHistoryMeta {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.conversationHistoryCopy {
+  gap: 6px;
+}
+
+.conversationHistoryTitleRow {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.conversationHistoryTitleRow strong {
+  overflow: hidden;
+  color: #3d2b59;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversationHistoryTitleRow small {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border-radius: 7px;
+  color: #7450ad;
+  background: #eee4fb;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.conversationHistoryCopy > span:last-child {
+  overflow: hidden;
+  color: #897b9d;
+  font-size: 12px;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversationHistoryMeta {
+  align-items: flex-end;
+  gap: 7px;
+  text-align: right;
+}
+
+.conversationHistoryMeta time {
+  color: #6f6085;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+
+.conversationHistoryMeta small {
+  color: #a092b2;
+  font-size: 10px;
+}
+
+.conversationHistorySkeleton {
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+  border-radius: 18px;
+}
+
+.conversationHistorySkeleton span,
+.recommendedJobSkeleton {
+  background:
+    linear-gradient(90deg, transparent, rgb(255 255 255 / 0.82), transparent),
+    #eee7f6;
+  background-size: 220% 100%, 100% 100%;
+  animation: conversationSkeleton 1.3s linear infinite;
+}
+
+.conversationHistorySkeleton span {
+  height: 88px;
+}
+
+.conversationModalState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  flex-direction: column;
+  padding: 32px;
+  text-align: center;
+}
+
+.conversationModalState > svg {
+  width: 46px;
+  height: 46px;
+  margin-bottom: 16px;
+  color: #8564c4;
+}
+
+.conversationModalState strong {
+  color: #3b2b55;
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.conversationModalState p {
+  max-width: 410px;
+  margin: 8px 0 20px;
+  color: #87799a;
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+
+.recommendationFollowups {
+  display: grid;
+  width: min(100%, 520px);
+  gap: 8px;
+  margin: -4px 0 20px;
+  padding: 0;
+  color: #655477;
+  font-size: 12px;
+  line-height: 1.5;
+  list-style: none;
+  text-align: left;
+}
+
+.recommendationFollowups li {
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: rgb(126 82 207 / 0.07);
+}
+
+.conversationModalState button,
+.recommendedJobContent button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  color: #ffffff;
+  background: linear-gradient(135deg, #7656d3, #ca6fbd);
+  cursor: pointer;
+  box-shadow: 0 9px 22px rgb(105 69 179 / 0.2);
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.conversationModalState button {
+  min-width: 148px;
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 13px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.conversationModalState button:hover,
+.recommendedJobContent button:hover {
+  box-shadow: 0 12px 26px rgb(105 69 179 / 0.26);
+  transform: translateY(-1px);
+}
+
+.conversationModalState button:active,
+.recommendedJobContent button:active {
+  transform: scale(0.98);
+}
+
+.conversationModalState button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+  transform: none;
+}
+
+.recommendedJobGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  height: 100%;
+  gap: 16px;
+}
+
+.recommendedJobCard,
+.recommendedJobSkeleton {
+  min-width: 0;
+  height: 100%;
+  border-radius: 24px;
+}
+
+.recommendedJobCard {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.72);
+  background: #7063a7;
+  box-shadow: 0 16px 34px rgb(67 46 117 / 0.18);
+}
+
+.recommendedJobCard > img,
+.recommendedJobScrim {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.recommendedJobCard > img {
+  z-index: -2;
+  object-fit: cover;
+  image-rendering: auto;
+  transform: scale(1.04);
+  transition: transform 360ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.recommendedJobCard:hover > img {
+  transform: scale(1.075);
+}
+
+.recommendedJobScrim {
+  z-index: -1;
+  background:
+    linear-gradient(180deg, rgb(41 30 78 / 0.06) 0 32%, rgb(43 31 77 / 0.72) 68%, rgb(35 25 64 / 0.95) 100%),
+    linear-gradient(135deg, rgb(113 79 194 / 0.16), rgb(218 104 184 / 0.1));
+}
+
+.recommendedJobRank {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  padding: 7px 10px;
+  border: 1px solid rgb(255 255 255 / 0.5);
+  border-radius: 10px;
+  color: #44325f;
+  background: rgb(255 255 255 / 0.9);
+  font-size: 11px;
+  font-weight: 750;
+  box-shadow: 0 5px 15px rgb(46 29 87 / 0.12);
+}
+
+.recommendedJobContent {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 24px 22px 22px;
+  color: #ffffff;
+}
+
+.recommendedJobHeading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.recommendedJobHeading h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 750;
+  line-height: 1.35;
+  letter-spacing: -0.025em;
+  word-break: keep-all;
+}
+
+.recommendedJobHeading strong {
+  flex: 0 0 auto;
+  color: #f2d8ff;
+  font-size: 17px;
+  line-height: 1.3;
+}
+
+.recommendedJobContent p {
+  display: -webkit-box;
+  min-height: 58px;
+  margin: 10px 0 17px;
+  overflow: hidden;
+  color: rgb(255 255 255 / 0.82);
+  font-size: 12px;
+  line-height: 1.6;
+  word-break: keep-all;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.recommendedJobContent button {
+  width: 100%;
+  height: 42px;
+  gap: 7px;
+  border-radius: 13px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.recommendedJobContent button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.recommendedJobUnavailable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 42px;
+  border: 1px solid rgb(255 255 255 / 0.24);
+  border-radius: 13px;
+  color: rgb(255 255 255 / 0.7);
+  background: rgb(255 255 255 / 0.09);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+@keyframes conversationSkeleton {
+  from { background-position: 180% 0, 0 0; }
+  to { background-position: -80% 0, 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conversationModalClose,
+  .conversationHistoryItem,
+  .recommendedJobCard > img,
+  .conversationModalState button,
+  .recommendedJobContent button {
+    transition: none;
+  }
+
+  .conversationHistorySkeleton span,
+  .recommendedJobSkeleton {
+    animation: none;
   }
 }
 

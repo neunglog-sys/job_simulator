@@ -59,6 +59,14 @@ async def test_create_get_and_feedback_flow(client, db_session, mock_llm):
     assert body["feedback"] is None
     rec_id = body["id"]
 
+    latest_resp = await client.get(
+        "/api/recommendations",
+        params={"consultation_id": consultation.id},
+        headers=headers,
+    )
+    assert latest_resp.status_code == 200
+    assert latest_resp.json()["id"] == rec_id
+
     get_resp = await client.get(f"/api/recommendations/{rec_id}", headers=headers)
     assert get_resp.status_code == 200
     assert get_resp.json()["id"] == rec_id
@@ -105,6 +113,24 @@ async def test_create_recommendation_without_messages_is_400(client, db_session,
         headers={"X-User-Id": str(user.id)},
     )
     assert resp.status_code == 400
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_latest_recommendation_is_null_before_creation(client, db_session):
+    user = await _make_user(db_session, "latest-empty@example.com")
+    consultation = Consultation(user_id=user.id, status="active")
+    db_session.add(consultation)
+    await db_session.commit()
+    await db_session.refresh(consultation)
+
+    resp = await client.get(
+        "/api/recommendations",
+        params={"consultation_id": consultation.id},
+        headers={"X-User-Id": str(user.id)},
+    )
+
+    assert resp.status_code == 200
+    assert resp.json() is None
 
 
 @pytest.mark.asyncio(loop_scope="session")
