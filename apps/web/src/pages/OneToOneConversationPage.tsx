@@ -18,6 +18,7 @@ import {
   createConsultation,
   createRecommendation,
   createReport,
+  deleteConsultation,
   fetchConsultations,
   fetchConsultationMessages,
   fetchLatestRecommendation,
@@ -26,6 +27,7 @@ import {
   fetchSurveyItems,
   streamConsultationReply,
   submitConsultationSurvey,
+  updateConsultationTitle,
   type SurveyItem,
   type ConsultationSummary,
   type Recommendation,
@@ -697,6 +699,48 @@ export function OneToOneConversationPage() {
     }
   }, []);
 
+  const handleConsultationRename = useCallback(async (id: number, title: string) => {
+    const updated = await updateConsultationTitle(id, title);
+    setConsultationHistory((current) =>
+      current.map((item) => (item.id === id ? { ...item, title: updated.title } : item)),
+    );
+  }, []);
+
+  const handleConsultationDelete = useCallback(async (id: number) => {
+    await deleteConsultation(id);
+    setConsultationHistory((current) => current.filter((item) => item.id !== id));
+
+    if (id !== consultationId) return;
+
+    finishVoiceSession(false);
+    sessionStorage.removeItem(CONSULTATION_RESUME_KEY);
+    setMessages(initialConversationMessages);
+    setInputValue("");
+    setAvatarStatus("idle");
+    setActivePanel("chat");
+    setVoiceIssue(null);
+    setSurveyAnswers({});
+    setSurveyError(null);
+    setSurveyQuestions([]);
+    setConsultationId(null);
+    setReportState(INITIAL_REPORT_STATE);
+    setRecommendation(null);
+    recommendationCacheRef.current = null;
+    setRecommendationError(null);
+    setRecommendationNeedsMoreChat(false);
+    setRecommendationFollowupQuestions([]);
+
+    try {
+      const consultation = await createConsultation();
+      sessionStorage.setItem(CONSULTATION_RESUME_KEY, String(consultation.id));
+      setConsultationId(consultation.id);
+      const survey = await fetchSurveyItems(consultation.id);
+      setSurveyQuestions(toSurveyQuestions(survey.items));
+    } catch {
+      // 삭제는 완료됐으므로 새 상담 생성 실패 시 기본 화면을 유지한다.
+    }
+  }, [consultationId, finishVoiceSession]);
+
   const loadRecommendedJobs = useCallback(async () => {
     if (!consultationId) {
       setRecommendation(null);
@@ -946,6 +990,8 @@ export function OneToOneConversationPage() {
               error={historyError}
               onRetry={() => void loadConsultationHistory()}
               onSelect={(id) => void handleConsultationSelect(id)}
+              onRename={handleConsultationRename}
+              onDelete={handleConsultationDelete}
               onClose={() => setActiveModal(null)}
             />
           ) : null}

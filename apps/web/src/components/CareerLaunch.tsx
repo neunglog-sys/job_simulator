@@ -23,6 +23,7 @@ import { CLIENT_EVENTS, FRONTEND_ENDPOINTS } from "../config/endpoints";
 import { AVATAR_IMAGE, LANDING_COPY } from "../content";
 import { logout, useAuth } from "../lib/auth";
 import { AuthModal, type AuthMode } from "./AuthModal";
+import { LogoutConfirmDialog } from "./LogoutConfirmDialog";
 
 type ScenePhase =
   | "boot"
@@ -561,6 +562,7 @@ export function CareerLaunch() {
   const [phase, setPhase] = useState<ScenePhase>("boot");
   const [storyKey, setStoryKey] = useState(0);
   const [toast, setToast] = useState("");
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode | null>(() => requestedAuthMode());
   const [postAuthDestination, setPostAuthDestination] = useState<string | null>(() =>
     requestedReturnTo(),
@@ -758,10 +760,7 @@ export function CareerLaunch() {
                 <button
                   className="nav-account-button"
                   type="button"
-                  onClick={() => {
-                    logout();
-                    showToast("로그아웃했어요.");
-                  }}
+                  onClick={() => setIsLogoutConfirmOpen(true)}
                 >
                   로그아웃
                 </button>
@@ -961,6 +960,15 @@ export function CareerLaunch() {
           }}
         />
       )}
+      <LogoutConfirmDialog
+        open={isLogoutConfirmOpen}
+        onCancel={() => setIsLogoutConfirmOpen(false)}
+        onConfirm={() => {
+          setIsLogoutConfirmOpen(false);
+          logout();
+          showToast("로그아웃했어요.");
+        }}
+      />
     </main>
   );
 }

@@ -1,6 +1,6 @@
 import json
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
@@ -12,6 +12,8 @@ from app.domains.consultation import resume, service, survey
 from app.domains.consultation.schemas import (
     ConsultationListItem,
     ConsultationOut,
+    ConsultationTitleOut,
+    ConsultationTitleUpdate,
     MessageIn,
     MessageOut,
     SurveyIn,
@@ -39,6 +41,29 @@ async def create_consultation(
     out = ConsultationOut.model_validate(consultation)
     # 인사 클립이 준비돼 있으면 세션 진입 즉시 재생하라고 알려준다 (없으면 기존 흐름)
     return out.model_copy(update={"greeting_clip_url": service.greeting_clip_url()})
+
+
+@router.patch("/{consultation_id}", response_model=ConsultationTitleOut)
+async def rename_consultation(
+    consultation_id: int,
+    body: ConsultationTitleUpdate,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    consultation = await service.get_owned_consultation(session, consultation_id, user)
+    updated = await service.update_consultation_title(session, consultation, body.title)
+    return ConsultationTitleOut(id=updated.id, title=updated.title or body.title)
+
+
+@router.delete("/{consultation_id}", status_code=204)
+async def remove_consultation(
+    consultation_id: int,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    consultation = await service.get_owned_consultation(session, consultation_id, user)
+    await service.delete_consultation(session, consultation)
+    return Response(status_code=204)
 
 
 @router.get("/{consultation_id}/survey")

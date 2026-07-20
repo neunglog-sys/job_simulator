@@ -121,6 +121,20 @@ export function fetchConsultations(): Promise<ConsultationSummary[]> {
   return request(API_ENDPOINTS.consultations.list, { method: "GET" });
 }
 
+export function updateConsultationTitle(
+  consultationId: number,
+  title: string,
+): Promise<{ id: number; title: string }> {
+  return request(API_ENDPOINTS.consultations.detail(consultationId), {
+    method: "PATCH",
+    body: JSON.stringify({ title }),
+  });
+}
+
+export function deleteConsultation(consultationId: number): Promise<void> {
+  return request(API_ENDPOINTS.consultations.detail(consultationId), { method: "DELETE" });
+}
+
 // --- 상담 메시지 — 백엔드 MessageOut과 1:1 ---
 export type ConsultationMessage = {
   id: number;

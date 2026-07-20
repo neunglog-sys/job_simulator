@@ -6,7 +6,7 @@ import time
 from typing import AsyncIterator
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.content.counseling import build_safety_notes
@@ -15,7 +15,7 @@ from app.domains.consultation import resume as resume_mod
 from app.llm import get_llm
 from app.llm.base import ChatMessage
 from app.llm.prompts import render_prompt
-from app.models import Consultation, Message, User
+from app.models import Consultation, Message, Recommendation, Report, User
 
 logger = logging.getLogger(__name__)
 
@@ -123,9 +123,12 @@ async def list_consultation_summaries(
                 "id": consultation.id,
                 "status": consultation.status,
                 "title": (
-                    _truncate(first_user_message.content, 34)
-                    if first_user_message
-                    else "새로운 상담"
+                    consultation.title
+                    or (
+                        _truncate(first_user_message.content, 34)
+                        if first_user_message
+                        else "새로운 상담"
+                    )
                 ),
                 "preview": (
                     _truncate(latest_message.content, 72)
@@ -139,6 +142,35 @@ async def list_consultation_summaries(
         )
 
     return sorted(items, key=lambda item: item["updated_at"], reverse=True)
+
+
+async def update_consultation_title(
+    session: AsyncSession,
+    consultation: Consultation,
+    title: str,
+) -> Consultation:
+    consultation.title = title
+    await session.commit()
+    await session.refresh(consultation)
+    return consultation
+
+
+async def delete_consultation(
+    session: AsyncSession,
+    consultation: Consultation,
+) -> None:
+    """상담과 전용 데이터를 삭제하고, 생성된 리포트는 상담 연결만 해제한다."""
+    await session.execute(
+        update(Report)
+        .where(Report.consultation_id == consultation.id)
+        .values(consultation_id=None)
+    )
+    await session.execute(
+        delete(Recommendation).where(Recommendation.consultation_id == consultation.id)
+    )
+    await session.execute(delete(Message).where(Message.consultation_id == consultation.id))
+    await session.delete(consultation)
+    await session.commit()
 
 
 async def get_owned_consultation(
