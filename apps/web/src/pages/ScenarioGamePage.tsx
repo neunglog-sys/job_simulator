@@ -204,6 +204,7 @@ export function ScenarioGamePage() {
   const [activeStep, setActiveStep] = useState<GameStep | null>(null);
   const [npcs, setNpcs] = useState<GameNpc[]>([]);
   const [gameMap, setGameMap] = useState<Simulation["map"]>(null);
+  const [minigame, setMinigame] = useState<Simulation["minigame"]>(null);
   const [scenarioTitle, setScenarioTitle] = useState("");
   const [stepIds, setStepIds] = useState<string[]>([]); // 본편 미션 순서 (진행률 계산용)
   // 진행 페이즈 — "지금 무엇을 하는 중인지"의 단일 출처. 전이는 아래 handle*/소켓 핸들러에서만.
@@ -478,6 +479,7 @@ export function ScenarioGamePage() {
       setPhase("exploring");
       npcsRef.current = sim.npcs;
       setGameMap(sim.map);
+      setMinigame(sim.minigame ?? null);
       setScenarioTitle(sim.scenario_title);
       setStepIds(sim.step_ids ?? []);
       setCoachMessage(approachGuide(sim.step, sim.npcs));
@@ -1082,8 +1084,11 @@ export function ScenarioGamePage() {
       {phase === "minigame" ? (
         <MiniGamePanel
           missionTitle="신입의 주 업무"
-          onClear={() => {
-            socketRef.current?.sendMinigameResult({ engine: "stub", accuracy: 0 });
+          game={minigame}
+          onClear={(result) => {
+            // 실제 엔진이면 성적을 그대로, 게임 데이터가 없는 시나리오는 스텁으로.
+            // 스텁의 engine:"stub"은 백엔드 aggregate가 걸러내 점수를 오염시키지 않는다.
+            socketRef.current?.sendMinigameResult(result ?? { engine: "stub", accuracy: 0 });
             setPhase("reflection");
           }}
         />
