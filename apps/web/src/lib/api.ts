@@ -102,6 +102,161 @@ export function createConsultation(): Promise<Consultation> {
   return request(API_ENDPOINTS.consultations.create, { method: "POST" });
 }
 
+// --- 상담 메시지 — 백엔드 MessageOut과 1:1 ---
+export type ConsultationMessage = {
+  id: number;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+};
+
+export function fetchConsultationMessages(
+  consultationId: number,
+): Promise<ConsultationMessage[]> {
+  return request(API_ENDPOINTS.consultations.messages(consultationId), { method: "GET" });
+}
+
+/** 아바타 응답 SSE 스트리밍(event: token → done). fetch+ReadableStream 직접 파싱 —
+ * EventSource는 GET 전용이라 본문이 필요한 이 POST 스트림엔 못 쓴다. */
+export async function streamConsultationReply(
+  consultationId: number,
+  content: string,
+  onToken: (text: string) => void,
+): Promise<void> {
+  const headers = new Headers({ "Content-Type": "application/json" });
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  let res: Response;
+  try {
+    res = await fetch(API_ENDPOINTS.consultations.messages(consultationId), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ content }),
+    });
+  } catch {
+    throw new ApiError(0, null, "서버에 연결할 수 없어요. 백엔드가 켜져 있는지 확인해주세요.");
+  }
+
+  if (!res.ok || !res.body) {
+    const raw = await res.text().catch(() => "");
+    const data = raw ? safeJson(raw) : null;
+    const detail = (data as { detail?: unknown } | null)?.detail;
+    throw new ApiError(res.status, detail, messageFromDetail(detail, res.status));
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  const consumeEvent = (rawEvent: string) => {
+    let eventName = "message";
+    const dataLines: string[] = [];
+    for (const line of rawEvent.split("\n")) {
+      if (line.startsWith("event:")) eventName = line.slice(6).trim();
+      else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+    }
+    if (dataLines.length === 0) return;
+
+    const data = safeJson(dataLines.join("\n")) as { text?: string; detail?: string } | null;
+    if (eventName === "token" && data?.text) {
+      onToken(data.text);
+    } else if (eventName === "error") {
+      throw new ApiError(500, data?.detail, data?.detail ?? "응답 생성에 실패했어요.");
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let separatorIndex: number;
+    while ((separatorIndex = buffer.indexOf("\n\n")) !== -1) {
+      consumeEvent(buffer.slice(0, separatorIndex));
+      buffer = buffer.slice(separatorIndex + 2);
+    }
+  }
+}
+
+// --- 사전 설문 — 백엔드 survey.py 문항(정답지인 dimension_scores는 노출 안 됨) ---
+export type SurveyItem = {
+  id: string;
+  text: string;
+  options: Array<{ key: string; label: string }>;
+};
+
+export function fetchSurveyItems(consultationId: number): Promise<{ items: SurveyItem[] }> {
+  return request(API_ENDPOINTS.consultations.survey(consultationId), { method: "GET" });
+}
+
+export type SurveySubmitResult = {
+  profile: Record<string, number>;
+  avatar_lines: string[];
+};
+
+export function submitConsultationSurvey(
+  consultationId: number,
+  answers: Record<string, string>,
+): Promise<SurveySubmitResult> {
+  return request(API_ENDPOINTS.consultations.survey(consultationId), {
+    method: "POST",
+    body: JSON.stringify({ answers }),
+  });
+}
+
+// --- 직무 추천 · 최종 리포트 — 백엔드 recommendation/reporting 스키마와 1:1 ---
+export type JobRecommendation = {
+  job_code: string;
+  job_title: string;
+  score: number;
+  reason: string;
+  education_requirement: Record<string, unknown> | null;
+  salary: Record<string, unknown> | null;
+  certifications: unknown[];
+  scenario_slug: string | null;
+};
+
+export type Recommendation = {
+  id: number;
+  consultation_id: number;
+  results: JobRecommendation[];
+  feedback: string | null;
+  created_at: string;
+};
+
+/** 상담 대화를 분석해 적합 직무 상위 5개를 추천 — 상담은 completed로 전환됨.
+ * 적성 파악이 부족하면 409(aptitude_unclear, detail에 follow-up 질문 포함)로 거절될 수 있음. */
+export function createRecommendation(consultationId: number): Promise<Recommendation> {
+  return request(API_ENDPOINTS.recommendations.create, {
+    method: "POST",
+    body: JSON.stringify({ consultation_id: consultationId }),
+  });
+}
+
+export type Report = {
+  id: number;
+  status: "pending" | "done" | "failed";
+  consultation_id: number | null;
+  simulation_id: number | null;
+  fit_score: number | null;
+  strengths: string[];
+  improvements: string[];
+  advice: string | null;
+  created_at: string;
+};
+
+/** 리포트 생성은 백엔드에서 비동기 처리 — status가 done/failed 될 때까지 fetchReport로 폴링. */
+export function createReport(consultationId: number): Promise<Report> {
+  return request(API_ENDPOINTS.reports.create, {
+    method: "POST",
+    body: JSON.stringify({ consultation_id: consultationId }),
+  });
+}
+
+export function fetchReport(reportId: number): Promise<Report> {
+  return request(API_ENDPOINTS.reports.detail(reportId));
+}
+
 // --- 시뮬레이션(게임) 타입 — 백엔드 SimulationOut 스키마와 1:1 ---
 export type GameTaskOption = { key: string; label: string };
 export type GameTask = {
