@@ -24,6 +24,8 @@ type MovementAreaProps = {
   onCoachMessage: (message: string) => void;
   // 백엔드 맵 geometry (TMX에서 추출된 walkable·collision·spawns). 있으면 이동 판정·NPC 배치에 사용.
   geometry?: GameMapData["geometry"] | null;
+  // 배경 이미지 URL (로드 확인된 것) — overhead 오클루더가 같은 배경을 잘라 그리는 데 사용.
+  mapImage?: string | null;
   npcs?: GameNpc[];
   activeNpcId?: string | null; // 현재 미션 담당 NPC — 마커를 그 이름으로 강조
   onNpcClick?: (npcId: string) => void; // NPC 마커 클릭 → 그 NPC와 대화
@@ -123,6 +125,7 @@ export function MovementArea({
   onPositionChange,
   onCoachMessage,
   geometry = null,
+  mapImage = null,
   npcs = [],
   activeNpcId = null,
   onNpcClick,
@@ -149,6 +152,44 @@ export function MovementArea({
       h: c.h,
     }));
   }, [geometry, origin]);
+
+  // 폴리곤 충돌(대각선 구조물 등) — 로컬 좌표로 변환해 둔다
+  const collisionPolys = useMemo<Array<Array<[number, number]>>>(() => {
+    if (!geometry?.collision_polys) return [];
+    return geometry.collision_polys.map((p) =>
+      p.points.map(([px, py]) => [px - origin.x, py - origin.y] as [number, number]),
+    );
+  }, [geometry, origin]);
+
+  // overhead 오클루더 — 배경의 가구 상단부를 잘라 캐릭터 위에 겹친다 (맵 리메이크 규격 v2).
+  // z = baseline(가구 밑변): 발이 그보다 위(뒤)면 가려지고, 아래(앞)면 캐릭터가 위에 그려진다.
+  // 기존 맵은 overhead가 없어 빈 배열 — 아무것도 렌더하지 않는다.
+  const occluders = useMemo(() => {
+    if (!geometry?.overhead || !mapImage) return [];
+    const stageW = geometry.size?.width ?? 1920;
+    const stageH = geometry.size?.height ?? 1080;
+    const folderUrl = mapImage.slice(0, mapImage.lastIndexOf("/"));
+    return geometry.overhead.flatMap((o) => {
+      const box = o.bbox ?? (o.x != null && o.y != null ? { x: o.x, y: o.y, w: o.w ?? 0, h: o.h ?? 0 } : null);
+      if (!box || !box.w || !box.h) return [];
+      const clipPath = o.points
+        ? `polygon(${o.points.map(([px, py]) => `${px - box.x}px ${py - box.y}px`).join(",")})`
+        : undefined;
+      return [{
+        key: o.id ?? `${box.x},${box.y}`,
+        left: box.x - origin.x,
+        top: box.y - origin.y,
+        width: box.w,
+        height: box.h,
+        zIndex: Math.round(o.baseline - origin.y),
+        backgroundImage: `url("${mapImage}")`,
+        backgroundPosition: `-${box.x}px -${box.y}px`,
+        backgroundSize: `${stageW}px ${stageH}px`,
+        clipPath,
+        maskUrl: o.mask ? `url("${folderUrl}/${encodeURIComponent(o.mask)}")` : undefined,
+      }];
+    });
+  }, [geometry, mapImage, origin]);
 
   // 투어 중인 사수의 진행 방향 — 좌표 변화의 지배 축으로 판정해 스프라이트가 걷는 쪽을 본다.
   // ref에 이전 좌표와 함께 저장: 좌표가 실제로 바뀐 렌더에서만 갱신 (StrictMode 이중 렌더 안전).
@@ -252,18 +293,44 @@ export function MovementArea({
 
   const collidesAt = useCallback(
     (pos: Position) => {
-      if (collisions.length === 0) return false;
+      if (collisions.length === 0 && collisionPolys.length === 0) return false;
       const footX = pos.x + (PLAYER_SIZE.width - FOOT_WIDTH) / 2;
       const footY = pos.y + PLAYER_SIZE.height - FOOT_HEIGHT;
-      return collisions.some(
-        (c) =>
-          footX < c.x + c.w &&
-          footX + FOOT_WIDTH > c.x &&
-          footY < c.y + c.h &&
-          footY + FOOT_HEIGHT > c.y,
+      if (
+        collisions.some(
+          (c) =>
+            footX < c.x + c.w &&
+            footX + FOOT_WIDTH > c.x &&
+            footY < c.y + c.h &&
+            footY + FOOT_HEIGHT > c.y,
+        )
+      ) {
+        return true;
+      }
+      if (collisionPolys.length === 0) return false;
+      // 폴리곤 판정: 발 박스 꼭짓점 + 중심의 point-in-polygon (레이 캐스팅)
+      const probes: Array<[number, number]> = [
+        [footX, footY],
+        [footX + FOOT_WIDTH, footY],
+        [footX, footY + FOOT_HEIGHT],
+        [footX + FOOT_WIDTH, footY + FOOT_HEIGHT],
+        [footX + FOOT_WIDTH / 2, footY + FOOT_HEIGHT / 2],
+      ];
+      return collisionPolys.some((poly) =>
+        probes.some(([px, py]) => {
+          let inside = false;
+          for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+            const [xi, yi] = poly[i];
+            const [xj, yj] = poly[j];
+            if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) {
+              inside = !inside;
+            }
+          }
+          return inside;
+        }),
       );
     },
-    [collisions],
+    [collisions, collisionPolys],
   );
 
   const clampPosition = useCallback((nextPosition: Position) => {
@@ -372,13 +439,38 @@ export function MovementArea({
       aria-label="플레이어 이동 영역. 방향키 또는 WASD로 이동할 수 있습니다."
     >
       <div className={styles.objectLayer}>
+        {occluders.map((o) => (
+          <div
+            key={o.key}
+            className={styles.occluder}
+            aria-hidden="true"
+            style={{
+              left: o.left,
+              top: o.top,
+              width: o.width,
+              height: o.height,
+              zIndex: o.zIndex,
+              backgroundImage: o.backgroundImage,
+              backgroundPosition: o.backgroundPosition,
+              backgroundSize: o.backgroundSize,
+              clipPath: o.clipPath,
+              WebkitMaskImage: o.maskUrl,
+              maskImage: o.maskUrl,
+            }}
+          />
+        ))}
         {geometry ? (
           npcMarkers.map((marker) => (
             <button
               className={`${styles.npcMarker} ${marker.isActive ? styles.npcMarkerActive : ""}`}
               type="button"
               key={marker.npc_id}
-              style={{ left: marker.x, top: marker.y }}
+              style={{
+                left: marker.x,
+                top: marker.y,
+                // 오클루전 맵에서는 NPC도 y-정렬에 참여 — 가구 뒤 자리면 하반신이 가려진다
+                zIndex: occluders.length > 0 ? Math.round(marker.y + NPC_FRAME.height / 2) : undefined,
+              }}
               onClick={() => onNpcClick?.(marker.npc_id)}
               aria-label={`${marker.name}와 대화하기`}
             >
@@ -418,8 +510,20 @@ export function MovementArea({
             );
           })
         )}
+        {occluders.length > 0 ? (
+          // 오클루전 맵: 플레이어를 오클루더와 같은 스태킹 컨텍스트에 넣고 발 y로 z-정렬 —
+          // 가구 밑변(baseline)보다 발이 위면 가려지고, 아래면 캐릭터가 가구 위에 그려진다.
+          <PlayerSprite
+            position={position}
+            facing={playerFacing}
+            walking={playerWalking}
+            zIndex={Math.round(position.y + PLAYER_SIZE.height)}
+          />
+        ) : null}
       </div>
-      <PlayerSprite position={position} facing={playerFacing} walking={playerWalking} />
+      {occluders.length === 0 ? (
+        <PlayerSprite position={position} facing={playerFacing} walking={playerWalking} />
+      ) : null}
     </div>
   );
 }

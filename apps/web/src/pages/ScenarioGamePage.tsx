@@ -886,6 +886,7 @@ export function ScenarioGamePage() {
           onPositionChange={canMove(phase) && !isMemoOpen && !isWorkflowOpen ? setPlayerPosition : NOOP}
           onCoachMessage={setCoachMessage}
           geometry={gameMap?.geometry ?? null}
+          mapImage={mapImage}
           npcs={npcs}
           activeNpcId={activeNpcId}
           onNpcClick={MODAL_PHASES.has(phase) || tourActive || isMemoOpen || isWorkflowOpen ? undefined : handleNpcClick}
