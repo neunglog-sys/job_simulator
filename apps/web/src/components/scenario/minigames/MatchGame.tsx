@@ -42,7 +42,10 @@ type MatchCard = {
   id: string;
   sprite: string;
   label?: string;
-  /** ys-03 — 금속탐지기 반응자. 카드에 빨간 램프를 그린다(시각 단서). */
+  /** ys-03 — 금속탐지기 반응자. 게이트 램프 점멸(확산 링)에 카드 흔들림·붉은 펄스를 얹는다
+   *  (시각 단서 강화 — 디자이너 피드백 2026-07-20). '벨이 정답'을 가리키는 표시는 금지 —
+   *  울림을 잘 보이게만 하고 판단은 유저 몫. 선긋기·도장·인계 어느 쪽이든 카드가 처리되면
+   *  경보가 잦아든다(모든 처리에 동일 — 정답 유출 없음). */
   detector?: boolean;
 };
 
@@ -66,7 +69,7 @@ type MatchData = {
   right_label?: string;
   pairs?: Array<[string, string]>;
   unmatched?: string[];
-  /** stn-04 — 짝없음 도장의 라벨(재검증_표시). 없으면 '짝 없음'. */
+  /** 짝없음 도장의 표시 라벨(표시 전용) — stn-04 재검증_표시, ys-03 불가능. 없으면 '짝 없음'. */
   unmatched_action?: string;
   /** kts-02 — 같은 그룹끼리는 교차 배정도 정답. */
   equivalent?: string[][];
@@ -222,6 +225,8 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const [escalated, setEscalated] = useState(false); // 상태형(sudden) 호출
   const [earlyEscalate, setEarlyEscalate] = useState(false); // 단계 전 성급 호출
   const [pressedForbidden, setPressedForbidden] = useState<string[]>([]);
+  /** 금지 버튼을 누른 직후의 제지 배너 — tick 은 같은 배너 재등장 시 애니메이션 재생용. */
+  const [forbiddenWarning, setForbiddenWarning] = useState<{ id: string; reason: string; tick: number } | null>(null);
   const [suddenVisible, setSuddenVisible] = useState(false);
   const [keysGiven, setKeysGiven] = useState<Record<string, string>>({});
   const [done, setDone] = useState(false);
@@ -553,6 +558,13 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const pressForbiddenButton = (id: string) => {
     if (done || pressedForbidden.includes(id)) return;
     setPressedForbidden((prev) => [...prev, id]);
+    // 즉각 제지 피드백(2026-07-20 디자이너 확정) — 감점은 기존대로 최종 채점에서 반영되고,
+    // 여기서는 '방금 누른 것이 금지행동'임을 그 자리에서 알린다. 문구는 누른 뒤에만 나오므로
+    // 정답 사전 유출이 아니다(ms-10 금지 오브젝트 클릭 피드백과 같은 패턴).
+    const src =
+      (data.forbidden ?? []).find((f) => f.id === id) ??
+      (sudden?.forbidden_actions ?? []).find((f) => f.id === id);
+    setForbiddenWarning({ id, reason: src?.reason ?? "지금 해서는 안 되는 행동입니다", tick: Date.now() });
   };
 
   const clickBead = (id: string, kind: "normal" | "outlier" | "decoy") => {
@@ -606,6 +618,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
           ref={registerCard(card.id, side)}
           className={styles.card}
           data-state={stateOf(card.id)}
+          data-detector={card.detector || undefined}
           data-verdict={verdict}
           aria-pressed={selected?.id === card.id}
           aria-label={cardAria(card, side)}
@@ -786,6 +799,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
                 type="button"
                 className={styles.stageBtn}
                 disabled={done || pressedForbidden.includes(action.id)}
+                data-forbidden-pressed={pressedForbidden.includes(action.id) || undefined}
                 data-done={pressedForbidden.includes(action.id)}
                 onClick={() => pressForbiddenButton(action.id)}
               >
@@ -851,6 +865,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
               key={item.id}
               type="button"
               className={styles.actionBtn}
+              data-forbidden-pressed={pressedForbidden.includes(item.id) || undefined}
               disabled={pressedForbidden.includes(item.id)}
               onClick={() => pressForbiddenButton(item.id)}
             >
@@ -868,6 +883,13 @@ export function MatchGame({ game, onComplete }: EngineProps) {
           >
             제출
           </button>
+        </div>
+      ) : null}
+
+      {forbiddenWarning && !done ? (
+        <div key={forbiddenWarning.tick} className={styles.forbiddenAlert} role="alert">
+          <span className={styles.forbiddenAlertBadge}>금지행동</span>
+          <span>{forbiddenWarning.reason}</span>
         </div>
       ) : null}
 

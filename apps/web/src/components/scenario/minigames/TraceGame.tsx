@@ -32,6 +32,9 @@ import {
  *     stage 가 아트 모드(data-art)로 전환돼 밴드·경로 대비만 살짝 올라간다.
  *   - emergency.signal·data.spark_sprite 도 같은 이름의 파일이 있으면 도트로 그려지고,
  *     없으면 기존 라벨 칩·원광 플래시로 폴백한다.
+ *   - emergency 잠금 중엔 하단 footer 가 전용 경보 슬롯(신호 아이콘+대형 보고 버튼)으로
+ *     바뀐다 — 표시 전용이며 report() 판정·채점은 그대로다. emergency 가 없는 게임
+ *     (ms-08)은 기존 footerRow 렌더만 탄다(디자이너 피드백: 보고 버튼 시인성).
  */
 
 type TraceBand = { from?: number; to?: number; tolerance?: number; color?: string };
@@ -650,6 +653,9 @@ export function TraceGame({ game, onComplete }: EngineProps) {
                   className={styles.marker}
                   data-kind={status === "done" ? "done" : gate.kind === "interrupt" ? undefined : "danger"}
                   data-sprite={spriteMode ? "true" : undefined}
+                  // 활성 emergency 만 하단 경보 슬롯의 아이콘과 같은 리듬으로 깜빡인다
+                  // (표시 전용) — interrupt·terminal(ms-08)에는 붙지 않는다.
+                  data-alert={status === "active" && gate.kind === "emergency" ? "true" : undefined}
                   style={{ left: `${(pos.x / VIEW_W) * 100}%`, top: `${(pos.y / VIEW_H) * 100}%` }}
                 >
                   {spriteMode ? (
@@ -723,19 +729,37 @@ export function TraceGame({ game, onComplete }: EngineProps) {
       </div>
 
       {!done ? (
-        <div className={styles.footerRow}>
-          <span className={styles.hintText}>초록 점에서 시작해 점선 경로를 따라 드래그하세요</span>
-          {lockView?.kind === "emergency" ? (
-            <button type="button" className={styles.actionButton} data-variant="alert" onClick={report} aria-label="작업 중지하고 보고">
+        lockView?.kind === "emergency" ? (
+          /* emergency 전용 고정 경보 슬롯 — footer 자리를 통째로 써서 스테이지(경로)를
+             가리지 않는다. 경로 위 마커와 같은 신호 스프라이트(균열·연기)를 대형 보고
+             버튼 옆에 함께 그려 시각적으로 잇는다. 표시 전용 — report() 판정·채점 불변,
+             emergency 가 없는 게임(ms-08)은 아래 기존 footerRow 분기만 탄다. */
+          <div className={styles.emergencyDock}>
+            <span className={styles.emergencySignal} aria-hidden="true">
+              {emergencySignal ? (
+                <PixelSprite id={emergencySignal} label="" size={44} fallbackClassName={styles.emergencyFallback} />
+              ) : (
+                <span className={styles.emergencyFallback} />
+              )}
+            </span>
+            <span className={styles.emergencyText}>
+              {situationOf(lockView.reason) || "돌발 신호"}
+              <small>즉시 멈추고 버튼으로 보고하세요</small>
+            </span>
+            <button type="button" className={styles.actionButton} data-variant="emergency" onClick={report} aria-label="작업 중지하고 보고">
               {emergencyActionLabel || "작업중지 보고"}
             </button>
-          ) : null}
-          {lockView?.kind === "terminal" ? (
-            <button type="button" className={styles.actionButton} data-variant="alert" onClick={terminate} aria-label="여기서 중단하고 종료">
-              여기서 종료
-            </button>
-          ) : null}
-        </div>
+          </div>
+        ) : (
+          <div className={styles.footerRow}>
+            <span className={styles.hintText}>초록 점에서 시작해 점선 경로를 따라 드래그하세요</span>
+            {lockView?.kind === "terminal" ? (
+              <button type="button" className={styles.actionButton} data-variant="alert" onClick={terminate} aria-label="여기서 중단하고 종료">
+                여기서 종료
+              </button>
+            ) : null}
+          </div>
+        )
       ) : null}
 
       {toast ? <span className={styles.hintText} role="status" style={{ textAlign: "center" }}>{toast}</span> : null}

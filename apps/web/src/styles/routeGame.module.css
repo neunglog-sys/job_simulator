@@ -381,7 +381,8 @@
   background: linear-gradient(180deg, #131722, #1a2030);
 }
 
-/* 도로 밖(갓길·블록) — 반복 타일 느낌만 준다 */
+/* 도로 밖(갓길·블록) — 반복 타일. backgroundPositionY 를 JS 가 밀어 함께 흐른다
+   (트럭 y 기반 시각 배속 — 판정과 무관한 배경 텍스처 레이어) */
 .roadSide {
   position: absolute;
   top: 0;
@@ -409,6 +410,24 @@
   background-image: linear-gradient(rgb(255 255 255 / 0.26) 0 26px, transparent 26px 54px);
   background-size: 4px 54px;
   background-repeat: repeat-y;
+}
+
+/* 속도 스트릭 — 트럭이 위(앞)일수록 JS 가 opacity 를 올리고 대시보다 빠른
+   오프셋으로 흘린다(바람가르는 부스트감). 순수 연출 레이어 — 판정 무관.
+   x 위치는 여기서 고정하고 y 오프셋만 JS 인라인(backgroundPositionY)이 민다. */
+.speedStreaks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.24) 0 30px, transparent 30px 170px),
+    linear-gradient(rgb(255 255 255 / 0.15) 0 22px, transparent 22px 130px),
+    linear-gradient(rgb(255 255 255 / 0.2) 0 26px, transparent 26px 200px);
+  background-size: 3px 170px, 2px 130px, 2px 200px;
+  background-repeat: repeat-y;
+  background-position-x: 12%, 52%, 87%;
+  transition: opacity 160ms ease-out;
 }
 
 /* 서행 의무 구간 — 진행률이 구간에 들면 화면 전체에 호박색 틴트 */
@@ -562,6 +581,12 @@
   color: #ffd9df;
 }
 
+/* 속도 칩 — 화면 위쪽(고배속)을 달릴 때 부스트 톤으로 강조 */
+.driveChip[data-boost="true"] {
+  background: rgb(20 110 80 / 0.6);
+  color: #d9fff1;
+}
+
 /* 조작줄 — 터치·마우스용 D패드 + 안내문 */
 .driveControls {
   display: flex;
@@ -628,5 +653,9 @@
   .slowBanner[data-speeding="true"],
   .truck[data-hit="true"] {
     animation: none;
+  }
+  /* 속도 스트릭은 JS 도 안 그리지만(reduced 분기) CSS 로도 이중 차단 */
+  .speedStreaks {
+    display: none;
   }
 }

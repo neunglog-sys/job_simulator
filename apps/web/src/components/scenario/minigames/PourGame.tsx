@@ -26,7 +26,13 @@ import {
  * - vessel.scale: 스프라이트 표시 배율(기본 1) — SortGame item.scale 과 같은 규약.
  * - data.trough_sprite: 구유 프레임 도트(내부 개구부가 투명해 사료 채움이 비친다).
  *   로드 실패 시 기존 사각 게이지로 폴백(data-art="false") — 폴백 규약 유지.
- * - data.pour_sprite: 프레스-홀드 급이 버튼의 사료 포대 아이콘.
+ * - data.pour_sprite: 스톨별 프레스-홀드 급이 버튼의 사료 포대 아이콘.
+ *
+ * 조작(디자이너 피드백 2026-07-20): 하단 공용 버튼 대신 **구유마다 위에 자기 급이
+ * 버튼**을 둔다. 어느 구유든 골라 눌러 붓는다 — 순차 강제 없음(순서 자유).
+ * 이미 확정한 구유의 버튼은 비활성. 4칸 전부 확정하면 기존과 동일하게 종료.
+ * 붓기·판정 로직(FILL_RATE·wall-clock 확정·target/tolerance·over/under 감점)은 불변,
+ * 활성 대상만 '버튼을 누른 그 구유'가 된다.
  *
  * 물리 규약(기존 유지): 부은 양은 '누르기 시작한 시각' 기준 wall-clock 역산,
  * rAF는 화면 갱신 전용 — 백그라운드 탭에서 rAF가 멈춰도 실제 양은 정확하다.
@@ -78,9 +84,9 @@ export function PourGame({ game, onComplete }: EngineProps) {
   const troughSprite = data.trough_sprite ?? DEFAULT_TROUGH_SPRITE;
   const pourSprite = data.pour_sprite ?? DEFAULT_POUR_SPRITE;
 
-  const [index, setIndex] = useState(0);
+  // 순차 강제 없음(디자이너 피드백) — '지금 붓는 구유'는 버튼을 누른 그 구유의 id
+  const [pouringId, setPouringId] = useState<string | null>(null);
   const [level, setLevel] = useState(0);
-  const [pouring, setPouring] = useState(false);
   const [results, setResults] = useState<PourOutcome[]>([]);
   const [done, setDone] = useState(false);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -90,14 +96,12 @@ export function PourGame({ game, onComplete }: EngineProps) {
   const raf = useRef<number | null>(null);
   const pourStartedAt = useRef(0);
 
-  const current: PourVessel | undefined = vessels[index];
-
   const finish = useCallback(
     (final: PourOutcome[]) => {
       if (finished.current) return;
       finished.current = true;
       setDone(true);
-      setPouring(false);
+      setPouringId(null);
       const over = scoringOf(game, "over_penalty", 12);
       const under = scoringOf(game, "under_penalty", 8);
       // 구유마다 100점에서 벗어난 만큼 깎고 평균낸다. 미완료 구유는 0점 처리.
@@ -136,7 +140,7 @@ export function PourGame({ game, onComplete }: EngineProps) {
   );
 
   useEffect(() => {
-    if (!pouring || done) return;
+    if (pouringId === null || done) return;
     const step = () => {
       setLevel(levelAt(Date.now()));
       raf.current = window.requestAnimationFrame(step);
@@ -145,27 +149,30 @@ export function PourGame({ game, onComplete }: EngineProps) {
     return () => {
       if (raf.current) window.cancelAnimationFrame(raf.current);
     };
-  }, [pouring, done, levelAt]);
+  }, [pouringId, done, levelAt]);
 
-  const start = () => {
-    if (pouring || done) return;
+  const start = (vessel: PourVessel) => {
+    // 한 번에 한 구유만 — 이미 확정한 구유는 다시 붓지 못한다(버튼도 disabled)
+    if (pouringId !== null || done) return;
+    if (results.some((r) => r.id === vessel.id)) return;
     pourStartedAt.current = Date.now();
-    setPouring(true);
+    setPouringId(vessel.id);
   };
 
   const stop = () => {
-    if (!pouring || !current || done) return;
-    setPouring(false);
+    if (pouringId === null || done) return;
+    const vessel = vessels.find((v) => v.id === pouringId);
+    setPouringId(null);
+    if (!vessel) return;
     // 확정값은 화면 상태(level)가 아니라 누른 시간으로 계산한다 — rAF가 멈춰
     // 화면이 안 따라왔더라도 실제로 부은 양은 정확하다.
     const poured = levelAt(Date.now());
-    const off = poured - current.target; // + 넘침 / − 모자람
-    const ok = Math.abs(off) <= current.tolerance;
-    const next = [...results, { id: current.id, off, ok }];
+    const off = poured - vessel.target; // + 넘침 / − 모자람
+    const ok = Math.abs(off) <= vessel.tolerance;
+    const next = [...results, { id: vessel.id, off, ok }];
     setResults(next);
     setLevel(0);
-    if (index + 1 >= vessels.length) finish(next);
-    else setIndex(index + 1);
+    if (next.length >= vessels.length) finish(next);
   };
 
   return (
@@ -180,10 +187,10 @@ export function PourGame({ game, onComplete }: EngineProps) {
 
       {/* 축사 장면 — 나무 벽 + 짚 바닥 위에 칸(스톨)별 개체·구유가 선다 */}
       <div className={styles.barn} role="group" aria-label="축사 급이 현장">
-        <div className={styles.stalls}>
-          {vessels.map((vessel, i) => {
+        <div className={styles.stalls} data-pouring={pouringId !== null}>
+          {vessels.map((vessel) => {
             const hit = results.find((r) => r.id === vessel.id);
-            const active = i === index && !done;
+            const active = pouringId === vessel.id && !done;
             const shown = active ? level : hit ? vessel.target + hit.off : 0;
             const title = vessel.label ?? vessel.id;
             return (
@@ -195,6 +202,34 @@ export function PourGame({ game, onComplete }: EngineProps) {
                 role="group"
                 aria-label={title}
               >
+                {/* 스톨별 급이 버튼 — 이 구유에 붓는 프레스-홀드(순서 자유).
+                    확정된 구유는 disabled — 마우스/터치 이벤트 자체가 막힌다. */}
+                <button
+                  className={styles.stallPour}
+                  type="button"
+                  disabled={done || Boolean(hit)}
+                  data-pouring={active}
+                  aria-label={`${title} 급이`}
+                  onMouseDown={() => start(vessel)}
+                  onMouseUp={stop}
+                  onMouseLeave={() => pouringId === vessel.id && stop()}
+                  onTouchStart={(event) => {
+                    event.preventDefault();
+                    start(vessel);
+                  }}
+                  onTouchEnd={(event) => {
+                    event.preventDefault();
+                    stop();
+                  }}
+                >
+                  <PixelSprite
+                    id={pourSprite}
+                    label="사료 포대"
+                    size={26}
+                    fallbackClassName={styles.stallPourFallback}
+                  />
+                </button>
+
                 {/* 개체 아이콘 — 급이 대상이 누구인지 아트 상태 차이로만 읽힌다 */}
                 <div className={styles.pen}>
                   <PixelSprite
@@ -221,7 +256,8 @@ export function PourGame({ game, onComplete }: EngineProps) {
                       style={{ height: `${Math.min(100, shown * 100)}%` }}
                       data-verdict={hit ? (hit.ok ? "ok" : hit.off > 0 ? "over" : "under") : undefined}
                     />
-                    {active && pouring ? <span className={styles.pourStream} aria-hidden="true" /> : null}
+                    {/* active = 이 구유의 버튼을 누르고 있는 동안 — 붓는 줄기도 그때만 */}
+                    {active ? <span className={styles.pourStream} aria-hidden="true" /> : null}
                   </div>
                   {troughArt ? (
                     // 구유 프레임 도트 — 내부 개구부가 투명해 뒤의 사료 채움이 비친다.
@@ -249,32 +285,14 @@ export function PourGame({ game, onComplete }: EngineProps) {
         </div>
       </div>
 
-      {!done && current ? (
+      {!done ? (
         <div className={styles.footer}>
-          <button
-            className={styles.pourButton}
-            type="button"
-            data-pouring={pouring}
-            onMouseDown={start}
-            onMouseUp={stop}
-            onMouseLeave={() => pouring && stop()}
-            onTouchStart={(event) => {
-              event.preventDefault();
-              start();
-            }}
-            onTouchEnd={(event) => {
-              event.preventDefault();
-              stop();
-            }}
-          >
-            <PixelSprite
-              id={pourSprite}
-              label="사료 포대"
-              size={30}
-              fallbackClassName={styles.pourButtonFallback}
-            />
-            <span>{pouring ? "붓는 중… 떼면 확정" : "누르고 있으면 부어집니다"}</span>
-          </button>
+          {/* 공용 버튼은 스톨별 버튼으로 대체(디자이너 피드백) — 여기엔 안내만 남긴다 */}
+          <p className={styles.hint}>
+            {pouringId !== null
+              ? "붓는 중… 떼면 확정"
+              : "구유 위 사료 포대를 누르고 있으면 부어집니다 — 순서는 자유"}
+          </p>
         </div>
       ) : null}
 
