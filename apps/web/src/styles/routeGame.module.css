@@ -1,0 +1,310 @@
+/* route 엔진 — 지도 캔버스 위 노드·폴리라인·위험구역.
+   껍데기(.shell/.hud/.scene/.result)는 minigame.module.css 를 공용으로 쓰고
+   여기는 route 전용만 둔다. 토큰은 scenarioGame 의 --scenario-* 를 따른다. */
+
+.canvas {
+  cursor: crosshair;
+}
+
+/* 배경 지도 이름표 (jm-01 노선도, stn-02 도면) — 아트 자산 전 자리표시 */
+.mapTag {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.08);
+  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.6));
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
+
+/* ── SVG 오버레이: 경로선·경유점·위험구역 ── */
+.overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.line {
+  fill: none;
+  stroke: var(--scenario-accent, #8a63ee);
+  stroke-width: 4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  stroke-dasharray: 10 6;
+  filter: drop-shadow(0 0 6px rgb(138 99 238 / 0.55));
+}
+
+.vertex {
+  fill: rgb(255 255 255 / 0.85);
+}
+
+.vertexHead {
+  fill: var(--scenario-accent-2, #ef71bc);
+  stroke: rgb(255 255 255 / 0.85);
+  stroke-width: 2;
+}
+
+/* 위험구역 — 침범해 드러난 뒤에만 그려진다(사전 유출 금지) */
+.zone {
+  fill: rgb(255 77 109 / 0.16);
+  stroke: rgb(255 77 109 / 0.75);
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: zoneReveal 420ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+@keyframes zoneReveal {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ── 노드 (출발·경유지·decoy·갈래 — decoy 는 일부러 경유지와 똑같이 보인다) ── */
+.node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 200px;
+  padding: 6px 10px;
+  border: 1px solid rgb(255 255 255 / 0.3);
+  border-radius: 999px;
+  background: rgb(20 24 40 / 0.88);
+  color: rgb(255 255 255 / 0.92);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: transform 140ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1)), background-color 140ms ease,
+    border-color 140ms ease;
+}
+
+.node:hover:enabled {
+  background: rgb(45 52 84 / 0.95);
+  transform: translate(-50%, -50%) scale(1.06);
+}
+
+.node:disabled {
+  cursor: default;
+}
+
+.node[data-kind="start"] {
+  border-color: rgb(90 220 180 / 0.8);
+}
+
+.node[data-visited="true"] {
+  border-color: var(--scenario-accent, #8a63ee);
+  background: rgb(65 47 120 / 0.92);
+}
+
+.node[data-arrival="true"] {
+  box-shadow: 0 0 0 3px rgb(90 220 180 / 0.22);
+}
+
+.nodeText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 구간 상태등 (yg-04) — 녹/황/적이 길잡이다 */
+.lamp {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.lamp[data-light="green"]  { background: #43d17c; color: #43d17c; }
+.lamp[data-light="yellow"] { background: #f5c542; color: #f5c542; }
+.lamp[data-light="red"]    { background: #ff5d6e; color: #ff5d6e; }
+
+/* 구역 색점 (stn-02 color 필드) */
+.colorDot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid rgb(0 0 0 / 0.35);
+}
+
+/* 방문 순번 배지 */
+.badge {
+  flex: none;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--scenario-accent, #8a63ee);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.badge[data-start="true"] {
+  background: #17a67f;
+}
+
+/* ── 경로상 발견물 (stn-02 blockers) — 클릭해 발견하고 보고해야 한다 ── */
+.blocker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 5px 8px;
+  border: 1px dashed rgb(255 210 110 / 0.55);
+  border-radius: 8px;
+  background: rgb(70 55 25 / 0.8);
+  color: #ffe9b8;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: transform 140ms ease, background-color 140ms ease;
+}
+
+.blocker:hover:enabled {
+  transform: translate(-50%, -50%) scale(1.06);
+}
+
+.blocker:disabled {
+  cursor: default;
+}
+
+.blocker[data-state="found"] {
+  border-style: solid;
+  border-color: #ffd76e;
+  background: rgb(120 90 30 / 0.9);
+}
+
+.blocker[data-state="reported"] {
+  border-style: solid;
+  border-color: rgb(90 220 180 / 0.85);
+  background: rgb(25 90 70 / 0.85);
+  color: #d9fff1;
+}
+
+.blockerMark {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #17a67f;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+}
+
+/* ── 침범 알림 피드 — reason 은 침범 후에만 여기로 나온다 ── */
+.notices {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 84px;
+  overflow-y: auto;
+  padding: 8px 12px;
+  border: 1px solid rgb(255 130 150 / 0.4);
+  border-radius: 10px;
+  background: rgb(190 50 80 / 0.14);
+}
+
+.notice {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #ffc3cd;
+}
+
+/* ── 하단 조작줄: 되돌리기 · 발견물 보고 · 제출 ── */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.controlButton {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid rgb(255 255 255 / 0.24);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.08);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.controlButton:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.actionButton {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1px solid rgb(255 215 110 / 0.6);
+  border-radius: 12px;
+  background: rgb(120 90 30 / 0.55);
+  color: #ffe9b8;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.submitButton {
+  min-height: 44px;
+  padding: 0 24px;
+  border: 1px solid rgb(255 255 255 / 0.22);
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--scenario-accent, #8a63ee), var(--scenario-accent-2, #ef71bc));
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.submitButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.submitButton:active:enabled {
+  transform: translateY(1px);
+}
+
+/* ── 접근성·모션 ── */
+.node:focus-visible,
+.blocker:focus-visible,
+.controlButton:focus-visible,
+.actionButton:focus-visible,
+.submitButton:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zone {
+    animation: none;
+  }
+  .node,
+  .blocker {
+    transition: none;
+  }
+}
