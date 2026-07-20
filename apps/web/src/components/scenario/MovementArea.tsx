@@ -144,8 +144,9 @@ export function MovementArea({
   // 월드 좌표 1px이 실제 화면에서 몇 px인가 — 게임 화면 전체가 --scenario-stage-scale로
   // 축소돼 있어 ZOOM만으로는 알 수 없다. 잔상(픽셀 어긋남) 억제에 쓴다.
   const [deviceScale, setDeviceScale] = useState(ZOOM);
-  // 지금 눌려 있는 이동 키 — 프레임 루프가 매 프레임 읽는다 (리렌더 유발 안 함)
-  const heldKeysRef = useRef<Set<string>>(new Set());
+  // 지금 눌려 있는 이동 키 — 누른 순서대로 보관한다(마지막 것이 유효).
+  // 프레임 루프가 매 프레임 읽는다 (리렌더 유발 안 함).
+  const heldKeysRef = useRef<string[]>([]);
 
   // geometry 좌표계(스테이지 1920×1080)의 원점 = walkable 영역의 좌상단. movementArea 로컬좌표 = (x-origin).
   const origin = useMemo(() => {
@@ -436,10 +437,13 @@ export function MovementArea({
       if (isTypingTarget(event.target)) return;
       if (!MOVEMENT_KEYS[event.key]) return;
       event.preventDefault();
-      held.add(event.key);
+      if (!held.includes(event.key)) held.push(event.key); // 키 반복으로 중복 쌓이지 않게
     };
-    const onKeyUp = (event: globalThis.KeyboardEvent) => held.delete(event.key);
-    const onBlur = () => held.clear(); // 창을 벗어나면 키가 눌린 채로 남지 않게
+    const onKeyUp = (event: globalThis.KeyboardEvent) => {
+      const at = held.indexOf(event.key);
+      if (at >= 0) held.splice(at, 1);
+    };
+    const onBlur = () => held.splice(0); // 창을 벗어나면 키가 눌린 채로 남지 않게
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onBlur);
@@ -447,7 +451,7 @@ export function MovementArea({
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
-      held.clear();
+      held.splice(0);
     };
   }, []);
 
@@ -458,18 +462,13 @@ export function MovementArea({
       raf = requestAnimationFrame(loop);
       const dt = Math.min(0.05, (now - last) / 1000); // 탭 전환 등으로 크게 튀는 것 방지
       last = now;
-      let dx = 0;
-      let dy = 0;
-      for (const key of heldKeysRef.current) {
-        const d = MOVEMENT_KEYS[key];
-        if (!d) continue;
-        dx += Math.sign(d.x);
-        dy += Math.sign(d.y);
-      }
-      if (dx === 0 && dy === 0) return;
-      const len = Math.hypot(dx, dy) || 1; // 대각선이 빨라지지 않게 정규화
+      // 대각선 이동은 쓰지 않는다 — 두 축이 동시에 소수점으로 움직이면 확대 화면에서
+      // 잔상이 두드러진다. 가장 마지막에 누른 방향 하나로만 걷는다(팀 결정).
+      const held = heldKeysRef.current;
+      const active = held.length ? MOVEMENT_KEYS[held[held.length - 1]] : undefined;
+      if (!active) return;
       const step = MOVE_SPEED * dt;
-      movePlayer((dx / len) * step, (dy / len) * step);
+      movePlayer(Math.sign(active.x) * step, Math.sign(active.y) * step);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
