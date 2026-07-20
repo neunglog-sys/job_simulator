@@ -14,6 +14,16 @@ class ConsultationOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ConsultationListItem(BaseModel):
+    id: int
+    status: str
+    title: str
+    preview: str
+    message_count: int
+    created_at: datetime
+    updated_at: datetime
+
+
 class MessageIn(BaseModel):
     content: str = Field(min_length=1, max_length=2000)
 

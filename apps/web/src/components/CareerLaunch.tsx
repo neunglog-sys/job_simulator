@@ -420,6 +420,21 @@ function phaseAtLeast(current: ScenePhase, target: ScenePhase) {
   return PHASE_ORDER.indexOf(current) >= PHASE_ORDER.indexOf(target);
 }
 
+function requestedAuthMode(): AuthMode | null {
+  const mode = new URLSearchParams(window.location.search).get("auth");
+  if (mode === "login") return "signIn";
+  if (mode === "signup") return "signUp";
+  return null;
+}
+
+function requestedReturnTo(): string | null {
+  const destination = new URLSearchParams(window.location.search).get("returnTo");
+  if (!destination) return null;
+  return destination.startsWith("/conversation") || destination.startsWith("/scenario")
+    ? destination
+    : null;
+}
+
 type CareerPlanetProps = {
   career: Career;
   index: number;
@@ -546,7 +561,10 @@ export function CareerLaunch() {
   const [phase, setPhase] = useState<ScenePhase>("boot");
   const [storyKey, setStoryKey] = useState(0);
   const [toast, setToast] = useState("");
-  const [authMode, setAuthMode] = useState<AuthMode | null>(null); // null = 모달 닫힘
+  const [authMode, setAuthMode] = useState<AuthMode | null>(() => requestedAuthMode());
+  const [postAuthDestination, setPostAuthDestination] = useState<string | null>(() =>
+    requestedReturnTo(),
+  );
   const auth = useAuth();
 
   const pointerX = useMotionValue(0);
@@ -593,10 +611,22 @@ export function CareerLaunch() {
     toastTimerRef.current = window.setTimeout(() => setToast(""), 2_500);
   }, []);
 
+  useEffect(() => {
+    if (auth.status === "authed" && postAuthDestination) {
+      window.location.assign(postAuthDestination);
+    }
+  }, [auth.status, postAuthDestination]);
+
   const startCareerExploration = useCallback(() => {
+    if (auth.status !== "authed") {
+      setPostAuthDestination(FRONTEND_ENDPOINTS.conversation);
+      setAuthMode("signIn");
+      showToast("로그인하면 상담 기록과 직무 체험 결과를 안전하게 저장할 수 있어요.");
+      return;
+    }
     window.dispatchEvent(new CustomEvent(CLIENT_EVENTS.startCareerExploration));
     window.location.assign(FRONTEND_ENDPOINTS.conversation);
-  }, []);
+  }, [auth.status, showToast]);
 
   const handlePointerMove = (event: PointerEvent<HTMLElement>) => {
     if (reduceMotion || event.pointerType === "touch") return;
@@ -925,6 +955,9 @@ export function CareerLaunch() {
           onSuccess={() => {
             setAuthMode(null);
             showToast("환영해요! 직무 여정을 시작할 준비가 됐어요.");
+            if (postAuthDestination) {
+              window.location.assign(postAuthDestination);
+            }
           }}
         />
       )}

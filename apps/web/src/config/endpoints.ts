@@ -34,6 +34,8 @@ export const API_ENDPOINTS = {
     messages: (id: number) => apiUrl(`/api/consultations/${id}/messages`),
   },
   recommendations: {
+    latest: (consultationId: number) =>
+      apiUrl(`/api/recommendations?consultation_id=${consultationId}`),
     create: apiUrl("/api/recommendations"),
   },
   scenarios: {

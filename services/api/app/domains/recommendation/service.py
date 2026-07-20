@@ -252,6 +252,23 @@ async def get_recommendation(
     return rec
 
 
+async def get_latest_recommendation(
+    session: AsyncSession, user: User, consultation_id: int
+) -> Recommendation | None:
+    await get_owned_consultation(session, consultation_id, user)
+    return (
+        await session.execute(
+            select(Recommendation)
+            .where(
+                Recommendation.user_id == user.id,
+                Recommendation.consultation_id == consultation_id,
+            )
+            .order_by(Recommendation.id.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
 async def set_recommendation_feedback(
     session: AsyncSession, recommendation_id: int, user: User, feedback: str
 ) -> Recommendation:

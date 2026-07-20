@@ -72,6 +72,75 @@ async def create_consultation(session: AsyncSession, user: User) -> Consultation
     return consultation
 
 
+def _single_line(value: str) -> str:
+    return " ".join(value.split())
+
+
+def _truncate(value: str, limit: int) -> str:
+    value = _single_line(value)
+    return value if len(value) <= limit else f"{value[:limit].rstrip()}…"
+
+
+async def list_consultation_summaries(
+    session: AsyncSession, user: User
+) -> list[dict]:
+    """상담방 목록에 필요한 제목·미리보기·최근 활동 시각을 기존 메시지로 계산한다."""
+    consultations = list(
+        (
+            await session.execute(
+                select(Consultation)
+                .where(Consultation.user_id == user.id)
+                .order_by(Consultation.id.desc())
+            )
+        ).scalars()
+    )
+    if not consultations:
+        return []
+
+    consultation_ids = [consultation.id for consultation in consultations]
+    messages = list(
+        (
+            await session.execute(
+                select(Message)
+                .where(Message.consultation_id.in_(consultation_ids))
+                .order_by(Message.created_at, Message.id)
+            )
+        ).scalars()
+    )
+    grouped: dict[int, list[Message]] = {consultation_id: [] for consultation_id in consultation_ids}
+    for message in messages:
+        if message.consultation_id is not None:
+            grouped[message.consultation_id].append(message)
+
+    items: list[dict] = []
+    for consultation in consultations:
+        history = grouped[consultation.id]
+        first_user_message = next((message for message in history if message.role == "user"), None)
+        latest_message = history[-1] if history else None
+        updated_at = latest_message.created_at if latest_message else consultation.created_at
+        items.append(
+            {
+                "id": consultation.id,
+                "status": consultation.status,
+                "title": (
+                    _truncate(first_user_message.content, 34)
+                    if first_user_message
+                    else "새로운 상담"
+                ),
+                "preview": (
+                    _truncate(latest_message.content, 72)
+                    if latest_message
+                    else "아직 나눈 대화가 없어요."
+                ),
+                "message_count": len(history),
+                "created_at": consultation.created_at,
+                "updated_at": updated_at,
+            }
+        )
+
+    return sorted(items, key=lambda item: item["updated_at"], reverse=True)
+
+
 async def get_owned_consultation(
     session: AsyncSession, consultation_id: int, user: User
 ) -> Consultation:

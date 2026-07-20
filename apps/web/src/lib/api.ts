@@ -85,6 +85,15 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
 export type TokenOut = { access_token: string; token_type: string };
 export type Me = { id: number; email: string | null; name: string };
 export type Consultation = { id: number; status: string; created_at: string };
+export type ConsultationSummary = {
+  id: number;
+  status: "active" | "completed";
+  title: string;
+  preview: string;
+  message_count: number;
+  created_at: string;
+  updated_at: string;
+};
 
 export function signup(body: {
   email: string;
@@ -106,6 +115,10 @@ export function fetchMe(): Promise<Me> {
 
 export function createConsultation(): Promise<Consultation> {
   return request(API_ENDPOINTS.consultations.create, { method: "POST" });
+}
+
+export function fetchConsultations(): Promise<ConsultationSummary[]> {
+  return request(API_ENDPOINTS.consultations.list, { method: "GET" });
 }
 
 // --- 상담 메시지 — 백엔드 MessageOut과 1:1 ---
@@ -237,6 +250,24 @@ export function createRecommendation(consultationId: number): Promise<Recommenda
     method: "POST",
     body: JSON.stringify({ consultation_id: consultationId }),
   });
+}
+
+export function fetchLatestRecommendation(consultationId: number): Promise<Recommendation | null> {
+  return request(API_ENDPOINTS.recommendations.latest(consultationId), { method: "GET" });
+}
+
+export type ScenarioSummary = {
+  slug: string;
+  title: string;
+  module: string | null;
+  job_code: string;
+  job_title: string;
+  map_id: string | null;
+  map_background: string | null;
+};
+
+export function fetchScenarios(): Promise<ScenarioSummary[]> {
+  return request(API_ENDPOINTS.scenarios.list, { method: "GET" });
 }
 
 export type Report = {

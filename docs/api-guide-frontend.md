@@ -39,7 +39,9 @@
 ## 2. 메인 화면 — 내 것들 목록
 
 ```
-GET /api/consultations   → 내 상담 목록 (최신순) — 이어가기 진입점
+GET /api/consultations   → 내 상담 목록 (최근 활동순)
+  {id, status, title, preview, message_count, created_at, updated_at}
+  title은 첫 사용자 발화, preview와 updated_at은 마지막 메시지 기준
 GET /api/simulations     → 내 시뮬레이션 목록 {status: active=이어하기/completed=결과보기, current_step, total}
 GET /api/reports         → 내 리포트 목록
 ```
@@ -84,9 +86,13 @@ const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
 
 ```
 POST /api/recommendations  {consultation_id}
-  → 201 {results: [{job_code, job_title, score, reason, scenario_slug}]}   상위 3개
+  → 201 {results: [{job_code, job_title, score, reason, scenario_slug}]}   상위 5개
+  → 1:1 상담 화면의 추천 직무 팝업에서는 상위 3개를 노출
   → 409 적성 파악 부족 — body.detail에:
        {reason: "aptitude_unclear", interim_conclusion, followup_questions[], message}
+GET /api/recommendations?consultation_id={id}
+  → 해당 상담에서 가장 최근에 저장된 추천 결과
+  → 아직 생성된 추천 결과가 없으면 200 null
        → 상담 화면으로 돌려보내고 followup_questions로 대화 이어가기 (기획 확정 UX)
 ```
 
