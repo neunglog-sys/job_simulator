@@ -60,7 +60,8 @@ const pretty = (raw: string) => raw.replace(/_/g, " ");
 /* ── 다이얼 기하 — 150°에서 시작해 시계방향 240° 스윕(경계 판별이 되게 크게) ── */
 const SWEEP_START = 150;
 const SWEEP = 240;
-const DIAL = { cx: 60, cy: 52, r: 44 } as const;
+const DIAL = { cx: 60, cy: 54, r: 42, face: 50 } as const;
+const MINOR_TICK_STEP = 10; // 보조 눈금 간격 — 숫자 없는 기준선. 경계 눈금과 겹치면 생략
 
 function polar(r: number, deg: number): [number, number] {
   const rad = (deg * Math.PI) / 180;
@@ -77,32 +78,66 @@ function arcPath(r: number, fromDeg: number, toDeg: number): string {
 const angleOf = (value: number) =>
   SWEEP_START + (Math.max(0, Math.min(100, value)) / 100) * SWEEP;
 
-/** 눈금판 — ok_zone 색 띠 + 경계 눈금 + 바늘. 숫자 미표시. */
+/** 눈금판 — 장비 패널풍 페이스 + ok_zone 색 띠 + 경계 눈금(암색 테두리) + 양각 바늘. 숫자 미표시. */
 function Dial({ value, zone }: { value: number; zone: [number, number] }) {
   const zoneFrom = angleOf(zone[0]);
   const zoneTo = angleOf(zone[1]);
   const needle = angleOf(value);
-  const [nx, ny] = polar(DIAL.r - 7, needle);
+  const rad = (needle * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const pt = (x: number, y: number) => `${x.toFixed(2)},${y.toFixed(2)}`;
+  // 끝이 뾰족한 바늘(폭 있는 몸통 + 반대편 카운터웨이트) — 경계 눈금 대비 판독 정밀도 확보
+  const needlePoints = [
+    pt(DIAL.cx + (DIAL.r + 3) * cos, DIAL.cy + (DIAL.r + 3) * sin),
+    pt(DIAL.cx - sin * 2.6, DIAL.cy + cos * 2.6),
+    pt(DIAL.cx - cos * 11, DIAL.cy - sin * 11),
+    pt(DIAL.cx + sin * 2.6, DIAL.cy - cos * 2.6),
+  ].join(" ");
+  const minorTicks: number[] = [];
+  for (let v = 0; v <= 100; v += MINOR_TICK_STEP) {
+    if (v !== zone[0] && v !== zone[1]) minorTicks.push(angleOf(v));
+  }
   return (
-    <svg className={styles.dial} viewBox="0 0 120 86" aria-hidden="true">
+    <svg className={styles.dial} viewBox="0 0 120 108" aria-hidden="true">
+      <circle className={styles.dialFace} cx={DIAL.cx} cy={DIAL.cy} r={DIAL.face} />
+      <circle className={styles.dialBezel} cx={DIAL.cx} cy={DIAL.cy} r={DIAL.face} />
       <path className={styles.dialTrack} d={arcPath(DIAL.r, SWEEP_START, SWEEP_START + SWEEP)} />
       <path className={styles.dialZone} d={arcPath(DIAL.r, zoneFrom, zoneTo)} />
-      {[zoneFrom, zoneTo].map((deg) => {
-        const [tx1, ty1] = polar(DIAL.r - 12, deg);
-        const [tx2, ty2] = polar(DIAL.r + 8, deg);
+      {minorTicks.map((deg) => {
+        const [mx1, my1] = polar(30, deg);
+        const [mx2, my2] = polar(35, deg);
         return (
           <line
             key={deg}
-            className={styles.zoneTick}
-            x1={tx1.toFixed(2)}
-            y1={ty1.toFixed(2)}
-            x2={tx2.toFixed(2)}
-            y2={ty2.toFixed(2)}
+            className={styles.minorTick}
+            x1={mx1.toFixed(2)}
+            y1={my1.toFixed(2)}
+            x2={mx2.toFixed(2)}
+            y2={my2.toFixed(2)}
           />
         );
       })}
-      <line className={styles.needle} x1={DIAL.cx} y1={DIAL.cy} x2={nx.toFixed(2)} y2={ny.toFixed(2)} />
-      <circle className={styles.needleHub} cx={DIAL.cx} cy={DIAL.cy} r={4.5} />
+      {[zoneFrom, zoneTo].map((deg) => {
+        const [tx1, ty1] = polar(30, deg);
+        const [tx2, ty2] = polar(DIAL.face - 1, deg);
+        const seg = {
+          x1: tx1.toFixed(2),
+          y1: ty1.toFixed(2),
+          x2: tx2.toFixed(2),
+          y2: ty2.toFixed(2),
+        };
+        return (
+          <g key={deg}>
+            {/* 암색 halo 위에 흰 눈금 — 초록 띠·빨강 트랙 어느 쪽에서도 경계가 또렷하다(88 vs 91) */}
+            <line className={styles.zoneTickHalo} {...seg} />
+            <line className={styles.zoneTick} {...seg} />
+          </g>
+        );
+      })}
+      <polygon className={styles.needle} points={needlePoints} />
+      <circle className={styles.needleHub} cx={DIAL.cx} cy={DIAL.cy} r={6.2} />
+      <circle className={styles.needleCap} cx={DIAL.cx} cy={DIAL.cy} r={2.4} />
     </svg>
   );
 }
@@ -276,17 +311,21 @@ export function GaugeGame({ game, onComplete }: EngineProps) {
               aria-label={`${name} 게이지`}
             >
               {/* gauge 항목에 sprite가 있으면 다이얼 옆 장비 도트 아트(ys-04 공기호흡기_본체 등).
-                  아트 파일이 없으면 PixelSprite가 기존 라벨 칩으로 폴백한다(ys-06 임시배선 등). */}
+                  스프라이트가 있을 때만 spriteWell(장비 거치칸)이 생기고, 없으면 다이얼이 카드
+                  전폭을 쓴다(ys-07·ys-08). 아트 파일 자체가 없으면 PixelSprite가 기존 라벨 칩으로
+                  폴백한다(ys-06 임시배선 등) — 이때 well은 :has(img) 미충족으로 민무늬가 된다. */}
               <div className={styles.dialRow}>
-                <Dial value={Number(g.value)} zone={zone} />
                 {g.sprite ? (
-                  <PixelSprite
-                    id={g.sprite}
-                    label={pretty(g.sprite)}
-                    size={40}
-                    fallbackClassName={styles.cardSprite}
-                  />
+                  <div className={styles.spriteWell}>
+                    <PixelSprite
+                      id={g.sprite}
+                      label={pretty(g.sprite)}
+                      size={44}
+                      fallbackClassName={styles.cardSprite}
+                    />
+                  </div>
                 ) : null}
+                <Dial value={Number(g.value)} zone={zone} />
               </div>
               <span className={styles.cardLabel}>{name}</span>
 

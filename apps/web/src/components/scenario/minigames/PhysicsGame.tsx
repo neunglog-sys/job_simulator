@@ -65,6 +65,16 @@ const FALL_SECONDS = 2.4;
 const DEFAULT_WINDOW = 0.35;
 const DECOY_WINDOW = 0.35;
 
+/** 판정 히트 밴드 확대(px) — 디자이너 확정(2026-07-20): 위아래 2px씩.
+ *  시각 밴드(physicsGame.module.css 의 judgeLine[data-wide])와 타이밍 창을 함께 넓힌다.
+ *  physicsGame.module.css 와 맞물린 값: 스테이지 높이 300px, 판정선까지 낙하 구간 86%.
+ *  낙하 속도 = (0.86 × 300px) / FALL_SECONDS ≈ 107.5px/s → 2px ≈ 0.0186s.
+ *  data.hit_window 를 쓰는 게임(ms-07)에만 적용 — beat별 window(jm-02)는 불변. */
+const HIT_BAND_EXTRA_PX = 2;
+const STAGE_HEIGHT_PX = 300;
+const JUDGE_PROGRESS = 0.86;
+const HIT_BAND_EXTRA_SECONDS = HIT_BAND_EXTRA_PX / ((JUDGE_PROGRESS * STAGE_HEIGHT_PX) / FALL_SECONDS);
+
 /** 파일의 key 값 → 실제 키보드 입력 매핑. 화면 버튼도 같은 경로를 탄다. */
 const KEY_HINT: Record<string, string> = {
   space: "SPACE",
@@ -150,7 +160,12 @@ export function RhythmGame({ game, onComplete }: EngineProps) {
   );
 
   const windowOf = useCallback(
-    (beat: Beat) => (typeof beat.window === "number" ? beat.window : typeof data.hit_window === "number" ? data.hit_window : DEFAULT_WINDOW),
+    (beat: Beat) => {
+      if (typeof beat.window === "number") return beat.window; // beat별 명시 창(jm-02) — 그대로
+      // 파일 공통 hit_window(ms-07) — 히트 밴드 ±2px 확대분을 초로 환산해 더한다
+      if (typeof data.hit_window === "number") return data.hit_window + HIT_BAND_EXTRA_SECONDS;
+      return DEFAULT_WINDOW;
+    },
     [data.hit_window],
   );
 
@@ -452,7 +467,13 @@ export function RhythmGame({ game, onComplete }: EngineProps) {
               </span>
             );
           })}
-          <span className={styles.judgeLine} data-flash={flash ?? undefined} aria-hidden="true" />
+          <span
+            className={styles.judgeLine}
+            data-flash={flash ?? undefined}
+            // hit_window 기반 게임(ms-07)은 히트 밴드가 ±2px 넓어진 만큼 시각 밴드도 함께 키운다
+            data-wide={typeof data.hit_window === "number" ? "true" : undefined}
+            aria-hidden="true"
+          />
           {data.judge_marker ? (
             // 판정선 마커(ms-07 칼날) — 데이터에 있을 때만, 장식이라 판정에는 관여하지 않는다
             <span

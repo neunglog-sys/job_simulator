@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import shared from "../../../styles/minigame.module.css";
 import styles from "../../../styles/traceGame.module.css";
+import { PixelSprite } from "./PixelSprite";
 import {
   GameHud,
   ResultBar,
@@ -23,6 +24,14 @@ import {
  * 채점은 파일 scoring 이 명세: off_track(공차 이탈 구간당)·spark·no_go·interrupt_miss·
  * skip_penalty·incomplete. 한 이탈 구간엔 가장 무거운 감점 하나만 붙인다(중첩 금지).
  * terminal_stop 재개·emergency 무시·정밀구간 전면이탈은 즉시 실패.
+ *
+ * 도트 아트(표시 전용 — 채점·판정 계약과 무관, ms-09):
+ *   - data.guide 와 같은 이름의 스프라이트가 있으면 배경 스킨(금속 판재)으로 깔린다.
+ *     파일이 없으면 조용히 빠져 기존 그라데이션 배경 그대로다(ms-08 폴백 규약).
+ *   - data.head 가 있으면 드래그 지점을 절삭 헤드 스프라이트가 따라다니고,
+ *     stage 가 아트 모드(data-art)로 전환돼 밴드·경로 대비만 살짝 올라간다.
+ *   - emergency.signal·data.spark_sprite 도 같은 이름의 파일이 있으면 도트로 그려지고,
+ *     없으면 기존 라벨 칩·원광 플래시로 폴백한다.
  */
 
 type TraceBand = { from?: number; to?: number; tolerance?: number; color?: string };
@@ -37,6 +46,10 @@ type TraceData = {
   emergency?: { at?: number; signal?: string; action?: string; resume_after_report?: boolean };
   sparks?: Array<{ at?: number; reason?: string }>;
   no_go?: Array<{ from?: number; to?: number; reason?: string; offset?: number }>;
+  /** 표시 전용 — 드래그 지점을 따라다니는 절삭 헤드 스프라이트 id(있으면 아트 모드) */
+  head?: string;
+  /** 표시 전용 — 스파크 플래시에 겹쳐 그리는 스프라이트 id */
+  spark_sprite?: string;
 };
 
 type FailEntry = { when: string; reason: string };
@@ -82,6 +95,11 @@ function situationOf(text: string | undefined): string {
 
 export function TraceGame({ game, onComplete }: EngineProps) {
   const data = game.data as TraceData;
+  // 표시 전용 스프라이트 id — 전부 없으면(ms-08) 기존 렌더와 동일하게 동작한다
+  const headSprite = typeof data.head === "string" ? data.head : undefined;
+  const sparkSprite = typeof data.spark_sprite === "string" ? data.spark_sprite : undefined;
+  const guideSkin = typeof data.guide === "string" ? data.guide : undefined;
+  const emergencySignal = typeof data.emergency?.signal === "string" ? data.emergency.signal : undefined;
   const bands = useMemo(() => data.bands ?? [], [data.bands]);
   const interrupts = useMemo(() => data.interrupts ?? [], [data.interrupts]);
   const sparks = useMemo(() => data.sparks ?? [], [data.sparks]);
@@ -105,7 +123,9 @@ export function TraceGame({ game, onComplete }: EngineProps) {
       index,
     }));
     if (data.emergency && typeof data.emergency.at === "number") {
-      list.push({ kind: "emergency", at: data.emergency.at, hold: 0, reason: situationOf(data.emergency.signal) || "돌발 신호", index: -1 });
+      // signal 은 스프라이트 id 를 겸한다(ms-09 균열라인_연기_아이콘) — 표시할 땐 '아이콘' 접미사만 벗긴다
+      const signalLabel = situationOf(data.emergency.signal?.replace(/_?아이콘$/, ""));
+      list.push({ kind: "emergency", at: data.emergency.at, hold: 0, reason: signalLabel || "돌발 신호", index: -1 });
     }
     if (data.terminal_stop && typeof data.terminal_stop.at === "number") {
       list.push({ kind: "terminal", at: data.terminal_stop.at, hold: 0, reason: situationOf(data.terminal_stop.reason) || "즉시 중단", index: -1 });
@@ -153,7 +173,7 @@ export function TraceGame({ game, onComplete }: EngineProps) {
   );
 
   const noGoPts = useMemo(() => {
-    if (pts.length === 0) return [] as Array<{ range: number; points: Pt[] }>;
+    if (pts.length === 0) return [] as Array<{ range: number; points: Pt[]; stamps: Pt[] }>;
     return noGoRanges.map((range, rIdx) => {
       const from = Math.floor((range.from ?? 0) * (SAMPLES - 1));
       const to = Math.ceil((range.to ?? 1) * (SAMPLES - 1));
@@ -163,7 +183,11 @@ export function TraceGame({ game, onComplete }: EngineProps) {
         const n = normalAt(i);
         points.push({ x: pts[i].x + n.x * offset, y: pts[i].y + n.y * offset });
       }
-      return { range: rIdx, points };
+      // 취소 스탬프(X) 자리 — 옛 선이 함정임을 글자 없이 모양으로 알린다(표시 전용)
+      const stamps = [0.2, 0.5, 0.8]
+        .map((f) => points[Math.floor(f * (points.length - 1))])
+        .filter((p): p is Pt => Boolean(p));
+      return { range: rIdx, points, stamps };
     });
   }, [pts, noGoRanges, normalAt]);
 
@@ -201,6 +225,8 @@ export function TraceGame({ game, onComplete }: EngineProps) {
   const [lockView, setLockView] = useState<{ kind: GateKind; reason: string; holdPct: number } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [sparkFlash, setSparkFlash] = useState<{ x: number; y: number; key: number } | null>(null);
+  /** 절삭 헤드 커서 위치(viewBox 좌표) — head 스프라이트가 있을 때만 갱신(표시 전용) */
+  const [pointerPos, setPointerPos] = useState<Pt | null>(null);
   const toastTimer = useRef<number | null>(null);
 
   const showToast = useCallback((text: string) => {
@@ -445,19 +471,22 @@ export function TraceGame({ game, onComplete }: EngineProps) {
         showToast("확인 없이 시작했습니다 (감점)");
       }
       const p = toView(event);
+      if (headSprite) setPointerPos(p); // 터치 시작에도 헤드가 바로 붙는다(표시 전용)
       if (s.activeGate < 0 && dist(p, pts[s.pi]) > toleranceAt(s.pi / (SAMPLES - 1)) + 30) return;
       s.drawing = true;
       s.lastPointer = p;
       event.currentTarget.setPointerCapture?.(event.pointerId);
     },
-    [pts, startGateOpen, toView, toleranceAt, showToast],
+    [pts, startGateOpen, toView, toleranceAt, showToast, headSprite],
   );
 
   const onPointerMove = useCallback(
     (event: ReactPointerEvent) => {
       const s = st.current;
-      if (doneRef.current || !s.drawing) return;
+      if (doneRef.current) return;
       const p = toView(event);
+      if (headSprite) setPointerPos(p); // 마우스 호버에도 헤드가 따라다닌다(판정 무관)
+      if (!s.drawing) return;
       const moved = s.lastPointer ? dist(p, s.lastPointer) : 0;
       s.lastPointer = p;
       if (s.activeGate >= 0) {
@@ -466,12 +495,19 @@ export function TraceGame({ game, onComplete }: EngineProps) {
       }
       advance(p);
     },
-    [toView, dragWhileLocked, advance],
+    [toView, dragWhileLocked, advance, headSprite],
   );
 
   const onPointerUp = useCallback(() => {
     st.current.drawing = false;
     st.current.lastPointer = null;
+  }, []);
+
+  /** 스테이지 이탈 — 획을 끊고 헤드 커서도 감춘다. */
+  const onPointerLeave = useCallback(() => {
+    st.current.drawing = false;
+    st.current.lastPointer = null;
+    setPointerPos(null);
   }, []);
 
   // 게이트 멈춤 판정 티커 — 정지 시간은 타임스탬프로 잰다(백그라운드 안전)
@@ -540,7 +576,14 @@ export function TraceGame({ game, onComplete }: EngineProps) {
     <div className={shared.shell}>
       <GameHud label="진행" count={Math.round(progress * 100)} total={100} remaining={remaining} timeLimit={game.time_limit} />
 
-      <div className={styles.stage}>
+      <div className={styles.stage} data-art={headSprite ? "true" : undefined}>
+        {guideSkin ? (
+          // 배경 스킨(도트 판재) — guide 와 같은 이름의 스프라이트가 있으면 깔린다.
+          // 파일이 없으면 조용히 빠져 기존 그라데이션 배경 그대로다(ms-08 폴백).
+          <div className={styles.bgLayer} aria-hidden="true">
+            <PixelSprite id={guideSkin} label="" size={VIEW_W} fallbackClassName={styles.spriteHidden} />
+          </div>
+        ) : null}
         <svg
           ref={svgRef}
           className={styles.svg}
@@ -550,7 +593,7 @@ export function TraceGame({ game, onComplete }: EngineProps) {
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onPointerLeave={onPointerUp}
+          onPointerLeave={onPointerLeave}
         >
           {pts.length > 0
             ? bandsToRender.map((band, i) => {
@@ -575,6 +618,15 @@ export function TraceGame({ game, onComplete }: EngineProps) {
               points={ng.points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")}
             />
           ))}
+          {/* 옛 선 위 취소 스탬프(X) — '따라가지 말 것'을 글자 없이 모양으로 */}
+          {noGoPts.map((ng) =>
+            ng.stamps.map((p, i) => (
+              <g key={`ng-stamp-${ng.range}-${i}`} className={styles.noGoStamp} aria-hidden="true">
+                <line x1={p.x - 4} y1={p.y - 4} x2={p.x + 4} y2={p.y + 4} />
+                <line x1={p.x - 4} y1={p.y + 4} x2={p.x + 4} y2={p.y - 4} />
+              </g>
+            )),
+          )}
           <path ref={pathRef} className={styles.guide} d={GUIDE_D} />
           {drawnPoints ? <polyline className={styles.drawn} data-off={offNow} points={drawnPoints} /> : null}
           {pts.length > 0 && progress < 0.01 ? <circle className={styles.startDot} cx={pts[0].x} cy={pts[0].y} r={8} /> : null}
@@ -583,24 +635,48 @@ export function TraceGame({ game, onComplete }: EngineProps) {
           ) : null}
         </svg>
 
-        {/* 경로 위 신호 마커 — 활성 게이트만 노출(사전 유출 방지) */}
+        {/* 경로 위 신호 마커 — 활성 게이트만 노출(사전 유출 방지).
+            emergency 는 signal 과 같은 이름의 스프라이트가 있으면 도트 아이콘으로,
+            없으면 지금처럼 라벨 칩으로 나온다(균열라인_연기_아이콘 — ms-09). */}
         {pts.length > 0
           ? gates.map((gate, i) => {
               const status = st.current.gateStatus[i];
               if (status === "pending") return null;
               const pos = markerPos(gate.at);
+              const spriteMode = gate.kind === "emergency" && emergencySignal !== undefined;
               return (
                 <span
                   key={`${gate.kind}-${i}`}
                   className={styles.marker}
                   data-kind={status === "done" ? "done" : gate.kind === "interrupt" ? undefined : "danger"}
+                  data-sprite={spriteMode ? "true" : undefined}
                   style={{ left: `${(pos.x / VIEW_W) * 100}%`, top: `${(pos.y / VIEW_H) * 100}%` }}
                 >
-                  {situationOf(gate.reason)}
+                  {spriteMode ? (
+                    <PixelSprite
+                      id={emergencySignal ?? ""}
+                      label={situationOf(gate.reason)}
+                      size={44}
+                      fallbackClassName={styles.markerFallback}
+                    />
+                  ) : (
+                    situationOf(gate.reason)
+                  )}
                 </span>
               );
             })
           : null}
+
+        {/* 절삭 헤드 커서 — 드래그/호버 지점을 따라다닌다(head 스프라이트가 있을 때만) */}
+        {headSprite && pointerPos && !done ? (
+          <span
+            className={styles.headCursor}
+            style={{ left: `${(pointerPos.x / VIEW_W) * 100}%`, top: `${(pointerPos.y / VIEW_H) * 100}%` }}
+            aria-hidden="true"
+          >
+            <PixelSprite id={headSprite} label="" size={36} fallbackClassName={styles.spriteHidden} />
+          </span>
+        ) : null}
 
         {sparkFlash ? (
           <span
@@ -608,7 +684,12 @@ export function TraceGame({ game, onComplete }: EngineProps) {
             className={styles.spark}
             style={{ left: `${(sparkFlash.x / VIEW_W) * 100}%`, top: `${(sparkFlash.y / VIEW_H) * 100}%` }}
             aria-hidden="true"
-          />
+          >
+            {sparkSprite ? (
+              // 도트 스파크 — 원광(배경) 위에 겹친다. 파일이 없으면 원광만 남는다.
+              <PixelSprite id={sparkSprite} label="" size={28} fallbackClassName={styles.spriteHidden} />
+            ) : null}
+          </span>
         ) : null}
 
         {lockView && lockView.kind === "interrupt" ? (

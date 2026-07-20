@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import common from "../../../styles/minigame.module.css";
 import styles from "../../../styles/matchGame.module.css";
 import { PixelSprite } from "./PixelSprite";
@@ -20,7 +28,9 @@ import { GameHud, ResultBar, clampScore, elapsedSeconds, scoringOf, useCountdown
  * 감점 회피 봉쇄")를 판 전체 규칙으로 올린 것으로, 8개 데이터 모두 카드당 정답이 1개라
  * 다중 연결이 필요한 파일이 없다.
  *
- * 채점은 제출(또는 전판 판정 완료·시간 만료) 시 최종 상태에서 한 번 계산한다.
+ * 채점은 '제출' 버튼(또는 시간 만료) 시 최종 상태에서 한 번 계산한다 — 전판을 판정해도
+ * 자동 종료하지 않는다(일괄 제출, 디자이너 확정). 미완 제출이 가능해야 방치 감점(missed_*)이
+ * 작동하고, 전판 완료 시에는 제출 버튼을 강조해 안내한다.
  * 감점 중첩 금지 — 한 사건(선 하나·카드 하나)에는 후보 중 가장 무거운 감점 하나만(_SCHEMA.md).
  * 카드 마커는 PixelSprite 로 그린다 — public/assets/minigames/<sprite id>.svg 가 있으면
  * 도트 아트(ys-03 얼굴·출입증 초상 등), 없으면 지금처럼 sprite id 텍스트 칩으로 폴백.
@@ -51,6 +61,9 @@ type SuddenDef = {
 type MatchData = {
   left?: MatchCard[];
   right?: MatchCard[];
+  /** 컬럼 헤더(선택) — 예: 입장객/제시된 출입증. 없으면 중립 라벨 '왼쪽'/'오른쪽'. */
+  left_label?: string;
+  right_label?: string;
   pairs?: Array<[string, string]>;
   unmatched?: string[];
   /** stn-04 — 짝없음 도장의 라벨(재검증_표시). 없으면 '짝 없음'. */
@@ -109,6 +122,11 @@ const KEY_COLORS: Record<string, string> = {
   silver: "#b9c2d4",
   purple: "#9a6cf0",
 };
+
+/** 연결선 팔레트 — 좌 카드마다 고정 색을 배정한다(어두운 판 위에서 3:1 이상 나오는 밝은 톤만). */
+const WIRE_COLORS = ["#7ab5ff", "#54d7a8", "#ffd166", "#ff9e7a", "#c792ea", "#6fe0e8", "#ff9ec2", "#b8e06a"];
+/** 우 카드를 먼저 골랐을 때의 임시선 색 — 좌 카드가 정해지기 전이라 중립 톤. */
+const WIRE_NEUTRAL = "#9fb6ff";
 
 const lineKey = (line: Line) => `${line.left}|${line.right}`;
 const pretty = (id: string) => id.replace(/_/g, " ");
@@ -211,6 +229,14 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const finishedRef = useRef(false);
 
   const linkedSet = useMemo(() => new Set(lines.flatMap((l) => [l.left, l.right])), [lines]);
+
+  // 연결선 색 — 좌 카드 id 마다 고정 색. 선을 다시 그어도 같은 좌 카드면 같은 색이 유지된다.
+  const wireColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    left.forEach((card, i) => map.set(card.id, WIRE_COLORS[i % WIRE_COLORS.length]));
+    return map;
+  }, [left]);
+  const wireColorOf = (leftId: string) => wireColorMap.get(leftId) ?? WIRE_COLORS[0];
 
   // ── 채점 파라미터 — 표준 채점 키(_SCHEMA.md)만 읽는다 ──
   const scoringHasKey = (key: string) => typeof game.scoring?.[key] === "number";
@@ -400,9 +426,8 @@ export function MatchGame({ game, onComplete }: EngineProps) {
     return () => window.clearTimeout(timer);
   }, [sudden, done, startedAt]);
 
-  // ── 자동 종료 — 판의 모든 카드가 판정되고, 이상치·돌발·키까지 끝났을 때.
-  //    '남겨두기'가 정답인 카드(kts-02 고강도 등)를 남긴 채 끝내려면 제출 버튼을 쓴다 —
-  //    미완 제출이 가능해야 방치 감점(missed_*)이 작동한다.
+  // ── 일괄 제출 — 자동 종료 없음(디자이너 확정). 전판을 판정해도 '제출'을 눌러야 채점하고,
+  //    시간 만료(useCountdown)만 예외로 즉시 채점한다. 아래 값들은 제출 버튼 강조·안내용 신호다.
   const allResolved =
     left.length + right.length > 0 &&
     [...left, ...right].every((card) => linkedSet.has(card.id) || Boolean(marks[card.id]));
@@ -413,12 +438,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
     !sudden || (suddenVisible && stagesAllDone && (!sudden.persists_after_stages || escalated));
   const keysDone =
     keyDefs.length === 0 || left.every((card) => !linkedSet.has(card.id) || Boolean(keysGiven[card.id]));
-
-  useEffect(() => {
-    if (done || !allResolved) return;
-    if (streamDone && suddenGate && keysDone) finish();
-    // eslint 미사용 저장소 — finish 는 매 렌더 최신 클로저라 deps 에 넣지 않는다
-  }, [done, allResolved, streamDone, suddenGate, keysDone]); // eslint-disable-line react-hooks/exhaustive-deps
+  const readyToSubmit = !done && allResolved && streamDone && suddenGate && keysDone;
 
   // ── 선 좌표 측정 — 카드 버튼의 모서리 중앙을 보드 기준 픽셀로 잰다 ──
   const boardRef = useRef<HTMLDivElement | null>(null);
@@ -458,6 +478,15 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const registerCard = (id: string, side: Side) => (el: HTMLButtonElement | null) => {
     if (el) cardEls.current.set(id, { el, side });
     else cardEls.current.delete(id);
+  };
+
+  // 임시선 — 카드를 하나 고른 상태에서 포인터를 따라오는 점선. 좌표는 보드 기준 픽셀.
+  const [cursor, setCursor] = useState<Anchor | null>(null);
+  const trackPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (done || !selected) return;
+    const base = boardRef.current?.getBoundingClientRect();
+    if (!base) return;
+    setCursor({ x: event.clientX - base.left, y: event.clientY - base.top });
   };
 
   // ── 조작 ──
@@ -539,6 +568,9 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   // ── 표시 도우미 ──
   const stampLabel = data.unmatched_action ? pretty(data.unmatched_action) : "짝 없음";
   const binLabel = data.discard?.bin ?? "휴지통";
+  // 컬럼 헤더 — 데이터에 left_label/right_label 이 있으면 그대로, 없으면 중립 라벨(하드코딩 금지).
+  const leftHead = data.left_label?.trim() || "왼쪽";
+  const rightHead = data.right_label?.trim() || "오른쪽";
   const stateOf = (id: string): string | undefined =>
     marks[id] ?? (linkedSet.has(id) ? "linked" : selected?.id === id ? "selected" : undefined);
   const verdictOf = (id: string) => (done && outcome ? outcome.cardVerdicts[id] : undefined);
@@ -558,7 +590,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
               : selected?.id === card.id
                 ? ", 선택됨"
                 : "";
-    return `${side === "left" ? "왼쪽" : "오른쪽"} 카드 ${card.sprite}${card.label ? `, ${card.label}` : ""}${
+    return `${side === "left" ? leftHead : rightHead} 카드 ${card.sprite}${card.label ? `, ${card.label}` : ""}${
       card.detector ? ", 탐지기 반응" : ""
     }${state}`;
   };
@@ -626,35 +658,65 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   return (
     <div className={common.shell}>
       <GameHud
-        label="판정 진행"
+        label={`연결 ${lines.length} · 도장 ${Object.keys(marks).length}`}
         count={resolvedCount}
         total={denominator}
         remaining={remaining}
         timeLimit={game.time_limit}
       />
 
-      <div className={styles.board} ref={boardRef} role="group" aria-label="매칭 보드 — 왼쪽 카드와 오른쪽 카드를 이으세요">
+      <div
+        className={styles.board}
+        ref={boardRef}
+        role="group"
+        aria-label={`매칭 보드 — ${leftHead} 카드와 ${rightHead} 카드를 이으세요`}
+        onPointerMove={trackPointer}
+        onPointerLeave={() => setCursor(null)}
+      >
         <svg className={styles.wires} aria-hidden="true">
           {lines.map((ln) => {
             const a = anchors[ln.left];
             const b = anchors[ln.right];
             if (!a || !b) return null;
             const key = lineKey(ln);
+            const color = wireColorOf(ln.left);
             return (
-              <line
+              <g
                 key={key}
-                className={styles.wire}
-                x1={a.x}
-                y1={a.y}
-                x2={b.x}
-                y2={b.y}
+                className={styles.wireGroup}
                 data-verdict={done && outcome ? (outcome.correctLineKeys.includes(key) ? "ok" : "bad") : undefined}
-              />
+              >
+                <line className={styles.wire} stroke={color} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
+                <circle className={styles.wireDot} fill={color} cx={a.x} cy={a.y} r={4} />
+                <circle className={styles.wireDot} fill={color} cx={b.x} cy={b.y} r={4} />
+              </g>
             );
           })}
+          {!done && selected && cursor && anchors[selected.id] ? (
+            <line
+              className={styles.wirePreview}
+              stroke={selected.side === "left" ? wireColorOf(selected.id) : WIRE_NEUTRAL}
+              x1={anchors[selected.id].x}
+              y1={anchors[selected.id].y}
+              x2={cursor.x}
+              y2={cursor.y}
+            />
+          ) : null}
         </svg>
-        <div className={styles.column}>{left.map((card) => renderCard(card, "left"))}</div>
-        <div className={styles.column}>{right.map((card) => renderCard(card, "right"))}</div>
+        <section className={styles.columnWrap} data-side="left" aria-label={`${leftHead} 카드 열`}>
+          <div className={styles.columnHead}>
+            <span>{leftHead}</span>
+            <span className={styles.columnCount}>{left.length}장</span>
+          </div>
+          <div className={styles.column}>{left.map((card) => renderCard(card, "left"))}</div>
+        </section>
+        <section className={styles.columnWrap} data-side="right" aria-label={`${rightHead} 카드 열`}>
+          <div className={styles.columnHead}>
+            <span>{rightHead}</span>
+            <span className={styles.columnCount}>{right.length}장</span>
+          </div>
+          <div className={styles.column}>{right.map((card) => renderCard(card, "right"))}</div>
+        </section>
       </div>
 
       {flowBeads.length > 0 ? (
@@ -796,7 +858,14 @@ export function MatchGame({ game, onComplete }: EngineProps) {
             </button>
           ))}
           <span className={styles.actionsSpacer} />
-          <button type="button" className={styles.submitBtn} onClick={finish}>
+          {readyToSubmit ? <span className={styles.readyHint}>모든 판정 완료 — 제출을 눌러 채점</span> : null}
+          <button
+            type="button"
+            className={styles.submitBtn}
+            data-ready={readyToSubmit || undefined}
+            onClick={finish}
+            aria-label="제출 — 지금 상태로 채점"
+          >
             제출
           </button>
         </div>

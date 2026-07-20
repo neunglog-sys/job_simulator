@@ -19,7 +19,8 @@
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.05em;
-  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.74));
+  /* 가시성: 테마 muted(0.74)가 12px에서 배경에 묻힘 — 명시 색으로 대비 확보 */
+  color: rgb(244 240 255 / 0.9);
   white-space: nowrap;
 }
 
@@ -31,7 +32,7 @@
 
 .legendArrow {
   font-size: 12px;
-  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.6));
+  color: rgb(244 240 255 / 0.82); /* 가시성: 0.6 알파는 화살표가 사라져 보임 */
 }
 
 .legendDest {
@@ -109,16 +110,17 @@
   box-shadow: 0 0 0 3px var(--scenario-accent-soft, rgb(193 126 255 / 0.24));
 }
 
+/* 가시성: 처리 카드의 전체 opacity 0.85가 라벨·도장까지 흐려지게 했다 — 0.92로 */
 .card[data-state="ok"] {
   border-color: rgb(120 240 200 / 0.6);
   background: rgb(30 160 130 / 0.24);
-  opacity: 0.85;
+  opacity: 0.92;
 }
 
 .card[data-state="wrong"] {
   border-color: rgb(255 130 150 / 0.6);
   background: rgb(190 50 80 / 0.24);
-  opacity: 0.85;
+  opacity: 0.92;
 }
 
 .cardSprite {
@@ -136,9 +138,10 @@
 }
 
 .cardLabel {
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.4;
-  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.74));
+  /* 가시성: muted 0.74 × 처리 카드 opacity 로 10px 글자가 배경에 묻힘 — 명시 색 */
+  color: rgb(244 240 255 / 0.92);
 }
 
 /* 처리 결과 도장 — ✓ 간 곳 / ✕ 잘못 간 곳 */
@@ -206,7 +209,7 @@
 
 .binSprite {
   font-size: 10px;
-  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.65));
+  color: rgb(244 240 255 / 0.88); /* 가시성: 0.65 알파 10px는 판독 불가 수준 */
 }
 
 /* ── 돌발 배너 — kts-01·kts-04 ── */
@@ -287,7 +290,7 @@
   margin: 0;
   font-size: 11px;
   line-height: 1.5;
-  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.78));
+  color: rgb(244 240 255 / 0.9); /* 가시성: 주황 배너 위 muted 글자 대비 보강 */
 }
 
 .suddenNote[data-kind="warn"] {
@@ -430,7 +433,7 @@
   line-height: 1.5;
   border: 1px solid rgb(255 255 255 / 0.18);
   background: rgb(255 255 255 / 0.06);
-  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.8));
+  color: rgb(244 240 255 / 0.92); /* 가시성: info 피드백 글자 대비 보강 */
 }
 
 .feedback[data-kind="ok"] {
@@ -448,6 +451,224 @@
   color: #ff8fa3;
 }
 
+/* ── 컨베이어 연출 — data.presentation: conveyor (gm-01) ──
+   물건이 한 번에 하나씩 좌→중앙 슬라이드로 도착하고, 벨트 줄무늬가 굴러간다.
+   옆에는 발주서(검수서) 패널이 상시 붙는다. */
+.conveyorRow {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.conveyor {
+  position: relative;
+  flex: 1 1 300px;
+  min-height: 172px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px 16px 38px;
+  border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.2));
+  border-radius: 14px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 24% 16%, rgb(255 255 255 / 0.06), transparent 44%),
+    linear-gradient(160deg, rgb(38 44 66 / 0.96), rgb(24 27 44 / 0.98));
+}
+
+/* 벨트 — 롤러 줄무늬가 좌로 굴러 '우측으로 흐르는' 느낌을 준다 */
+.belt {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+  height: 34px;
+  border-top: 2px solid rgb(255 255 255 / 0.28);
+  border-bottom: 2px solid rgb(0 0 0 / 0.5);
+  background-color: #232741;
+  background-image:
+    repeating-linear-gradient(90deg, rgb(255 255 255 / 0.16) 0 5px, transparent 5px 30px),
+    linear-gradient(180deg, rgb(255 255 255 / 0.07), transparent 55%);
+  animation: beltRoll 0.8s linear infinite;
+}
+
+@keyframes beltRoll {
+  to {
+    background-position: 30px 0, 0 0;
+  }
+}
+
+/* 처리 대기(돌발 동결·물량 없음·종료)면 벨트도 멈춘다 */
+.belt[data-paused="true"] {
+  animation-play-state: paused;
+}
+
+/* 중앙에 도착한 현재 물건 — 자동 선택 상태라 선택 링과 같은 강조를 쓴다 */
+.conveyorItem {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: 1px solid var(--scenario-accent, #8a63ee);
+  border-radius: 12px;
+  color: rgb(255 255 255 / 0.94);
+  background: linear-gradient(160deg, rgb(52 46 88 / 0.96), rgb(34 30 60 / 0.97));
+  box-shadow: 0 0 0 3px var(--scenario-accent-soft, rgb(193 126 255 / 0.24));
+  animation: conveyorIn 460ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+@keyframes conveyorIn {
+  from {
+    transform: translateX(-190px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.conveyorLabel {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: rgb(244 240 255 / 0.92);
+  text-align: center;
+}
+
+.conveyorEmpty {
+  z-index: 1;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgb(244 240 255 / 0.9);
+}
+
+/* 처리 내역 스탬프 줄 — 대기열 카드 도장을 대신하는 복기용 */
+.doneStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.doneStamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #06231d;
+  background: #5adcb4;
+}
+
+.doneStamp[data-verdict="wrong"] {
+  color: #2a0f16;
+  background: #ff8fa3;
+}
+
+/* ── 발주서(검수서) 패널 — data.order_sheet ──
+   서류 느낌의 밝은 종이 배경 + 진한 잉크 글자(대비 확보).
+   실루엣 칸은 흑백·반투명, 합격 처리되면 원색 + 체크가 얹힌다. */
+.orderSheet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 0 1 180px;
+  min-width: 150px;
+  padding: 11px 13px;
+  border: 1px solid rgb(120 100 60 / 0.6);
+  border-radius: 12px;
+  background: linear-gradient(165deg, #f7f1de, #e9dfc4);
+  color: #3a2f18;
+}
+
+.orderTitle {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #3a2f18;
+}
+
+.orderCells {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.orderCell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1.5px dashed rgb(90 74 40 / 0.55);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.55);
+}
+
+/* 실루엣 — 아직 안 들어온 발주 수량 */
+.orderCell img {
+  filter: grayscale(1) opacity(0.4);
+}
+
+.orderCell[data-filled="true"] {
+  border-style: solid;
+  border-color: #2c7a54;
+  background: rgb(90 200 140 / 0.2);
+}
+
+.orderCell[data-filled="true"] img {
+  filter: none;
+}
+
+.orderCheck {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 900;
+  color: #fff;
+  background: #15794b;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+}
+
+/* 칸을 다 채운 뒤에도 같은 박스를 합격시키면 뜨는 경고 */
+.orderOver {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  color: #fff;
+  background: #c22f4d;
+}
+
+.orderCellFallback {
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #3a2f18;
+  text-align: center;
+  word-break: keep-all;
+}
+
+.orderHint {
+  font-size: 10px;
+  line-height: 1.5;
+  color: #4c3f22;
+}
+
 /* ── 접근성: 키보드 초점 ── */
 .card:focus-visible,
 .bin:focus-visible,
@@ -463,6 +684,12 @@
 @media (prefers-reduced-motion: reduce) {
   .sudden {
     animation: none;
+  }
+  .belt {
+    animation: none; /* 롤러 줄무늬 정지 */
+  }
+  .conveyorItem {
+    animation: none; /* 좌→중앙 슬라이드 생략 */
   }
   .escalateBtn[data-armed="true"] {
     animation: none;

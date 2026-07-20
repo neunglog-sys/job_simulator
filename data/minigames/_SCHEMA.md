@@ -75,6 +75,11 @@ data:
     - { sprite: 안전모_착용자, at: [180, 300] }
 ```
 
+> 표시 전용 — targets/decoys 항목의 `size`: 스프라이트 표시 폭(960×440 논리 캔버스 단위,
+> 기본 72). 채점·클릭 판정과 무관하다. 짝(정상/이상) 오브젝트는 같은 size 로 맞춰 실루엣
+> 크기 차이가 힌트가 되지 않게 한다. `scene` 스프라이트 파일이 있으면 도트 배경으로 깔리고,
+> 없으면 기존 그라데이션 배경 + 라벨 칩 폴백 (ys-05 도트 아트에서 도입, 2026-07-20).
+
 ### 2. `gauge` — 계기 판독
 바늘·게이지를 보고 합격/미달 판정. **숫자 대신 색 구간**으로 읽힌다.
 
@@ -91,12 +96,20 @@ data:
 
 ```yaml
 data:
+  presentation: conveyor           # 선택 — 컨베이어 연출(gm-01): 물건이 한 번에 하나씩
+                                   # 벨트 중앙에 도착해 자동 선택되고, 처리해야 다음이 온다.
+                                   # 연출만 바뀐다(처리 순서 강제) — 채점·데이터 계약 동일.
   bins:
     - { id: 격리함, label: 격리 }
     - { id: 합격,   label: 통과 }
   items:
-    - { sprite: 제품_균열, bin: 격리함 }
-    - { sprite: 제품_정상, bin: 합격 }
+    - { sprite: 제품_균열, bin: 격리함, scale: 1.3 }  # scale: 스프라이트 표시 배율(기본 1)
+    - { sprite: 제품_정상, bin: 합격 }                #   — 규격 차이를 눈으로 보이게(gm-01)
+  order_sheet:                     # 선택 — 발주서(검수서) 상시 대조 패널(gm-01).
+    label: 발주서                  # 수량은 숫자가 아니라 실루엣 칸 개수로 보인다(규칙 1).
+    bin: 합격                      # 이 통(생략 시 첫 번째 bin)에 넣은 같은 sprite 수량만큼
+    slots:                         # 실루엣 위에 체크가 쌓인다 — 칸이 다 찼는데 같은 박스가
+      - { sprite: 제품_정상, count: 4 }  # 또 오면 '수량 초과' 함정을 화면에서 판단할 수 있다.
   escalate:                        # 선택 — 금지행동 대응 버튼 (직접 처리 대신 호출)
     { label: 매니저 호출, when: 고성_손님 }
 ```
@@ -123,6 +136,38 @@ data:
   budget: { time: 90 }             # 연료 등 제약이 있으면 여기 추가
 ```
 
+**계획+주행 2단계 확장 (jm-01)** — 아래 필드가 있을 때만 켜진다. 없는 게임은 불변:
+
+```yaml
+data:
+  avoid:
+    - zone: 어린이보호구역
+      penalty: 40
+      visible: true                # 계획 화면에 처음부터 반투명 존+표지 렌더.
+                                   # 원문이 지도에 위험구역을 미리 표기하는 경우만
+                                   # (jm-01 "노선도에 지름길이 보호구역 경유로 표시").
+                                   # 없으면 기존 '침범 후 공개'(stn-02) 유지.
+  weather_pool:                    # 게임 시작 시 1개 랜덤 — 상단 기상 배너로 표시
+    - { id: 맑음, notice: 특이사항 없음 }
+    - { id: 호우, effect: 서행, notice: 시야 불량 — 전 구간 서행 }
+                                   # effect: 서행 → 주행 기본 속도 감소 +
+                                   # when_effect: 서행 구간 활성 (규칙에 반영)
+  driving:                         # 계획 제출 후 종스크롤 주행 파트(방향키/WASD 회피 조작)
+    duration: 24                   # 주행 시간(초) — 20~30 권장
+    obstacle_density: 0.5          # 장애물 스폰 밀도 0~1
+    obstacles: [장애물_차량, 물웅덩이]   # 낙하 장애물 스프라이트 id 목록
+    slow_zones:                    # 서행 의무 구간 — from/to 는 주행 진행률(0~1)
+      - { id: 어린이보호구역, from: 0.3, to: 0.5, penalty: 40, sprite: 어린이보호구역_표지, reason: … }
+      - { id: 시야불량구간, from: 0.6, to: 0.8, penalty: 10, when_effect: 서행 }  # 해당 기상일 때만
+```
+
+> 주행 채점: `accuracy = 계획 점수 − 주행 감점` (0~100 클램프 — 기존 채점 계약 위에
+> 감점만 얹는다). 장애물 충돌 1건 = scoring `collision_penalty`(표준 키, 장애물 하나에
+> 감점 하나), 서행 위반(서행선 위 과속 ≈1초 유지) = 해당 zone `penalty` **구역당 1회**
+> — 감점 중첩 금지 규약 그대로. 보호구역 과속은 원문 금지행동이라 40↑(규칙 7),
+> 단순 서행 의무 구간은 10~15. `prefers-reduced-motion` 환경에서는 저속·무장애물
+> 간이 모드가 된다(충돌 감점 없음, 서행 의무는 판단 요소라 유지).
+
 ### 6. `sequence` — 순서·절차
 정해진 순서대로 누르기. **틀린 순서를 누르면 즉시 실패**가 원칙(안전 절차라서).
 
@@ -145,6 +190,16 @@ data:
     - { id: 밀가루, target: 0.72, tolerance: 0.05 }   # 0~1 비율
     - { id: 기름,   target: 0.30, tolerance: 0.05 }
 ```
+
+> 표시 전용(presentation) 필드 — 채점·데이터 계약 불변, 파일 없으면 기존 사각 게이지 폴백
+> (ms-06 도트 아트에서 도입, 2026-07-20):
+> - `data.trough_sprite`: 구유 프레임 도트 스프라이트 id(엔진 기본값 `구유_나무`). 내부
+>   개구부가 투명해 뒤에서 차오르는 채움(fill)이 비쳐 보인다.
+> - `data.pour_sprite`: 프레스-홀드 붓기 버튼의 아이콘 id(기본값 `사료포대_삽`).
+> - `vessel.sprite`: 칸 위 개체 도트 아이콘 id(축종 중립). 없으면 라벨 칩 폴백.
+> - `vessel.scale`: 스프라이트 표시 배율(기본 1) — sort 의 `item.scale` 과 동일 규약.
+> - 규칙 1 준수: target·tolerance 숫자는 어디에도 표시하지 않는다 — 목표선·허용 밴드
+>   높이로만 읽힌다(기존과 동일).
 
 ### 8. `trace` — 따라 긋기
 가이드라인 따라가기. `interrupts`로 "꿈틀하면 멈추기"를 만든다.
@@ -171,6 +226,19 @@ data:
 > `terminal_stop`·`emergency` 는 "금지행동(계속 진행)이 점수상 이득이 되면 안 된다"는
 > 규칙 2를 trace 에서 구현하는 장치다. 중단·보고가 정답인 지점은 반드시 이 필드로
 > 표현하고, 단순 `interrupts`(멈췄다 재개)로 두지 않는다.
+
+> 표시 전용(presentation) 필드 — 채점·판정 계약과 무관하며, 스프라이트 파일이 없으면
+> 전부 기존 렌더로 폴백한다(ms-09 도트 아트에서 도입, 2026-07-20):
+> - `head: 절삭헤드_커터` — 드래그/호버 지점을 따라다니는 절삭 헤드 도트 스프라이트.
+>   이 필드가 있으면 stage 가 아트 모드(data-art)로 전환돼 밴드·가이드 대비가 올라가고
+>   그은 자국이 달궈진 금속색이 되며 기본 crosshair 커서가 숨는다(헤드가 커서를 대신).
+> - `spark_sprite: 스파크_이펙트` — 스파크 이탈 플래시의 원광 위에 겹쳐 그리는 도트 스프라이트.
+> - `guide` 값과 같은 이름의 스프라이트 파일(절삭_경로_최신본.svg)이 있으면 배경 스킨
+>   (금속 판재)으로 캔버스에 꽉 채워 깔린다 — route 의 `map` 과 동일 규약.
+> - `emergency.signal` 값과 같은 이름의 스프라이트 파일이 있으면 신호 마커가 라벨 칩 대신
+>   도트 아이콘으로 나온다. 표시 라벨에서는 `_아이콘` 접미사를 벗겨 쓴다.
+> - `no_go` 유령선에는 엔진이 취소 스탬프(X 모양)를 자동으로 얹는다 — 별도 필드 없음,
+>   글자 금지(규칙 1) 준수.
 
 ### 9. `physics` — 밸런스·리듬
 두 가지 모드를 한 엔진이 처리한다.
@@ -242,6 +310,7 @@ data:
 | `ignore_sudden_penalty` | 돌발을 아예 응대하지 않고 종료 | **40** |
 | `early_escalate_penalty` | 단계 전 성급한 호출 | 25 (escalate.early_penalty 와 중복 정의 금지 — scoring 쪽만) |
 | `decoy_penalty` | 함정 클릭 | '전부 클릭' 합계가 30을 넘게 (개당 15~20 또는 개수 확보) |
+| `collision_penalty` | route 주행: 장애물 충돌 (장애물 하나 = 사건 하나) | 5~10 (금지행동 아님 — 서행 위반은 slow_zones 의 zone별 penalty) |
 | 감점 중첩 | 한 사건에는 **가장 무거운 감점 하나만** 적용 (중첩 금지) — 전 엔진 공통 |
 
 ## 엔진 확장 필드 추가분 (45개 작성 과정에서 확정)
@@ -252,6 +321,12 @@ data:
   `blockers`(경로상 발견·보고물 — stn-02): `[{ id, at, sprite, action, missed_penalty }]`
   — 통과·회피가 아니라 **발견해 action(보고)** 하는 것이 정답. 보고 없이 제출하면(방치)
   missed_penalty (원문 금지행동이면 40).
+- **route 계획+주행 2단계 (jm-01, 2026-07-20)**: avoid 항목 `visible: true`(계획 화면 사전
+  표시 — 원문이 지도에 표기하는 구역만), `weather_pool`(랜덤 기상 배너 — `effect: 서행`은
+  주행 속도·구간 활성에 반영), `driving`(종스크롤 주행 파트 — `{ duration, obstacle_density,
+  obstacles, slow_zones[{id, from, to, penalty, sprite?, reason?, when_effect?}] }`),
+  scoring `collision_penalty`. 상세는 위 5. route 절 참조. **driving 이 없는 route 게임은
+  전부 기존 단일(계획) 흐름 그대로다.**
 - **physics balance**: `settle`(내려놓기형 — 크레인류): `{ target_zone, tolerance, sway_fail(기울기 초과=실패), drop_fail(과속 착지=실패) }`.
   intro 가 '실패'라고 고지한 조작은 감점이 아니라 실패로 채점한다.
 - **place**: `stains`(문지르기·교체형 정비 — cln-01): `[{ id, resolve: 문지르기|교체, sprite }]`.
@@ -267,6 +342,13 @@ data:
     forbidden 항목 `{ id, slots?, reason }`(hr-01)
   - physics rhythm: `stray_input_penalty`(창 밖 연타)·`beat_count`(jm-02)
   - typing: `critical_lines`+`missed_critical_penalty`(핵심 예외 줄 누락 = 금지행동 40 — backend)
+  - typing: `data.presentation: dev_desk`(표시 전용 — backend-dev-day1, 2026-07-20) — 낙하
+    스테이지를 도트 모니터 프레임(`모니터_터미널`)으로 감싸고 코드 줄을 알림 봉투(`알림_봉투`)
+    카드에 담아 내린다. 봉투는 lines/distractors 겉모습이 **완전히 동일**해야 하며, 스킨
+    모드에선 정답을 유출하는 `label` 배지도 낙하 중 그리지 않는다 — 구분 근거는 코드 텍스트
+    (스프라이트가 아닌 실제 DOM monospace 텍스트)뿐이다(글자 판독 공인 예외 게임이라 허용).
+    정확 입력=발송차단 스탬프, distractor 입력=경고 스탬프 FX. 이 키가 없거나 스프라이트
+    파일이 없으면 기존 플레인 렌더로 폴백. 채점·낙하 물리(wall-clock 역산) 불변.
   - route: avoid 항목의 설명은 `reason`(비노출)만 — `label` 은 화면에 렌더되어 위험구역을 사전 유출하므로 금지
   - trace stains 의 `resolve` 값은 문서 enum(문지르기|교체)과 **글자까지 일치**해야 한다
 - **아이템 시각 단서 규약**: 아이템의 color/icon 이 정답 통(bin)의 color/icon 과 1:1로 같으면
