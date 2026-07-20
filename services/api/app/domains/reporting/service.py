@@ -44,6 +44,8 @@ async def create_report(
     simulation_id: int | None = None,
 ) -> Report:
     await get_owned_consultation(session, consultation_id, user)
+    # 추천의 유일한 기준은 저장된 recommendations.results — 리포트가 추천을 다시 만들지 않는다
+    # (팀 결정 2026-07-20). 화면마다 다른 추천이 나오지 않게 하는 규칙이다.
     recommendation = (
         await session.execute(
             select(Recommendation)
