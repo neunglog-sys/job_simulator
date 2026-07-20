@@ -247,7 +247,11 @@ async def create_recommendation(
         [
             {
                 "job_code": job.code,
-                "competency_score": _weighted_avg(job.competencies, scores) or NEUTRAL_SCORE,
+                # `or NEUTRAL_SCORE`는 정당한 0점을 falsy로 보고 50으로 바꿔 로그를 왜곡한다
+                # (본계산 _score_job은 is None 비교라 정상). None만 중립값으로 치환한다.
+                "competency_score": (
+                    avg if (avg := _weighted_avg(job.competencies, scores)) is not None else NEUTRAL_SCORE
+                ),
                 "interest_score": (
                     _interest_match(job.interest_profile, interest_profile)
                     if interest_profile

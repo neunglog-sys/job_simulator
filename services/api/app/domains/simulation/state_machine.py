@@ -1,11 +1,8 @@
-"""State Machine — 시나리오 YAML의 상태·전이 규칙 실행 (순수 함수).
+"""State Machine — 시나리오 스텝·상태값 유틸 (순수 함수).
 
-시나리오 형식(data/scenarios/*.yaml):
-  steps:
-    - id: kickoff
-      transitions:
-        - to: implement
-          when: { requirement_clarity: ">=60" }   # 모든 조건 AND
+스텝 전진은 과제 통과(task.on_pass)로만 일어난다 (게임 설계 확정 2026-07-20).
+상태값 임계 전이(transitions/when)는 쓰지 않기로 해 관련 함수는 제거했다 —
+대화·선택의 delta는 apply_deltas로 상태값만 누적하고 스텝은 바꾸지 않는다.
 """
 
 import re
@@ -13,22 +10,6 @@ import re
 from app.core.config import settings
 
 STATE_MIN, STATE_MAX = 0, 100
-
-_COND_RE = re.compile(r"^(>=|<=|==|>|<)\s*(-?\d+)$")
-
-
-def check_condition(expr: str, value: float) -> bool:
-    m = _COND_RE.match(expr.strip())
-    if not m:
-        raise ValueError(f"잘못된 전이 조건식: {expr!r}")
-    op, threshold = m.group(1), int(m.group(2))
-    return {
-        ">=": value >= threshold,
-        "<=": value <= threshold,
-        ">": value > threshold,
-        "<": value < threshold,
-        "==": value == threshold,
-    }[op]
 
 
 def find_step(steps: list[dict], step_id: str) -> dict:
@@ -45,26 +26,6 @@ def apply_deltas(state: dict, deltas: dict) -> dict:
         if key in new_state and isinstance(new_state[key], (int, float)):
             new_state[key] = max(STATE_MIN, min(STATE_MAX, new_state[key] + delta))
     return new_state
-
-
-def next_step_id(step: dict, state: dict) -> str | None:
-    """현재 스텝의 전이 규칙 평가 — 첫 매칭 반환, 없으면 None."""
-    for tr in step.get("transitions", []):
-        if all(check_condition(cond, state.get(key, 0)) for key, cond in tr["when"].items()):
-            return tr["to"]
-    return None
-
-
-def resolve_transitions(steps: list[dict], current_id: str, state: dict) -> str:
-    """전이를 연쇄 평가해 최종 스텝 반환 (순환 방지 가드 포함)."""
-    visited = {current_id}
-    step_id = current_id
-    while True:
-        nxt = next_step_id(find_step(steps, step_id), state)
-        if nxt is None or nxt in visited:
-            return step_id
-        visited.add(nxt)
-        step_id = nxt
 
 
 END = "__end__"  # task.on_pass 특수값 — 시뮬레이션 완료
