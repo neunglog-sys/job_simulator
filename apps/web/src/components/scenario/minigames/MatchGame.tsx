@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import common from "../../../styles/minigame.module.css";
 import styles from "../../../styles/matchGame.module.css";
+import { PixelSprite } from "./PixelSprite";
 import { GameHud, ResultBar, clampScore, elapsedSeconds, scoringOf, useCountdown, type EngineProps } from "./shared";
 
 /**
@@ -21,7 +22,8 @@ import { GameHud, ResultBar, clampScore, elapsedSeconds, scoringOf, useCountdown
  *
  * 채점은 제출(또는 전판 판정 완료·시간 만료) 시 최종 상태에서 한 번 계산한다.
  * 감점 중첩 금지 — 한 사건(선 하나·카드 하나)에는 후보 중 가장 무거운 감점 하나만(_SCHEMA.md).
- * 스프라이트 아트가 아직 없어 sprite id 텍스트를 라벨 마커로 그린다(spot 엔진과 같은 방식).
+ * 카드 마커는 PixelSprite 로 그린다 — public/assets/minigames/<sprite id>.svg 가 있으면
+ * 도트 아트(ys-03 얼굴·출입증 초상 등), 없으면 지금처럼 sprite id 텍스트 칩으로 폴백.
  */
 
 type Side = "left" | "right";
@@ -578,7 +580,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
           disabled={done || mark === "escalated"}
           onClick={() => toggleCard(side, card.id)}
         >
-          <span className={styles.cardSprite}>{card.sprite}</span>
+          <PixelSprite id={card.sprite} label={card.sprite} size={48} fallbackClassName={styles.cardSprite} />
           {card.label ? <span className={styles.cardLabel}>{card.label}</span> : null}
           {cue ? <span className={styles.cardCue}>{pretty(cue)}</span> : null}
           {card.detector ? <span className={styles.lamp} aria-hidden="true" /> : null}

@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import base from "../../../styles/minigame.module.css";
 import styles from "../../../styles/gaugeGame.module.css";
+import { PixelSprite } from "./PixelSprite";
 import {
   GameHud,
   ResultBar,
@@ -39,7 +40,7 @@ type GaugeItem = {
 type GaugeData = {
   ok_zone?: [number, number];
   gauges?: GaugeItem[];
-  escalate?: { label?: string; when?: string | string[] };
+  escalate?: { label?: string; when?: string | string[]; sprite?: string };
   forbidden?: Array<{ id: string; reason?: string }>;
 };
 
@@ -127,8 +128,10 @@ export function GaugeGame({ game, onComplete }: EngineProps) {
   const escalateRequired = scoring.escalate_required === true && failGauges.length > 0;
 
   // 버튼 라벨은 파일의 action에서 오되 게임 전체 공통 — 게이지별로 다르면 정답이 샌다
-  const passLabel = pretty(gauges.find((g) => g.verdict === "pass" && g.action)?.action ?? "합격");
-  const failLabel = pretty(failGauges.find((g) => g.action)?.action ?? "이상");
+  const passAction = gauges.find((g) => g.verdict === "pass" && g.action)?.action ?? "합격";
+  const failAction = failGauges.find((g) => g.action)?.action ?? "이상";
+  const passLabel = pretty(passAction);
+  const failLabel = pretty(failAction);
 
   const [decisions, setDecisions] = useState<Record<string, "pass" | "fail">>({});
   const [marks, setMarks] = useState<Record<string, boolean>>({});
@@ -272,9 +275,20 @@ export function GaugeGame({ game, onComplete }: EngineProps) {
               role="group"
               aria-label={`${name} 게이지`}
             >
-              <Dial value={Number(g.value)} zone={zone} />
+              {/* gauge 항목에 sprite가 있으면 다이얼 옆 장비 도트 아트(ys-04 공기호흡기_본체 등).
+                  아트 파일이 없으면 PixelSprite가 기존 라벨 칩으로 폴백한다(ys-06 임시배선 등). */}
+              <div className={styles.dialRow}>
+                <Dial value={Number(g.value)} zone={zone} />
+                {g.sprite ? (
+                  <PixelSprite
+                    id={g.sprite}
+                    label={pretty(g.sprite)}
+                    size={40}
+                    fallbackClassName={styles.cardSprite}
+                  />
+                ) : null}
+              </div>
               <span className={styles.cardLabel}>{name}</span>
-              {g.sprite ? <span className={styles.cardSprite}>{pretty(g.sprite)}</span> : null}
 
               {tapMode ? (
                 marked ? (
@@ -298,6 +312,8 @@ export function GaugeGame({ game, onComplete }: EngineProps) {
                 </span>
               ) : (
                 <div className={styles.judgeRow}>
+                  {/* 버튼 아이콘은 장식 — <action>_아이콘.svg 가 있으면 표시(ys-04 적재칸·재충전대),
+                      없으면 label="" 폴백이 빈 span 이라 라벨만 남는다. 정답 단서 아님. */}
                   <button
                     type="button"
                     className={styles.judgeButton}
@@ -306,6 +322,7 @@ export function GaugeGame({ game, onComplete }: EngineProps) {
                     onClick={() => judge(g.id, "pass")}
                     aria-label={`${name} — ${passLabel} 판정`}
                   >
+                    <PixelSprite id={`${passAction}_아이콘`} label="" size={18} />
                     {passLabel}
                   </button>
                   <button
@@ -316,6 +333,7 @@ export function GaugeGame({ game, onComplete }: EngineProps) {
                     onClick={() => judge(g.id, "fail")}
                     aria-label={`${name} — ${failLabel} 판정`}
                   >
+                    <PixelSprite id={`${failAction}_아이콘`} label="" size={18} />
                     {failLabel}
                   </button>
                 </div>
@@ -367,6 +385,9 @@ export function GaugeGame({ game, onComplete }: EngineProps) {
               aria-pressed={escalated}
               onClick={() => setEscalated((v) => !v)}
             >
+              {data.escalate.sprite ? (
+                <PixelSprite id={data.escalate.sprite} label="" size={20} />
+              ) : null}
               {escalated ? `${data.escalate.label ?? "보고"} 완료` : data.escalate.label ?? "보고"}
             </button>
           ) : null}

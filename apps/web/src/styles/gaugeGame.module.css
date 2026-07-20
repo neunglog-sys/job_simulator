@@ -42,6 +42,20 @@
 }
 
 /* ── 눈금판 — 경계 판별이 되게 크게 ── */
+/* 다이얼 + 장비 스프라이트 줄 — gauge 항목에 sprite가 있는 게임(ys-04 등)만 옆칸이 생긴다 */
+.dialRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.dialRow > .dial {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .dial {
   width: 100%;
   max-width: 168px;
@@ -107,6 +121,10 @@
 }
 
 .judgeButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   min-height: 32px;
   padding: 0 12px;
   border-radius: 9px;
@@ -263,6 +281,10 @@
 }
 
 .escalateButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   min-height: 44px;
   padding: 0 20px;
   border: 1px solid rgb(255 200 120 / 0.55);

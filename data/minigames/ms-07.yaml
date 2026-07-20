@@ -24,20 +24,23 @@ data:
   mode: rhythm
   bpm: 100
   hit_window: 0.12           # 판정선 앞뒤 허용 시간(초)
+  judge_marker: 판정선_칼날   # 판정선 위 칼날 도트 마커
 
   # 레인 = 교차 오염을 막기 위해 분리해 둔 보관·손질 구역 (1스텝 모범답안 ④)
   # portion = 20인분 배수 계량 결과. 구역마다 다듬을 양이 다르다.
+  # sprite = 그 구역에서 손질하는 재료(정상·신선) — cut 노트가 이 도트로 내려온다.
   lanes:
-    - { id: 구역_1, label: 분리 구역 1, portion: 많음 }
-    - { id: 구역_2, label: 분리 구역 2, portion: 적음 }
-    - { id: 구역_3, label: 분리 구역 3, portion: 중간 }
-    - { id: 구역_4, label: 분리 구역 4, portion: 소량 정밀 }
+    - { id: 구역_1, label: 분리 구역 1, portion: 많음, sprite: 재료_당근 }
+    - { id: 구역_2, label: 분리 구역 2, portion: 적음, sprite: 재료_양파 }
+    - { id: 구역_3, label: 분리 구역 3, portion: 중간, sprite: 재료_감자 }
+    - { id: 구역_4, label: 분리 구역 4, portion: 소량 정밀, sprite: 재료_마늘 }
 
   # 노트 종류
   #   wash  — 손 위생. 이걸 치기 전엔 칼이 잡히지 않는다 (모범답안 ①)
   #   cut   — 스페이스로 칼질
   #   swap  — 칼·도마 교체. 구역이 바뀌는 지점 (조리도구 분리)
   #   avoid — 검수 탈락 재료. 치면 실수 (warning "상한 재료 사용")
+  #           sprite = 그 구역 재료의 변색 + 파리 점 버전 — 색·점으로만 구분(규칙 1)
   beats:
     - { at: 1.5,  key: space, type: wash, sprite: 손세정_소독, label: 작업 전 손 위생 }
 
