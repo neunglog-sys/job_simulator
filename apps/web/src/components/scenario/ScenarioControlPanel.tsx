@@ -52,7 +52,8 @@ const VOICE_LEVEL_THRESHOLD = 0.025;
 const VOICE_START_GRACE_MS = 1_400;
 const VOICE_SILENCE_TIMEOUT_MS = 2_800;
 const VOICE_VISUAL_UPDATE_MS = 42;
-const VOICE_IDLE_BAR_LEVELS = [0.3, 0.44, 0.58, 0.52, 0.4, 0.28];
+const VOICE_IDLE_BAR_LEVEL = 0.28;
+const VOICE_IDLE_BAR_LEVELS = Array(6).fill(VOICE_IDLE_BAR_LEVEL);
 const VOICE_FREQUENCY_BANDS = [
   [85, 220],
   [220, 420],
@@ -347,36 +348,52 @@ export function ScenarioControlPanel({
           const now = window.performance.now();
 
           if (now - lastVisualUpdateAt >= VOICE_VISUAL_UPDATE_MS) {
-            analyser.getByteFrequencyData(frequencySamples);
-            const nextBars = VOICE_FREQUENCY_BANDS.map(([minimumHz, maximumHz], index) => {
-              const startBin = Math.max(1, Math.floor(minimumHz / hertzPerBin));
-              const endBin = Math.min(frequencySamples.length - 1, Math.ceil(maximumHz / hertzPerBin));
-              let bandTotal = 0;
-              let bandPeak = 0;
-              let binCount = 0;
+            let nextBars: number[];
 
-              for (let bin = startBin; bin <= endBin; bin += 1) {
-                const amplitude = frequencySamples[bin];
-                bandTotal += amplitude;
-                bandPeak = Math.max(bandPeak, amplitude);
-                binCount += 1;
-              }
+            if (rms < VOICE_LEVEL_THRESHOLD) {
+              displayedBars.fill(VOICE_IDLE_BAR_LEVEL);
+              nextBars = [...displayedBars];
+            } else {
+              analyser.getByteFrequencyData(frequencySamples);
+              const bandEnergies = VOICE_FREQUENCY_BANDS.map(([minimumHz, maximumHz], index) => {
+                const startBin = Math.max(1, Math.floor(minimumHz / hertzPerBin));
+                const endBin = Math.min(frequencySamples.length - 1, Math.ceil(maximumHz / hertzPerBin));
+                let bandTotal = 0;
+                let bandPeak = 0;
+                let binCount = 0;
 
-              const average = binCount ? bandTotal / binCount : 0;
-              const energy = average * 0.72 + bandPeak * 0.28;
-              const normalizedEnergy = Math.min(
+                for (let bin = startBin; bin <= endBin; bin += 1) {
+                  const amplitude = frequencySamples[bin];
+                  bandTotal += amplitude;
+                  bandPeak = Math.max(bandPeak, amplitude);
+                  binCount += 1;
+                }
+
+                const average = binCount ? bandTotal / binCount : 0;
+                const energy = average * 0.72 + bandPeak * 0.28;
+                return energy * VOICE_FREQUENCY_GAINS[index];
+              });
+              const lowestEnergy = Math.min(...bandEnergies);
+              const highestEnergy = Math.max(...bandEnergies);
+              const energySpread = Math.max(1, highestEnergy - lowestEnergy);
+              const voiceEnvelope = Math.min(
                 1,
-                Math.max(0, (energy - 12) / 100) * VOICE_FREQUENCY_GAINS[index],
+                Math.max(0, (rms - VOICE_LEVEL_THRESHOLD) / 0.075),
               );
-              const idleLevel = VOICE_IDLE_BAR_LEVELS[index];
-              const targetLevel = Math.min(
-                1,
-                idleLevel + Math.pow(normalizedEnergy, 0.72) * (1 - idleLevel),
-              );
-              const smoothedLevel = displayedBars[index] * 0.55 + targetLevel * 0.45;
-              displayedBars[index] = smoothedLevel;
-              return smoothedLevel;
-            });
+
+              nextBars = bandEnergies.map((energy, index) => {
+                const relativeEnergy = (energy - lowestEnergy) / energySpread;
+                const spectralShape = 0.18 + Math.pow(relativeEnergy, 1.35) * 0.82;
+                const targetLevel = Math.min(
+                  1,
+                  VOICE_IDLE_BAR_LEVEL +
+                    voiceEnvelope * spectralShape * (1 - VOICE_IDLE_BAR_LEVEL),
+                );
+                const smoothedLevel = displayedBars[index] * 0.55 + targetLevel * 0.45;
+                displayedBars[index] = smoothedLevel;
+                return smoothedLevel;
+              });
+            }
 
             setVoiceBars(nextBars);
             lastVisualUpdateAt = now;
