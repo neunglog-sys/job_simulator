@@ -34,6 +34,7 @@ class LLMProvider(Protocol):
         *,
         system: str | None = None,
         temperature: float = 0.7,
+        thinking_budget: int | None = None,
     ) -> AsyncIterator[str]:
         """토큰 단위 스트리밍 응답."""
         ...

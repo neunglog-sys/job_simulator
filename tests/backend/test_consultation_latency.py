@@ -62,3 +62,15 @@ def test_search_knowledge_embed_timeout_applies(monkeypatch):
     monkeypatch.setattr(knowledge, "get_llm", lambda: _SlowLLM())
     with pytest.raises(asyncio.TimeoutError):
         asyncio.run(knowledge.search_knowledge(None, "질문", embed_timeout=0.02))
+
+
+def test_greeting_clip_url_reflects_file_presence(tmp_path, monkeypatch):
+    """인사 클립 계약 — 파일이 있으면 URL, 없으면 None (기존 흐름 폴백)."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
+    assert service.greeting_clip_url() is None
+    clip_dir = tmp_path / "avatar-clips"
+    clip_dir.mkdir()
+    (clip_dir / "greeting.mp4").write_bytes(b"\x00")
+    assert service.greeting_clip_url() == "/avatar-clips/greeting.mp4"

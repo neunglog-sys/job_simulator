@@ -37,7 +37,10 @@ async def create_consultation(
     session: AsyncSession = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
-    return await service.create_consultation(session, user)
+    consultation = await service.create_consultation(session, user)
+    out = ConsultationOut.model_validate(consultation)
+    # 인사 클립이 준비돼 있으면 세션 진입 즉시 재생하라고 알려준다 (없으면 기존 흐름)
+    return out.model_copy(update={"greeting_clip_url": service.greeting_clip_url()})
 
 
 @router.get("/{consultation_id}/survey")
