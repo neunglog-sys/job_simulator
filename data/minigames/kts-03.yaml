@@ -17,6 +17,12 @@ time_limit: 75
 pass_score: 70
 
 data:
+  # 표시 전용 — 컬럼 헤더(엔진 left_label/right_label 규약, 채점 무관. 도트 아트 2026-07-20).
+  # 가격표 개수는 visual_cues 텍스트에 의존하지 않도록 스프라이트 하단에 같은 개수의
+  # 가격표(2×2 도트, 색=가격대)로 직접 그려 넣었다 — 니즈 카드와 와인 병이 같은 글리프.
+  left_label: 손님 니즈
+  right_label: 와인 진열
+
   # 왼쪽 = 손님 니즈. 상황은 아이콘, 예산대는 색 + 같은 개수의 가격표 아이콘(visual_cues)으로만.
   left:
     - { id: 니즈_승진축하, sprite: 니즈_승진_레드선호,   budget: yellow, occasion: 승진, label: 승진 축하 · 중간 예산 · 레드 선호 }

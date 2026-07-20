@@ -349,10 +349,20 @@ data:
   intro 가 '실패'라고 고지한 조작은 감점이 아니라 실패로 채점한다.
 - **place**: `stains`(문지르기·교체형 정비 — cln-01): `[{ id, resolve: 문지르기|교체, sprite }]`.
   교체용 새 부품은 슬롯 채우기와 별개 채점 단위로 세지 않는다(이중 계산 금지).
+- **place 씬 아트 맵 모드(2026-07-20)**: `data.scene` + 모든 slot `at` 이 있고
+  public/assets/minigames/`<scene>`.svg 파일이 존재하면 씬 아트 배경의 맵 모드로 렌더된다
+  (파일 없으면 기존 목록 모드 폴백 — cln-01 은 파일 제작 시 자동 전환). 씬 SVG 는 논리
+  캔버스 960×440 정합 비율(viewBox 0 0 96 44 권장, at 좌표 1:10)로 그리고 각 슬롯 at 지점에
+  해당 가구를 그려 넣는다. 이웃 슬롯 at 간격은 논리 48px 이상 권장(컴팩트 패드 폭 4.8%).
+  ms-03(scene 미선언)은 기존 하드코딩 회의실 렌더 그대로다.
 - **match**: `stream`(흐름 속 이상치 클릭 — stn-03): `{ beads: [...], outliers: [...], decoy_beads: [...] }`.
 - **사후 반박 검증(2026-07-20) 추가 등재** — 아래 필드는 엔진이 반드시 지원해야 한다:
   - sort: `must_resolve_sudden`(돌발 처리 전 종료 불가)·`freeze_queue`(kts-01), item `forbidden_bin`(이
     통에 넣으면 금지행동=forbidden_penalty — gm-01·yg-02), scoring `escalate_mode`(대체|병행필수), `item_count`
+  - sort 렌더 규약(2026-07-20 아트 일괄 배선): `bins[].sprite` 는 통 버튼에 도트 아트(64px)로
+    실제 렌더된다(부재 시 id 텍스트 칩 폴백). `sudden.stages[].sprite` 도 단계 버튼에 30px
+    아이콘+라벨로 렌더(부재 시 기존 번호+라벨). `legend`·`item.icon`·`time_badge` 는 의도된
+    텍스트 칩 UI — 스프라이트 파일을 만들어도 렌더되지 않는다.
   - sort 표시 전용(2026-07-20, gm-01 디자이너 피드백): `병행필수`+`presentation: conveyor` 조합에선
     escalate(사진) 버튼이 벨트 중앙 박스가 `escalate.when` 대상일 때마다 재활성화된다(박스별 촬영
     연출 — 셔터+'촬영됨' 태그). 채점은 기존대로 '게임 중 1회 이상 눌렀는가'만 보며 추가 촬영은
@@ -360,6 +370,11 @@ data:
   - match: `discard` 블록(휴지통 — stn-01), `keys`+`wrong_key_penalty`(kts-05 객실 키),
     `one_line_per_left`·forbidden_pairs 의 right **리스트** 허용(kts-02),
     `unmatched_action`+`missed_unmatched_penalty`(stn-04), `matched_unmatched_penalty`, `pair_count`/`unmatched_count`
+  - match 렌더 규약(2026-07-20 아트 일괄 배선): `discard.sprite`(버리기 버튼 도트 아이콘 —
+    stn-01 휴지통, 부재 시 텍스트 버튼), `keys[].sprite`(객실 키 도트 — kts-05, 부재 시 key_color
+    색 원), `sudden.sprite`·`stages[].sprite`(돌발 헤드·단계 버튼 — kts-03), `stream.beads[].sprite`
+    (구슬 도트 — stn-03) 전부 PixelSprite 로 렌더된다. 구슬은 sprite id 가 이상치 여부를 글자로
+    드러내므로 엔진이 폴백 라벨·aria 를 중립 문구('구슬'·인덱스)로 고정한다(규칙 1).
   - match 표시 전용(2026-07-20, ys-03 디자이너 피드백): `unmatched_action` 은 짝없음 도장의
     **표시 라벨**이기도 하다(채점 무관 — stn-04 `재검증_표시`, ys-03 `불가능`; 없으면 기본 '짝 없음').
     카드 `detector: true` 는 게이트 경보 램프(하드 점멸+확산 링)+카드 흔들림·붉은 펄스를 그리는

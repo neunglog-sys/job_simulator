@@ -168,6 +168,38 @@
 .lamp[data-light="yellow"] { background: #f5c542; color: #f5c542; }
 .lamp[data-light="red"]    { background: #ff5d6e; color: #ff5d6e; }
 
+/* 보조 로그 칩 (yg-04 log_hints) — hover 툴팁은 터치 기기에서 안 보여, 데이터의
+   로그 문구를 노드 곁에 그대로 띄운다(표시 전용). yg-04 는 「글자 판독 금지」의
+   공인 예외 게임이라 로그 텍스트 노출이 허용된다 — 문구는 가공 없이 원문 그대로.
+   log_hints 없는 게임(jm-01·jm-04·stn-02)에선 요소 자체가 안 그려진다. */
+.logChip {
+  --log-shift-x: -50%;
+  --log-shift-y: 18px;
+  position: absolute;
+  transform: translate(var(--log-shift-x), var(--log-shift-y));
+  max-width: 200px;
+  padding: 3px 8px;
+  border: 1px solid rgb(90 220 180 / 0.4);
+  border-radius: 6px;
+  background: rgb(8 12 20 / 0.92);
+  color: #9fe8c8;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* 장식 레이어 — 클릭은 캔버스로 통과한다(경유점 추가 조작 불변) */
+  pointer-events: none;
+}
+
+/* 캔버스 가장자리 노드 — 칩이 잘리지 않게 앵커를 안쪽으로 당긴다 */
+.logChip[data-side="end"]   { --log-shift-x: -88%; }
+.logChip[data-side="start"] { --log-shift-x: -12%; }
+/* 하단 근처 노드 — 아래로 밀면 잘리므로 노드 위로 띄운다 */
+.logChip[data-pos="above"]  { --log-shift-y: calc(-100% - 18px); }
+
 /* 구역 색점 (stn-02 color 필드) */
 .colorDot {
   flex: none;
@@ -199,10 +231,17 @@
   background: #0e7d5d;
 }
 
-/* ── 경로상 발견물 (stn-02 blockers) — 클릭해 발견하고 보고해야 한다 ── */
+/* ── 경로상 발견물 (stn-02 blockers) — 클릭해 발견하고 보고해야 한다 ──
+   sprite 가 있으면 도트 아이콘 + 라벨 가로 칩(노드 마커와 같은 결). 파일이 없거나
+   sprite 미지정이면 아이콘이 spriteHidden 으로 숨어 종전 텍스트 버튼과 동일하다.
+   가로 배치인 이유: stn-02 발견물(y=415)이 캔버스 하단(440) 근처라 세로 적층은
+   overflow: hidden 에 잘린다. */
 .blocker {
   position: absolute;
   transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 5px 8px;
   border: 1px dashed rgb(255 210 110 / 0.55);
   border-radius: 8px;

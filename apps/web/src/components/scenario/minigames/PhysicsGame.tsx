@@ -29,6 +29,31 @@ export function PhysicsGame({ game, onComplete }: EngineProps) {
   return <RhythmGame game={game} onComplete={onComplete} />;
 }
 
+/** 도트 파일 프리로드 게이트 — 로드에 '성공했을 때만' 아트 모드로 올리는 훅 전용
+ *  (PlaceGame scene 프로브와 동일 수법). 배경 스킴·기존 요소의 겉모습을 바꾸는 자리는
+ *  이 게이트를 통과해야 하며, 파일이 없으면 false 로 남아 종전 렌더 그대로다.
+ *  표시 전용 — 판정·채점 코드는 이 값을 읽지 않는다. */
+function useSpriteArt(id?: string): boolean {
+  const url = id
+    ? `${import.meta.env.BASE_URL}assets/minigames/${encodeURIComponent(id)}.svg`
+    : null;
+  const [ok, setOk] = useState(false);
+  useEffect(() => {
+    setOk(false);
+    if (!url) return;
+    let alive = true;
+    const probe = new Image();
+    probe.onload = () => {
+      if (alive) setOk(true);
+    };
+    probe.src = url;
+    return () => {
+      alive = false;
+    };
+  }, [url]);
+  return ok;
+}
+
 /* ══════════════════════ rhythm 모드 ══════════════════════ */
 
 type Beat = {
@@ -49,6 +74,9 @@ type Beat = {
 
 type RhythmData = {
   hit_window?: number;
+  /** 스테이지 배경 도트 씬(jm-02 102노선_주행뷰) — 파일 로드 성공 시에만 깔린다.
+   *  track 미지정(ms-07)·파일 부재 시 기존 그라데이션 스테이지 그대로. 표시 전용. */
+  track?: string;
   /** 판정선 위에 얹는 도트 마커(ms-07 칼날) — 없으면 선만 그린다 */
   judge_marker?: string;
   /** lane.sprite = 그 레인의 정상 아이템 도트 — sprite 없는 cut 노트가 이걸 쓴다 */
@@ -387,6 +415,10 @@ export function RhythmGame({ game, onComplete }: EngineProps) {
   };
   const hitCount = countsRef.current.hits;
 
+  // 주행뷰 배경(jm-02) — 프리로드 성공 시에만 깔린다. 어두운 스크림(.trackLayer::after)이
+  // 함께 붙기 때문에 파일 부재 시 레이어 자체를 그리지 않아야 기존 화면과 동일하다.
+  const trackArt = useSpriteArt(data.track);
+
   /** 노트 도트 — 노트 자체 sprite 우선, 없으면 레인의 정상 재료 sprite(ms-07 cut) */
   const spriteOf = (beat: Beat) => {
     if (beat.sprite) return beat.sprite;
@@ -442,6 +474,13 @@ export function RhythmGame({ game, onComplete }: EngineProps) {
         </div>
       ) : (
         <div className={styles.rhythmStage} role="group" aria-label="리듬 판정 화면">
+          {trackArt && data.track ? (
+            // 도트 주행뷰 배경(jm-02) — 스테이지에 꽉 채워 깔린다(RouteGame mapLayer 수법).
+            // 레인(position: relative)·노트·판정선은 전부 positioned 라 배경 위에 그려진다.
+            <div className={styles.trackLayer} aria-hidden="true">
+              <PixelSprite id={data.track} label="" fallbackClassName={styles.spriteHidden} />
+            </div>
+          ) : null}
           {lanes.map((lane) => (
             <div key={lane.id} className={styles.lane}>
               {lane.label ? <span className={styles.laneLabel}>{lane.label}</span> : null}
@@ -534,17 +573,31 @@ export function RhythmGame({ game, onComplete }: EngineProps) {
 
 /* ══════════════════════ balance 모드 ══════════════════════ */
 
-type BalanceAxis = { id?: string; label?: string; start?: number };
+/** axis.sprite = 게이지 위에서 기울기를 따라 기우는 기체 도트(ys-09) — 표시 전용 */
+type BalanceAxis = { id?: string; label?: string; start?: number; sprite?: string };
 
 type BalanceData = {
   target?: number;
   tolerance?: number;
   drift?: number;
   hold_seconds?: number;
+  /** 스테이지 배경 도트 씬(ys-09 정비고·jm-05 작업장) — 파일 로드 성공 시에만 깔린다. 표시 전용. */
+  scene?: string;
   axes?: BalanceAxis[];
-  disturbances?: Array<{ at?: number; axis?: string; push?: number; reason?: string }>;
-  forbidden?: Array<{ id?: string; reason?: string }>;
-  settle?: { target_zone?: string; tolerance?: number; sway_fail?: number; drop_fail?: number };
+  /** disturbance.sprite = 교란 토스트 왼쪽 아이콘 — 표시 전용, 물리 push 는 불변 */
+  disturbances?: Array<{ at?: number; axis?: string; push?: number; reason?: string; sprite?: string }>;
+  /** forbidden.sprite = 게이트 카드(첫 항목)·함정 버튼(둘째 항목) 도트 — 표시 전용 */
+  forbidden?: Array<{ id?: string; reason?: string; sprite?: string }>;
+  settle?: {
+    target_zone?: string;
+    tolerance?: number;
+    sway_fail?: number;
+    drop_fail?: number;
+    /** 화물 도트(jm-05) — 프리로드 성공 시 화물 상자를 이 스프라이트로 그린다. 표시 전용. */
+    load_sprite?: string;
+    /** 착지 목표 지점 표시물(jm-05) — 목표점 위 도트 패드. 판정 밴드(craneZone)는 그대로 남는다. */
+    zone_sprite?: string;
+  };
 };
 
 function BalanceGame({ game, onComplete }: EngineProps) {
@@ -557,6 +610,9 @@ function BalanceGame({ game, onComplete }: EngineProps) {
 const AXIS_RANGE = 8;
 /** 방향키를 누르고 있을 때 보정 속도(°/s) */
 const INPUT_RATE = 3.2;
+/** 기체 도트의 시각 기울기 배율 — 실제 각도(±8°)는 도트에서 안 읽혀 3배로 과장한다.
+ *  렌더 전용(RouteGame 주행 배속과 같은 규약) — 판정 각도·tolerance 는 배율 무관. */
+const CRAFT_TILT_SCALE = 3;
 
 /* ── balance: 축 기울기(jm-05 단일축 폴백 · ys-09 피치·롤 2축) ── */
 function AxesBalance({ game, onComplete }: EngineProps) {
@@ -594,11 +650,13 @@ function AxesBalance({ game, onComplete }: EngineProps) {
   const [angles, setAngles] = useState(() => [...sim.current.angles]);
   const [holdPct, setHoldPct] = useState(0);
   const [gateOpen, setGateOpen] = useState(gate !== null);
-  const [toast, setToast] = useState<string | null>(null);
+  // 토스트 — icon 은 표시 전용 도트(교란·금지행동 스프라이트). 없으면 종전 텍스트만.
+  const [toast, setToast] = useState<{ text: string; icon?: string } | null>(null);
   const toastTimer = useRef<number | null>(null);
+  const sceneArt = useSpriteArt(data.scene); // 배경 씬(ys-09) — 로드 성공 시에만
 
-  const showToast = useCallback((text: string) => {
-    setToast(text);
+  const showToast = useCallback((text: string, icon?: string) => {
+    setToast({ text, icon });
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToast(null), 2600);
   }, []);
@@ -629,11 +687,11 @@ function AxesBalance({ game, onComplete }: EngineProps) {
 
   /** 금지행동 — 같은 항목은 1회만 감점(중첩 금지). */
   const forbiddenOnce = useCallback(
-    (entry: { id?: string; reason?: string }) => {
+    (entry: { id?: string; reason?: string; sprite?: string }) => {
       const id = entry.id ?? "forbidden";
       if (sim.current.forbiddenHits.has(id)) return;
       sim.current.forbiddenHits.add(id);
-      showToast(entry.reason ?? "금지된 조작입니다");
+      showToast(entry.reason ?? "금지된 조작입니다", entry.sprite);
     },
     [showToast],
   );
@@ -693,7 +751,7 @@ function AxesBalance({ game, onComplete }: EngineProps) {
         s.fired[i] = true;
         const axisIdx = Math.max(0, axes.findIndex((a) => a.id === d.axis));
         s.angles[axisIdx] += d.push ?? 1;
-        if (d.reason) showToast(d.reason);
+        if (d.reason) showToast(d.reason, d.sprite); // sprite 는 토스트 아이콘(표시 전용)
       });
 
       const inRange = s.angles.every((angle) => Math.abs(angle - target) <= tolerance);
@@ -780,9 +838,17 @@ function AxesBalance({ game, onComplete }: EngineProps) {
       />
 
       <div className={styles.balanceStage} role="group" aria-label="축별 기울기 표시계" style={{ position: "relative" }}>
+        {sceneArt && data.scene ? (
+          // 도트 배경 씬(ys-09 정비고) — 게이지 줄(.axisRow/.holdRow, position: relative)이
+          // 위에 그려진다. 파일 부재 시 레이어가 안 그려져 기존 그라데이션 그대로.
+          <div className={styles.sceneLayer} aria-hidden="true">
+            <PixelSprite id={data.scene} label="" fallbackClassName={styles.spriteHidden} />
+          </div>
+        ) : null}
         {axes.map((axis, i) => {
           const angle = angles[i] ?? 0;
           const ok = Math.abs(angle - target) <= tolerance;
+          const needleLeft = ((angle + AXIS_RANGE) / (AXIS_RANGE * 2)) * 100;
           return (
             <div key={axis.id ?? i} className={styles.axisRow}>
               <span className={styles.axisLabel}>
@@ -797,9 +863,23 @@ function AxesBalance({ game, onComplete }: EngineProps) {
                 <span
                   className={styles.axisNeedle}
                   data-ok={ok}
-                  style={{ left: `${((angle + AXIS_RANGE) / (AXIS_RANGE * 2)) * 100}%` }}
+                  style={{ left: `${needleLeft}%` }}
                 />
               </div>
+              {axis.sprite ? (
+                // 기체 도트(ys-09) — 바늘과 같은 x 에서 각도만큼 기운다(track 밖이라 안 잘림).
+                // 파일 부재 시 PixelSprite 가 spriteHidden 으로 폴백 — 기존 게이지 그대로.
+                <span
+                  className={styles.axisCraft}
+                  style={{
+                    left: `${needleLeft}%`,
+                    transform: `translate(-50%, 50%) rotate(${(angle - target) * CRAFT_TILT_SCALE}deg)`,
+                  }}
+                  aria-hidden="true"
+                >
+                  <PixelSprite id={axis.sprite} label="" size={34} fallbackClassName={styles.spriteHidden} />
+                </span>
+              ) : null}
             </div>
           );
         })}
@@ -813,6 +893,10 @@ function AxesBalance({ game, onComplete }: EngineProps) {
 
         {gateOpen && gate ? (
           <div className={styles.gateOverlay}>
+            {gate.sprite ? (
+              // 게이트 카드 도트(ys-09 프로펠러 분리) — 파일 부재 시 카드 문구만(기존 그대로)
+              <PixelSprite id={gate.sprite} label="" size={64} fallbackClassName={styles.spriteHidden} />
+            ) : null}
             <p className={styles.gateText}>{gate.reason ?? "시작 전 확인이 필요합니다"}</p>
             <button type="button" className={styles.controlButton} data-variant="primary" onClick={clearGate}>
               프로펠러 분리
@@ -821,7 +905,16 @@ function AxesBalance({ game, onComplete }: EngineProps) {
         ) : null}
       </div>
 
-      {toast ? <span className={styles.toast} role="status">{toast}</span> : null}
+      {toast ? (
+        <span className={styles.toast} role="status">
+          {toast.icon ? (
+            <span className={styles.toastIcon} aria-hidden="true">
+              <PixelSprite id={toast.icon} label="" size={20} fallbackClassName={styles.spriteHidden} />
+            </span>
+          ) : null}
+          {toast.text}
+        </span>
+      ) : null}
 
       {!done ? (
         <div className={styles.controls}>
@@ -860,6 +953,12 @@ function AxesBalance({ game, onComplete }: EngineProps) {
                 finishScore(startedAt);
               }}
             >
+              {trap.sprite ? (
+                // 함정 버튼 도트(표시 전용) — 파일 부재 시 텍스트 버튼 그대로
+                <span className={styles.buttonIcon} aria-hidden="true">
+                  <PixelSprite id={trap.sprite} label="" size={22} fallbackClassName={styles.spriteHidden} />
+                </span>
+              ) : null}
               비행 투입 요청
             </button>
           ) : null}
@@ -899,6 +998,10 @@ function SettleBalance({ game, onComplete }: EngineProps) {
   const zoneTol = settle.tolerance ?? 0.1;
   const swayFail = settle.sway_fail ?? 0.6;
   const dropFail = settle.drop_fail ?? 0.5;
+  const sceneArt = useSpriteArt(data.scene); // 작업장 배경 씬(jm-05) — 로드 성공 시에만
+  // 화물 도트 — 기존 화물 상자(그라데이션 박스)의 겉모습을 바꾸는 자리라 프리로드 게이트를
+  // 통과했을 때만 아트 모드(data-art)로 올린다. 파일 부재 시 종전 박스 그대로.
+  const loadArt = useSpriteArt(settle.load_sprite);
 
   const sim = useRef({
     x: -0.6, // 트롤리 수평 위치 (−1 ~ 1)
@@ -1042,6 +1145,12 @@ function SettleBalance({ game, onComplete }: EngineProps) {
       <GameHud label="안착" count={done && !failReason ? 1 : 0} total={1} remaining={remaining} timeLimit={game.time_limit} />
 
       <div className={styles.craneStage} role="group" aria-label="크레인 양중 화면">
+        {sceneArt && data.scene ? (
+          // 도트 작업장 배경(jm-05) — 레일·화물·목표 밴드는 전부 positioned 라 배경 위에 그려진다
+          <div className={styles.sceneLayer} aria-hidden="true">
+            <PixelSprite id={data.scene} label="" fallbackClassName={styles.spriteHidden} />
+          </div>
+        ) : null}
         <span className={styles.craneRail} aria-hidden="true" />
         <span className={styles.craneTrolley} style={{ left: `${pct(view.x)}%` }} aria-hidden="true" />
         <svg width="100%" height="100%" style={{ position: "absolute", inset: 0 }} aria-hidden="true">
@@ -1057,9 +1166,23 @@ function SettleBalance({ game, onComplete }: EngineProps) {
         <span
           className={styles.craneLoad}
           data-warn={Math.abs(view.s) > swayFail * 0.7}
+          data-art={loadArt ? "true" : undefined}
           style={{ left: `${pct(loadX)}%`, top: `${loadTop}%` }}
           aria-hidden="true"
-        />
+        >
+          {loadArt && settle.load_sprite ? (
+            // 화물 도트(jm-05 철골 다발) — data-art 가 박스 배경·테두리를 걷어낸다.
+            // 경고 글로(data-warn)는 박스 때와 동일하게 남는다.
+            <PixelSprite id={settle.load_sprite} label="" size={52} fallbackClassName={styles.spriteHidden} />
+          ) : null}
+        </span>
+        {settle.zone_sprite ? (
+          // 착지 목표 표시물(jm-05) — 지면 위 도트 패드. 판정 밴드(craneZone)가 위에 그대로
+          // 그려져 잠금 색 피드백은 불변. 파일 부재 시 spriteHidden 폴백 — 기존 화면 그대로.
+          <span className={styles.zonePad} style={{ left: `${pct(TARGET_X)}%` }} aria-hidden="true">
+            <PixelSprite id={settle.zone_sprite} label="" size={46} fallbackClassName={styles.spriteHidden} />
+          </span>
+        ) : null}
         <span
           className={styles.craneZone}
           data-locked={projectedOk}

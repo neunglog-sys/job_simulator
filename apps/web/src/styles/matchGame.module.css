@@ -1,5 +1,6 @@
 /* 4단계 match 엔진 전용 스타일 — 공용 껍데기(shell/hud/result/mark)는 minigame.module.css 를
-   그대로 쓴다. 카드 아트가 아직 없어 sprite id 텍스트를 라벨 마커로 그린다(spot 엔진과 동일).
+   그대로 쓴다. 카드·구슬·키·돌발 마커는 PixelSprite 도트 아트로 그리고, 파일이 없으면
+   라벨 칩(카드)·색 원(키)·텍스트 버튼(휴지통)으로 폴백한다.
    글자 대비는 어두운 판 기준 4.5:1 이상을 목표로 잡았다(디자이너 가시성 지침). */
 
 /* ── 매칭 보드: 좌/우 카드 열 + 연결선 레이어 ── */
@@ -381,12 +382,31 @@
 }
 
 .keyDot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 20px;
   height: 20px;
   padding: 0;
   border: 2px solid rgb(255 255 255 / 0.45);
   border-radius: 50%;
+  overflow: hidden;
   cursor: pointer;
+}
+
+/* 도트 키 아트(kts-05 객실키_*.svg — 세로 10×14 그리드)가 있으면 색 원을 세로 칩으로 키워
+   담는다. 색 배경(인라인 KEY_COLORS)은 아트 뒤에도 그대로 깔려, 파일이 없으면 폴백 스팬
+   (.spriteFallbackHidden)이 숨고 색 표시만 남는다 — 기존과 같은 정보량. */
+.keyDot[data-sprite="true"] {
+  width: 28px;
+  height: 34px;
+  border-radius: 9px;
+}
+
+/* '없어도 정보 손실이 없는' 자리(색 원·텍스트 버튼이 이미 정보를 다 주는 곳)의 폴백 —
+   파일 부재 시 아무것도 그리지 않아 기존 표시가 그대로 남는다. */
+.spriteFallbackHidden {
+  display: none;
 }
 
 .keyDot[data-active="true"] {
@@ -416,9 +436,10 @@
   color: rgb(233 236 255 / 0.92);
 }
 
+/* 3행 × (구슬 도트 22px + 패딩·테두리 ≈ 32px), 행 간격 30px(인라인 top 8/38/68) */
 .streamTrack {
   position: relative;
-  height: 96px;
+  height: 104px;
   border-radius: 10px;
   background: linear-gradient(90deg, rgb(97 130 214 / 0.16), rgb(97 130 214 / 0.05));
   overflow: hidden;
@@ -560,6 +581,10 @@
 }
 
 .actionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   min-height: 38px;
   padding: 0 14px;
   border: 1px solid rgb(255 255 255 / 0.24);

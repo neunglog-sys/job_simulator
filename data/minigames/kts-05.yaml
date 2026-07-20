@@ -18,6 +18,11 @@ time_limit: 80
 pass_score: 70
 
 data:
+  # 표시 전용 컬럼 헤더(엔진 MatchData.left_label/right_label 규약 — 채점 무관,
+  # 없으면 중립 라벨 '왼쪽'/'오른쪽' 폴백). 도트 아트 적용과 함께 추가(2026-07-20).
+  left_label: 체크인 손님
+  right_label: 여권 사진
+
   # 왼쪽 = 체크인 손님. 특징은 아이콘·색으로만(글자 판독 금지 — _SCHEMA.md 규칙 1).
   # features: glasses(안경) / hair(머리색) / mole(점) / hat(현장 착용 모자 = 방해물)
   left:
@@ -61,12 +66,14 @@ data:
 
   # 본인 확인이 끝난 손님에게 배정표 색에 맞는 객실 키를 전달한다(만실·VIP 1).
   # 짝을 맞게 이어야 그 손님의 key_color 키가 활성화된다. 색이 틀리면 감점.
+  # sprite 는 표시 전용 도트 키 아트(객실키_*.svg — 제작 완료). 현 엔진은 키 버튼을
+  # KEY_COLORS 색 원으로만 그려 아직 읽지 않는다(엔진 반영 대기 — 채점·데이터 계약 무관).
   keys:
-    - { guest: 손님_Kim_안경, key_color: blue,  label: 일반실 · 파란 키 }
-    - { guest: 손님_Kim_점,   key_color: blue,  label: 일반실 · 파란 키 }
-    - { guest: 손님_Lee_갈색, key_color: green, label: 일반실 · 초록 키 }
-    - { guest: 손님_Park_모자, key_color: green, label: 일반실 · 초록 키 }
-    - { guest: 손님_Choi_금발, key_color: gold,  label: VIP · 금색 키 }
+    - { guest: 손님_Kim_안경, key_color: blue,  label: 일반실 · 파란 키, sprite: 객실키_파랑 }
+    - { guest: 손님_Kim_점,   key_color: blue,  label: 일반실 · 파란 키, sprite: 객실키_파랑 }
+    - { guest: 손님_Lee_갈색, key_color: green, label: 일반실 · 초록 키, sprite: 객실키_초록 }
+    - { guest: 손님_Park_모자, key_color: green, label: 일반실 · 초록 키, sprite: 객실키_초록 }
+    - { guest: 손님_Choi_금발, key_color: gold,  label: VIP · 금색 키, sprite: 객실키_금색 }
 
 # 채점 — 5명을 맞는 여권에 대조하고 콧수염 여권을 남겼나 + 맞는 색 키를 전달했나
 # accuracy = (맞은 pairs / 5) * 100 − 감점, 하한 0

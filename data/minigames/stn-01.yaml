@@ -20,6 +20,9 @@ time_limit: 75
 pass_score: 70
 
 data:
+  # 컬럼 헤더(표시 전용 — MatchGame left_label/right_label 규약, 없으면 '왼쪽'/'오른쪽')
+  left_label: 손님
+  right_label: 시안 보드
   # 왼쪽 — 손님(고객 세그먼트 자료). 머리 위 말풍선에 취향이 색+모티프로 뜬다.
   left:
     - id: 손님_민트새싹
@@ -67,6 +70,7 @@ data:
   # 휴지통 — 잇는 순간 오답. 버려야 점수를 받는다.
   discard:
     bin: 휴지통
+    sprite: 휴지통          # 표시 전용 — 버리기 버튼의 도트 아이콘(파일 부재 시 텍스트 폴백)
     items:
       - id: 시안_형광레드별
         reason: 브랜드 가이드 금지색 — 모티프가 맞아 손님_네이비별에 붙이고 싶어진다
