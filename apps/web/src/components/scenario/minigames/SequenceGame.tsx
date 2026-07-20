@@ -28,6 +28,10 @@ import {
  *   마지막 스텝(마감 타일)은 드래그가 아니라 "마감하기" 버튼 — 타일을 덮고
  *   제출까지 한 번에 한다. 일찍 누르면 순서 위반 그대로다.
  *   forbidden 은 맵 위 함정 오브젝트(드래그 대상 아님) — 클릭하면 감점.
+ *   잠긴 자리(fit 게이트)도 드롭·클릭은 받아서 막힌 이유를 상태줄로 알린다(감점 없음) —
+ *   data-spot-id 없이 그리면 드롭이 소리 없이 무시돼 "그냥 안 됨"으로 읽힌다(디자이너 피드백).
+ *   표시 전용 필드(채점 계약 무관): step.locked_hint = 잠김 자리 드롭·클릭 시 사유 문구,
+ *   step.beacon = 그 스텝이 다음 차례인 동안 자리를 은은히 펄스(ms-10 확인 표지판 시작 안내).
  *   ⚠ 맵 씬(SVG)은 ms-10 트렌치 단면 고정 아트(장식층)다. 자리·함정 위치는
  *   전부 at 좌표 데이터로 그린다.
  *
@@ -51,6 +55,10 @@ type StepDef = {
   fit?: string;
   at?: [number, number];
   zone?: string;
+  /** 표시 전용 — 잠긴(fit 게이트) 자리에 드롭·클릭했을 때 상태줄에 띄울 사유. */
+  lockedHint?: string;
+  /** 표시 전용 — 이 스텝이 다음 차례인 동안 자리를 은은히 강조(시작 지점 안내). */
+  beacon?: boolean;
 };
 type ForbiddenDef = { id: string; sprite?: string; reason?: string; at?: [number, number] };
 type Card =
@@ -117,6 +125,8 @@ export function SequenceGame({ game, onComplete }: EngineProps) {
           fit: str(s.fit),
           at: atOf(s.at),
           zone: str(s.zone),
+          lockedHint: str(s.locked_hint),
+          beacon: s.beacon === true,
         }),
       );
     const forbidden = asArray(game.data.forbidden)
@@ -234,7 +244,11 @@ export function SequenceGame({ game, onComplete }: EngineProps) {
   /** 스텝 수행 — 카드 클릭과 맵 배치가 같은 경로를 탄다(순서 규칙 단일화). */
   function performStep(step: StepDef) {
     if (finished.current) return;
-    if (step.fit !== undefined && step.index > progress) return; // fit 게이트 — 받침 미노출(감점 없음)
+    if (step.fit !== undefined && step.index > progress) {
+      // fit 게이트 — 받침 미노출(감점 없음). 조용히 튕기면 '그냥 안 됨'으로 보여 이유를 알린다.
+      setHint(lockedHintOf(step));
+      return;
+    }
     if (step.index === progress) {
       setSelected(null);
       setHint(null);
@@ -264,6 +278,10 @@ export function SequenceGame({ game, onComplete }: EngineProps) {
   /** fit 게이트(ms-10) — fit 스텝은 바로 앞 스텝이 끝나기 전엔 잠긴다(받침 미노출). */
   const lockedOf = (step: StepDef): boolean => step.fit !== undefined && step.index > progress;
 
+  /** 잠긴 자리에 드롭·클릭했을 때 알릴 사유 — 데이터의 locked_hint(표시 전용)가 우선. */
+  const lockedHintOf = (step: StepDef): string =>
+    step.lockedHint ?? "잠김 — 아직 놓을 수 없는 자리입니다. 앞 절차를 먼저 진행하세요";
+
   /* ── 맵 모드 상호작용 ── */
 
   /** 마감하기 — 마지막 스텝을 수행하고, 완주면 conclude가 제출까지 한 번에 한다. */
@@ -282,6 +300,12 @@ export function SequenceGame({ game, onComplete }: EngineProps) {
   function tryPlace(stepId: string, spotId: string) {
     const step = model.steps.find((s) => s.id === stepId);
     if (!step || finished.current) return;
+    const spot = model.steps.find((s) => s.id === spotId);
+    if (spot && lockedOf(spot)) {
+      // 잠긴 자리(fit 게이트) — 감점 없이, 왜 안 되는지만 상태줄로 알린다
+      setHint(lockedHintOf(spot));
+      return;
+    }
     if (spotId !== step.id) {
       setHint(`'${faceOf(step)}' 은(는) 이 자리에 모양이 맞지 않습니다`);
       return;
@@ -289,7 +313,8 @@ export function SequenceGame({ game, onComplete }: EngineProps) {
     performStep(step);
   }
 
-  /** 뷰포트 좌표에서 드롭 대상 자리 id — 활성 자리 버튼의 data-spot-id 로 판정한다. */
+  /** 뷰포트 좌표에서 드롭 대상 자리 id — 자리 버튼(활성·잠김)의 data-spot-id 로 판정한다.
+   *  잠긴 자리도 잡히지만 tryPlace 가 감점 없이 사유 안내로 처리한다. */
   const spotIdAtPoint = (x: number, y: number): string | null => {
     const el = document.elementFromPoint(x, y);
     const hit = el instanceof Element ? el.closest("[data-spot-id]") : null;
@@ -469,13 +494,30 @@ export function SequenceGame({ game, onComplete }: EngineProps) {
               );
             }
             if (lockedOf(step)) {
+              // 잠긴 자리도 버튼 + data-spot-id — 드롭·클릭을 받아 막힌 이유를 알린다(감점 없음).
+              // 이전엔 inert div 라 드롭이 소리 없이 무시돼 '밑이 잠겨서 안 됨'으로만 보였다.
               return (
-                <div key={step.id} className={styles.mapSpot} data-state="locked" style={pct(step.at)}>
+                <button
+                  key={step.id}
+                  type="button"
+                  data-spot-id={step.id}
+                  className={styles.mapSpot}
+                  data-state="locked"
+                  data-drop={dropHover === step.id ? true : undefined}
+                  disabled={done}
+                  style={pct(step.at)}
+                  onClick={() => {
+                    if (!finished.current) setHint(lockedHintOf(step));
+                  }}
+                  aria-label={`자리: ${zone} — 잠김, 앞 절차를 먼저 진행해야 열립니다`}
+                >
                   <span className={styles.zoneLabel}>{zone}</span>
                   <span className={styles.lockTag}>잠김</span>
-                </div>
+                </button>
               );
             }
+            // beacon(표시 전용) — 이 스텝이 다음 차례인 동안 은은히 펄스(ms-10 확인 표지판 시작 안내)
+            const isNext = !done && step.beacon === true && step.index === progress;
             return (
               <button
                 key={step.id}
@@ -484,10 +526,11 @@ export function SequenceGame({ game, onComplete }: EngineProps) {
                 className={styles.mapSpot}
                 data-state={isFail ? "fail" : undefined}
                 data-drop={dropHover === step.id ? true : undefined}
+                data-next={isNext ? true : undefined}
                 disabled={done}
                 style={pct(step.at)}
                 onClick={() => clickSpot(step)}
-                aria-label={`자리: ${zone} — 비어 있음`}
+                aria-label={`자리: ${zone} — 비어 있음${isNext ? ", 지금 진행할 차례" : ""}`}
               >
                 <span className={styles.zoneLabel}>{zone}</span>
                 <span className={styles.spotEmpty}>빈 자리</span>

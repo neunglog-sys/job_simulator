@@ -540,6 +540,55 @@
   text-align: center;
 }
 
+/* '촬영됨' 태그 — 병행필수(gm-01) 사진 증빙 표시. 채점과 무관한 표시 전용 */
+.photoTag {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  padding: 2px 9px;
+  border: 1px solid rgb(255 255 255 / 0.8);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #0e1a2e;
+  background: #cfe4ff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+  animation: photoTagIn 220ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+@keyframes photoTagIn {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 셔터 플래시 — 촬영 순간 검수대를 덮는 흰 섬광. 정지 상태 opacity 0 이라
+   애니메이션이 꺼져도(모션 최소화) 화면을 가리지 않는다 */
+.shutterFlash {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: #fff;
+  opacity: 0;
+  animation: shutterFlash 340ms ease-out;
+}
+
+@keyframes shutterFlash {
+  0% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 .conveyorEmpty {
   z-index: 1;
   margin: 0 0 8px;
@@ -570,6 +619,16 @@
 .doneStamp[data-verdict="wrong"] {
   color: #2a0f16;
   background: #ff8fa3;
+}
+
+/* 스탬프 안의 '촬영' 복기 마크 — 증빙 사진을 남긴 박스 표시(표시 전용) */
+.stampPhoto {
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 900;
+  color: #0e1a2e;
+  background: rgb(255 255 255 / 0.85);
 }
 
 /* ── 발주서(검수서) 패널 — data.order_sheet ──
@@ -690,6 +749,12 @@
   }
   .conveyorItem {
     animation: none; /* 좌→중앙 슬라이드 생략 */
+  }
+  .shutterFlash {
+    animation: none; /* 정지 opacity 0 — 섬광 생략 */
+  }
+  .photoTag {
+    animation: none;
   }
   .escalateBtn[data-armed="true"] {
     animation: none;
