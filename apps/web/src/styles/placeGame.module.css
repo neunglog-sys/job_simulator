@@ -1,6 +1,7 @@
 /* place 엔진 — 조각 카트 → 슬롯 배치. 공용 셸(HUD·결과)은 minigame.module.css 를 쓰고
    여기엔 배치판·카트·얼룩·버튼만 둔다. 스프라이트 아트 전까지 라벨 마커 규약(spot과 동일).
-   맵 모드(ms-03 회의실)는 아래 "맵 모드" 구역 — 배치도 SVG 위 절대좌표 슬롯 + 2줄 트레이.
+   맵 모드는 아래 "맵 모드" 구역 — 배치도 위 절대좌표 슬롯 + 2줄 트레이. 배경은 두 갈래:
+   유도 SVG 배치도(ms-03 회의실)와 도트 씬 아트(.mapSceneArt — scene 파일이 있는 hr-01).
    글자 대비는 어두운 바탕 기준 4.5:1 이상을 목표로 잡는다(흰 글자 알파 0.7 미만 금지). */
 
 /* ── 얼룩 정비 줄 (cln-01) ── */
@@ -312,6 +313,48 @@
   height: 100%;
   display: block;
   border-radius: 13px;
+}
+
+/* ── 씬 아트 배경 (scene + at — hr-01 면접실 배치도, 추후 cln-01) ──
+   RouteGame 의 map 배경 패턴: public/assets/minigames/<scene>.svg 도트 씬을
+   캔버스에 꽉 채우고 확대가 뭉개지지 않게 pixelated. 파일이 없으면 이 모드
+   자체가 열리지 않아 기존 목록 렌더로 폴백된다(엔진 쪽 로드 게이트). */
+.mapSceneArt {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 13px;
+  image-rendering: pixelated;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 아트 위 거치대 슬롯은 컴팩트 드롭 패드 — 배치도의 가구가 이미 자리를 설명하고,
+   이웃 슬롯이 논리 50px 간격(hr-01 평가표·이력서 쌍)이라 폭을 그 아래로 줄여
+   서로 겹치지 않게 한다. 좁은 보드에선 min-width 로 탭 목표를 지킨다. */
+.mapBoard[data-art="true"] .mapSlot[data-kind="dock"] {
+  width: 4.8%;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 2px 3px;
+  gap: 2px;
+  border-radius: 7px;
+}
+
+/* 패드 폭보다 큰 도트 조각은 패드에 맞춰 축소(비율 유지 — height:auto 는 인라인) */
+.mapBoard[data-art="true"] .mapSlot img {
+  max-width: 100%;
+}
+
+/* 빈 패드 표시 — '여기에 놓는다'만 알리는 + 글리프(자리 설명은 아트·툴팁·aria가 한다) */
+.mapEmptyPad {
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  color: rgb(255 255 255 / 0.78);
 }
 
 .mapSlot {

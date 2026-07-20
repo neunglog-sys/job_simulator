@@ -17,8 +17,9 @@ import {
  *   ms-01(증거 분류) · ms-04(출고 배차) · gm-01(입고 검수) · wh-01(바코드 분류)
  *   yg-02(세공품 검수) · kts-01(환자 트리아지) · kts-04(창구 배정)
  *
- * 조작: 카드를 클릭해 선택 → 통을 클릭해 분류. 아트가 없으므로 sprite id를
- * 라벨 마커로 렌더한다(SpotGame 방식 — 아트가 들어오면 마커만 교체).
+ * 조작: 카드를 클릭해 선택 → 통을 클릭해 분류. sprite id(아이템·통·돌발·단계)는
+ * PixelSprite 로 렌더한다 — 아트 파일이 없으면 컴포넌트 내장 폴백(라벨 칩)으로
+ * 지금까지의 텍스트 마커 표시가 그대로 유지된다.
  *
  * 지원 데이터(_SCHEMA.md sort + 사후 등재 필드):
  *   - legend: 증상/배지 → 행선 기준표. 아이템엔 단서만, 판단은 범례 대조(kts-01·kts-04).
@@ -781,6 +782,12 @@ export function SortGame({ game, onComplete }: EngineProps) {
                     <span className={styles.stageOrder} aria-hidden="true">
                       {index + 1}
                     </span>
+                    {stage.sprite ? (
+                      // 단계 아이콘(kts-01·kts-04) — 라벨 텍스트가 바로 옆에 있으므로
+                      // alt 는 비우고(장식 이미지 — 낭독 중복 방지), 파일 부재 폴백 칩도
+                      // 숨긴다(stageSpriteFallback). 아트가 없으면 지금과 동일한 라벨만 남는다.
+                      <PixelSprite id={stage.sprite} label="" size={30} fallbackClassName={styles.stageSpriteFallback} />
+                    ) : null}
                     {stage.label ?? stage.id}
                   </button>
                 ))}
@@ -961,6 +968,11 @@ export function SortGame({ game, onComplete }: EngineProps) {
             aria-label={`${bin.label ?? bin.id}에 넣기`}
             onClick={() => onBinClick(bin)}
           >
+            {bin.sprite ? (
+              // 통 아트(gm-01 팔레트·ms-01 캐비닛·ms-04 배차트럭) — 파일 부재 시
+              // PixelSprite 가 기존 sprite id 텍스트 칩(binSprite)으로 폴백한다
+              <PixelSprite id={bin.sprite} size={64} fallbackClassName={styles.binSprite} />
+            ) : null}
             {bin.color ? (
               <span
                 className={styles.binDot}
@@ -970,7 +982,6 @@ export function SortGame({ game, onComplete }: EngineProps) {
             ) : null}
             <span className={styles.binLabel}>{bin.label ?? bin.id}</span>
             {bin.icon ? <span className={styles.chip}>{bin.icon}</span> : null}
-            {bin.sprite ? <span className={styles.binSprite}>{bin.sprite}</span> : null}
           </button>
         ))}
       </div>

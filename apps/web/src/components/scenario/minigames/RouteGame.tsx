@@ -701,6 +701,8 @@ export function RouteGame({ game, onComplete }: EngineProps) {
         {model.blockers.map((blocker) => {
           const isFound = found.includes(blocker.id);
           const isReported = reported.includes(blocker.id);
+          // 발견 전엔 겉모습(sprite 이름), 발견 후엔 정체(label) — 기존 텍스트 계약 그대로
+          const text = isFound ? (blocker.label ?? pretty(blocker.id)) : pretty(blocker.sprite ?? blocker.id);
           return (
             <button
               key={blocker.id}
@@ -710,9 +712,14 @@ export function RouteGame({ game, onComplete }: EngineProps) {
               data-state={isReported ? "reported" : isFound ? "found" : "idle"}
               disabled={done || isFound}
               onClick={clickBlocker(blocker)}
-              aria-label={isFound ? (blocker.label ?? pretty(blocker.id)) : `발견물 확인: ${pretty(blocker.sprite ?? blocker.id)}`}
+              aria-label={isFound ? text : `발견물 확인: ${text}`}
             >
-              {isFound ? (blocker.label ?? pretty(blocker.id)) : pretty(blocker.sprite ?? blocker.id)}
+              {blocker.sprite !== undefined ? (
+                // 도트 발견물(stn-02 적치물_상자더미) — 파일이 없으면 숨고 텍스트 버튼만 남는다.
+                // 22px: stn-02 발견물이 캔버스 하단(y=415/440) 근처라 칩 높이가 이보다 크면 잘린다
+                <PixelSprite id={blocker.sprite} label={text} size={22} fallbackClassName={styles.spriteHidden} />
+              ) : null}
+              {text}
               {isReported ? (
                 <span className={styles.blockerMark} aria-hidden="true">
                   ✓

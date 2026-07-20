@@ -199,10 +199,17 @@
   background: #0e7d5d;
 }
 
-/* ── 경로상 발견물 (stn-02 blockers) — 클릭해 발견하고 보고해야 한다 ── */
+/* ── 경로상 발견물 (stn-02 blockers) — 클릭해 발견하고 보고해야 한다 ──
+   sprite 가 있으면 도트 아이콘 + 라벨 가로 칩(노드 마커와 같은 결). 파일이 없거나
+   sprite 미지정이면 아이콘이 spriteHidden 으로 숨어 종전 텍스트 버튼과 동일하다.
+   가로 배치인 이유: stn-02 발견물(y=415)이 캔버스 하단(440) 근처라 세로 적층은
+   overflow: hidden 에 잘린다. */
 .blocker {
   position: absolute;
   transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 5px 8px;
   border: 1px dashed rgb(255 210 110 / 0.55);
   border-radius: 8px;

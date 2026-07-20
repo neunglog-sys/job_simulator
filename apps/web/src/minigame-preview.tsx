@@ -9,18 +9,10 @@ import { MiniGamePanel } from "./components/scenario/MiniGamePanel";
 import { PREVIEW_GAMES } from "./previewGames";
 import "./styles.css";
 
-const GAME_LABEL: Record<string, string> = {
-  "gm-01": "입고 검수 (sort)",
-  "ys-03": "정문 검색대 (match)",
-  "ms-03": "회의실 세팅 (place)",
-  "ys-04": "공기호흡기 점검 (gauge)",
-  "jm-01": "배송 루트 (route)",
-  "ms-10": "트렌치 시공 (sequence)",
-  "ms-07": "전처리 리듬 (physics)",
-  "ys-05": "안전 순회점검 (spot)",
-  "ms-06": "정량 급이 (pour)",
-  "ms-09": "정밀 시험절삭 (trace)",
-  "backend-dev-day1": "알림 예외 처리 (typing)",
+// 라벨은 게임 정의에서 파생 — 목록이 늘어도 하드코딩 불필요.
+const labelOf = (key: string): string => {
+  const game = PREVIEW_GAMES[key];
+  return game ? `${game.title} (${game.engine})` : "";
 };
 
 function Preview() {
@@ -33,13 +25,19 @@ function Preview() {
       <div style={{ minHeight: "100vh", background: "#181430", color: "#efeaff", padding: 40, fontFamily: "sans-serif" }}>
         <h1 style={{ fontSize: 22 }}>미니게임 미리보기 — 게임을 고르세요</h1>
         <ul style={{ lineHeight: 2.2, fontSize: 16 }}>
-          {Object.keys(PREVIEW_GAMES).map((key) => (
-            <li key={key}>
-              <a href={`?game=${key}`} style={{ color: "#9ce0ff" }}>
-                {key} — {GAME_LABEL[key] ?? ""}
-              </a>
-            </li>
-          ))}
+          {Object.keys(PREVIEW_GAMES)
+            .sort((a, b) => {
+              const ea = PREVIEW_GAMES[a].engine;
+              const eb = PREVIEW_GAMES[b].engine;
+              return ea === eb ? a.localeCompare(b) : ea.localeCompare(eb);
+            })
+            .map((key) => (
+              <li key={key}>
+                <a href={`?game=${key}`} style={{ color: "#9ce0ff" }}>
+                  {key} — {labelOf(key)}
+                </a>
+              </li>
+            ))}
         </ul>
       </div>
     );

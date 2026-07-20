@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import { UserCircle } from "@phosphor-icons/react";
 import base from "../../../styles/minigame.module.css";
@@ -25,13 +25,16 @@ import {
  *   빼서 재배치할 수 있지만 잘못 꽂은 '사건'의 감점은 유지된다(브루트포스 방지).
  *
  * 레이아웃 두 가지(채점과 무관한 표시층):
- * - 맵 모드(ms-03 회의실): 모든 slot에 at:[x,y](논리 캔버스 960×440)가 있고 scene이
- *   없으면, CSS/SVG 배치도(테이블+의자 위에서 본 뷰) 위 실제 위치에 슬롯을 그린다.
- *   트레이는 2줄(참석자 / 자료·소품)이고 조각을 드래그해 슬롯에 놓을 수 있다.
- *   접근성 폴백으로 기존 클릭-선택 → 슬롯-클릭도 그대로 동작한다.
- *   ⚠ scene이 선언된 게임(cln-01·hr-01)의 at 좌표는 도트 씬 아트용 예약값이라
- *   맵 모드로 올리지 않는다 — 좌표 없는 게임과 함께 기존 목록 UI를 유지한다.
- * - 목록 모드(나머지 5게임): 기존 그리드 배치판 + 단일 카트.
+ * - 맵 모드: 모든 slot에 at:[x,y](논리 캔버스 960×440)가 있으면 배치도 위 실제
+ *   위치에 슬롯을 그린다. 트레이는 2줄(참석자 / 자료·소품)이고 조각을 드래그해
+ *   슬롯에 놓을 수 있다. 접근성 폴백으로 기존 클릭-선택 → 슬롯-클릭도 그대로 동작한다.
+ *   배경은 두 갈래:
+ *   · scene 없음(ms-03 회의실) — 기존 CSS/SVG 배치도(테이블+의자 위에서 본 뷰) 그대로.
+ *   · scene 있음(hr-01, 추후 cln-01) — public/assets/minigames/<scene>.svg 도트 씬을
+ *     캔버스에 꽉 채워 깔고(RouteGame map 배경 패턴, pixelated) 슬롯은 컴팩트 패드로
+ *     올린다. 씬 파일이 없거나 로드에 실패하면 맵 모드로 올리지 않고 기존 목록 UI로
+ *     폴백한다 — 아트 추가 전과 동일 화면(회귀 금지).
+ * - 목록 모드(at 없는 게임 + 씬 파일이 아직 없는 scene 게임): 기존 그리드 배치판 + 단일 카트.
  *
  * 확장 필드: marker(ms-03 명패)·visual_cues(라벨 마커)·accepts null(stn-05 정상 구간)·
  * stains(cln-01 문지르기/교체)·forbidden {id, slots?}(cln-01·hr-01)·escalate(보고 버튼).
@@ -142,16 +145,39 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
     return set;
   }, [slots, pieces, extraIds, escalateTargets, forbiddenRules]);
 
-  // 맵 모드 게이트 — 위 docblock 참조(scene 있는 게임의 at는 도트 씬용 예약값)
-  const mapMode = useMemo(
-    () => slots.length > 0 && !data.scene && slots.every((s) => slotAt(s) !== null),
-    [slots, data.scene],
-  );
+  // 씬 배경 로드 — scene 파일을 미리 로드해 '성공했을 때만' 씬 아트 맵 모드로 올린다.
+  // 파일이 없으면(아트 미제작 — 현재 cln-01) 실패로 남아 기존 목록 렌더 그대로다.
+  const sceneUrl = data.scene
+    ? `${import.meta.env.BASE_URL}assets/minigames/${encodeURIComponent(data.scene)}.svg`
+    : null;
+  const [sceneOk, setSceneOk] = useState(false);
+  useEffect(() => {
+    setSceneOk(false);
+    if (!sceneUrl) return;
+    let alive = true;
+    const probe = new Image();
+    probe.onload = () => {
+      if (alive) setSceneOk(true);
+    };
+    probe.src = sceneUrl;
+    return () => {
+      alive = false;
+    };
+  }, [sceneUrl]);
 
-  // 맵 가구 지오메트리 — 데이터(슬롯 좌표)에서 유도한다.
+  // 맵 모드 게이트 — 위 docblock 참조. scene 게임은 씬 파일이 로드된 뒤에만 맵 모드다.
+  const allLocated = useMemo(
+    () => slots.length > 0 && slots.every((s) => slotAt(s) !== null),
+    [slots],
+  );
+  const sceneArt = allLocated && sceneUrl !== null && sceneOk; // 도트 씬 배경 맵(hr-01)
+  const mapMode = allLocated && (data.scene ? sceneArt : true);
+
+  // 맵 가구 지오메트리 — 데이터(슬롯 좌표)에서 유도한다. 씬 아트 배경이 깔리는
+  // 게임(sceneArt)은 아트가 곧 가구라 유도 지오메트리를 그리지 않는다.
   // marker 있는 슬롯 = 좌석(의자를 그린다), 없는 슬롯 = 테이블 위 거치대(테이블 범위 산출).
   const mapScene = useMemo(() => {
-    if (!mapMode) return null;
+    if (!mapMode || sceneArt) return null;
     const located = slots
       .map((slot) => ({ slot, at: slotAt(slot) }))
       .filter((e): e is { slot: PlaceSlot; at: [number, number] } => e.at !== null);
@@ -179,7 +205,7 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
       return { id: slot.id, x, y, gold: (slot.marker ?? "").includes("금"), back };
     });
     return { table, chairs };
-  }, [mapMode, slots]);
+  }, [mapMode, sceneArt, slots]);
 
   const [placed, setPlaced] = useState<Record<string, string>>({}); // slotId → pieceKey
   const [selected, setSelected] = useState<string | null>(null); // pieceKey
@@ -456,6 +482,9 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
   const cartPieces = pieces.filter((p) => !placedKeys.has(p.key) && !consumed[p.key]);
   const personCart = cartPieces.filter((p) => isPerson(p.id));
   const propCart = cartPieces.filter((p) => !isPerson(p.id));
+  // 참석자 조각이 아예 없는 게임(hr-01)은 트레이 참석자 줄 자체를 그리지 않는다
+  // — 전부 배치한 뒤의 '모두 배치했습니다'(ms-03)와 구분한다.
+  const hasPersonPieces = pieces.some((p) => isPerson(p.id));
   const filledCount = slots.filter((s) => s.accepts != null && placed[s.id]).length;
   const resolvedCount = stains.filter((s) => stainState[s.id]?.resolved).length;
   const acceptTotal = slots.filter((s) => s.accepts != null).length;
@@ -555,7 +584,24 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
 
       {mapMode ? (
         <div className={styles.mapWrap}>
-          <div className={styles.mapBoard} role="group" aria-label="회의실 배치도">
+          <div
+            className={styles.mapBoard}
+            data-art={sceneArt || undefined}
+            role="group"
+            aria-label={sceneArt && data.scene ? pretty(data.scene) : "회의실 배치도"}
+          >
+            {sceneArt && sceneUrl ? (
+              // 도트 씬 배경(hr-01) — RouteGame map 패턴: 캔버스에 꽉 채움 + pixelated.
+              // 렌더 중 파일이 사라지는 극단 케이스도 onError 로 목록 모드 폴백된다.
+              <img
+                className={styles.mapSceneArt}
+                src={sceneUrl}
+                alt=""
+                draggable={false}
+                aria-hidden="true"
+                onError={() => setSceneOk(false)}
+              />
+            ) : (
             <svg
               className={styles.mapScene}
               viewBox={`0 0 ${SCENE.w} ${SCENE.h}`}
@@ -625,6 +671,7 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
                 </>
               ) : null}
             </svg>
+            )}
             {slots.map((slot) => {
               const at = slotAt(slot);
               if (!at) return null;
@@ -647,6 +694,7 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
                   style={{ left: `${(at[0] / SCENE.w) * 100}%`, top: `${(at[1] / SCENE.h) * 100}%` }}
                   onClick={() => clickSlot(slot)}
                   aria-label={`${title} 슬롯${pieceId ? ` — ${pretty(pieceId)} 배치됨` : " — 비어 있음"}`}
+                  title={sceneArt ? title : undefined}
                 >
                   {slot.marker ? (
                     // 명패·의자 도트 아트가 있으면 그대로, 없으면 배지색 칩 폴백
@@ -661,6 +709,9 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
                   ) : null}
                   {pieceId ? (
                     renderPlaced(pieceId, !seat)
+                  ) : sceneArt ? (
+                    // 씬 아트 위에선 가구가 자리를 설명한다 — 라벨 대신 컴팩트 드롭 패드
+                    <span className={styles.mapEmptyPad}>＋</span>
                   ) : (
                     <span className={styles.mapEmpty}>빈 자리</span>
                   )}
@@ -738,16 +789,18 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
 
       {mapMode ? (
         <div className={styles.tray} role="group" aria-label="조각 트레이">
-          <div className={styles.trayRow} role="group" aria-label="참석자 조각">
-            <span className={styles.trayLabel}>참석자</span>
-            <div className={styles.trayItems}>
-              {personCart.length > 0 ? (
-                personCart.map(trayButton)
-              ) : (
-                <span className={styles.cartEmpty}>모두 배치했습니다</span>
-              )}
+          {hasPersonPieces ? (
+            <div className={styles.trayRow} role="group" aria-label="참석자 조각">
+              <span className={styles.trayLabel}>참석자</span>
+              <div className={styles.trayItems}>
+                {personCart.length > 0 ? (
+                  personCart.map(trayButton)
+                ) : (
+                  <span className={styles.cartEmpty}>모두 배치했습니다</span>
+                )}
+              </div>
             </div>
-          </div>
+          ) : null}
           <div className={styles.trayRow} role="group" aria-label="자료와 소품 조각">
             <span className={styles.trayLabel}>자료·소품</span>
             <div className={styles.trayItems}>
