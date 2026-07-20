@@ -13,7 +13,7 @@ import {
   type PointerEvent,
 } from "react";
 import type { GameMapData, GameNpc } from "../../lib/api";
-import { NpcSprite, type NpcFacing } from "./NpcSprite";
+import { NPC_FRAME, NpcSprite, type NpcFacing } from "./NpcSprite";
 import { PlayerSprite, PLAYER_SIZE } from "./PlayerSprite";
 import type { Position } from "./types";
 import styles from "../../styles/scenarioGame.module.css";
@@ -130,6 +130,9 @@ export function MovementArea({
   guidePosition = null,
 }: MovementAreaProps) {
   const areaRef = useRef<HTMLDivElement>(null);
+  // NPC 마커 clamp용 컨테이너 크기 — 플레이어(clampPosition)와 달리 마커는 렌더 시점에
+  // area.clientWidth/Height를 직접 읽을 수 없어(첫 렌더엔 ref가 비어있음) state로 들고 간다.
+  const [areaSize, setAreaSize] = useState<{ width: number; height: number } | null>(null);
 
   // geometry 좌표계(스테이지 1920×1080)의 원점 = walkable 영역의 좌상단. movementArea 로컬좌표 = (x-origin).
   const origin = useMemo(() => {
@@ -226,17 +229,26 @@ export function MovementArea({
         const step = Math.ceil(index / 2) * SLOT_SPREAD * (index % 2 === 1 ? 1 : -1);
         // 투어 중인 사수는 자기 자리가 아니라 지금 안내하는 위치에 그린다(걸어다니는 연출).
         const touring = guideNpcId === npc.npc_id && guidePosition;
+        const rawX = touring ? guidePosition.x : spot.x - origin.x + step;
+        const rawY = touring ? guidePosition.y : spot.y - origin.y;
+        // 마커는 transform: translate(-50%, -50%)로 좌표 중심에 그려지므로, 스프라이트 절반
+        // 폭·높이만큼 안쪽으로 clamp해야 컨테이너(overflow: hidden) 밖으로 잘려나가지 않는다.
+        // 한 자리에 인원이 몰려 SLOT_SPREAD로 벌어질 때(4번째, 5번째 인원 등) 경계를 넘던 문제.
         markers.push({
           npc_id: npc.npc_id,
           name: npc.name,
-          x: touring ? guidePosition.x : spot.x - origin.x + step,
-          y: touring ? guidePosition.y : spot.y - origin.y,
+          x: areaSize
+            ? clamp(rawX, NPC_FRAME.width / 2, areaSize.width - NPC_FRAME.width / 2)
+            : rawX,
+          y: areaSize
+            ? clamp(rawY, NPC_FRAME.height / 2, areaSize.height - NPC_FRAME.height / 2)
+            : rawY,
           isActive: npc.npc_id === activeNpcId,
         });
       }
     }
     return markers;
-  }, [geometry, npcs, origin, activeNpcId, guideNpcId, guidePosition]);
+  }, [geometry, npcs, origin, activeNpcId, guideNpcId, guidePosition, areaSize]);
 
   const collidesAt = useCallback(
     (pos: Position) => {
@@ -342,6 +354,7 @@ export function MovementArea({
     if (!area) return;
 
     const resizeObserver = new ResizeObserver(() => {
+      setAreaSize({ width: area.clientWidth, height: area.clientHeight });
       const nextPosition = clampPosition(position);
       if (nextPosition.x !== position.x || nextPosition.y !== position.y) {
         onPositionChange(nextPosition);

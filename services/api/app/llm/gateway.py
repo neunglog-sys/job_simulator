@@ -138,12 +138,14 @@ class LLMGateway:
         *,
         system: str | None = None,
         temperature: float = 0.7,
+        thinking_budget: int | None = None,
     ) -> AsyncIterator[str]:
         started = time.time()
         chars = 0
         try:
             async for chunk in self.provider.chat_stream(
-                messages, system=system, temperature=temperature
+                messages, system=system, temperature=temperature,
+                thinking_budget=thinking_budget,
             ):
                 chars += len(chunk)
                 yield chunk

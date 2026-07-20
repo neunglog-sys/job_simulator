@@ -77,6 +77,12 @@ if Path(settings.maps_dir).is_dir():
 else:
     logger.warning("maps/ 폴더 없음 — 게임 맵 정적 서빙 비활성 (compose 볼륨 확인)")
 
+# 아바타 사전 렌더 클립 서빙 — 인사말 등 완성 클립을 파일로 떨어뜨리면 바로 서빙된다
+# (계약: docs/avatar-greeting-clip.md). 폴더는 여기서 만들어 두므로 배치만 하면 됨.
+_avatar_clips = Path(settings.storage_dir) / "avatar-clips"
+_avatar_clips.mkdir(parents=True, exist_ok=True)
+app.mount("/avatar-clips", StaticFiles(directory=_avatar_clips), name="avatar-clips")
+
 
 @app.get("/health")
 async def health():

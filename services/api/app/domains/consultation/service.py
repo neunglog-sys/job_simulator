@@ -46,6 +46,24 @@ async def _fetch_knowledge(session: AsyncSession, user_text: str) -> str | None:
     return "\n\n".join(f"[{c.source}]\n{c.content}" for c in chunks) if chunks else None
 
 
+GREETING_CLIP = "greeting.mp4"  # storage/avatar-clips/ 아래 — 아바타 담당이 배치
+
+
+def greeting_clip_url() -> str | None:
+    """인사말 사전 렌더 클립 URL — 파일이 있을 때만. 없으면 프론트는 기존 흐름(생성) 그대로.
+
+    첫 발화는 사용자 입력과 무관한 고정 인사말이므로 미리 렌더해 두면 생성 지연이
+    0초가 된다 (아바타 담당 합의: '사전 렌더 SoulX 통일' 전략의 첫 적용처).
+    """
+    from pathlib import Path
+
+    from app.core.config import settings
+
+    if (Path(settings.storage_dir) / "avatar-clips" / GREETING_CLIP).is_file():
+        return f"/avatar-clips/{GREETING_CLIP}"
+    return None
+
+
 async def create_consultation(session: AsyncSession, user: User) -> Consultation:
     consultation = Consultation(user_id=user.id)
     session.add(consultation)
@@ -114,6 +132,9 @@ async def stream_reply(
             context,
             system=system,
             temperature=0.4,
+            # 상담은 즉답형 대화 — 사고 토큰을 끄면 첫 토큰이 수 초 빨라진다 (6.7s→1.2s 실측).
+            # 채점 등 품질 우선 호출은 기본값(None=모델 기본)을 유지한다.
+            thinking_budget=0,
         ):
             if first_token_ms is None:
                 first_token_ms = (time.perf_counter() - t0) * 1000
