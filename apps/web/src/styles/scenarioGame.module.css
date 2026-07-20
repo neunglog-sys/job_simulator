@@ -2936,27 +2936,21 @@ button.headerIconButton:active {
   color: #ffffff;
 }
 
-.themeMenuHeading span {
+.themeMenuHeading span,
+.themeMenuHeading strong {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   color: var(--scenario-reading-muted);
   font-size: 10.5px;
   font-weight: 800;
+  line-height: 1.2;
   letter-spacing: 0.14em;
 }
 
 .themeMenuHeading span svg {
   width: 14px;
   height: 14px;
-}
-
-.themeMenuHeading strong {
-  font-family: inherit;
-  font-size: var(--scenario-history-body-size);
-  font-weight: 400;
-  line-height: 1.55;
-  letter-spacing: 0.1em;
 }
 
 .themeOption {
