@@ -262,6 +262,19 @@ export function OneToOneConversationPage() {
     };
   }, [cleanupVoiceResources]);
 
+  // 스트림이 빈 채로 끝나거나 끊겨도, 백엔드에는 응답이 이미 생성·저장돼 있을 수 있다
+  // (핫리로드로 소켓만 끊긴 경우 등) — "죄송해요"를 보여주기 전에 서버 상태를 한 번 확인한다.
+  const recoverAssistantReply = useCallback(async (): Promise<string | null> => {
+    if (!consultationId) return null;
+    try {
+      const history = await fetchConsultationMessages(consultationId);
+      const last = history[history.length - 1];
+      return last?.role === "assistant" ? last.content : null;
+    } catch {
+      return null;
+    }
+  }, [consultationId]);
+
   const handleSendMessage = useCallback(async () => {
     const content = inputValue.trim();
     if (!content || sendingRef.current) return;
@@ -313,30 +326,35 @@ export function OneToOneConversationPage() {
       });
 
       if (!started) {
+        // 스트림은 에러 없이 끝났는데 토큰을 하나도 못 받은 경우 — 백엔드 핫리로드 등으로
+        // 응답 생성·저장은 끝났지만 소켓만 끊겼을 수 있어, 실제로 저장됐는지 한 번 확인한다.
+        const recovered = await recoverAssistantReply();
         setMessages((current) => [
           ...current,
           {
             id: assistantMessageId,
             role: "assistant",
-            content: "죄송해요, 응답을 만들지 못했어요. 다시 시도해주세요.",
+            content: recovered ?? "죄송해요, 응답을 만들지 못했어요. 다시 시도해주세요.",
           },
         ]);
       }
     } catch (error) {
+      const recovered = await recoverAssistantReply();
       setMessages((current) => [
         ...current,
         {
           id: `${assistantMessageId}-error`,
           role: "assistant",
           content:
-            error instanceof ApiError ? error.message : "응답을 받아오지 못했어요. 다시 시도해주세요.",
+            recovered ??
+            (error instanceof ApiError ? error.message : "응답을 받아오지 못했어요. 다시 시도해주세요."),
         },
       ]);
     } finally {
       sendingRef.current = false;
       setAvatarStatus("idle");
     }
-  }, [consultationId, inputValue]);
+  }, [consultationId, inputValue, recoverAssistantReply]);
 
   const handleVoiceInput = useCallback(async () => {
     if (recordingState === "recording") {
