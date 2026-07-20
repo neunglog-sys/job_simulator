@@ -193,6 +193,30 @@
   color: #ffd7de;
 }
 
+/* interrupt·terminal 마커 스프라이트(ms-08)의 폴백 칩 — 파일이 없으면 기존 라벨 칩과
+   같은 모양을 복원한다. 색은 부모 .marker 의 data-kind 를 그대로 따른다(기본=주의 호박,
+   danger=위험, done=완료). emergency 폴백(.markerFallback)은 건드리지 않는다 — ms-09 불변. */
+.markerChipFallback {
+  display: inline-block;
+  padding: 4px 9px;
+  border: 1px solid rgb(255 210 120 / 0.6);
+  border-radius: 8px;
+  background: rgb(90 66 14 / 0.85);
+  color: #ffe9b8;
+}
+
+.marker[data-kind="danger"] .markerChipFallback {
+  border-color: rgb(255 130 150 / 0.7);
+  background: rgb(110 26 44 / 0.9);
+  color: #ffd7de;
+}
+
+.marker[data-kind="done"] .markerChipFallback {
+  border-color: rgb(120 240 200 / 0.6);
+  background: rgb(16 84 66 / 0.85);
+  color: #d2f7ea;
+}
+
 /* 멈춤 유지 진행 바 (interrupt hold) */
 .holdBadge {
   position: absolute;
@@ -262,6 +286,18 @@
 .gateHint {
   font-size: 11px;
   color: var(--scenario-reading-muted, rgb(241 234 255 / 0.7));
+}
+
+/* 확인 카드 도트(start_gate.sprite — ms-08 패치테스트, 표시 전용).
+   래퍼는 박스를 만들지 않아(display:contents) 스프라이트 파일이 없으면
+   display:none 폴백만 남는다 — 오버레이 flex gap 에 영향 없이 기존
+   텍스트 카드 레이아웃 그대로다. */
+.gateCard {
+  display: contents;
+}
+
+.gateCard img {
+  filter: drop-shadow(0 6px 16px rgb(0 0 0 / 0.5));
 }
 
 /* 행동 버튼(확인 카드·작업중지 보고·시술 종료) */

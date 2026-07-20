@@ -2,6 +2,39 @@
    공용 껍데기(HUD·결과)는 minigame.module.css 를 그대로 쓰고, 여기엔
    레인·노트·게이지·크레인 등 physics 고유 요소만 둔다. */
 
+/* ── 도트 아트 표시 훅 (표시 전용 — 파일이 없으면 전부 조용히 폴백) ──
+   rhythm 배경(track)·balance 배경(scene)은 스테이지에 꽉 채워 깔린다
+   (RouteGame mapLayer 수법 — PixelSprite 인라인 width 를 덮어써야 해서 !important). */
+.trackLayer,
+.sceneLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.trackLayer img,
+.sceneLayer img {
+  width: 100% !important;
+  height: 100% !important;
+  image-rendering: pixelated;
+}
+
+/* 주행뷰 스크림 — 밝은 노면 위에서도 노트·판정선이 읽히게 살짝 어둡힌다.
+   레이어는 프리로드 성공 시에만 그려지므로(useSpriteArt) 폴백 화면에는 안 나온다. */
+.trackLayer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgb(12 16 30 / 0.3);
+}
+
+/* 스프라이트 파일이 없을 때 폴백 칩 대신 아무것도 안 그린다 — 장식이 조용히 빠지고
+   도트 아트 전과 동일한 화면으로 남는다(routeGame .spriteHidden 과 동일 규약) */
+.spriteHidden {
+  display: none;
+}
+
 /* ── rhythm: 레인 스테이지 ── */
 .rhythmStage {
   position: relative;
@@ -197,8 +230,11 @@
 
 .controlButton:disabled { opacity: 0.45; cursor: default; }
 
-/* 돌발·안내 토스트 */
+/* 돌발·안내 토스트 — inline-flex 는 아이콘(도트) 정렬용, 텍스트만일 땐 종전과 동일하게 보인다 */
 .toast {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   align-self: center;
   padding: 6px 14px;
   border: 1px solid rgb(255 210 120 / 0.5);
@@ -208,6 +244,18 @@
   font-weight: 800;
   color: #ffe9b8;
   animation: toastIn 220ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+/* 토스트 왼쪽 교란 아이콘·버튼 안 도트 아이콘 — 파일 없으면 spriteHidden 으로 조용히 빠진다 */
+.toastIcon,
+.buttonIcon {
+  display: inline-flex;
+  flex: none;
+  vertical-align: middle;
+}
+
+.buttonIcon {
+  margin-right: 7px;
 }
 
 @keyframes toastIn {
@@ -227,7 +275,19 @@
   background: linear-gradient(160deg, rgb(38 44 66 / 0.96), rgb(24 27 44 / 0.98));
 }
 
-.axisRow { display: flex; flex-direction: column; gap: 6px; }
+/* position: relative — (1) 배경 씬 레이어(sceneLayer) 위로 줄을 올리고
+   (2) 기체 도트(axisCraft)의 기준 좌표가 된다. 씬 없는 게임에선 시각 무영향. */
+.axisRow { position: relative; display: flex; flex-direction: column; gap: 6px; }
+
+/* 기체 도트(ys-09) — 게이지 바늘과 같은 x 에서 기울기만큼 회전. 트랙(overflow: hidden)
+   밖(axisRow 기준)에 그려서 회전해도 안 잘린다. bottom 13px = 트랙 높이 26px 의 중앙. */
+.axisCraft {
+  position: absolute;
+  bottom: 13px;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 5px rgb(0 0 0 / 0.45));
+  will-change: left, transform;
+}
 
 .axisLabel {
   display: flex;
@@ -283,6 +343,7 @@
 .axisNeedle[data-ok="true"] { background: #5adcb4; box-shadow: 0 0 10px rgb(90 220 180 / 0.6); }
 
 .holdRow {
+  position: relative; /* 배경 씬 레이어 위로 — 씬 없는 게임에선 시각 무영향 */
   display: flex;
   align-items: center;
   gap: 10px;
@@ -386,6 +447,29 @@
 }
 
 .craneLoad[data-warn="true"] { border-color: #ff8fa3; box-shadow: 0 0 14px rgb(255 143 163 / 0.6); }
+
+/* 화물 도트 모드(jm-05, 프리로드 성공 시에만) — 박스 배경·테두리를 걷어내고
+   스프라이트로 채운다. 경고 글로(data-warn 의 box-shadow)는 그대로 남는다. */
+.craneLoad[data-art="true"] {
+  border-color: transparent;
+  background: none;
+  border-radius: 0;
+}
+
+.craneLoad img {
+  width: 100% !important;
+  height: 100% !important;
+  image-rendering: pixelated;
+}
+
+/* 착지 목표 표시물(jm-05 도트 패드) — 지면(높이 22%) 위에 얹는 장식.
+   판정 밴드(craneZone)가 DOM 뒤에 와서 그 위에 그려진다. */
+.zonePad {
+  position: absolute;
+  bottom: 22%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
 
 .craneZone {
   position: absolute;

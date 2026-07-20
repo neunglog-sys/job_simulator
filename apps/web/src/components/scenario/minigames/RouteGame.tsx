@@ -45,6 +45,12 @@ import {
  * 그래서 decoy 를 경로에 넣으면 그 선분이 구역을 관통해 자연 감점된다(설계 의도).
  * 노드 id 를 이름에 포함한 구역(yg-04 DB_정상구간)은 그 노드 위에 앉는다 —
  * 갈래에 들어가는 선분이 곧 구역 침범이 된다.
+ *
+ * 표시 전용 확장(yg-04): ① signals 로만 생기는 갈래(extras) 노드는 signals 항목의
+ * sprite 를 도트 마커로 쓴다 — 경로 노드(start/waypoints/decoy)는 각자의 sprite
+ * 필드 그대로다. ② log_hints 는 hover 툴팁 외에 노드 곁 로그 칩으로도 데이터 문구
+ * 그대로 노출한다(터치 기기 대응 — yg-04 는 로그 판독 공인 예외 게임). 둘 다
+ * 필드·파일이 없으면 아무것도 그리지 않는다(다른 route 게임 렌더 불변, 채점 불변).
  */
 
 type Pt = [number, number];
@@ -169,7 +175,7 @@ type RouteModel = {
   extras: RouteNode[];
   zones: Zone[];
   blockers: BlockerDef[];
-  lights: Map<string, { light: string; hint?: string }>;
+  lights: Map<string, { light: string; hint?: string; sprite?: string }>;
   logHints: Map<string, string>;
   reportAt: string | null;
   submitAs: string | null;
@@ -184,12 +190,14 @@ function buildModel(data: Record<string, unknown>): RouteModel {
   const wpRaw = asArray(data.waypoints).map(parseNodeRaw).filter(nonNull);
   const decoyRaw = asArray(data.decoy_waypoints).map(parseNodeRaw).filter(nonNull);
 
-  // 구간 상태등(yg-04) — signals[].at 은 좌표가 아니라 노드 id 참조다
-  const lights = new Map<string, { light: string; hint?: string }>();
+  // 구간 상태등(yg-04) — signals[].at 은 좌표가 아니라 노드 id 참조다.
+  // sprite 는 signals 로만 생기는 갈래(extras) 노드의 표시 전용 도트 마커 슬롯 —
+  // 경로 노드는 각자의 sprite 필드를 쓰므로 이 값은 extras 조립에서만 읽는다.
+  const lights = new Map<string, { light: string; hint?: string; sprite?: string }>();
   for (const s of asArray(data.signals).map(asRecord).filter(nonNull)) {
     const nodeId = str(s.at);
     const light = str(s.light);
-    if (nodeId && light) lights.set(nodeId, { light, hint: str(s.hint) });
+    if (nodeId && light) lights.set(nodeId, { light, hint: str(s.hint), sprite: str(s.sprite) });
   }
   const logHints = new Map<string, string>();
   for (const h of asArray(data.log_hints).map(asRecord).filter(nonNull)) {
@@ -247,6 +255,8 @@ function buildModel(data: Record<string, unknown>): RouteModel {
     id,
     kind: "extra",
     at: [lerp((e + 1) / (extraIds.length + 1))[0], AUTO_EXTRA_Y],
+    // 표시 전용 — signals 항목의 sprite(yg-04 DB). 없으면 종전 램프+라벨 그대로.
+    sprite: lights.get(id)?.sprite,
   }));
 
   const allNodes = [start, ...waypoints, ...decoys, ...extras];
@@ -697,6 +707,25 @@ export function RouteGame({ game, onComplete }: EngineProps) {
             </button>
           );
         })}
+
+        {/* 보조 로그 칩(yg-04 log_hints) — hover 툴팁은 터치 기기에서 안 보이므로
+            데이터의 로그 문구를 노드 곁에 그대로 띄운다(표시 전용 — 문구 가공 금지,
+            log_hints 없는 게임에선 아무것도 그리지 않는다). */}
+        {nodes
+          .filter((node) => model.logHints.has(node.id))
+          .map((node) => (
+            <span
+              key={`log-${node.id}`}
+              className={styles.logChip}
+              style={{ left: `${(node.at[0] / SCENE.w) * 100}%`, top: `${(node.at[1] / SCENE.h) * 100}%` }}
+              data-side={node.at[0] > SCENE.w * 0.78 ? "end" : node.at[0] < SCENE.w * 0.22 ? "start" : "center"}
+              data-pos={node.at[1] > SCENE.h - 70 ? "above" : "below"}
+              role="note"
+              aria-label={`보조 로그 — ${model.logHints.get(node.id)}`}
+            >
+              {model.logHints.get(node.id)}
+            </span>
+          ))}
 
         {model.blockers.map((blocker) => {
           const isFound = found.includes(blocker.id);
