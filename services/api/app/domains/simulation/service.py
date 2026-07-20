@@ -183,7 +183,7 @@ def _public_npcs(
 ) -> list[dict]:
     """클라이언트 표시용 NPC 목록 — 프롬프트 재료(성격·선호 등)는 빼고 표시 필드만.
 
-    spawn = 맵 geometry의 NPC 자리 이름(teamjang|sasu|bujang). 프론트는 geometry.spawns에서
+    spawn = 맵 geometry의 NPC 자리 이름(teamjang|sasu|bujang|npc4|npc5). 프론트는 geometry.spawns에서
     같은 id의 좌표를 찾아 그 위치에 NPC를 그린다. slots는 이 맵에 실제로 있는 자리만.
     """
     assigned = game_map.assign_spawn_slots(list(roster.values()), slots)
