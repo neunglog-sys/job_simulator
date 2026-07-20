@@ -44,7 +44,8 @@
   padding: 2px 8px;
   border-radius: 999px;
   background: rgb(255 255 255 / 0.08);
-  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.6));
+  /* 폴백 0.6 → 0.78: 토큰 미해석 화면(minigame-preview 등)에서 칩 배경 위 4.5:1 경계라 여유 확보 */
+  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.78));
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -176,7 +177,8 @@
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: var(--scenario-accent, #8a63ee);
+  /* 테마 accent 위 흰 10px 숫자가 2.8~4.1:1 로 미달 — 항상 7:1 이상인 고정 인디고로 */
+  background: #5a3dbd;
   color: #fff;
   font-size: 10px;
   font-weight: 900;
@@ -184,7 +186,8 @@
 }
 
 .badge[data-start="true"] {
-  background: #17a67f;
+  /* #17a67f → #0e7d5d: 흰 숫자 3.1:1 → 5.1:1 */
+  background: #0e7d5d;
 }
 
 /* ── 경로상 발견물 (stn-02 blockers) — 클릭해 발견하고 보고해야 한다 ── */
@@ -233,7 +236,8 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #17a67f;
+  /* #17a67f → #0e7d5d: 흰 글리프 3.1:1 → 5.1:1 */
+  background: #0e7d5d;
   color: #fff;
   font-size: 12px;
   font-weight: 900;

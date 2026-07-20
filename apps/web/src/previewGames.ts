@@ -10,6 +10,7 @@ export const PREVIEW_GAMES: Record<string, MinigameDef> = {
     "time_limit": 75,
     "pass_score": 70,
     "data": {
+      "presentation": "conveyor",
       "bins": [
         {
           "id": "합격_팔레트",
@@ -22,6 +23,16 @@ export const PREVIEW_GAMES: Record<string, MinigameDef> = {
           "sprite": "팔레트_빨강_보류"
         }
       ],
+      "order_sheet": {
+        "label": "발주서",
+        "bin": "합격_팔레트",
+        "slots": [
+          {
+            "sprite": "포장박스_정상",
+            "count": 4
+          }
+        ]
+      },
       "equivalent": [
         "박스_정상_1",
         "박스_정상_2",
@@ -84,7 +95,8 @@ export const PREVIEW_GAMES: Record<string, MinigameDef> = {
           "id": "박스_규격이상",
           "forbidden_bin": "합격_팔레트",
           "sprite": "포장박스_다른규격",
-          "bin": "격리존"
+          "bin": "격리존",
+          "scale": 1.3
         }
       ],
       "escalate": {
@@ -209,47 +221,87 @@ export const PREVIEW_GAMES: Record<string, MinigameDef> = {
         {
           "id": "상석_금색의자",
           "marker": "금색_의자",
-          "accepts": "진행자_금배지"
+          "accepts": "진행자_금배지",
+          "at": [
+            480,
+            58
+          ]
         },
         {
           "id": "좌석_좌1",
           "marker": "명패_빨강",
-          "accepts": "참석자_빨강"
+          "accepts": "참석자_빨강",
+          "at": [
+            268,
+            212
+          ]
         },
         {
           "id": "좌석_좌2",
           "marker": "명패_파랑",
-          "accepts": "참석자_파랑"
+          "accepts": "참석자_파랑",
+          "at": [
+            268,
+            340
+          ]
         },
         {
           "id": "좌석_우1",
           "marker": "명패_초록",
-          "accepts": "참석자_초록"
+          "accepts": "참석자_초록",
+          "at": [
+            692,
+            212
+          ]
         },
         {
           "id": "좌석_우2",
           "marker": "명패_노랑",
-          "accepts": "참석자_노랑"
+          "accepts": "참석자_노랑",
+          "at": [
+            692,
+            340
+          ]
         },
         {
           "id": "거치대_상석",
-          "accepts": "자료_금배지_최신"
+          "accepts": "자료_금배지_최신",
+          "at": [
+            480,
+            144
+          ]
         },
         {
           "id": "거치대_좌1",
-          "accepts": "자료_빨강_최신"
+          "accepts": "자료_빨강_최신",
+          "at": [
+            408,
+            212
+          ]
         },
         {
           "id": "거치대_좌2",
-          "accepts": "자료_파랑_최신"
+          "accepts": "자료_파랑_최신",
+          "at": [
+            408,
+            340
+          ]
         },
         {
           "id": "거치대_우1",
-          "accepts": "자료_초록_최신"
+          "accepts": "자료_초록_최신",
+          "at": [
+            552,
+            212
+          ]
         },
         {
           "id": "거치대_우2",
-          "accepts": "자료_노랑_최신"
+          "accepts": "자료_노랑_최신",
+          "at": [
+            552,
+            340
+          ]
         }
       ],
       "pieces": [

@@ -111,7 +111,8 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #17a67f;
+  /* #17a67f → #0e7d5d: 흰 12px 순번 숫자가 3.1:1 이라 미달 — 5.1:1 로 상향 */
+  background: #0e7d5d;
   color: #fff;
   font-size: 12px;
   font-weight: 900;

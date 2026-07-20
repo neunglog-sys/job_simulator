@@ -220,7 +220,8 @@
 }
 
 .cardMark[data-ok="true"] {
-  background: #17a67f;
+  /* #17a67f → #0e7d5d: 흰 글리프 3.1:1 → 5.1:1 */
+  background: #0e7d5d;
 }
 
 /* ── 금지행동 버튼 줄 (ys-06 직접조임 등 — 누르면 40) ── */
