@@ -1,9 +1,11 @@
 /* place 엔진 — 조각 카트 → 슬롯 배치. 공용 셸(HUD·결과)은 minigame.module.css 를 쓰고
    여기엔 배치판·카트·얼룩·버튼만 둔다. 스프라이트 아트 전까지 라벨 마커 규약(spot과 동일).
-   맵 모드(ms-03 회의실)는 아래 "맵 모드" 구역 — 배치도 SVG 위 절대좌표 슬롯 + 2줄 트레이.
+   맵 모드는 아래 "맵 모드" 구역 — 배치도 위 절대좌표 슬롯 + 2줄 트레이. 배경은 두 갈래:
+   유도 SVG 배치도(ms-03 회의실)와 도트 씬 아트(.mapSceneArt — scene 파일이 있는 hr-01·cln-01).
    글자 대비는 어두운 바탕 기준 4.5:1 이상을 목표로 잡는다(흰 글자 알파 0.7 미만 금지). */
 
-/* ── 얼룩 정비 줄 (cln-01) ── */
+/* ── 얼룩 정비 줄 — 씬 아트 맵이 아닐 때의 얼룩 UI (cln-01 목록 폴백·미래 stains 게임).
+   씬 아트 맵에선 얼룩이 .mapStain 오버레이로 침대 위에 직접 올라간다. ── */
 .stainRow {
   display: flex;
   flex-wrap: wrap;
@@ -314,6 +316,48 @@
   border-radius: 13px;
 }
 
+/* ── 씬 아트 배경 (scene + at — hr-01 면접실 배치도, cln-01 805호 객실) ──
+   RouteGame 의 map 배경 패턴: public/assets/minigames/<scene>.svg 도트 씬을
+   캔버스에 꽉 채우고 확대가 뭉개지지 않게 pixelated. 파일이 없으면 이 모드
+   자체가 열리지 않아 기존 목록 렌더로 폴백된다(엔진 쪽 로드 게이트). */
+.mapSceneArt {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 13px;
+  image-rendering: pixelated;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 아트 위 거치대 슬롯은 컴팩트 드롭 패드 — 배치도의 가구가 이미 자리를 설명하고,
+   이웃 슬롯이 논리 50px 간격(hr-01 평가표·이력서 쌍)이라 폭을 그 아래로 줄여
+   서로 겹치지 않게 한다. 좁은 보드에선 min-width 로 탭 목표를 지킨다. */
+.mapBoard[data-art="true"] .mapSlot[data-kind="dock"] {
+  width: 4.8%;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 2px 3px;
+  gap: 2px;
+  border-radius: 7px;
+}
+
+/* 패드 폭보다 큰 도트 조각은 패드에 맞춰 축소(비율 유지 — height:auto 는 인라인) */
+.mapBoard[data-art="true"] .mapSlot img {
+  max-width: 100%;
+}
+
+/* 빈 패드 표시 — '여기에 놓는다'만 알리는 + 글리프(자리 설명은 아트·툴팁·aria가 한다) */
+.mapEmptyPad {
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  color: rgb(255 255 255 / 0.78);
+}
+
 .mapSlot {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -425,6 +469,103 @@
   font-size: 10px;
   font-weight: 700;
   color: rgb(255 255 255 / 0.74);
+}
+
+/* ── 씬 아트 얼룩 오버레이 (cln-01 침대 시트) ──
+   at 좌표(논리 960×440)를 % 환산해 씬 위에 겹친다. 행 UI(.stain)와 같은 주황 점선
+   어휘로 '정비 대상'임을 알리고, 문지르기 진행도는 .stainBar 를 그대로 재사용한다.
+   stains 없는 게임(ms-03·hr-01)은 이 클래스가 아예 렌더되지 않는다. */
+.mapStain {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 2px;
+  width: 5.2%;
+  min-width: 32px;
+  min-height: 30px;
+  padding: 2px;
+  border: 1.5px dashed rgb(255 170 130 / 0.75);
+  border-radius: 7px;
+  background: rgb(190 90 50 / 0.14);
+  color: #fff;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.mapStain:not(:disabled):hover {
+  background: rgb(190 90 50 / 0.3);
+}
+
+.mapStain:disabled {
+  cursor: default;
+}
+
+/* 드래그 중 포인터가 올라간 얼룩 — 슬롯과 같은 드롭 하이라이트 어휘 */
+.mapStain[data-drop="true"] {
+  border-style: solid;
+  border-color: var(--scenario-accent, #8a63ee);
+  background: rgb(138 99 238 / 0.4);
+  box-shadow: 0 0 0 3px var(--scenario-accent-soft, rgb(193 126 255 / 0.32));
+}
+
+.mapStain[data-resolved="true"] {
+  border-style: solid;
+  border-color: rgb(120 240 200 / 0.6);
+  background: rgb(30 160 130 / 0.2);
+}
+
+/* 얼룩 도트 — 문지른 만큼 옅어진다(인라인 opacity). 패드 폭에 맞춰 축소 */
+.mapStainArt {
+  display: block;
+  margin: 0 auto;
+  transition: opacity 140ms ease;
+}
+
+.mapStain img {
+  max-width: 100%;
+}
+
+/* 스프라이트 파일이 없을 때의 라벨 칩 폴백(PixelSprite 규약) */
+.mapStainName {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 800;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 문지르기 피드백 말풍선 — '지워지지 않는다 → 교체'를 발견하게 하는 핵심 단서라
+   얼룩 아래에 띄우고 이웃 슬롯 위로 올린다(pointer-events 없음 — 드롭 판정 불간섭) */
+.mapStainHint {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  width: max-content;
+  max-width: 190px;
+  padding: 3px 8px;
+  border: 1px solid rgb(255 215 110 / 0.5);
+  border-radius: 8px;
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  color: #ffd76e;
+  background: rgb(13 17 34 / 0.92);
+  pointer-events: none;
+}
+
+.mapStainDone {
+  margin: 0 auto;
+  font-size: 12px;
+  font-weight: 900;
+  color: #5adcb4;
 }
 
 /* ── 맵 모드 트레이 — 위 줄 참석자, 아래 줄 자료·소품 ── */
@@ -571,6 +712,7 @@
 /* 키보드 접근 — 포커스 링 */
 .slot:focus-visible,
 .mapSlot:focus-visible,
+.mapStain:focus-visible,
 .piece:focus-visible,
 .stain:focus-visible,
 .escalateButton:focus-visible,
@@ -585,6 +727,8 @@
   }
   .slot,
   .mapSlot,
+  .mapStain,
+  .mapStainArt,
   .piece,
   .stain,
   .stainBarFill,

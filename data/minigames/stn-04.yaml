@@ -23,6 +23,9 @@ time_limit: 80
 pass_score: 70
 
 data:
+  # 컬럼 헤더(표시 전용 — MatchGame left_label/right_label 규약, 없으면 '왼쪽'/'오른쪽')
+  left_label: 실험 조건
+  right_label: 시험 결과
   # 왼쪽 — 실험 조건 카드(성능평가기준의 조건 항목). 카드 모서리에 색·모양 마커가 하나씩.
   left:
     - id: 조건_A

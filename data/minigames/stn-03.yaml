@@ -20,6 +20,9 @@ time_limit: 80
 pass_score: 70
 
 data:
+  # 컬럼 헤더(표시 전용 — MatchGame left_label/right_label 규약, 없으면 '왼쪽'/'오른쪽')
+  left_label: 매출 탱크
+  right_label: CRM 탱크
   # 왼쪽 — 매출 탱크 소켓. 소켓 입구가 고객ID 열쇠 이빨 모양(sprite)으로 새겨져 있다.
   left:
     - id: 매출소켓_톱니A
