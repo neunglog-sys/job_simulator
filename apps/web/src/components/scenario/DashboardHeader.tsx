@@ -44,6 +44,8 @@ type DashboardHeaderProps = {
   onHome: () => void;
   onBack: () => void;
   onMission: () => void;
+  missionDisabled?: boolean;
+  missionPending?: boolean;
 };
 
 export function DashboardHeader({
@@ -59,6 +61,8 @@ export function DashboardHeader({
   onHome,
   onBack,
   onMission,
+  missionDisabled = false,
+  missionPending = false,
 }: DashboardHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -122,9 +126,15 @@ export function DashboardHeader({
       </div>
 
       <div className={styles.headerActions}>
-        <button className={`${styles.headerActionButton} ${styles.missionCtaButton}`} type="button" onClick={onMission}>
+        <button
+          className={`${styles.headerActionButton} ${styles.missionCtaButton}`}
+          type="button"
+          onClick={onMission}
+          disabled={missionDisabled}
+          aria-busy={missionPending}
+        >
           <Target weight="fill" aria-hidden="true" />
-          <span>미션</span>
+          <span>{missionPending ? "준비 중…" : "미션"}</span>
         </button>
         <button
           className={`${styles.headerIconButton} ${isHintOpen ? styles.headerIconButtonActive : ""}`}

@@ -11,11 +11,17 @@ export type DialogueHistoryEntry = {
 
 type DialogueHistoryPanelProps = {
   isOpen: boolean;
+  isCompanion?: boolean;
   entries: DialogueHistoryEntry[];
   onClose: () => void;
 };
 
-export function DialogueHistoryPanel({ isOpen, entries, onClose }: DialogueHistoryPanelProps) {
+export function DialogueHistoryPanel({
+  isOpen,
+  isCompanion = false,
+  entries,
+  onClose,
+}: DialogueHistoryPanelProps) {
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,7 +40,7 @@ export function DialogueHistoryPanel({ isOpen, entries, onClose }: DialogueHisto
 
   return (
     <aside
-      className={`${styles.historyPanel} ${isOpen ? styles.historyPanelOpen : ""}`}
+      className={`${styles.historyPanel} ${isCompanion ? styles.historyPanelCompanion : ""} ${isOpen ? styles.historyPanelOpen : ""}`}
       aria-label="이전 대화 기록"
       aria-hidden={!isOpen}
     >
@@ -46,7 +52,6 @@ export function DialogueHistoryPanel({ isOpen, entries, onClose }: DialogueHisto
           <small>DIALOGUE FLOW</small>
           <strong>이전 대화</strong>
         </span>
-        <span className={styles.historyCount}>{entries.length}</span>
         <button type="button" onClick={onClose} aria-label="이전 대화 닫기">
           <X weight="bold" />
         </button>
@@ -59,13 +64,13 @@ export function DialogueHistoryPanel({ isOpen, entries, onClose }: DialogueHisto
               className={`${styles.historyEntry} ${entry.role === "user" ? styles.historyEntryUser : ""}`}
               key={entry.id}
             >
-              <span className={styles.historyAvatar} aria-hidden="true">
-                <UserCircle weight={entry.role === "user" ? "fill" : "duotone"} />
-              </span>
-              <div>
+              <div className={styles.historyEntryHeading}>
+                <span className={styles.historyAvatar} aria-hidden="true">
+                  <UserCircle weight={entry.role === "user" ? "fill" : "duotone"} />
+                </span>
                 <strong>{entry.speaker}</strong>
-                <p>{entry.text}</p>
               </div>
+              <p>{entry.text}</p>
             </article>
           ))
         ) : (

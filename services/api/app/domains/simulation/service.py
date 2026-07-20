@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.content import game_map
+from app.content import minigame
 from app.content.kb_map import kb_jobs_for
 from app.content.knowledge import search_knowledge
 from app.domains.coach import service as coach
@@ -240,6 +241,8 @@ async def to_out(session: AsyncSession, simulation: Simulation, scenario: Scenar
         "step_ids": [s["id"] for s in scenario.steps],
         "npcs": _public_npcs(roster, slots),  # 시나리오 NPC 표시정보 (step.npcs는 npc_id 목록)
         "map": map_info,
+        # 4단계 미니게임 정의 — null이면 프론트는 '준비 중' 빈 창으로 폴백
+        "minigame": minigame.minigame_for(scenario.slug),
         "created_at": simulation.created_at,
     }
 

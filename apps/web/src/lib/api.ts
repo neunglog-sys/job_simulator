@@ -1,4 +1,5 @@
 import { API_ENDPOINTS } from "../config/endpoints";
+import type { MinigameDef } from "../components/scenario/minigames/types";
 
 // 로그인 토큰은 localStorage에 보관 — 새로고침해도 세션 유지. WS/fetch 인증에 재사용.
 const TOKEN_KEY = "jobiverse:token";
@@ -249,6 +250,7 @@ export type Simulation = {
   step_ids: string[]; // 본편 미션 id 순서 (진행률 계산용, 돌발 퀘스트 제외)
   npcs: GameNpc[];
   map: GameMapData | null; // null이면 맵 미배정 → 프론트 기본 배경 폴백
+  minigame: MinigameDef | null; // 4단계 게임 정의. null이면 '준비 중' 빈 창으로 폴백
   created_at: string;
 };
 

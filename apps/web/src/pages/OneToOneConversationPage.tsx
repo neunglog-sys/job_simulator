@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { AiAvatarStage } from "../components/conversation/AiAvatarStage";
 import { AvatarStatusBadge } from "../components/conversation/AvatarStatusBadge";
-import { CoachIdentity } from "../components/conversation/CoachIdentity";
 import { ConversationHeader } from "../components/conversation/ConversationHeader";
 import { ConversationPanel } from "../components/conversation/ConversationPanel";
+import { FinalReportPanel } from "../components/conversation/FinalReportPanel";
 import { FixedNavigationMenu } from "../components/conversation/FixedNavigationMenu";
+import { PanelIndexTabs } from "../components/conversation/PanelIndexTabs";
 import { SurveyDrawer } from "../components/conversation/SurveyDrawer";
-import { SurveyTestToggleButton } from "../components/conversation/SurveyTestToggleButton";
+import { YouthPolicyCard } from "../components/conversation/YouthPolicyCard";
 import { FRONTEND_ENDPOINTS } from "../config/endpoints";
 import { initialConversationMessages } from "../data/conversationMockData";
 import { createConsultation, speakAvatar, streamConsultationReply } from "../lib/api";
 import styles from "../styles/oneToOneConversation.module.css";
 import type {
   AvatarStatus,
+  ActiveConversationPanel,
   ConversationMessage,
   NavigationMenuId,
   RecordingState,
@@ -65,9 +67,6 @@ const VOICE_LEVEL_THRESHOLD = 0.025;
 const VOICE_START_GRACE_MS = 1_400;
 const VOICE_SILENCE_TIMEOUT_MS = 2_800;
 
-const showSurveyTestButton =
-  import.meta.env.DEV || import.meta.env.VITE_SHOW_SURVEY_TEST_BUTTON === "true";
-
 const STAR_POINTS = Array.from({ length: 54 }, (_, index) => ({
   left: `${(index * 37 + 7) % 98}%`,
   top: `${(index * 61 + 5) % 92}%`,
@@ -82,8 +81,8 @@ export function OneToOneConversationPage() {
   const [avatarStatus, setAvatarStatus] = useState<AvatarStatus>("thinking");
   const [avatarHlsUrl, setAvatarHlsUrl] = useState<string | null>(null);
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
-  const [isChatExpanded, setIsChatExpanded] = useState(false);
-  const [isSurveyOpen, setIsSurveyOpen] = useState(false);
+  const [voiceIssue, setVoiceIssue] = useState<string | null>(null);
+  const [activePanel, setActivePanel] = useState<ActiveConversationPanel>("chat");
   const [surveyAnswers, setSurveyAnswers] = useState<SurveyAnswers>({});
   const [activeMenuId, setActiveMenuId] =
     useState<NavigationMenuId>("new-consultation");
@@ -97,6 +96,7 @@ export function OneToOneConversationPage() {
   const voiceSessionActiveRef = useRef(false);
   const voiceInputBaseRef = useRef("");
   const consultationIdRef = useRef<number | null>(null);
+  const voiceFinalTranscriptRef = useRef("");
 
   // 상담 세션은 화면 진입 시 한 번만 만든다 (메시지 전송 때 이 id로 SSE 스트리밍).
   useEffect(() => {
@@ -284,58 +284,88 @@ export function OneToOneConversationPage() {
 
     if (recordingState !== "idle") return;
 
+    setVoiceIssue(null);
+
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      setVoiceIssue("음성 입력은 localhost 또는 HTTPS 주소에서 사용할 수 있어요.");
+      return;
+    }
+
+    const SpeechRecognitionClass = (
+      window as typeof window & {
+        SpeechRecognition?: SpeechRecognitionConstructor;
+        webkitSpeechRecognition?: SpeechRecognitionConstructor;
+      }
+    ).SpeechRecognition ??
+      (
+        window as typeof window & {
+          webkitSpeechRecognition?: SpeechRecognitionConstructor;
+        }
+      ).webkitSpeechRecognition;
+
+    if (!SpeechRecognitionClass) {
+      setVoiceIssue("이 브라우저는 실시간 음성 인식을 지원하지 않아요. Chrome 또는 Edge를 사용해주세요.");
+      return;
+    }
+
     setRecordingState("requesting");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       voiceStreamRef.current = stream;
       voiceSessionActiveRef.current = true;
       voiceInputBaseRef.current = inputValue.trim();
+      voiceFinalTranscriptRef.current = "";
       setRecordingState("recording");
       setAvatarStatus("listening");
 
-      const SpeechRecognitionClass = (
-        window as typeof window & {
-          SpeechRecognition?: SpeechRecognitionConstructor;
-          webkitSpeechRecognition?: SpeechRecognitionConstructor;
-        }
-      ).SpeechRecognition ??
-        (
-          window as typeof window & {
-            webkitSpeechRecognition?: SpeechRecognitionConstructor;
-          }
-        ).webkitSpeechRecognition;
+      const recognition = new SpeechRecognitionClass();
+      recognition.lang = "ko-KR";
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.onresult = (event) => {
+        let interimTranscript = "";
 
-      if (SpeechRecognitionClass) {
-        const recognition = new SpeechRecognitionClass();
-        recognition.lang = "ko-KR";
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.onresult = (event) => {
-          let finalTranscript = "";
-          let interimTranscript = "";
-
-          for (let index = 0; index < event.results.length; index += 1) {
-            const result = event.results[index];
-            const transcript = result[0]?.transcript ?? "";
-            if (result.isFinal) finalTranscript += `${transcript} `;
-            else interimTranscript += transcript;
-          }
-
-          setInputValue(
-            [voiceInputBaseRef.current, finalTranscript.trim(), interimTranscript.trim()]
+        for (let index = event.resultIndex; index < event.results.length; index += 1) {
+          const result = event.results[index];
+          const transcript = result[0]?.transcript?.trim() ?? "";
+          if (!transcript) continue;
+          if (result.isFinal) {
+            voiceFinalTranscriptRef.current = [voiceFinalTranscriptRef.current, transcript]
               .filter(Boolean)
-              .join(" "),
-          );
-        };
-        recognition.onerror = (event) => {
-          if (event.error !== "aborted") finishVoiceSession();
-        };
-        recognition.onend = () => {
-          if (voiceSessionActiveRef.current) finishVoiceSession();
-        };
-        speechRecognitionRef.current = recognition;
-        recognition.start();
-      }
+              .join(" ");
+          } else {
+            interimTranscript = [interimTranscript, transcript].filter(Boolean).join(" ");
+          }
+        }
+
+        setInputValue(
+          [voiceInputBaseRef.current, voiceFinalTranscriptRef.current, interimTranscript]
+            .filter(Boolean)
+            .join(" "),
+        );
+      };
+      recognition.onerror = (event) => {
+        if (event.error === "aborted") return;
+
+        const issue =
+          event.error === "not-allowed" || event.error === "service-not-allowed"
+            ? "브라우저 주소창의 마이크 권한을 허용해주세요."
+            : event.error === "audio-capture"
+              ? "사용 가능한 마이크를 찾지 못했어요."
+              : event.error === "network"
+                ? "음성 인식 서비스에 연결하지 못했어요. 잠시 후 다시 시도해주세요."
+                : event.error === "no-speech"
+                  ? "음성이 들리지 않아 녹음을 종료했어요."
+                  : "음성 인식 중 오류가 발생했어요. 다시 시도해주세요.";
+
+        setVoiceIssue(issue);
+        finishVoiceSession(false);
+      };
+      recognition.onend = () => {
+        if (voiceSessionActiveRef.current) finishVoiceSession();
+      };
+      speechRecognitionRef.current = recognition;
+      recognition.start();
 
       const AudioContextClass =
         window.AudioContext ??
@@ -390,17 +420,26 @@ export function OneToOneConversationPage() {
 
         voiceAnimationFrameRef.current = window.requestAnimationFrame(measureVoiceLevel);
       }
-    } catch {
+    } catch (error) {
       voiceSessionActiveRef.current = false;
       cleanupVoiceResources();
       setVoiceLevel(0);
       setRecordingState("idle");
       setAvatarStatus("idle");
+      const errorName = error instanceof DOMException ? error.name : "";
+      setVoiceIssue(
+        errorName === "NotAllowedError" || errorName === "SecurityError"
+          ? "브라우저 주소창의 마이크 권한을 허용해주세요."
+          : errorName === "NotFoundError"
+            ? "사용 가능한 마이크를 찾지 못했어요."
+            : errorName === "NotReadableError"
+              ? "마이크를 다른 프로그램에서 사용 중인지 확인해주세요."
+              : "마이크를 시작하지 못했어요. 잠시 후 다시 시도해주세요.",
+      );
     }
   }, [cleanupVoiceResources, finishVoiceSession, inputValue, recordingState]);
 
-  const openSurvey = useCallback(() => setIsSurveyOpen(true), []);
-  const closeSurvey = useCallback(() => setIsSurveyOpen(false), []);
+  const openSurvey = useCallback(() => setActivePanel("survey"), []);
 
   const handleSurveyAnswerChange = useCallback((questionId: string, value: string) => {
     setSurveyAnswers((current) => ({ ...current, [questionId]: value }));
@@ -412,7 +451,7 @@ export function OneToOneConversationPage() {
         detail: surveyAnswers,
       }),
     );
-    setIsSurveyOpen(false);
+    setActivePanel("report");
     setAvatarStatus("thinking");
   }, [surveyAnswers]);
 
@@ -429,14 +468,24 @@ export function OneToOneConversationPage() {
       setMessages(initialConversationMessages);
       setInputValue("");
       setAvatarStatus("thinking");
-      setIsChatExpanded(false);
-      setIsSurveyOpen(false);
+      setActivePanel("chat");
+      setVoiceIssue(null);
       setSurveyAnswers({});
+      return;
+    }
+
+    if (id === "final-report") {
+      setActivePanel("report");
       return;
     }
 
     window.dispatchEvent(new CustomEvent(`jobiverse:${id}`));
   }, [finishVoiceSession]);
+
+  const handlePanelChange = useCallback((panel: ActiveConversationPanel) => {
+    setActivePanel(panel);
+    if (panel === "report") setActiveMenuId("final-report");
+  }, []);
 
   return (
     <main className={styles.screen} aria-label="AI 직무 마스터와의 1대1 대화 화면">
@@ -462,46 +511,46 @@ export function OneToOneConversationPage() {
         style={{ "--conversation-scale": stageScale } as StageStyle}
       >
         <ConversationHeader />
-        <CoachIdentity />
         <AvatarStatusBadge status={avatarStatus} />
         <FixedNavigationMenu
           activeMenuId={activeMenuId}
           onSelect={handleNavigationSelect}
         />
 
-        <SurveyDrawer
-          open={isSurveyOpen}
-          answers={surveyAnswers}
-          onAnswerChange={handleSurveyAnswerChange}
-          onClose={closeSurvey}
-          onSubmit={handleSurveySubmit}
-        />
-
-        <AiAvatarStage
-          status={avatarStatus}
-          hlsUrl={avatarHlsUrl}
-          onSpeakingEnd={handleSpeakingEnd}
-        />
-
-        <ConversationPanel
-          messages={messages}
-          inputValue={inputValue}
-          recordingState={recordingState}
-          voiceLevel={voiceLevel}
-          expanded={isChatExpanded}
-          onInputChange={setInputValue}
-          onSend={handleSendMessage}
-          onVoiceInput={handleVoiceInput}
-          onToggleExpanded={() => setIsChatExpanded((current) => !current)}
-          onOpenSurvey={openSurvey}
-        />
-
-        {showSurveyTestButton ? (
-          <SurveyTestToggleButton
-            open={isSurveyOpen}
-            onToggle={() => setIsSurveyOpen((current) => !current)}
+        <div className={styles.consultationLayout} data-active-panel={activePanel}>
+          <AiAvatarStage
+            status={avatarStatus}
+            hlsUrl={avatarHlsUrl}
+            onSpeakingEnd={handleSpeakingEnd}
           />
-        ) : null}
+
+          {activePanel === "chat" ? <YouthPolicyCard /> : null}
+
+          <ConversationPanel
+            messages={messages}
+            inputValue={inputValue}
+            recordingState={recordingState}
+            voiceIssue={voiceIssue}
+            voiceLevel={voiceLevel}
+            variant={activePanel === "chat" ? "large" : "compact"}
+            onInputChange={setInputValue}
+            onSend={handleSendMessage}
+            onVoiceInput={handleVoiceInput}
+            onOpenSurvey={openSurvey}
+          />
+
+          {activePanel === "survey" ? (
+            <SurveyDrawer
+              answers={surveyAnswers}
+              onAnswerChange={handleSurveyAnswerChange}
+              onSubmit={handleSurveySubmit}
+            />
+          ) : null}
+
+          {activePanel === "report" ? <FinalReportPanel /> : null}
+
+          <PanelIndexTabs activePanel={activePanel} onChange={handlePanelChange} />
+        </div>
       </div>
     </main>
   );

@@ -12,12 +12,13 @@ type TourBannerProps = {
   speakerName: string; // 지금 말하는 사람 (소개 중이면 사수, 응답 중이면 그 동료)
   line: string;
   stepLabel: string; // "1/5" 또는 "마무리"
-  /** intro=사수 소개 / greet=신입이 인사할 차례(버튼 잠김) / reply=동료 응답 / closing=마무리 */
-  mode: "intro" | "greet" | "reply" | "closing";
+  /** loading=투어 생성 중 / intro=사수 소개 / greet=신입이 인사할 차례 / reply=동료 응답 / closing=마무리 */
+  mode: "loading" | "intro" | "greet" | "reply" | "closing";
   onNext: () => void;
 };
 
 const NEXT_LABEL: Record<TourBannerProps["mode"], string> = {
+  loading: "준비 중…",
   intro: "인사하기 →",
   greet: "채팅으로 인사해보세요",
   reply: "다음 →",
@@ -25,9 +26,14 @@ const NEXT_LABEL: Record<TourBannerProps["mode"], string> = {
 };
 
 export function TourBanner({ speakerName, line, stepLabel, mode, onNext }: TourBannerProps) {
-  const waiting = mode === "greet";
+  const waiting = mode === "loading" || mode === "greet";
   return (
-    <div className={styles.tourBanner} role="status" aria-live="polite">
+    <div
+      className={styles.tourBanner}
+      role="status"
+      aria-live="polite"
+      aria-busy={mode === "loading"}
+    >
       <span className={styles.encounterAvatar} aria-hidden="true">
         <UserCircle weight="duotone" />
       </span>
@@ -43,7 +49,13 @@ export function TourBanner({ speakerName, line, stepLabel, mode, onNext }: TourB
         type="button"
         onClick={onNext}
         disabled={waiting}
-        title={waiting ? "아래 채팅창에 인사를 입력하면 넘어갈 수 있어요." : undefined}
+        title={
+          mode === "loading"
+            ? "팀 소개 내용을 준비하고 있어요. 잠시만 기다려주세요."
+            : mode === "greet"
+              ? "아래 채팅창에 인사를 입력하면 넘어갈 수 있어요."
+              : undefined
+        }
       >
         {NEXT_LABEL[mode]}
       </button>
