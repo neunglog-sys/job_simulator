@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import shared from "../../../styles/minigame.module.css";
+import { PixelSprite } from "./PixelSprite";
 import styles from "../../../styles/sortGame.module.css";
 import {
   GameHud,
@@ -28,6 +29,13 @@ import {
  *     forbidden_bins(투입 시 금지행동), stages(순서 버튼), persists_after_stages(kts-01·kts-04).
  *   - item.forbidden_bin: 그 통에 넣으면 forbidden_penalty(gm-01·yg-02).
  *   - equivalent: 동일 외형 그룹 — 정답 bin 조합만 맞으면 교차 배정 무방(gm-01).
+ *   - presentation: conveyor — 컨베이어 연출(gm-01): 물건이 한 번에 하나씩 중앙에
+ *     도착해 자동 선택되고, 통/대응 버튼으로 처리해야 다음이 들어온다.
+ *     처리 순서만 강제될 뿐 채점·데이터 계약은 대기열 UI와 동일하다.
+ *   - order_sheet: 발주서 대조 패널(상시) — slots 실루엣 count칸 위에, bin(기본 첫
+ *     통)으로 보낸 같은 sprite 수량만큼 체크가 쌓인다. "칸이 다 찼는데 같은 박스가
+ *     또 온다" = 수량 초과 함정의 화면 근거(gm-01).
+ *   - item.scale: 스프라이트 표시 배율(기본 1) — 규격 차이 연출(gm-01 박스_규격이상).
  *
  * 채점: accuracy = 맞게 처리한 items / item_count × 100 − 감점, clampScore.
  * 감점 중첩 금지 — 한 사건(아이템·돌발)에는 해당하는 감점 하나만 적용한다.
@@ -55,6 +63,8 @@ type SortItem = {
   time_badge?: string;
   /** 1 = 최우선 대상(kts) — missed_emergency/missed_cutoff·over_triage 판정에 쓴다 */
   priority?: number;
+  /** 스프라이트 표시 배율(기본 1) — PixelSprite size 에 곱한다(gm-01 규격 이상 박스) */
+  scale?: number;
   label?: string;
   note?: string;
 };
@@ -85,6 +95,16 @@ type EscalateDef = {
   note?: string;
 };
 
+/** 발주서 패널의 실루엣 한 줄 — count 칸이 그려지고 합격 수량만큼 체크가 쌓인다. */
+type OrderSlot = { sprite?: string; count?: number; label?: string };
+
+type OrderSheetDef = {
+  label?: string;
+  /** 체크를 채우는 통 — 생략하면 첫 번째 bin */
+  bin?: string;
+  slots?: OrderSlot[];
+};
+
 type SortData = {
   bins?: SortBin[];
   items?: SortItem[];
@@ -92,6 +112,9 @@ type SortData = {
   equivalent?: string[];
   sudden?: SuddenDef;
   escalate?: EscalateDef;
+  /** "conveyor" 면 대기열 대신 컨베이어 연출 — 연출만 바뀌고 채점은 동일(gm-01) */
+  presentation?: string;
+  order_sheet?: OrderSheetDef;
 };
 
 /** 처리 확정된 아이템 — destBin null = 호출(escalate)로 처리. */
@@ -129,6 +152,12 @@ const BIN_COLORS: Record<string, string> = {
 /** ms-01 은 같은 id 항목이 두 번 나온다 — 인스턴스 키는 반드시 index 를 섞는다. */
 function keyOf(item: SortItem, index: number): string {
   return `${item.id ?? item.sprite ?? "item"}#${index}`;
+}
+
+/** item.scale(기본 1)을 곱한 스프라이트 표시 폭 — 0 이하·비숫자는 1로 취급. */
+function spriteSize(base: number, item: SortItem): number {
+  const scale = typeof item.scale === "number" && item.scale > 0 ? item.scale : 1;
+  return Math.round(base * scale);
 }
 
 export function SortGame({ game, onComplete }: EngineProps) {
@@ -235,6 +264,44 @@ export function SortGame({ game, onComplete }: EngineProps) {
 
   const binsById = useMemo(() => new Map(bins.map((bin) => [bin.id, bin])), [bins]);
   const binLabel = useCallback((binId: string) => binsById.get(binId)?.label ?? binId, [binsById]);
+
+  // ── 컨베이어 연출(presentation: conveyor — gm-01) ─────────
+  // 연출만 바뀐다: 미처리 첫 아이템이 벨트 중앙에 도착해 자동 선택되고,
+  // 통/대응 버튼으로 처리해야 다음이 들어온다. 채점 경로는 대기열 UI와 동일.
+  const conveyor = data.presentation === "conveyor";
+  const currentIndex = useMemo(
+    () => (conveyor ? items.findIndex((item, index) => !handled[keyOf(item, index)]) : -1),
+    [conveyor, items, handled],
+  );
+  const currentItem = currentIndex >= 0 ? items[currentIndex] : null;
+  const currentKey = currentItem ? keyOf(currentItem, currentIndex) : null;
+
+  // 벨트 중앙의 물건 = 선택 상태. 돌발 카드를 든 동안(SUDDEN_KEY)은 건드리지 않는다.
+  useEffect(() => {
+    if (!conveyor || done) return;
+    if (selected === SUDDEN_KEY) return;
+    if (selected !== currentKey) setSelected(currentKey);
+  }, [conveyor, done, selected, currentKey]);
+
+  // ── 발주서(검수서) 패널 — order_sheet ─────────────────────
+  const orderSheetDef = data.order_sheet;
+  const orderSlots = useMemo<OrderSlot[]>(() => {
+    const slots = orderSheetDef?.slots;
+    return Array.isArray(slots) ? slots : [];
+  }, [orderSheetDef]);
+  const orderBin = orderSheetDef?.bin ?? bins[0]?.id;
+  /** 발주서 대상 통에 넣은 수량(sprite 별) — 실루엣 체크 표시의 근거. */
+  const acceptedBySprite = useMemo(() => {
+    const counts = new Map<string, number>();
+    items.forEach((item, index) => {
+      const entry = handled[keyOf(item, index)];
+      if (entry && entry.destBin !== null && entry.destBin === orderBin) {
+        const sprite = item.sprite ?? item.id ?? "";
+        counts.set(sprite, (counts.get(sprite) ?? 0) + 1);
+      }
+    });
+    return counts;
+  }, [items, handled, orderBin]);
 
   // ── 종료·채점 ──────────────────────────────────────────────
   const finish = useCallback(() => {
@@ -647,7 +714,12 @@ export function SortGame({ game, onComplete }: EngineProps) {
                 disabled={done}
                 onClick={() => setSelected((current) => (current === SUDDEN_KEY ? null : SUDDEN_KEY))}
               >
-                <span className={styles.cardSprite}>{suddenDef.sprite ?? suddenDef.id}</span>
+                <PixelSprite
+                  id={suddenDef.sprite ?? suddenDef.id ?? ""}
+                  label={suddenDef.label ?? suddenDef.id}
+                  size={56}
+                  fallbackClassName={styles.cardSprite}
+                />
                 <span className={styles.cardLabel}>카드를 든 채 안내할 곳(통)을 누르세요</span>
               </button>
               {queueFrozen ? <p className={styles.suddenNote}>대기열이 멈췄습니다 — 이 상황부터 처리해야 합니다.</p> : null}
@@ -689,44 +761,143 @@ export function SortGame({ game, onComplete }: EngineProps) {
         </section>
       ) : null}
 
-      <div className={styles.queue} role="group" aria-label="분류 대기열">
-        {items.map((item, index) => {
-          const instanceKey = keyOf(item, index);
-          const entry = handled[instanceKey];
-          const isSelected = selected === instanceKey;
-          const title = item.label ?? item.sprite ?? item.id ?? "항목";
-          return (
-            <button
-              key={instanceKey}
-              type="button"
-              className={styles.card}
-              data-state={entry ? entry.verdict : isSelected ? "selected" : undefined}
-              disabled={done || Boolean(entry) || queueFrozen}
-              aria-pressed={isSelected}
-              aria-label={entry ? `${title} — ${entry.destLabel} 처리됨` : `${title} 선택`}
-              onClick={() => setSelected((current) => (current === instanceKey ? null : instanceKey))}
-            >
-              <span className={styles.cardSprite}>{item.sprite ?? item.id}</span>
-              {item.icon || item.time_badge ? (
-                <span className={styles.cardChips}>
-                  {item.icon ? <span className={styles.chip}>{item.icon}</span> : null}
-                  {item.time_badge ? (
-                    <span className={styles.chip} data-kind="badge">
-                      {item.time_badge}
-                    </span>
-                  ) : null}
+      {conveyor ? (
+        // ── 컨베이어 연출 — 발주서 패널(상시) + 벨트 중앙의 현재 물건 ──
+        <div className={styles.conveyorRow}>
+          {orderSlots.length > 0 ? (
+            <aside className={styles.orderSheet} aria-label={`${orderSheetDef?.label ?? "발주서"} 대조 패널`}>
+              <span className={styles.orderTitle}>{orderSheetDef?.label ?? "발주서"}</span>
+              {orderSlots.map((slot, slotIndex) => {
+                const count = Math.max(0, Math.floor(slot.count ?? 0));
+                const filled = acceptedBySprite.get(slot.sprite ?? "") ?? 0;
+                const over = Math.max(0, filled - count);
+                return (
+                  <div key={`${slot.sprite ?? "slot"}#${slotIndex}`} className={styles.orderCells}>
+                    {Array.from({ length: count }, (_, cell) => (
+                      <span key={cell} className={styles.orderCell} data-filled={cell < filled}>
+                        <PixelSprite
+                          id={slot.sprite ?? ""}
+                          label={slot.label ?? slot.sprite ?? "발주 항목"}
+                          size={30}
+                          fallbackClassName={styles.orderCellFallback}
+                        />
+                        {cell < filled ? (
+                          <span className={styles.orderCheck} aria-hidden="true">
+                            ✓
+                          </span>
+                        ) : null}
+                      </span>
+                    ))}
+                    {over > 0 ? (
+                      <span className={styles.orderOver} role="status">
+                        발주 초과 +{over}
+                      </span>
+                    ) : null}
+                  </div>
+                );
+              })}
+              <span className={styles.orderHint}>
+                실루엣 한 칸 = 발주 1개. 칸이 다 찼는데 같은 박스가 또 오면 발주 초과입니다.
+              </span>
+            </aside>
+          ) : null}
+          <div className={styles.conveyor} role="group" aria-label="컨베이어 검수대">
+            {currentItem && currentKey ? (
+              // key 로 재마운트 — 새 물건마다 좌→중앙 슬라이드가 다시 돈다
+              <div
+                key={currentKey}
+                className={styles.conveyorItem}
+                role="group"
+                aria-label={`검수 대상 — ${currentItem.label ?? currentItem.sprite ?? currentItem.id ?? "물건"}`}
+              >
+                <PixelSprite
+                  id={currentItem.sprite ?? currentItem.id ?? ""}
+                  label={currentItem.label ?? currentItem.sprite ?? currentItem.id ?? "항목"}
+                  size={spriteSize(76, currentItem)}
+                  fallbackClassName={styles.cardSprite}
+                />
+                {currentItem.icon || currentItem.time_badge ? (
+                  <span className={styles.cardChips}>
+                    {currentItem.icon ? <span className={styles.chip}>{currentItem.icon}</span> : null}
+                    {currentItem.time_badge ? (
+                      <span className={styles.chip} data-kind="badge">
+                        {currentItem.time_badge}
+                      </span>
+                    ) : null}
+                  </span>
+                ) : null}
+                <span className={styles.conveyorLabel}>
+                  {currentItem.label ?? "아래 통(또는 대응 버튼)으로 이 물건을 보내세요"}
                 </span>
-              ) : null}
-              {item.label ? <span className={styles.cardLabel}>{item.label}</span> : null}
-              {entry ? (
-                <span className={styles.cardDest} data-verdict={entry.verdict}>
-                  {entry.verdict === "ok" ? "✓" : "✕"} {entry.destLabel}
-                </span>
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
+              </div>
+            ) : (
+              <p className={styles.conveyorEmpty}>
+                {done ? "검수 종료" : "대기 물량 없음 — 남은 절차를 확인하고 마감하세요"}
+              </p>
+            )}
+            <div className={styles.belt} data-paused={done || queueFrozen || !currentItem} aria-hidden="true" />
+          </div>
+        </div>
+      ) : (
+        <div className={styles.queue} role="group" aria-label="분류 대기열">
+          {items.map((item, index) => {
+            const instanceKey = keyOf(item, index);
+            const entry = handled[instanceKey];
+            const isSelected = selected === instanceKey;
+            const title = item.label ?? item.sprite ?? item.id ?? "항목";
+            return (
+              <button
+                key={instanceKey}
+                type="button"
+                className={styles.card}
+                data-state={entry ? entry.verdict : isSelected ? "selected" : undefined}
+                disabled={done || Boolean(entry) || queueFrozen}
+                aria-pressed={isSelected}
+                aria-label={entry ? `${title} — ${entry.destLabel} 처리됨` : `${title} 선택`}
+                onClick={() => setSelected((current) => (current === instanceKey ? null : instanceKey))}
+              >
+                <PixelSprite
+                  id={item.sprite ?? item.id ?? ""}
+                  label={title}
+                  size={spriteSize(56, item)}
+                  fallbackClassName={styles.cardSprite}
+                />
+                {item.icon || item.time_badge ? (
+                  <span className={styles.cardChips}>
+                    {item.icon ? <span className={styles.chip}>{item.icon}</span> : null}
+                    {item.time_badge ? (
+                      <span className={styles.chip} data-kind="badge">
+                        {item.time_badge}
+                      </span>
+                    ) : null}
+                  </span>
+                ) : null}
+                {item.label ? <span className={styles.cardLabel}>{item.label}</span> : null}
+                {entry ? (
+                  <span className={styles.cardDest} data-verdict={entry.verdict}>
+                    {entry.verdict === "ok" ? "✓" : "✕"} {entry.destLabel}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {conveyor && handledCount > 0 ? (
+        // 처리 내역 스탬프 — 대기열 UI의 카드 도장을 대신하는 복기 줄
+        <div className={styles.doneStrip} aria-label="처리 내역">
+          {items.map((item, index) => {
+            const entry = handled[keyOf(item, index)];
+            if (!entry) return null;
+            return (
+              <span key={keyOf(item, index)} className={styles.doneStamp} data-verdict={entry.verdict}>
+                {entry.verdict === "ok" ? "✓" : "✕"} {entry.destLabel}
+              </span>
+            );
+          })}
+        </div>
+      ) : null}
 
       <div className={styles.bins} role="group" aria-label="분류 통">
         {bins.map((bin) => (

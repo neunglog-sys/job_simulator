@@ -6,6 +6,17 @@
   flex-direction: column;
   gap: 12px;
   min-height: 0;
+  /* 자체 불투명 다크 서피스 — 게임 텍스트는 전부 흰색 계열이라 어두운 배경을 전제한다.
+     부모 missionModal 은 밝은 서피스(#f7f4ff 계열)이고, OS 투명 효과 꺼짐
+     (prefers-reduced-transparency) 환경에선 주변 패널도 밝게 바뀌므로,
+     게임 영역만큼은 부모와 무관하게 항상 어두운 reading surface 로 고정한다.
+     (--scenario-reading-surface 와 같은 톤을 불투명 hex 로 못박은 값) */
+  padding: 14px;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 16% 8%, rgb(138 99 238 / 0.16), transparent 42%),
+    linear-gradient(160deg, #191139 0%, #301d52 100%);
 }
 
 /* ── 상단 바: 남은 시간 · 찾은 개수 ── */
@@ -126,7 +137,8 @@
 }
 
 .mark[data-kind="hit"] {
-  background: #17a67f;
+  /* #17a67f → #0e7d5d: 흰 13px 글리프가 3.1:1 이라 미달 — 5.1:1 로 상향 */
+  background: #0e7d5d;
 }
 
 @keyframes markPop {

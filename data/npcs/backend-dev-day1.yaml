@@ -51,7 +51,9 @@ npcs:
   appearance:
     location: sasu
     available_steps:
+    - kickoff
     - implement
+    - coding
     - incident
 - npc_id: npc_bdd_03
   name: 운영팀 주임

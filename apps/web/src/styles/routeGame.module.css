@@ -6,6 +6,36 @@
   cursor: crosshair;
 }
 
+/* ── 도트 아트(jm-01) ── */
+
+/* 배경 노선도 — 캔버스(960x440 비율과 동일한 48x22 그리드)에 꽉 채워 깔리고,
+   경로선·구역 SVG 오버레이와 노드가 그 위에 얹힌다. PixelSprite 의 인라인
+   width/height 를 덮어써야 해서 !important 가 필요하다. */
+.mapLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mapLayer img {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* 구역 표지(어린이보호구역_표지) — visible: true 구역은 사전에, 나머지는 침범 후에만 */
+.zoneSprite {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  filter: drop-shadow(0 2px 6px rgb(0 0 0 / 0.5));
+}
+
+/* 스프라이트 파일이 없을 때 폴백 칩 대신 아무것도 안 그린다 — 라벨·이름표가
+   이미 있어 중복 표기를 막는다(도트 아트 전과 동일한 화면으로 폴백) */
+.spriteHidden {
+  display: none;
+}
+
 /* 배경 지도 이름표 (jm-01 노선도, stn-02 도면) — 아트 자산 전 자리표시 */
 .mapTag {
   position: absolute;
@@ -14,7 +44,8 @@
   padding: 2px 8px;
   border-radius: 999px;
   background: rgb(255 255 255 / 0.08);
-  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.6));
+  /* 폴백 0.6 → 0.78: 토큰 미해석 화면(minigame-preview 등)에서 칩 배경 위 4.5:1 경계라 여유 확보 */
+  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.78));
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -64,6 +95,15 @@
 @keyframes zoneReveal {
   from { opacity: 0; transform: scale(0.6); }
   to   { opacity: 1; transform: scale(1); }
+}
+
+/* visible: true 회피구역 — 계획 화면에 처음부터 그린다(원문이 지도에 표기하는 경우,
+   jm-01 보호구역). 침범 전이라 revealed 보다 옅고, 등장 애니메이션도 없다. */
+.zonePre {
+  fill: rgb(255 77 109 / 0.1);
+  stroke: rgb(255 77 109 / 0.55);
+  stroke-width: 2;
+  stroke-dasharray: 3 5;
 }
 
 /* ── 노드 (출발·경유지·decoy·갈래 — decoy 는 일부러 경유지와 똑같이 보인다) ── */
@@ -146,7 +186,8 @@
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: var(--scenario-accent, #8a63ee);
+  /* 테마 accent 위 흰 10px 숫자가 2.8~4.1:1 로 미달 — 항상 7:1 이상인 고정 인디고로 */
+  background: #5a3dbd;
   color: #fff;
   font-size: 10px;
   font-weight: 900;
@@ -154,7 +195,8 @@
 }
 
 .badge[data-start="true"] {
-  background: #17a67f;
+  /* #17a67f → #0e7d5d: 흰 숫자 3.1:1 → 5.1:1 */
+  background: #0e7d5d;
 }
 
 /* ── 경로상 발견물 (stn-02 blockers) — 클릭해 발견하고 보고해야 한다 ── */
@@ -203,7 +245,8 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #17a67f;
+  /* #17a67f → #0e7d5d: 흰 글리프 3.1:1 → 5.1:1 */
+  background: #0e7d5d;
   color: #fff;
   font-size: 12px;
   font-weight: 900;
@@ -289,12 +332,286 @@
   transform: translateY(1px);
 }
 
+/* ── 기상 배너 (weather_pool) — 시작 시 랜덤 1개, 계획·주행 내내 상단에 ── */
+.weatherBanner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.06);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* effect: 서행 — 주의보 톤(호박색). 주행 속도·서행 구간 활성에 반영되는 기상이다 */
+.weatherBanner[data-effect="서행"] {
+  border-color: rgb(255 200 90 / 0.55);
+  background: rgb(150 110 25 / 0.28);
+}
+
+.weatherBadge {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.14);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.weatherBanner[data-effect="서행"] .weatherBadge {
+  background: #8a5a12;
+  color: #ffe9b8;
+}
+
+.weatherNotice {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgb(255 255 255 / 0.75);
+  font-weight: 600;
+}
+
+/* ── 주행 파트 (driving) — 1945식 종스크롤. 위치·스크롤 값은 전부 JS 가 넣는다 ── */
+.driveScene {
+  cursor: default;
+  background: linear-gradient(180deg, #131722, #1a2030);
+}
+
+/* 도로 밖(갓길·블록) — 반복 타일 느낌만 준다 */
+.roadSide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(180deg, #182234 0 26px, #141c2b 26px 52px);
+}
+
+.road {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: #242b3a;
+  border-left: 3px solid #8792a6;
+  border-right: 3px solid #8792a6;
+  overflow: hidden;
+}
+
+/* 차선 점선 — backgroundPositionY 를 JS 가 프레임마다 밀어 도로가 아래로 흐른다 */
+.laneLine {
+  position: absolute;
+  top: -56px;
+  bottom: -56px;
+  width: 4px;
+  transform: translateX(-50%);
+  background-image: linear-gradient(rgb(255 255 255 / 0.26) 0 26px, transparent 26px 54px);
+  background-size: 4px 54px;
+  background-repeat: repeat-y;
+}
+
+/* 서행 의무 구간 — 진행률이 구간에 들면 화면 전체에 호박색 틴트 */
+.zoneTint {
+  position: absolute;
+  inset: 0;
+  background: rgb(255 170 60 / 0.1);
+  pointer-events: none;
+}
+
+.zoneTint[data-violated="true"] {
+  background: rgb(255 77 109 / 0.12);
+}
+
+/* 서행선 — 트럭이 이 선 위(화면 위쪽)를 유지하면 과속 */
+.speedLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 2px dashed rgb(255 200 90 / 0.65);
+  pointer-events: none;
+}
+
+.speedLine i {
+  position: absolute;
+  top: 2px;
+  right: 8px;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 800;
+  color: #ffd76e;
+}
+
+/* 서행 의무 상단 표시 — 과속 중이면 붉게 깜빡인다 */
+.slowBanner {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border: 1px solid rgb(255 200 90 / 0.7);
+  border-radius: 999px;
+  background: rgb(80 58 12 / 0.92);
+  color: #ffe9b8;
+  font-size: 11.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.slowBanner[data-speeding="true"],
+.slowBanner[data-violated="true"] {
+  border-color: #ff5d6e;
+  background: rgb(120 20 40 / 0.92);
+  color: #ffc3cd;
+}
+
+.slowBanner[data-speeding="true"] {
+  animation: slowPulse 600ms ease-in-out infinite alternate;
+}
+
+@keyframes slowPulse {
+  from { transform: translateX(-50%) scale(1); }
+  to   { transform: translateX(-50%) scale(1.06); }
+}
+
+/* 장애물·트럭 — 폭은 SCENE 비율(%)로 오고, 이미지는 그 폭에 맞춘다(mapLayer 와 동일 수법) */
+.obstacle,
+.truck {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.obstacle img,
+.truck img {
+  width: 100% !important;
+  height: auto !important;
+}
+
+.obstacle {
+  filter: drop-shadow(0 3px 5px rgb(0 0 0 / 0.45));
+}
+
+.obstacle[data-hit="true"] {
+  opacity: 0.35;
+  filter: none;
+}
+
+.truck {
+  filter: drop-shadow(0 4px 8px rgb(0 0 0 / 0.5));
+}
+
+.truck[data-hit="true"] {
+  animation: truckHit 220ms steps(2, end) 2;
+}
+
+@keyframes truckHit {
+  from { opacity: 1; }
+  to   { opacity: 0.35; }
+}
+
+/* 스프라이트 파일이 없을 때 — 보이지 않는 장애물이 되면 안 되므로 색 블록으로 폴백 */
+.obstacleFallback {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid rgb(255 255 255 / 0.4);
+  border-radius: 6px;
+  background: rgb(255 120 90 / 0.75);
+  overflow: hidden;
+  color: transparent;
+  font-size: 0;
+}
+
+/* 주행 HUD — 남은 시간·계획 점수·충돌 수 */
+.driveHud {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.06);
+}
+
+.driveHudLabel {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: rgb(241 234 255 / 0.78);
+  white-space: nowrap;
+}
+
+.driveChip {
+  flex: none;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.1);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.driveChip[data-warn="true"] {
+  background: rgb(190 50 80 / 0.5);
+  color: #ffd9df;
+}
+
+/* 조작줄 — 터치·마우스용 D패드 + 안내문 */
+.driveControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.dpad {
+  display: grid;
+  grid-template-areas:
+    ". up ."
+    "left down right";
+  gap: 6px;
+}
+
+.dpadButton {
+  width: 44px;
+  height: 40px;
+  border: 1px solid rgb(255 255 255 / 0.24);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.08);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+
+.dpadButton:active {
+  background: rgb(255 255 255 / 0.2);
+}
+
+.driveNote {
+  flex: 1;
+  min-width: 200px;
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: rgb(241 234 255 / 0.72);
+}
+
 /* ── 접근성·모션 ── */
 .node:focus-visible,
 .blocker:focus-visible,
 .controlButton:focus-visible,
 .actionButton:focus-visible,
-.submitButton:focus-visible {
+.submitButton:focus-visible,
+.dpadButton:focus-visible {
   outline: 2px solid #fff;
   outline-offset: 2px;
 }
@@ -306,5 +623,10 @@
   .node,
   .blocker {
     transition: none;
+  }
+  /* 주행 간이 모드 — 깜빡임류 전부 끔(장애물·저속은 JS 쪽에서 처리) */
+  .slowBanner[data-speeding="true"],
+  .truck[data-hit="true"] {
+    animation: none;
   }
 }

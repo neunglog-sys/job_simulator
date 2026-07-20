@@ -13,11 +13,56 @@
 }
 
 .svg {
+  position: relative; /* bgLayer(z0) 위에 경로가 그려지도록 */
+  z-index: 1;
   display: block;
   width: 100%;
   height: auto;
   touch-action: none; /* 드래그가 스크롤로 새지 않게 */
   cursor: crosshair;
+}
+
+/* ── 도트 아트 스킨(ms-09 정밀 절삭) — 표시 전용, 파일이 없으면 전부 조용히 폴백 ── */
+
+/* 배경 판재 — 캔버스에 꽉 채워 깔린다. PixelSprite 의 인라인 width 를 덮어써야
+   해서 !important 가 필요하다(routeGame .mapLayer 와 동일 규약). */
+.bgLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.bgLayer img {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* 스프라이트 파일이 없을 때 아무것도 안 그리는 폴백 — 기존 화면 그대로(ms-08) */
+.spriteHidden {
+  display: none;
+}
+
+/* 아트 모드(data.head 지정 게임만) — 금속 판재 위에서 밴드·경로가 읽히게 대비 보정.
+   head 가 없는 게임(ms-08)은 이 블록의 영향을 받지 않는다. */
+.stage[data-art="true"] .svg { cursor: none; } /* 절삭 헤드가 커서를 대신한다 */
+.stage[data-art="true"] .band { stroke: rgb(90 220 180 / 0.32); }
+.stage[data-art="true"] .band[data-color="노랑"] { stroke: rgb(255 215 110 / 0.4); }
+.stage[data-art="true"] .guide { stroke: rgb(255 255 255 / 0.72); }
+.stage[data-art="true"] .drawn {
+  stroke: #ffb03a; /* 절삭 자국 — 달궈진 금속 */
+  filter: drop-shadow(0 0 6px rgb(255 150 60 / 0.55));
+}
+.stage[data-art="true"] .drawn[data-off="true"] { stroke: #ff8fa3; }
+.stage[data-art="true"] .cursor { stroke: #ffb03a; }
+
+/* 절삭 헤드 커서 — 노즐 끝(스프라이트 하단 중앙)이 포인터 지점에 닿게 */
+.headCursor {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, calc(-100% + 4px));
+  pointer-events: none;
+  filter: drop-shadow(0 2px 5px rgb(0 0 0 / 0.5));
 }
 
 /* 공차 밴드 — 숫자 없이 이 폭으로만 읽힌다 (초록=합격 폭, 노랑=정밀 구간) */
@@ -41,12 +86,19 @@
   stroke-linecap: round;
 }
 
-/* 따라가면 안 되는 옛 경로(no_go) — 흐릿한 붉은 점선 */
+/* 따라가면 안 되는 옛 경로(no_go) — 빛바랜 구버전 선(반투명 점선) */
 .noGo {
   fill: none;
-  stroke: rgb(255 130 150 / 0.4);
+  stroke: rgb(214 176 148 / 0.42);
   stroke-width: 2;
   stroke-dasharray: 3 6;
+  stroke-linecap: round;
+}
+
+/* 옛 선 위 취소 스탬프(X) — 함정임을 글자 없이 모양으로 (규칙 1) */
+.noGoStamp line {
+  stroke: rgb(224 130 110 / 0.6);
+  stroke-width: 2.5;
   stroke-linecap: round;
 }
 
@@ -109,6 +161,24 @@
   border-color: rgb(120 240 200 / 0.6);
   background: rgb(16 84 66 / 0.85);
   color: #d2f7ea;
+}
+
+/* 신호 스프라이트 모드(emergency.signal 도트) — 칩 상자를 벗고 도트만 띄운다.
+   파일이 없으면 안쪽 폴백(.markerFallback)이 위험 칩을 그대로 복원한다. */
+.marker[data-sprite="true"] {
+  padding: 0;
+  border: none;
+  background: none;
+  filter: drop-shadow(0 2px 6px rgb(0 0 0 / 0.55));
+}
+
+.markerFallback {
+  display: inline-block;
+  padding: 4px 9px;
+  border: 1px solid rgb(255 130 150 / 0.7);
+  border-radius: 8px;
+  background: rgb(110 26 44 / 0.9);
+  color: #ffd7de;
 }
 
 /* 멈춤 유지 진행 바 (interrupt hold) */
@@ -221,9 +291,11 @@
   color: var(--scenario-reading-muted, rgb(241 234 255 / 0.74));
 }
 
-/* 스파크 플래시 */
+/* 스파크 플래시 — 원광(배경) 위에 도트 스프라이트(spark_sprite)가 겹친다 */
 .spark {
   position: absolute;
+  display: grid;
+  place-items: center;
   width: 26px;
   height: 26px;
   transform: translate(-50%, -50%);

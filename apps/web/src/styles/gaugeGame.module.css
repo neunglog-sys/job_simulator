@@ -3,7 +3,7 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
   gap: 10px;
   padding: 14px;
   border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.2));
@@ -13,78 +13,149 @@
     linear-gradient(160deg, rgb(38 44 66 / 0.96), rgb(24 27 44 / 0.98));
 }
 
+/* 카드 = 장비 패널 한 칸 — 금속 패널 그라데이션 + 상단 하이라이트/하단 섀도 인셋 */
 .card {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 7px;
-  padding: 12px 10px;
+  gap: 8px;
+  padding: 12px 10px 11px;
   border: 1px solid rgb(255 255 255 / 0.22);
   border-radius: 12px;
-  background: rgb(255 255 255 / 0.05);
+  background: linear-gradient(180deg, rgb(64 72 100 / 0.5), rgb(28 32 50 / 0.85));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.14),
+    inset 0 -1px 0 rgb(0 0 0 / 0.35);
   transition: border-color 140ms ease, background-color 140ms ease;
 }
 
 .card[data-judged="true"] {
   border-color: rgb(255 255 255 / 0.4);
-  background: rgb(255 255 255 / 0.09);
+  background: linear-gradient(180deg, rgb(84 92 122 / 0.5), rgb(40 44 64 / 0.85));
 }
 
 .card[data-verdict="ok"] {
   border-color: rgb(120 240 200 / 0.7);
-  background: rgb(30 160 130 / 0.2);
+  background: linear-gradient(180deg, rgb(38 150 120 / 0.34), rgb(20 74 60 / 0.5));
 }
 
 .card[data-verdict="bad"] {
   border-color: rgb(255 130 150 / 0.7);
-  background: rgb(190 50 80 / 0.2);
+  background: linear-gradient(180deg, rgb(180 55 85 / 0.34), rgb(92 26 42 / 0.5));
 }
 
 /* ── 눈금판 — 경계 판별이 되게 크게 ── */
+/* 장비 스프라이트 + 다이얼 줄 — gauge 항목에 sprite가 있는 게임(ys-04 등)만 옆칸이 생긴다 */
+.dialRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.dialRow > .dial {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .dial {
   width: 100%;
-  max-width: 168px;
+  max-width: 172px;
+}
+
+/* 장비 거치칸 — 도트 아트가 실제로 로드됐을 때만 어두운 인셋 슬롯이 된다.
+   아트 파일이 없어 라벨 칩으로 폴백하면(:has(img) 미충족 — ys-06) 민무늬 래퍼로 남는다. */
+.spriteWell {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+}
+
+.spriteWell:has(img) {
+  padding: 6px 5px;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgb(10 13 24 / 0.85), rgb(22 26 44 / 0.9));
+  box-shadow: inset 0 2px 6px rgb(0 0 0 / 0.5);
+}
+
+/* 다이얼 페이스 — 어두운 계기판 원판 + 베젤 링(장비 패널 느낌) */
+.dialFace {
+  fill: rgb(13 16 28 / 0.95);
+}
+
+.dialBezel {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.3);
+  stroke-width: 2.5;
 }
 
 .dialTrack {
   fill: none;
-  stroke: rgb(255 110 135 / 0.45); /* 띠 밖 = 빨강 계열 — '빨강이면 이상' */
-  stroke-width: 9;
+  stroke: rgb(255 96 124 / 0.6); /* 띠 밖 = 빨강 계열 — '빨강이면 이상'. 대비 상향 */
+  stroke-width: 8;
   stroke-linecap: round;
 }
 
 .dialZone {
   fill: none;
-  stroke: rgb(90 220 180 / 0.95); /* ok_zone 초록 띠 — 폭을 더 두껍게 */
-  stroke-width: 13;
+  stroke: #35e0a1; /* ok_zone 초록 띠 — 불투명 + butt 캡이라 경계선이 칼같이 끊긴다 */
+  stroke-width: 12;
+  stroke-linecap: butt;
 }
 
-/* 띠 경계 눈금 — 바늘이 눈금의 어느 쪽인지로 88 vs 90 을 가른다 */
+/* 보조 눈금(10 간격, 숫자 없음) — 바늘 위치를 가늠할 기준선 */
+.minorTick {
+  stroke: rgb(255 255 255 / 0.38);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+/* 띠 경계 눈금 — 바늘이 눈금의 어느 쪽인지로 88 vs 91 을 가른다.
+   암색 halo 위 흰 선이라 초록 띠·빨강 트랙 어느 배경에서도 또렷하다 */
+.zoneTickHalo {
+  stroke: #0b0e1a;
+  stroke-width: 5.5;
+  stroke-linecap: round;
+}
+
 .zoneTick {
   stroke: #fff;
-  stroke-width: 2;
+  stroke-width: 2.2;
   stroke-linecap: round;
-  opacity: 0.9;
 }
 
+/* 바늘 — 끝이 뾰족한 양각 폴리곤 + 카운터웨이트 꼬리 */
 .needle {
-  stroke: #fff;
-  stroke-width: 3.5;
-  stroke-linecap: round;
+  fill: #f7f9ff;
+  stroke: #10131f;
+  stroke-width: 1;
   filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.6));
 }
 
+/* 중심 허브 — 금속 축 + 포인트 컬러 캡 */
 .needleHub {
-  fill: var(--scenario-accent, #8a63ee);
-  stroke: #fff;
+  fill: #262d42;
+  stroke: rgb(255 255 255 / 0.65);
   stroke-width: 1.5;
 }
 
+.needleCap {
+  fill: var(--scenario-accent, #8a63ee);
+}
+
+/* 장비 명판 — 패널에 붙은 태그처럼 */
 .cardLabel {
+  padding: 2px 10px;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: 6px;
+  background: rgb(9 12 22 / 0.6);
   font-size: 11px;
   font-weight: 800;
   line-height: 1.35;
+  letter-spacing: 0.02em;
   text-align: center;
   color: #fff;
 }
@@ -107,6 +178,10 @@
 }
 
 .judgeButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   min-height: 32px;
   padding: 0 12px;
   border-radius: 9px;
@@ -202,7 +277,8 @@
 }
 
 .cardMark[data-ok="true"] {
-  background: #17a67f;
+  /* #17a67f → #0e7d5d: 흰 글리프 3.1:1 → 5.1:1 */
+  background: #0e7d5d;
 }
 
 /* ── 금지행동 버튼 줄 (ys-06 직접조임 등 — 누르면 40) ── */
@@ -263,6 +339,10 @@
 }
 
 .escalateButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   min-height: 44px;
   padding: 0 20px;
   border: 1px solid rgb(255 200 120 / 0.55);

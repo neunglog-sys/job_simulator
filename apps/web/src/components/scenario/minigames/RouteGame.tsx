@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import shared from "../../../styles/minigame.module.css";
 import styles from "../../../styles/routeGame.module.css";
+import { PixelSprite } from "./PixelSprite";
 import { SCENE } from "./types";
 import {
   clampScore,
@@ -21,9 +22,20 @@ import {
  *
  * 회피구역(avoid)은 사전에 그리지 않는다 — 선분이 원을 스치는 순간 구역이
  * 드러나고 reason 이 표시된다(사전 유출 금지 — stn-02 "미리 붉게 칠하지 않는다").
+ * 예외: `visible: true` 구역만 처음부터 반투명 존+표지로 그린다. 원문이 지도에
+ * 위험구역을 미리 표기하는 경우다(jm-01 "노선도에 지름길이 보호구역 경유로 표시").
  * 채점은 '제출한 최종 경로' 기준이다. 네 시나리오 모두 결과물이 계획·설계·수정안
  * (노선 계획, 항로 수정안, 동선 설계, 위치 보고)이므로 스치고 되돌린 흔적이 아니라
  * 제출안이 위험구역을 지나는지를 본다. 시행착오의 비용은 제한시간이 진다.
+ *
+ * 2단계 확장(jm-01) — `data.driving` 이 있을 때만: ① 시작 시 weather_pool 에서
+ * 기상 1개를 랜덤으로 뽑아 상단 배너로 걸고 ② 계획 제출 후 1945식 종스크롤 주행
+ * 파트로 전환된다. 방향키/WASD 로 트럭을 조향해 내려오는 장애물을 피하고, 서행
+ * 의무 구간에선 트럭을 서행선 아래로 내려야 한다(과속 유지 = 구역당 1회 감점).
+ * 날씨 effect(서행)는 주행 기본 속도를 낮추고 when_effect 구간을 활성화한다.
+ * 최종 accuracy = 계획 점수 − 주행 감점(clampScore) — 기존 채점 계약 위에 감점만
+ * 얹는다. 장애물·진행률은 시계에서 역산하고 rAF 는 렌더만 한다(PourGame 규약).
+ * prefers-reduced-motion 이면 저속·무장애물 간이 모드(충돌 감점 없음, 서행 의무 유지).
  *
  * 좌표가 없는 노드(jm-04·yg-04)는 자동 배치한다: 정답 경유지는 위쪽 호(arc)에,
  * decoy 는 출발→도착 직선 위에, 좌표 없는 avoid 구역도 같은 직선 위에 깔린다.
@@ -41,10 +53,42 @@ type RouteNode = {
   at: Pt;
   label?: string;
   color?: string;
+  /** 도트 아트 id(jm-01) — 파일이 없으면 라벨만 보인다 */
+  sprite?: string;
   arrival?: boolean;
 };
 
-type Zone = { id: string; at: Pt; radius: number; penalty: number; reason?: string };
+type Zone = {
+  id: string;
+  at: Pt;
+  radius: number;
+  penalty: number;
+  reason?: string;
+  sprite?: string;
+  /** true = 계획 화면에서 처음부터 그린다(visible: true — jm-01 보호구역) */
+  visible: boolean;
+};
+
+type Weather = { id: string; effect?: string; notice?: string };
+
+type SlowZone = {
+  id: string;
+  /** 주행 진행률 0~1 구간 */
+  from: number;
+  to: number;
+  penalty: number;
+  sprite?: string;
+  reason?: string;
+  /** 이 기상 effect 일 때만 활성(없으면 항상) — 호우·안개 서행 구간 */
+  whenEffect?: string;
+};
+
+type DrivingDef = {
+  duration: number;
+  density: number;
+  obstacles: string[];
+  slowZones: SlowZone[];
+};
 
 type BlockerDef = {
   id: string;
@@ -102,7 +146,7 @@ const AUTO_ARC_Y = 90; // 정답 경유지 호(위쪽)
 const AUTO_EXTRA_Y = 370; // 신호만 있는 갈래 노드(아래쪽)
 const AUTO_ZONE_RADIUS = 55;
 
-type RawNode = { id: string; at: Pt | null; label?: string; color?: string; arrival?: boolean };
+type RawNode = { id: string; at: Pt | null; label?: string; color?: string; sprite?: string; arrival?: boolean };
 
 function parseNodeRaw(v: unknown): RawNode | null {
   const s = str(v);
@@ -111,7 +155,7 @@ function parseNodeRaw(v: unknown): RawNode | null {
   if (!r) return null;
   const id = str(r.id);
   if (!id) return null;
-  return { id, at: pt(r.at), label: str(r.label), color: str(r.color), arrival: r.arrival === true };
+  return { id, at: pt(r.at), label: str(r.label), color: str(r.color), sprite: str(r.sprite), arrival: r.arrival === true };
 }
 
 type RouteModel = {
@@ -128,6 +172,8 @@ type RouteModel = {
   submitAs: string | null;
   budgetTime: number | null;
   timeOverPenalty: number;
+  weatherPool: Weather[];
+  driving: DrivingDef | null;
 };
 
 function buildModel(data: Record<string, unknown>): RouteModel {
@@ -161,7 +207,14 @@ function buildModel(data: Record<string, unknown>): RouteModel {
     Math.round(startAt[1] + (arrivalAt[1] - startAt[1]) * t),
   ];
 
-  const start: RouteNode = { id: startRaw.id, kind: "start", at: startAt, label: startRaw.label, color: startRaw.color };
+  const start: RouteNode = {
+    id: startRaw.id,
+    kind: "start",
+    at: startAt,
+    label: startRaw.label,
+    color: startRaw.color,
+    sprite: startRaw.sprite,
+  };
   const interCount = Math.max(0, arrivalIdx);
   const waypoints: RouteNode[] = wpRaw.map((w, i) => {
     let at = w.at;
@@ -169,7 +222,15 @@ function buildModel(data: Record<string, unknown>): RouteModel {
       // 도착지는 우측, 중간 경유지는 위쪽 호 — 직선 회랑(decoy·구역)에서 비켜난다
       at = i === arrivalIdx ? arrivalAt : [lerp((i + 1) / (interCount + 1))[0], AUTO_ARC_Y];
     }
-    return { id: w.id, kind: "waypoint", at, label: w.label, color: w.color, arrival: w.arrival || i === arrivalIdx };
+    return {
+      id: w.id,
+      kind: "waypoint",
+      at,
+      label: w.label,
+      color: w.color,
+      sprite: w.sprite,
+      arrival: w.arrival || i === arrivalIdx,
+    };
   });
   const decoys: RouteNode[] = decoyRaw.map((d, j) => ({
     id: d.id,
@@ -177,6 +238,7 @@ function buildModel(data: Record<string, unknown>): RouteModel {
     at: d.at ?? lerp((j + 1) / (decoyRaw.length + 1)),
     label: d.label,
     color: d.color,
+    sprite: d.sprite,
   }));
   const extras: RouteNode[] = extraIds.map((id, e) => ({
     id,
@@ -197,6 +259,8 @@ function buildModel(data: Record<string, unknown>): RouteModel {
       radius: num(z.radius),
       penalty: num(z.penalty) ?? 0,
       reason: str(z.reason),
+      sprite: str(z.sprite),
+      visible: z.visible === true,
     }));
   const anchorOf = (zoneId: string) => allNodes.find((n) => zoneId.includes(n.id)) ?? null;
   const floatCount = zonesPre.filter((z) => !z.at && !anchorOf(z.id)).length;
@@ -211,7 +275,15 @@ function buildModel(data: Record<string, unknown>): RouteModel {
         at = lerp(floatIdx / (floatCount + 1));
       }
     }
-    return { id: z.id, at, radius: z.radius ?? AUTO_ZONE_RADIUS, penalty: z.penalty, reason: z.reason };
+    return {
+      id: z.id,
+      at,
+      radius: z.radius ?? AUTO_ZONE_RADIUS,
+      penalty: z.penalty,
+      reason: z.reason,
+      sprite: z.sprite,
+      visible: z.visible,
+    };
   });
 
   // 경로상 발견·보고물(stn-02) — 회피가 아니라 '발견해 보고'가 정답
@@ -224,6 +296,36 @@ function buildModel(data: Record<string, unknown>): RouteModel {
     action: str(b.action) ?? "보고",
     missedPenalty: num(b.missed_penalty) ?? 40,
   }));
+
+  // 기상 풀(weather_pool) — 게임 시작 시 1개가 랜덤으로 걸려 상단 배너가 된다
+  const weatherPool: Weather[] = asArray(data.weather_pool)
+    .map(asRecord)
+    .filter(nonNull)
+    .map((w) => ({ id: str(w.id) ?? "", effect: str(w.effect), notice: str(w.notice) }))
+    .filter((w) => w.id !== "");
+
+  // 주행 파트(driving) — 이 블록이 있는 게임만 계획 제출 후 주행으로 넘어간다(jm-01)
+  const drv = asRecord(data.driving);
+  const obstacleIds = drv ? asArray(drv.obstacles).map(str).filter(nonNull) : [];
+  const driving: DrivingDef | null = drv
+    ? {
+        duration: Math.min(60, Math.max(8, num(drv.duration) ?? 24)),
+        density: Math.min(1, Math.max(0.1, num(drv.obstacle_density) ?? 0.5)),
+        obstacles: obstacleIds.length > 0 ? obstacleIds : ["장애물_차량", "물웅덩이"],
+        slowZones: asArray(drv.slow_zones)
+          .map(asRecord)
+          .filter(nonNull)
+          .map((z, i) => ({
+            id: str(z.id) ?? `서행구간_${i + 1}`,
+            from: Math.min(1, Math.max(0, num(z.from) ?? 0)),
+            to: Math.min(1, Math.max(0, num(z.to) ?? 1)),
+            penalty: num(z.penalty) ?? 0,
+            sprite: str(z.sprite),
+            reason: str(z.reason),
+            whenEffect: str(z.when_effect),
+          })),
+      }
+    : null;
 
   const budget = asRecord(data.budget);
   return {
@@ -240,6 +342,8 @@ function buildModel(data: Record<string, unknown>): RouteModel {
     submitAs: str(data.submit_as) ?? null,
     budgetTime: budget ? (num(budget.time) ?? null) : null,
     timeOverPenalty: budget ? (num(budget.time_over_penalty) ?? 0) : 0,
+    weatherPool,
+    driving,
   };
 }
 
@@ -281,6 +385,8 @@ function orderedMatches(visits: string[], answer: string[]): number {
 
 /* ── 컴포넌트 ── */
 
+type PlanOutcome = { score: number; parts: string[]; mistakes: number };
+
 export function RouteGame({ game, onComplete }: EngineProps) {
   const model = useMemo(() => buildModel(game.data), [game]);
   const [route, setRoute] = useState<Vertex[]>([{ at: model.start.at, nodeId: model.start.id }]);
@@ -288,9 +394,17 @@ export function RouteGame({ game, onComplete }: EngineProps) {
   const [notices, setNotices] = useState<string[]>([]);
   const [found, setFound] = useState<string[]>([]);
   const [reported, setReported] = useState<string[]>([]);
+  const [planOutcome, setPlanOutcome] = useState<PlanOutcome | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const finished = useRef(false);
   const done = outcome !== null;
+  // 계획 → (driving 있으면) 주행 → 완료. 다른 route 3게임은 driving 이 없어 기존 흐름 그대로다.
+  const phase: "plan" | "drive" | "done" = done ? "done" : planOutcome !== null && model.driving ? "drive" : "plan";
+
+  // 기상 — 시작 시 랜덤 1개(마운트당 고정). 배너로 표시하고 주행 규칙에 반영한다.
+  const [weather] = useState<Weather | null>(() =>
+    model.weatherPool.length > 0 ? model.weatherPool[Math.floor(Math.random() * model.weatherPool.length)] : null,
+  );
 
   const waypointIds = useMemo(() => model.waypoints.map((w) => w.id), [model]);
   const visitOrder = route
@@ -300,12 +414,17 @@ export function RouteGame({ game, onComplete }: EngineProps) {
   const waypointTotal = Math.max(1, scoringOf(game, "waypoint_count", waypointIds.length));
   const matched = orderMatters ? orderedMatches(visitOrder, waypointIds) : visitOrder.length;
 
-  const { remaining, startedAt } = useCountdown(game.time_limit, done, () => finish());
+  // 제한시간은 계획 파트의 예산이다 — 주행으로 넘어가면 멈춘다(주행은 duration 이 곧 시계)
+  const { remaining, startedAt } = useCountdown(game.time_limit, done || planOutcome !== null, () => finish());
 
-  /** 채점은 제출한 최종 경로 기준 — 감점 중첩 금지(같은 자리 사건은 무거운 쪽 하나만). */
-  function finish() {
-    if (finished.current) return;
-    finished.current = true;
+  /** 최종 확정 — 점수·서술을 굳히고 onComplete 1회 호출. */
+  function conclude(res: PlanOutcome) {
+    setOutcome({ score: res.score, parts: res.parts });
+    onComplete({ accuracy: res.score, time_seconds: elapsedSeconds(startedAt), mistakes: res.mistakes });
+  }
+
+  /** 계획 파트 채점 — 제출한 최종 경로 기준. 감점 중첩 금지(같은 자리 사건은 무거운 쪽 하나만). */
+  function computePlan(): PlanOutcome {
     const segs: Array<[Pt, Pt]> = [];
     for (let i = 1; i < route.length; i += 1) segs.push([route[i - 1].at, route[i].at]);
     const hitZones = model.zones.filter((z) => segs.some(([a, b]) => segHitsZone(a, b, z)));
@@ -339,9 +458,32 @@ export function RouteGame({ game, onComplete }: EngineProps) {
     if (overBudget) parts.push(`시간 초과 −${overSum}`);
     if (mistakes === 0) parts.push("위반 없음");
 
-    setOutcome({ score, parts });
-    onComplete({ accuracy: score, time_seconds: elapsed, mistakes });
+    return { score, parts, mistakes };
   }
+
+  /** 계획 제출 — driving 이 있으면 주행 파트로 넘어가고, 없으면 그대로 확정한다. */
+  function finish() {
+    if (finished.current) return;
+    finished.current = true;
+    const plan = computePlan();
+    if (model.driving) {
+      setPlanOutcome(plan);
+      return;
+    }
+    conclude(plan);
+  }
+
+  /** 주행 완주 — 계획 점수에서 주행 감점만 뺀다(clampScore). 기존 채점 계약 위에 얹는 감점. */
+  function handleDriveDone(drive: DriveOutcome) {
+    if (planOutcome === null || finishedDrive.current) return;
+    finishedDrive.current = true;
+    conclude({
+      score: clampScore(planOutcome.score - drive.penalty),
+      parts: [...planOutcome.parts, ...drive.parts],
+      mistakes: planOutcome.mistakes + drive.mistakes,
+    });
+  }
+  const finishedDrive = useRef(false);
 
   /** 새 선분이 구역을 스치면 그 자리에서 드러내고 reason 을 알린다(침범 후에만). */
   function revealFromSegment(from: Pt, to: Pt) {
@@ -412,14 +554,40 @@ export function RouteGame({ game, onComplete }: EngineProps) {
 
   return (
     <div className={shared.shell}>
-      <GameHud
-        label="경유지 연결"
-        count={visitOrder.length}
-        total={waypointTotal}
-        remaining={remaining}
-        timeLimit={game.time_limit}
-      />
+      {/* 기상 배너 — weather_pool 이 있는 게임만. 계획·주행 내내 걸려 있다. */}
+      {weather ? (
+        <div className={styles.weatherBanner} data-effect={weather.effect ?? "없음"} role="status">
+          <span className={styles.weatherBadge}>{weather.effect ? "기상주의보" : "기상 안내"}</span>
+          <b>{pretty(weather.id)}</b>
+          <span className={styles.weatherNotice}>
+            {weather.notice ?? (weather.effect ? pretty(weather.effect) : "특이사항 없음")}
+          </span>
+        </div>
+      ) : null}
 
+      {phase !== "drive" ? (
+        <GameHud
+          label="경유지 연결"
+          count={visitOrder.length}
+          total={waypointTotal}
+          remaining={remaining}
+          timeLimit={game.time_limit}
+        />
+      ) : null}
+
+      {phase === "drive" && model.driving && planOutcome ? (
+        <DrivingPhase
+          driving={model.driving}
+          weather={weather}
+          planScore={planOutcome.score}
+          truckSprite={model.start.sprite}
+          collisionPenalty={scoringOf(game, "collision_penalty", 8)}
+          onDone={handleDriveDone}
+        />
+      ) : null}
+
+      {phase !== "drive" ? (
+        <>
       {/* eslint 없음 — 배경 클릭은 마우스 보조 조작이고, 노드·발견물 버튼만으로도 완주 가능 */}
       <div
         className={`${shared.scene} ${styles.canvas}`}
@@ -427,6 +595,13 @@ export function RouteGame({ game, onComplete }: EngineProps) {
         aria-label="경로 지도 — 노드를 순서대로 클릭해 선을 잇고, 빈 곳을 클릭하면 경유점을 추가해 선을 꺾을 수 있습니다"
         onClick={clickScene}
       >
+        {model.map ? (
+          // 도트 배경 노선도 — 캔버스에 꽉 채워 깔린다. 파일이 없으면 조용히 빠지고
+          // 기존 이름표(mapTag)·반투명 오버레이만 남는다.
+          <div className={styles.mapLayer} aria-hidden="true">
+            <PixelSprite id={model.map} label={pretty(model.map)} size={SCENE.w} fallbackClassName={styles.spriteHidden} />
+          </div>
+        ) : null}
         {model.map ? (
           <span className={styles.mapTag} aria-hidden="true">
             {pretty(model.map)}
@@ -439,10 +614,17 @@ export function RouteGame({ game, onComplete }: EngineProps) {
           preserveAspectRatio="none"
           aria-hidden="true"
         >
+          {/* visible: true 구역은 처음부터, 나머지는 침범해 드러난 뒤에만 */}
           {model.zones
-            .filter((z) => revealed.includes(z.id))
+            .filter((z) => z.visible || revealed.includes(z.id))
             .map((z) => (
-              <circle key={z.id} className={styles.zone} cx={z.at[0]} cy={z.at[1]} r={z.radius} />
+              <circle
+                key={z.id}
+                className={revealed.includes(z.id) ? styles.zone : styles.zonePre}
+                cx={z.at[0]}
+                cy={z.at[1]}
+                r={z.radius}
+              />
             ))}
           <polyline className={styles.line} points={route.map((v) => `${v.at[0]},${v.at[1]}`).join(" ")} />
           {route.map((v, i) => (
@@ -455,6 +637,20 @@ export function RouteGame({ game, onComplete }: EngineProps) {
             />
           ))}
         </svg>
+
+        {/* 구역 표지 스프라이트(jm-01 어린이보호구역_표지) — visible 구역은 사전에, 나머지는 침범 후 */}
+        {model.zones.map((zone) =>
+          zone.sprite !== undefined && (zone.visible || revealed.includes(zone.id)) ? (
+            <span
+              key={`zone-sprite-${zone.id}`}
+              className={styles.zoneSprite}
+              style={{ left: `${(zone.at[0] / SCENE.w) * 100}%`, top: `${(zone.at[1] / SCENE.h) * 100}%` }}
+              aria-hidden="true"
+            >
+              <PixelSprite id={zone.sprite} label={pretty(zone.id)} size={34} fallbackClassName={styles.spriteHidden} />
+            </span>
+          ) : null,
+        )}
 
         {nodes.map((node) => {
           const light = model.lights.get(node.id);
@@ -483,6 +679,10 @@ export function RouteGame({ game, onComplete }: EngineProps) {
                   style={{ background: NODE_COLORS[node.color] ?? "#c9c9d9" }}
                   aria-hidden="true"
                 />
+              ) : null}
+              {node.sprite !== undefined ? (
+                // 도트 마커(트럭·배송지·창고) — 파일이 없으면 숨고 라벨만 남는다
+                <PixelSprite id={node.sprite} label={text} size={24} fallbackClassName={styles.spriteHidden} />
               ) : null}
               <span className={styles.nodeText}>{text}</span>
               {isStart ? (
@@ -559,12 +759,371 @@ export function RouteGame({ game, onComplete }: EngineProps) {
             disabled={!submitReady}
             title={reportMode && !submitReady ? "원인 구간에 도착한 뒤 보고할 수 있습니다" : undefined}
           >
-            {submitLabel}
+            {model.driving && submitReady ? `${submitLabel} → 출발` : submitLabel}
           </button>
         </div>
+      ) : null}
+        </>
       ) : null}
 
       {outcome ? <ResultBar score={outcome.score}>{outcome.parts.join(" · ")}</ResultBar> : null}
     </div>
+  );
+}
+
+/* ── 주행 파트 (data.driving) — 1945식 종스크롤 ── */
+
+type DriveOutcome = { penalty: number; parts: string[]; mistakes: number };
+
+const ROAD_L = 300; // 도로 좌우 경계(SCENE 좌표)
+const ROAD_R = 660;
+const LANES = [345, 435, 525, 615]; // 4차선 중심
+const TRUCK_W = 40; // 배송트럭_톱다운(10x14) 표시 폭·높이 — SCENE 단위
+const TRUCK_H = 56;
+const SPEED_LINE_Y = 205; // 서행선 — 이 위(화면 위쪽)에 머무르면 과속 위치
+const BASE_SCROLL = 235; // 기본 도로 흐름 속도(SCENE 단위/초)
+const WEATHER_SLOW_FACTOR = 0.72; // effect: 서행 기상이면 감속(속도에 날씨 반영)
+const REDUCED_FACTOR = 0.55; // prefers-reduced-motion 간이 모드 저속
+const STEER_X = 330; // 트럭 조향 속도(단위/초)
+const STEER_Y = 270;
+const SPAWN_Y = -70; // 장애물이 화면 위 밖에서 태어나는 y
+const SPEEDING_GRACE = 1.0; // 서행 구간에서 이 시간(초) 이상 과속 '유지'해야 위반 1회
+
+/** 장애물 스프라이트별 표시 크기(SCENE 단위) — viewBox 비율과 맞춘다 */
+const OBSTACLE_SIZE: Record<string, { w: number; h: number }> = {
+  장애물_차량: { w: 40, h: 56 },
+  물웅덩이: { w: 46, h: 26 },
+  장애물_라바콘: { w: 30, h: 30 },
+};
+
+type Obstacle = { key: number; spawnAt: number; x: number; sprite: string; w: number; h: number };
+
+/** 스폰 스케줄 — 시작 시 한 번 뽑는다(Math.random 허용). 이후 위치는 전부 시계 역산. */
+function buildSchedule(driving: DrivingDef): Obstacle[] {
+  const list: Obstacle[] = [];
+  const gap = 0.55 / driving.density; // density 0.5 → 평균 1.1~2.0초 간격
+  let t = 1.6; // 첫 장애물 전 유예
+  let key = 0;
+  let prevLane = -1;
+  while (t < driving.duration - 1) {
+    // 직전과 다른 차선 — 한 번에 하나만 내려오므로 항상 피할 길이 있다
+    let lane = Math.floor(Math.random() * LANES.length);
+    if (lane === prevLane) lane = (lane + 1 + Math.floor(Math.random() * (LANES.length - 1))) % LANES.length;
+    prevLane = lane;
+    const sprite = driving.obstacles[Math.floor(Math.random() * driving.obstacles.length)];
+    const size = OBSTACLE_SIZE[sprite] ?? { w: 40, h: 40 };
+    list.push({ key, spawnAt: t, x: LANES[lane], sprite, w: size.w, h: size.h });
+    key += 1;
+    t += gap * (0.75 + Math.random() * 0.9);
+  }
+  return list;
+}
+
+type Frame = {
+  elapsed: number;
+  truck: Pt;
+  hits: number;
+  zone: SlowZone | null;
+  zoneViolated: boolean;
+  speeding: boolean;
+  hitFlash: boolean;
+};
+
+const KEYMAP: Record<string, "up" | "down" | "left" | "right"> = {
+  ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
+  w: "up", s: "down", a: "left", d: "right",
+  W: "up", S: "down", A: "left", D: "right",
+};
+
+function DrivingPhase({
+  driving,
+  weather,
+  planScore,
+  truckSprite,
+  collisionPenalty,
+  onDone,
+}: {
+  driving: DrivingDef;
+  weather: Weather | null;
+  planScore: number;
+  truckSprite?: string;
+  collisionPenalty: number;
+  onDone: (result: DriveOutcome) => void;
+}) {
+  // 간이 모드 — 저속·무장애물. 서행 의무는 반사신경이 아니라 판단이라 유지한다.
+  const reduced = useMemo(
+    () => typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    [],
+  );
+  const weatherSlow = weather?.effect === "서행";
+  const scroll = BASE_SCROLL * (weatherSlow ? WEATHER_SLOW_FACTOR : 1) * (reduced ? REDUCED_FACTOR : 1);
+  const schedule = useMemo(() => (reduced ? [] : buildSchedule(driving)), [driving, reduced]);
+  // when_effect 구간은 해당 기상일 때만 활성 — 날씨가 주행 규칙에 반영되는 지점
+  const zones = useMemo(
+    () => driving.slowZones.filter((z) => z.whenEffect === undefined || z.whenEffect === weather?.effect),
+    [driving, weather],
+  );
+
+  const startRef = useRef<number | null>(null); // 첫 프레임에 고정 — 이후 전부 이 시각에서 역산
+  const lastRef = useRef(0);
+  const truckRef = useRef<{ x: number; y: number }>({ x: 480, y: 372 });
+  const keysRef = useRef(new Set<string>());
+  const hitRef = useRef(new Set<number>());
+  const lastHitAtRef = useRef(-10);
+  const violatedRef = useRef(new Set<string>());
+  const speedingForRef = useRef(0);
+  const endedRef = useRef(false);
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+
+  const [frame, setFrame] = useState<Frame>({
+    elapsed: 0,
+    truck: [480, 372],
+    hits: 0,
+    zone: null,
+    zoneViolated: false,
+    speeding: false,
+    hitFlash: false,
+  });
+  const [events, setEvents] = useState<string[]>([]);
+
+  // 키 입력 — 방향키/WASD. 방향키의 페이지 스크롤은 막는다.
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      const dir = KEYMAP[e.key];
+      if (!dir) return;
+      e.preventDefault();
+      keysRef.current.add(dir);
+    };
+    const up = (e: KeyboardEvent) => {
+      const dir = KEYMAP[e.key];
+      if (dir) keysRef.current.delete(dir);
+    };
+    const clear = () => keysRef.current.clear();
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", clear);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", clear);
+    };
+  }, []);
+
+  // 시뮬레이션 — rAF 는 렌더만 한다. 장애물 y·진행률은 시계에서 역산하고,
+  // 조향(입력)만 프레임 dt 로 적분한다(입력은 역산이 불가능한 유일한 값).
+  // 탭이 백그라운드면 rAF 가 멈추고, 돌아오면 장애물은 지나가 있다 — 억울한 감점 없음.
+  useEffect(() => {
+    let raf = 0;
+    const step = () => {
+      const now = Date.now();
+      if (startRef.current === null) {
+        startRef.current = now;
+        lastRef.current = now;
+      }
+      const elapsed = (now - startRef.current) / 1000;
+      const dt = Math.min(0.25, (now - lastRef.current) / 1000);
+      lastRef.current = now;
+
+      const truck = truckRef.current;
+      const keys = keysRef.current;
+      if (keys.has("left")) truck.x -= STEER_X * dt;
+      if (keys.has("right")) truck.x += STEER_X * dt;
+      if (keys.has("up")) truck.y -= STEER_Y * dt;
+      if (keys.has("down")) truck.y += STEER_Y * dt;
+      truck.x = Math.max(ROAD_L + TRUCK_W / 2, Math.min(ROAD_R - TRUCK_W / 2, truck.x));
+      truck.y = Math.max(60, Math.min(SCENE.h - TRUCK_H / 2 - 6, truck.y));
+
+      const progress = Math.min(1, elapsed / driving.duration);
+      const zone = zones.find((z) => progress >= z.from && progress <= z.to) ?? null;
+      const newEvents: string[] = [];
+
+      // 충돌 — 장애물당 1회(사건당 감점 하나). 히트박스는 66%로 너그럽게.
+      for (const ob of schedule) {
+        if (hitRef.current.has(ob.key)) continue;
+        const y = SPAWN_Y + (elapsed - ob.spawnAt) * scroll;
+        if (y < SPAWN_Y || y > SCENE.h + 80) continue;
+        if (
+          Math.abs(ob.x - truck.x) < (ob.w + TRUCK_W) * 0.33 &&
+          Math.abs(y - truck.y) < (ob.h + TRUCK_H) * 0.33
+        ) {
+          hitRef.current.add(ob.key);
+          lastHitAtRef.current = elapsed;
+          newEvents.push(`충돌 — ${pretty(ob.sprite)} −${collisionPenalty}`);
+        }
+      }
+
+      // 서행 의무 — 서행선 위(과속 위치)를 SPEEDING_GRACE 초 유지하면 구역당 1회 감점
+      let speeding = false;
+      if (zone !== null && !violatedRef.current.has(zone.id)) {
+        if (truck.y < SPEED_LINE_Y) {
+          speeding = true;
+          speedingForRef.current += dt;
+          if (speedingForRef.current >= SPEEDING_GRACE) {
+            violatedRef.current.add(zone.id);
+            speedingForRef.current = 0;
+            newEvents.push(`과속 위반 — ${pretty(zone.id)} −${zone.penalty}`);
+          }
+        } else {
+          speedingForRef.current = 0;
+        }
+      } else {
+        speedingForRef.current = 0;
+      }
+
+      if (newEvents.length > 0) setEvents((cur) => [...cur, ...newEvents].slice(-4));
+      setFrame({
+        elapsed,
+        truck: [truck.x, truck.y],
+        hits: hitRef.current.size,
+        zone,
+        zoneViolated: zone !== null && violatedRef.current.has(zone.id),
+        speeding,
+        hitFlash: elapsed - lastHitAtRef.current < 0.5,
+      });
+
+      if (elapsed >= driving.duration) {
+        if (!endedRef.current) {
+          endedRef.current = true;
+          const collisions = hitRef.current.size;
+          const violated = zones.filter((z) => violatedRef.current.has(z.id));
+          const collisionSum = collisions * collisionPenalty;
+          const zoneSum = violated.reduce((s, z) => s + z.penalty, 0);
+          const parts: string[] = [
+            collisions > 0 ? `주행 충돌 ${collisions}건 −${collisionSum}` : "무충돌 주행",
+          ];
+          if (violated.length > 0) {
+            parts.push(`서행 위반 ${violated.map((z) => pretty(z.id)).join("·")} −${zoneSum}`);
+          }
+          if (reduced) parts.push("간이 주행 모드");
+          onDoneRef.current({ penalty: collisionSum + zoneSum, parts, mistakes: collisions + violated.length });
+        }
+        return; // 완주 — 루프 중단
+      }
+      raf = window.requestAnimationFrame(step);
+    };
+    raf = window.requestAnimationFrame(step);
+    return () => window.cancelAnimationFrame(raf);
+  }, [driving, zones, schedule, scroll, collisionPenalty, reduced]);
+
+  const press = (dir: string, on: boolean) => () => {
+    if (on) keysRef.current.add(dir);
+    else keysRef.current.delete(dir);
+  };
+
+  const remainingSec = Math.max(0, Math.ceil(driving.duration - frame.elapsed));
+  const timerPct = Math.max(0, (1 - frame.elapsed / driving.duration) * 100);
+  const scrollPx = Math.round(frame.elapsed * scroll);
+  const pctX = (x: number) => `${(x / SCENE.w) * 100}%`;
+  const pctY = (y: number) => `${(y / SCENE.h) * 100}%`;
+  const visibleObstacles = schedule
+    .map((ob) => ({ ob, y: SPAWN_Y + (frame.elapsed - ob.spawnAt) * scroll }))
+    .filter(({ y }) => y >= SPAWN_Y && y <= SCENE.h + 80);
+
+  return (
+    <>
+      <div className={styles.driveHud}>
+        <span className={styles.driveHudLabel}>배송 주행</span>
+        <span className={shared.timerTrack}>
+          <span className={shared.timerValue} style={{ width: `${timerPct}%` }} data-low={remainingSec <= 5} />
+        </span>
+        <span className={styles.driveChip}>{remainingSec}초</span>
+        <span className={styles.driveChip}>계획 {planScore}점</span>
+        <span className={styles.driveChip} data-warn={frame.hits > 0}>
+          충돌 {frame.hits}
+        </span>
+      </div>
+
+      <div
+        className={`${shared.scene} ${styles.driveScene}`}
+        role="application"
+        aria-label="배송 주행 — 방향키 또는 WASD로 트럭을 움직여 장애물을 피하세요. 서행 구간에서는 트럭을 서행선 아래로 내리세요"
+      >
+        <div className={styles.roadSide} style={{ left: 0, width: pctX(ROAD_L) }} aria-hidden="true" />
+        <div className={styles.roadSide} style={{ right: 0, width: pctX(SCENE.w - ROAD_R) }} aria-hidden="true" />
+        <div className={styles.road} style={{ left: pctX(ROAD_L), width: pctX(ROAD_R - ROAD_L) }} aria-hidden="true">
+          {[1, 2, 3].map((i) => (
+            <span
+              key={i}
+              className={styles.laneLine}
+              style={{ left: `${i * 25}%`, backgroundPositionY: `${scrollPx}px` }}
+            />
+          ))}
+        </div>
+
+        {frame.zone ? <div className={styles.zoneTint} data-violated={frame.zoneViolated} aria-hidden="true" /> : null}
+        {frame.zone ? (
+          <span className={styles.speedLine} style={{ top: pctY(SPEED_LINE_Y) }} aria-hidden="true">
+            <i>서행선</i>
+          </span>
+        ) : null}
+        {frame.zone ? (
+          <div className={styles.slowBanner} data-speeding={frame.speeding} data-violated={frame.zoneViolated} role="status">
+            {frame.zone.sprite !== undefined ? (
+              <PixelSprite id={frame.zone.sprite} label="" size={20} fallbackClassName={styles.spriteHidden} />
+            ) : null}
+            서행 의무 — {pretty(frame.zone.id)}
+            {frame.zoneViolated ? " (위반)" : ""}
+          </div>
+        ) : null}
+
+        {visibleObstacles.map(({ ob, y }) => (
+          <span
+            key={ob.key}
+            className={styles.obstacle}
+            data-hit={hitRef.current.has(ob.key)}
+            style={{ left: pctX(ob.x), top: pctY(y), width: pctX(ob.w) }}
+            aria-hidden="true"
+          >
+            <PixelSprite id={ob.sprite} label={pretty(ob.sprite)} size={ob.w} fallbackClassName={styles.obstacleFallback} />
+          </span>
+        ))}
+
+        <span
+          className={styles.truck}
+          data-hit={frame.hitFlash}
+          style={{ left: pctX(frame.truck[0]), top: pctY(frame.truck[1]), width: pctX(TRUCK_W) }}
+          aria-hidden="true"
+        >
+          {truckSprite !== undefined ? (
+            <PixelSprite id={truckSprite} label="배송트럭" size={TRUCK_W} fallbackClassName={styles.obstacleFallback} />
+          ) : (
+            <span className={styles.obstacleFallback} />
+          )}
+        </span>
+      </div>
+
+      {events.length > 0 ? (
+        <div className={styles.notices} role="log" aria-live="polite">
+          {events.map((text, i) => (
+            <p key={`${i}-${text}`} className={styles.notice}>
+              ⚠ {text}
+            </p>
+          ))}
+        </div>
+      ) : null}
+
+      <div className={styles.driveControls}>
+        <div className={styles.dpad}>
+          <button type="button" className={styles.dpadButton} style={{ gridArea: "up" }} aria-label="위로 이동"
+            onPointerDown={press("up", true)} onPointerUp={press("up", false)}
+            onPointerLeave={press("up", false)} onPointerCancel={press("up", false)}>▲</button>
+          <button type="button" className={styles.dpadButton} style={{ gridArea: "left" }} aria-label="왼쪽으로 이동"
+            onPointerDown={press("left", true)} onPointerUp={press("left", false)}
+            onPointerLeave={press("left", false)} onPointerCancel={press("left", false)}>◀</button>
+          <button type="button" className={styles.dpadButton} style={{ gridArea: "down" }} aria-label="아래로 이동"
+            onPointerDown={press("down", true)} onPointerUp={press("down", false)}
+            onPointerLeave={press("down", false)} onPointerCancel={press("down", false)}>▼</button>
+          <button type="button" className={styles.dpadButton} style={{ gridArea: "right" }} aria-label="오른쪽으로 이동"
+            onPointerDown={press("right", true)} onPointerUp={press("right", false)}
+            onPointerLeave={press("right", false)} onPointerCancel={press("right", false)}>▶</button>
+        </div>
+        <p className={styles.driveNote}>
+          {reduced
+            ? "간이 모드 — 장애물 없이 서행 주행합니다. 서행 구간의 서행선만 지키세요."
+            : "방향키·WASD로 트럭을 움직여 장애물을 피하세요. 서행 구간에선 트럭을 서행선 아래로."}
+        </p>
+      </div>
+    </>
   );
 }

@@ -288,6 +288,19 @@ export type GameNpc = {
   spawn: string | null; // 맵 geometry.spawns의 자리 id (teamjang|sasu|bujang)
 };
 export type GameSpawn = { id: string; x: number; y: number };
+// overhead 오클루더 — 가구 상단부. 배경을 같은 위치에서 잘라 캐릭터 위에 y-정렬로 겹친다.
+// 사각형(x,y,w,h) 또는 폴리곤(points+bbox), 복잡한 가구는 픽셀 마스크(mask 파일명).
+export type GameOccluder = {
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+  points?: Array<[number, number]>; // 절대(스테이지) 좌표 꼭짓점
+  bbox?: { x: number; y: number; w: number; h: number };
+  baseline: number; // 밑변 y — 발이 이보다 위(작음)면 캐릭터가 '뒤' → 가려짐
+  mask?: string; // 맵 폴더 기준 마스크 PNG 파일명
+  id?: string;
+};
 export type GameMapData = {
   id: string;
   background: string | null; // /maps/<폴더>/<파일>.png (백엔드 정적 서빙) — 절대 URL은 API_BASE_URL 접두
@@ -296,6 +309,8 @@ export type GameMapData = {
     spawns?: GameSpawn[];
     walkable?: Array<{ x: number; y: number; w: number; h: number; id?: string }>;
     collision?: Array<{ x: number; y: number; w: number; h: number }>;
+    collision_polys?: Array<{ points: Array<[number, number]>; id?: string }>; // 대각선 구조물 등
+    overhead?: GameOccluder[];
     [key: string]: unknown;
   };
 };
