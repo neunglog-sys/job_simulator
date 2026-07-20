@@ -38,7 +38,7 @@
 태도가 달랐다는 뜻이니 그 점을 짚으세요. 태도만으로 적합도(fit_score)를 낮추지는 마세요.
 {% endif %}
 
-{% set minigame = performance.get('minigame') %}{% if minigame %}- 실무 미니게임(손 조작 과제): {{ minigame.engine }} 유형 · 정확도 {{ minigame.score }}점{% if minigame.get('mistakes') is not none %} · 실수 {{ minigame.mistakes }}회{% endif %}{% if minigame.get('time_seconds') is not none %} · {{ minigame.time_seconds }}초{% endif %}
+{% set minigame = performance.get('minigame') %}{% if minigame %}- 실무 미니게임(손 조작 과제): {{ minigame.engine }} 유형 · 정확도 {{ minigame.score }}점{% if minigame.get('passed') is not none %} · {{ '기준 통과' if minigame.passed else '기준(' ~ minigame.pass_score ~ '점) 미달' }}{% endif %}{% if minigame.get('mistakes') is not none %} · 실수 {{ minigame.mistakes }}회{% endif %}{% if minigame.get('time_seconds') is not none %} · {{ minigame.time_seconds }}초{% endif %}
 
 미니게임 해석 지침: 대화·문서형 미션과 달리 **손으로 직접 해본 실무 조작**(결함 찾기·분류·
 계량 등)의 결과입니다. 이미 해당 역량 점수에 일부 반영되어 있으니 점수를 다시 얹지 말고,

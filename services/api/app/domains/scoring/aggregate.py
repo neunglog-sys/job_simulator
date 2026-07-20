@@ -217,6 +217,8 @@ def minigame_of(state: dict) -> dict | None:
     if not isinstance(game, dict):
         return None
     score = game.get("score")
+    if game.get("rejected"):  # 시나리오 선언과 엔진 불일치 — 저장만 된 기록
+        return None
     if game.get("engine") not in MINIGAME_COMPETENCY:
         return None
     if not isinstance(score, (int, float)) or isinstance(score, bool):
