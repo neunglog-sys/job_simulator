@@ -57,4 +57,7 @@ class SimulationOut(BaseModel):
     step_ids: list[str] = []  # 본편 미션 id 순서 (진행률 계산용, 돌발 퀘스트 제외)
     npcs: list[NpcOut] = []  # 시나리오 NPC 표시정보 (npc_id → name/role/rank/spawn)
     map: GameMapOut | None = None  # null이면 맵 미배정 → module 배경 폴백
+    # 4단계 미니게임 정의(data/minigames/<slug>.yaml) — null이면 프론트는 '준비 중' 폴백.
+    # 엔진별로 data 구조가 달라 dict 그대로 통과시킨다(스키마로 좁히면 새 엔진마다 백엔드 수정 필요).
+    minigame: dict | None = None
     created_at: datetime
