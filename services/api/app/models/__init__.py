@@ -36,6 +36,10 @@ class User(TimestampMixin, Base):
     email_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
     pw_hash: Mapped[str | None] = mapped_column(String(255))  # 소셜 전용 계정은 None
     name: Mapped[str] = mapped_column(EncryptedText)
+    terms_agreed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    terms_version: Mapped[str | None] = mapped_column(String(20))
+    privacy_agreed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    privacy_version: Mapped[str | None] = mapped_column(String(20))
 
 
 class OAuthAccount(Base):

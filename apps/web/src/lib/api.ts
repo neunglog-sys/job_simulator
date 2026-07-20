@@ -86,7 +86,13 @@ export type TokenOut = { access_token: string; token_type: string };
 export type Me = { id: number; email: string | null; name: string };
 export type Consultation = { id: number; status: string; created_at: string };
 
-export function signup(body: { email: string; password: string; name: string }): Promise<TokenOut> {
+export function signup(body: {
+  email: string;
+  password: string;
+  name: string;
+  terms_agreed: true;
+  privacy_agreed: true;
+}): Promise<TokenOut> {
   return request(API_ENDPOINTS.auth.signUp, { method: "POST", body: JSON.stringify(body) });
 }
 
