@@ -18,6 +18,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.content import game_map
 from app.content import minigame
+from app.content.loader import yaml_scenario_slugs
 from app.content.kb_map import kb_jobs_for
 from app.content.knowledge import search_knowledge
 from app.domains.coach import service as coach
@@ -121,6 +122,10 @@ def _clean_npc(text: str) -> str:
 async def create_simulation(
     session: AsyncSession, user: User, scenario_slug: str
 ) -> tuple[Simulation, Scenario]:
+    # _disabled로 뺀 시나리오는 DB에 남아있어도 새 플레이를 못 열게 막는다
+    # (목록에서만 숨기면 slug 직접 지정으로 우회 가능하므로 진입점도 차단).
+    if scenario_slug not in yaml_scenario_slugs():
+        raise HTTPException(status_code=404, detail=f"시나리오 없음: {scenario_slug}")
     scenario = (
         await session.execute(select(Scenario).where(Scenario.slug == scenario_slug))
     ).scalar_one_or_none()

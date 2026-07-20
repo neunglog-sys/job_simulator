@@ -1,11 +1,10 @@
 # 시나리오 → 게임 맵 매핑
 #
 # 값 = maps/ 아래 폴더명 = 시나리오 slug (2026-07-20 재제작부터 slug로 통일).
-# null = 아직 맵 없음 (배경 제작 대기).
+# null = 아직 맵 없음.
 #
-# 새 맵 규격: 맵_제작_가이드.md 참고 (walkable/collision/overhead/spawns 레이어).
+# 새 맵 규격: maps/맵_제작_가이드.md 참고.
 
-backend-dev-day1: null
 cln-01: cln-01
 gm-01: gm-01
 hr-01: hr-01
@@ -36,17 +35,17 @@ stn-03: stn-03
 stn-04: stn-04
 stn-05: stn-05
 wh-01: wh-01
-yg-01: null
-yg-02: null
-yg-03: null
-yg-04: null
-ys-01: null
-ys-02: null
-ys-03: null
-ys-04: null
-ys-05: null
-ys-06: null
-ys-07: null
-ys-08: null
-ys-09: null
-ys-10: null
+yg-01: yg-01
+yg-02: yg-02
+yg-03: yg-03
+yg-04: yg-04
+ys-01: ys-01
+ys-02: ys-02
+ys-03: ys-03
+ys-04: ys-04
+ys-05: ys-05
+ys-06: ys-06
+ys-07: ys-07
+ys-08: ys-08
+ys-09: ys-09
+ys-10: ys-10
