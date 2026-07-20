@@ -65,7 +65,7 @@
   z-index: 0;
   width: 100%;
   height: 100%;
-  background-color: #d8dadd;
+  background-color: #16141f;
   background-image: var(--scenario-map-image, none);
   background-repeat: no-repeat;
   background-position: center;
@@ -584,6 +584,8 @@ button.headerOrb:active {
   position: absolute;
   inset: 0;
   transform-origin: 0 0;
+  /* 확대 시 픽셀이 뭉개지거나 번지지 않게 — 배경·스프라이트 모두에 적용 */
+  image-rendering: pixelated;
 }
 
 /* overhead 오클루더 — 배경의 가구 상단부 크롭. z-index(=밑변 y)로 캐릭터와 앞뒤 경쟁 */
@@ -611,8 +613,9 @@ button.headerOrb:active {
   height: 96px;
   pointer-events: none;
   /* 전환은 컷신에서만 (인라인 style로 지정) — 매 프레임 좌표가 갱신되는 조작 중에
-     transform 전환이 걸리면 카메라와 어긋나 캐릭터가 떨려 보인다 */
-  will-change: transform;
+     transform 전환이 걸리면 카메라와 어긋나 캐릭터가 떨려 보인다.
+     will-change는 두지 않는다: 부모 무대가 확대되는데 자식이 따로 래스터화되면
+     확대 과정에서 번져 잔상으로 보인다. */
 }
 
 .playerAura {
