@@ -17,6 +17,10 @@ const GAME_LABEL: Record<string, string> = {
   "jm-01": "배송 루트 (route)",
   "ms-10": "트렌치 시공 (sequence)",
   "ms-07": "전처리 리듬 (physics)",
+  "ys-05": "안전 순회점검 (spot)",
+  "ms-06": "정량 급이 (pour)",
+  "ms-09": "정밀 시험절삭 (trace)",
+  "backend-dev-day1": "알림 예외 처리 (typing)",
 };
 
 function Preview() {
