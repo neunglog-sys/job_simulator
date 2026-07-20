@@ -51,6 +51,17 @@ type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 const VOICE_LEVEL_THRESHOLD = 0.025;
 const VOICE_START_GRACE_MS = 1_400;
 const VOICE_SILENCE_TIMEOUT_MS = 2_800;
+const VOICE_VISUAL_UPDATE_MS = 42;
+const VOICE_IDLE_BAR_LEVELS = [0.3, 0.44, 0.58, 0.52, 0.4, 0.28];
+const VOICE_FREQUENCY_BANDS = [
+  [85, 220],
+  [220, 420],
+  [420, 760],
+  [760, 1_300],
+  [1_300, 2_300],
+  [2_300, 4_000],
+] as const;
+const VOICE_FREQUENCY_GAINS = [0.88, 0.94, 1, 1.08, 1.18, 1.3];
 
 type ScenarioControlPanelProps = {
   npcName: string;
@@ -93,6 +104,7 @@ export function ScenarioControlPanel({
   const [draft, setDraft] = useState("");
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [voiceIssue, setVoiceIssue] = useState<string | null>(null);
+  const [voiceBars, setVoiceBars] = useState(() => [...VOICE_IDLE_BAR_LEVELS]);
   const inputRef = useRef<HTMLInputElement>(null);
   const conversationRef = useRef<HTMLDivElement>(null);
   const voiceStreamRef = useRef<MediaStream | null>(null);
@@ -147,6 +159,7 @@ export function ScenarioControlPanel({
       }
 
       cleanupVoiceResources();
+      setVoiceBars([...VOICE_IDLE_BAR_LEVELS]);
 
       if (!hadActiveSession) return;
 
@@ -241,6 +254,7 @@ export function ScenarioControlPanel({
       voiceSessionActiveRef.current = true;
       voiceInputBaseRef.current = draft.trim();
       voiceFinalTranscriptRef.current = "";
+      setVoiceBars([...VOICE_IDLE_BAR_LEVELS]);
       setRecordingState("recording");
 
       const recognition = new SpeechRecognitionClass();
@@ -309,7 +323,11 @@ export function ScenarioControlPanel({
 
         analyser.fftSize = 512;
         analyser.smoothingTimeConstant = 0.78;
-        const samples = new Uint8Array(analyser.fftSize);
+        const timeSamples = new Uint8Array(analyser.fftSize);
+        const frequencySamples = new Uint8Array(analyser.frequencyBinCount);
+        const displayedBars = [...VOICE_IDLE_BAR_LEVELS];
+        const hertzPerBin = audioContext.sampleRate / analyser.fftSize;
+        let lastVisualUpdateAt = 0;
         source.connect(analyser);
         voiceAudioContextRef.current = audioContext;
         voiceSourceRef.current = source;
@@ -318,15 +336,51 @@ export function ScenarioControlPanel({
         const measureVoiceLevel = () => {
           if (!voiceSessionActiveRef.current) return;
 
-          analyser.getByteTimeDomainData(samples);
+          analyser.getByteTimeDomainData(timeSamples);
           let total = 0;
-          for (const sample of samples) {
+          for (const sample of timeSamples) {
             const normalized = (sample - 128) / 128;
             total += normalized * normalized;
           }
 
-          const rms = Math.sqrt(total / samples.length);
+          const rms = Math.sqrt(total / timeSamples.length);
           const now = window.performance.now();
+
+          if (now - lastVisualUpdateAt >= VOICE_VISUAL_UPDATE_MS) {
+            analyser.getByteFrequencyData(frequencySamples);
+            const nextBars = VOICE_FREQUENCY_BANDS.map(([minimumHz, maximumHz], index) => {
+              const startBin = Math.max(1, Math.floor(minimumHz / hertzPerBin));
+              const endBin = Math.min(frequencySamples.length - 1, Math.ceil(maximumHz / hertzPerBin));
+              let bandTotal = 0;
+              let bandPeak = 0;
+              let binCount = 0;
+
+              for (let bin = startBin; bin <= endBin; bin += 1) {
+                const amplitude = frequencySamples[bin];
+                bandTotal += amplitude;
+                bandPeak = Math.max(bandPeak, amplitude);
+                binCount += 1;
+              }
+
+              const average = binCount ? bandTotal / binCount : 0;
+              const energy = average * 0.72 + bandPeak * 0.28;
+              const normalizedEnergy = Math.min(
+                1,
+                Math.max(0, (energy - 12) / 100) * VOICE_FREQUENCY_GAINS[index],
+              );
+              const idleLevel = VOICE_IDLE_BAR_LEVELS[index];
+              const targetLevel = Math.min(
+                1,
+                idleLevel + Math.pow(normalizedEnergy, 0.72) * (1 - idleLevel),
+              );
+              const smoothedLevel = displayedBars[index] * 0.55 + targetLevel * 0.45;
+              displayedBars[index] = smoothedLevel;
+              return smoothedLevel;
+            });
+
+            setVoiceBars(nextBars);
+            lastVisualUpdateAt = now;
+          }
 
           if (rms >= VOICE_LEVEL_THRESHOLD) {
             lastSoundAt = now;
@@ -346,6 +400,7 @@ export function ScenarioControlPanel({
     } catch (error) {
       voiceSessionActiveRef.current = false;
       cleanupVoiceResources();
+      setVoiceBars([...VOICE_IDLE_BAR_LEVELS]);
       setRecordingState("idle");
       const errorName = error instanceof DOMException ? error.name : "";
       setVoiceIssue(
@@ -472,9 +527,23 @@ export function ScenarioControlPanel({
             {recordingState === "requesting" || recordingState === "processing" ? (
               <CircleNotch className={styles.voiceDialogueSpinner} aria-hidden="true" />
             ) : recordingState === "recording" ? (
-              <Stop weight="fill" aria-hidden="true" />
+              <>
+                <span className={styles.voiceDialogueEqualizer} aria-hidden="true">
+                  {voiceBars.map((level, index) => (
+                    <i
+                      key={index}
+                      style={{
+                        transform: `scaleY(${level})`,
+                      }}
+                    />
+                  ))}
+                </span>
+                <span className={styles.voiceDialogueStopIcon} aria-hidden="true">
+                  <Stop weight="fill" />
+                </span>
+              </>
             ) : (
-              <Microphone weight="duotone" aria-hidden="true" />
+              <Microphone weight="bold" aria-hidden="true" />
             )}
           </button>
         </form>
