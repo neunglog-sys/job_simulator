@@ -47,7 +47,9 @@ GET /api/reports         → 내 리포트 목록
 ## 2-1. AI 상담 — 흐름: 사전 설문(5지선다) → (선택) 이력서 업로드 → 자유대화
 
 ```
-POST /api/consultations                    → {id}  상담 세션 시작
+POST /api/consultations                    → {id, greeting_clip_url}  상담 세션 시작
+     greeting_clip_url: 아바타 인사말 사전 렌더 클립 (예 "/avatar-clips/greeting.mp4").
+     있으면 진입 즉시 재생(첫 발화 생성 대기 0초), null이면 기존 흐름 그대로
 GET  /api/consultations/{id}/survey        → {items: [{id, text, options:[{key,label}]}]}  설문 문항
 POST /api/consultations/{id}/survey        → {answers: {"SV-001":"a", ...}}  전 문항 필수
      응답: {profile, avatar_lines: [대사 3개]}
@@ -132,7 +134,12 @@ POST /api/simulations/{id}/finish       → 중도 포기 (aborted 처리)
   },
   "npcs": [                        ← 시나리오 NPC 표시정보 (step.npcs의 npc_id를 여기서 이름 조회)
     {"npc_id": "npc_kts-01_01", "name": "원무팀장", "role": "원무 접수", "rank": "팀장"}
-  ]
+  ],
+  "minigame": {                    ← 4단계 실무 미니게임 정의 (data/minigames/<slug>.yaml)
+    "engine": "spot", "title": "...", "intro": "...",
+    "time_limit": 60, "pass_score": 70,
+    "data": { ...엔진별 상이 — 스프라이트 파일명 포함... }, "scoring": {}
+  }                                ← null이면 '준비 중' 빈 창 폴백
 }
 ```
 
@@ -151,16 +158,17 @@ POST /api/simulations/{id}/finish       → 중도 포기 (aborted 처리)
     "walkable":  [{"x","y","w","h"}, ...],     ← 걸을 수 있는 영역 (사각형 합집합)
     "collision": [{"x","y","w","h"}, ...],     ← 통과 불가 (책상·벽 등)
     "spawns": [ {"id": "player", "x", "y"},    ← 플레이어 시작 위치
-                {"id": "teamjang", ...}, {"id": "sasu", ...}, {"id": "bujang", ...} ]
+                {"id": "teamjang", ...}, {"id": "sasu", ...}, {"id": "bujang", ...},
+                {"id": "npc4", ...}, {"id": "npc5", ...} ]   ← 4~5인 시나리오용 확장 자리 (맵에 있을 때만)
   }
 }
 ```
 
 - **이동 판정**: 발 기준점이 `walkable 안` **그리고** 발 박스가 `collision 밖`이면 이동 가능.
   참고 구현이 각 맵 폴더의 `playtest.html`에 있습니다 (판정 함수 그대로 옮기면 됨 — 축분리 슬라이딩 포함).
-- **NPC 배치**: `npcs[].spawn`(teamjang|sasu|bujang)이 각 NPC가 서는 자리입니다.
+- **NPC 배치**: `npcs[].spawn`(teamjang|sasu|bujang|npc4|npc5)이 각 NPC가 서는 자리입니다.
   `geometry.spawns`에서 같은 id의 좌표를 찾아 거기에 그리세요.
-- **`map`이 null이면** (맵 미배정 시나리오 11개) 기존 `module` 배경 방식으로 폴백하세요.
+- **`map`이 null이면** (맵 미배정 시나리오) 기존 `module` 배경 방식으로 폴백하세요.
 - 근접 대화: 플레이어-NPC 거리 < **130px**이면 "대화하기" 버튼 → WS `chat`에 그 npc_id.
 
 ### 과제 유형(`task.kind`) — UI 분기
@@ -184,11 +192,17 @@ POST /api/simulations/{id}/finish       → 중도 포기 (aborted 처리)
 | `chat` | `{type:"chat", npc:"npc_kts-01_01", content:"..."}` — `npc`는 **npc_id** | NPC 대화 |
 | `task_submit` | `{type:"task_submit", content:...}` — `content`는 서술형이면 텍스트, 선택·배열형이면 key 배열(`["a","c"]`)/콤마 문자열 | 과제/퀘스트 제출 |
 | `choice` | `{type:"choice", choice_id:"postpone"}` | 선택지 |
+| `greet` / `tour` / `tour_done` | `{type:"greet"}` 등 | 입장 인사 · 온보딩 투어 시작/종료 |
+| `skip_step` | `{type:"skip_step"}` | 현재 스텝 건너뛰기 (리포트에 기록됨) |
+| `minigame_result` | `{type:"minigame_result", engine:"spot", accuracy: 87, time_seconds?, mistakes?}` — accuracy 0~100 | 4단계 미니게임 결과. **engine은 시나리오 선언과 대조** — 불일치(스텁 포함)는 저장만 되고 점수 미반영 |
+| `memo` | `{type:"memo", content:"..."}` — 빈 문자열 = 지움, 최대 4000자 | 학습 메모 저장 (state.memo로 복원) |
+| `reflection` | `{type:"reflection", content:"..."}` | 5단계 체험 소감 (채점 없음, 리포트 재료) |
 
 ### WS 받기 (서버 → 클라이언트) — 프레임 순서대로 처리
 | 타입 | 내용 | UI 처리 |
 |---|---|---|
 | `session` | 접속 직후 현재 상태 전체 | 화면 초기화/복원 |
+| `npc_greeting` / `tour` | 입장 인사 · 투어 대본 | 온보딩 연출 |
 | `token` | `{text}` NPC 응답 조각 | 말풍선에 이어붙이기 |
 | `npc_reply` | `{npc, name, content, delta, affinity, state, step_changed}` — `npc`=npc_id, `name`=표시 이름 | 응답 확정, 상태 게이지 갱신 + **NPC 친밀도 게이지** 갱신 |
 | `task_result` | 채점: `{total, passed, scores[], feedback, advice_card, state}` | 결과 표시. **advice_card**(level 1~3, title, content)가 있으면 = 미달 → **AI조언카드 UI** |
@@ -215,6 +229,7 @@ GET /api/simulations/{id}/score
     "quest": {adjusted, status, ...} | null,
     "mission_avg": 85, "total": 82,
     "competencies": {situation_judgment: 70, ..., collaboration: 63},  // null = 해당 미션 없음
+    "minigame": {engine, score, passed?, time_seconds?, mistakes?} | null,  // 4단계 결과 (역량에 25% 블렌드 반영됨)
     "percentile": {"sample_size": 12, "top_percent": null}
   }
 ```
