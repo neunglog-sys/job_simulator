@@ -60,6 +60,12 @@ class Settings(BaseSettings):
     # idle 시드 스윕에서 채택 — 발화도 같은 시드를 써야 모션 성격이 일치한다.
     avatar_seed: int = 123
     avatar_timeout_ms: int = 60_000  # 첫 HLS URL 수신 대기 상한 (실측 첫 세그먼트 ≈ 1.8~2.0초)
+    # 연속 서빙: Colab의 조각난 HLS(세그먼트마다 DISCONTINUITY)를 ffmpeg로 하나의 연속 타임라인
+    # HLS로 재인코딩해 우리가 서빙한다 → 브라우저가 끊김 없이 재생. 아래는 브라우저가 그 스트림을
+    # 받아갈 백엔드 공개 주소(브라우저 기준) + 출력 저장 루트.
+    avatar_public_base: str = "http://localhost:8000"
+    avatar_stream_root: str = "/app/avatar_streams"
+    avatar_transcode_timeout_ms: int = 30_000  # 연속 스트림 첫 세그먼트 대기 상한
 
     # CORS — 프론트 개발 서버 주소 (콤마 구분)
     cors_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost"

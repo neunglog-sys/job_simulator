@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.core.db import SessionFactory, engine
 from app.core.redis import redis_client
 from app.domains.auth.router import router as auth_router
+from app.domains.avatar import service as avatar_service
 from app.domains.avatar.router import router as avatar_router
 from app.domains.consultation.router import router as consultation_router
 from app.domains.jobs.router import router as jobs_router
@@ -37,6 +38,9 @@ async def lifespan(app: FastAPI):
             logger.exception(
                 "지식 적재 실패 — RAG 없이 기동 계속 (다음 재기동 시 해시 가드로 자동 재적재)"
             )
+    # 아바타 Gradio 클라이언트 핸드셰이크(≈2.4초)를 기동 시 선지불 → 첫 사용자가 안 기다림.
+    # 내부에서 예외를 삼키므로(아바타 미설정/Colab 미기동) 부팅을 막지 않는다.
+    await avatar_service.warmup()
     yield
     await redis_client.aclose()
     await engine.dispose()
@@ -71,6 +75,12 @@ app.include_router(reporting_router)
 app.include_router(simulation_router)
 app.include_router(tts_router)
 app.include_router(avatar_router)
+
+# 아바타 연속 스트림 서빙 — ffmpeg가 Colab HLS를 연속 타임라인으로 재인코딩한 결과(.m3u8/.ts).
+# 브라우저(hls.js)가 여기서 직접 받아 끊김 없이 재생한다.
+_stream_root = Path(settings.avatar_stream_root)
+_stream_root.mkdir(parents=True, exist_ok=True)
+app.mount("/avatar-stream", StaticFiles(directory=str(_stream_root)), name="avatar-stream")
 
 # 게임 맵 정적 서빙 — /maps/<맵폴더>/<배경>.png 등. 폴더가 없으면(배포 초기 등) 조용히 생략:
 # 게임 API의 map 필드도 None이 되어 프론트는 기존 module 배경으로 폴백한다.

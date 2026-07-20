@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
@@ -25,12 +26,23 @@ async def status():
 
 @router.post("/speak")
 async def speak(body: SpeakIn, user: User = Depends(get_current_user)):
-    """발화 텍스트 → 아바타 HLS 스트림 URL.
+    """발화 텍스트 → 아바타 연속 스트림 URL.
 
-    응답: {"hls_url": "https://…/gradio_api/stream/…/playlist.m3u8", "model_type": "lite"}
+    응답: {"hls_url": "http://…/api/avatar/stream/<id>", "model_type": "lite"}
+    (`hls_url` 이름은 프론트 호환 유지용. 실제로는 연속 fragmented MP4 스트림 URL이다.)
 
-    프론트는 이 URL을 **hls.js로 재생**한다(Chrome/Firefox는 HLS 네이티브 미지원).
-    영상 세그먼트는 브라우저가 Colab에서 직접 받아가므로 **백엔드를 거치지 않는다**.
-    첫 세그먼트는 실측 1.8~2.0초 뒤 재생 시작 (+ TTS 시간).
+    백엔드가 Colab의 조각난 HLS를 ffmpeg로 **하나의 연속 fragmented MP4**로 재인코딩하고,
+    프론트는 이 URL을 `<video src>`로 **네이티브 프로그레시브 재생**한다(hls.js 불필요).
     """
     return await service.speak(body.text, body.voice)
+
+
+@router.get("/stream/{stream_id}")
+async def avatar_stream(stream_id: str):
+    """연속 fragmented MP4 스트림 — 브라우저 `<video>`가 프로그레시브로 재생.
+
+    자라는 MP4 파일을 청크로 흘려보낸다(ffmpeg가 생성 중이면 새 데이터 대기, 완료되면 종료).
+    인증 없음: `<video src>`가 Authorization 헤더를 못 실어서. `stream_id`는 임의 uuid라
+    사실상 추측 불가하고, 스트림은 짧은 수명(끝나면 정리)이라 노출 위험 낮음.
+    """
+    return StreamingResponse(service.stream_mp4(stream_id), media_type="video/mp4")

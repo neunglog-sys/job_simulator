@@ -258,20 +258,21 @@ export function OneToOneConversationPage() {
       return;
     }
 
+    // 전체 응답(reply)을 한 번에 발화 생성한다. 백엔드가 연속 타임라인 HLS로 재봉합해 주므로
+    // 프론트는 하나의 연속 스트림만 재생하면 된다(조각 이어붙이기 없음 → 이음매 없음).
     try {
       const { hls_url } = await speakAvatar(reply);
       setAvatarHlsUrl(hls_url);
-      setAvatarStatus("speaking"); // 재생 종료는 AiAvatarStage의 onEnded → handleSpeakingEnd
+      setAvatarStatus("speaking"); // 재생 종료 → AiAvatarStage onEnded → handleSpeakingEnd
     } catch {
-      // 아바타 미설정(Colab 세션 없음)·장애 → 텍스트만 보여주고 idle 루프 유지
+      // 아바타 미설정(Colab 세션 없음)·장애 → 텍스트만 보여주고 idle 유지
       setAvatarHlsUrl(null);
       setAvatarStatus("idle");
     }
   }, [inputValue, messages]);
 
   const handleSpeakingEnd = useCallback(() => {
-    // hlsUrl은 여기서 지우지 않는다 — 지우면 <video>가 즉시 비워져 페이드 도중에 깜빡인다.
-    // 다음 발화를 보낼 때 어차피 교체되므로 마지막 프레임을 남겨둔 채 idle로 페이드하면 된다.
+    // 발화 영상이 끝나면 idle로. hlsUrl은 지우지 않는다(지우면 <video>가 비워져 깜빡임).
     setAvatarStatus("idle");
   }, []);
 
