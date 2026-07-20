@@ -10,15 +10,55 @@ import { SurveyDrawer } from "../components/conversation/SurveyDrawer";
 import { YouthPolicyCard } from "../components/conversation/YouthPolicyCard";
 import { FRONTEND_ENDPOINTS } from "../config/endpoints";
 import { initialConversationMessages } from "../data/conversationMockData";
+import {
+  ApiError,
+  createConsultation,
+  createRecommendation,
+  createReport,
+  fetchConsultationMessages,
+  fetchReport,
+  fetchSurveyItems,
+  streamConsultationReply,
+  submitConsultationSurvey,
+  type SurveyItem,
+} from "../lib/api";
 import styles from "../styles/oneToOneConversation.module.css";
+import { INITIAL_REPORT_STATE } from "../types/conversation";
 import type {
   AvatarStatus,
   ActiveConversationPanel,
   ConversationMessage,
   NavigationMenuId,
   RecordingState,
+  ReportState,
 } from "../types/conversation";
-import type { SurveyAnswers } from "../types/survey";
+import type { SurveyAnswers, SurveyQuestionData } from "../types/survey";
+
+// 진행 중이던 상담 id를 기억해 이어받는다 — 새로고침마다 새 상담을 만들면 대화 이력이 날아간다.
+const CONSULTATION_RESUME_KEY = "consultation:current";
+
+function toSurveyQuestions(items: SurveyItem[]): SurveyQuestionData[] {
+  return items.map((item) => ({
+    id: item.id,
+    prompt: item.text,
+    options: item.options.map((option) => ({ value: option.key, label: option.label })),
+  }));
+}
+
+async function resumeOrCreateConsultation(): Promise<number> {
+  const saved = Number(sessionStorage.getItem(CONSULTATION_RESUME_KEY));
+  if (saved) {
+    try {
+      await fetchConsultationMessages(saved); // 존재·소유권 확인 겸용
+      return saved;
+    } catch {
+      sessionStorage.removeItem(CONSULTATION_RESUME_KEY);
+    }
+  }
+  const consultation = await createConsultation();
+  sessionStorage.setItem(CONSULTATION_RESUME_KEY, String(consultation.id));
+  return consultation.id;
+}
 
 type StageStyle = CSSProperties & {
   "--conversation-scale": number;
@@ -73,11 +113,6 @@ const STAR_POINTS = Array.from({ length: 54 }, (_, index) => ({
   delay: `${-(index % 9) * 0.38}s`,
 }));
 
-async function requestJobMasterResponse(_messages: ConversationMessage[]) {
-  // AI API 연결 지점: 응답을 받은 뒤 assistant 메시지를 messages에 추가한다.
-  return Promise.resolve();
-}
-
 export function OneToOneConversationPage() {
   const [stageScale, setStageScale] = useState(1);
   const [messages, setMessages] = useState<ConversationMessage[]>(initialConversationMessages);
@@ -90,6 +125,12 @@ export function OneToOneConversationPage() {
   const [activeMenuId, setActiveMenuId] =
     useState<NavigationMenuId>("new-consultation");
   const [voiceLevel, setVoiceLevel] = useState(0);
+  const [consultationId, setConsultationId] = useState<number | null>(null);
+  const [surveyQuestions, setSurveyQuestions] = useState<SurveyQuestionData[]>([]);
+  const [surveySubmitting, setSurveySubmitting] = useState(false);
+  const [surveyError, setSurveyError] = useState<string | null>(null);
+  const [reportState, setReportState] = useState<ReportState>(INITIAL_REPORT_STATE);
+  const sendingRef = useRef(false);
   const voiceStreamRef = useRef<MediaStream | null>(null);
   const voiceAudioContextRef = useRef<AudioContext | null>(null);
   const voiceSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
@@ -174,6 +215,42 @@ export function OneToOneConversationPage() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const id = await resumeOrCreateConsultation();
+        if (cancelled) return;
+        setConsultationId(id);
+
+        const [history, survey] = await Promise.all([
+          fetchConsultationMessages(id),
+          fetchSurveyItems(id),
+        ]);
+        if (cancelled) return;
+
+        if (history.length > 0) {
+          setMessages(
+            history.map((message) => ({
+              id: `message-${message.id}`,
+              role: message.role,
+              content: message.content,
+              createdAt: message.created_at,
+            })),
+          );
+        }
+        setSurveyQuestions(toSurveyQuestions(survey.items));
+      } catch {
+        // 백엔드 연결 실패 — 로컬 대화만 유지하는 오프라인 폴백
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     return () => {
       voiceSessionActiveRef.current = false;
       speechRecognitionRef.current?.abort();
@@ -187,7 +264,7 @@ export function OneToOneConversationPage() {
 
   const handleSendMessage = useCallback(async () => {
     const content = inputValue.trim();
-    if (!content) return;
+    if (!content || sendingRef.current) return;
 
     const userMessage: ConversationMessage = {
       id: `message-${Date.now()}`,
@@ -195,15 +272,71 @@ export function OneToOneConversationPage() {
       content,
       createdAt: new Date().toISOString(),
     };
-    const nextMessages = [...messages, userMessage];
-
-    setMessages(nextMessages);
+    setMessages((current) => [...current, userMessage]);
     setInputValue("");
-    setAvatarStatus("thinking");
 
-    await requestJobMasterResponse(nextMessages);
-    setAvatarStatus("idle");
-  }, [inputValue, messages]);
+    if (!consultationId) {
+      setMessages((current) => [
+        ...current,
+        {
+          id: `message-${Date.now()}-offline`,
+          role: "assistant",
+          content: "상담 세션 연결이 아직 준비되지 않았어요. 잠시 후 다시 시도해주세요.",
+        },
+      ]);
+      return;
+    }
+
+    sendingRef.current = true;
+    setAvatarStatus("thinking");
+    const assistantMessageId = `message-${Date.now()}-assistant`;
+    let started = false;
+
+    try {
+      await streamConsultationReply(consultationId, content, (chunk) => {
+        if (!started) {
+          started = true;
+          setAvatarStatus("speaking");
+          setMessages((current) => [
+            ...current,
+            { id: assistantMessageId, role: "assistant", content: chunk },
+          ]);
+        } else {
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantMessageId
+                ? { ...message, content: message.content + chunk }
+                : message,
+            ),
+          );
+        }
+      });
+
+      if (!started) {
+        setMessages((current) => [
+          ...current,
+          {
+            id: assistantMessageId,
+            role: "assistant",
+            content: "죄송해요, 응답을 만들지 못했어요. 다시 시도해주세요.",
+          },
+        ]);
+      }
+    } catch (error) {
+      setMessages((current) => [
+        ...current,
+        {
+          id: `${assistantMessageId}-error`,
+          role: "assistant",
+          content:
+            error instanceof ApiError ? error.message : "응답을 받아오지 못했어요. 다시 시도해주세요.",
+        },
+      ]);
+    } finally {
+      sendingRef.current = false;
+      setAvatarStatus("idle");
+    }
+  }, [consultationId, inputValue]);
 
   const handleVoiceInput = useCallback(async () => {
     if (recordingState === "recording") {
@@ -374,15 +507,103 @@ export function OneToOneConversationPage() {
     setSurveyAnswers((current) => ({ ...current, [questionId]: value }));
   }, []);
 
-  const handleSurveySubmit = useCallback(() => {
-    window.dispatchEvent(
-      new CustomEvent("jobiverse:submit-conversation-survey", {
-        detail: surveyAnswers,
-      }),
-    );
-    setActivePanel("report");
-    setAvatarStatus("thinking");
-  }, [surveyAnswers]);
+  const handleSurveySubmit = useCallback(async () => {
+    if (!consultationId || surveySubmitting) return;
+    if (Object.keys(surveyAnswers).length < surveyQuestions.length) {
+      setSurveyError("모든 문항에 답해주세요.");
+      return;
+    }
+
+    setSurveySubmitting(true);
+    setSurveyError(null);
+    try {
+      const result = await submitConsultationSurvey(consultationId, surveyAnswers);
+      window.dispatchEvent(
+        new CustomEvent("jobiverse:submit-conversation-survey", {
+          detail: surveyAnswers,
+        }),
+      );
+      setMessages((current) => [
+        ...current,
+        ...result.avatar_lines.map((line, index) => ({
+          id: `survey-line-${Date.now()}-${index}`,
+          role: "assistant" as const,
+          content: line,
+        })),
+      ]);
+      setActivePanel("chat");
+    } catch (error) {
+      setSurveyError(
+        error instanceof ApiError ? error.message : "설문 제출에 실패했어요. 다시 시도해주세요.",
+      );
+    } finally {
+      setSurveySubmitting(false);
+    }
+  }, [consultationId, surveyAnswers, surveyQuestions.length, surveySubmitting]);
+
+  const handleReportRetry = useCallback(() => {
+    setReportState(INITIAL_REPORT_STATE);
+  }, []);
+
+  useEffect(() => {
+    if (activePanel !== "report" || !consultationId || reportState.phase !== "idle") return;
+
+    let cancelled = false;
+    setReportState((current) => ({ ...current, phase: "loading" }));
+
+    (async () => {
+      try {
+        const recommendation = await createRecommendation(consultationId);
+        if (cancelled) return;
+
+        let currentReport = await createReport(consultationId);
+        while (!cancelled && currentReport.status === "pending") {
+          await new Promise((resolve) => window.setTimeout(resolve, 1500));
+          if (cancelled) return;
+          currentReport = await fetchReport(currentReport.id);
+        }
+        if (cancelled) return;
+
+        setReportState({
+          phase: currentReport.status === "done" ? "ready" : "error",
+          recommendation,
+          report: currentReport,
+          message:
+            currentReport.status === "done"
+              ? null
+              : "리포트 생성에 실패했어요. 잠시 후 다시 시도해주세요.",
+          followupQuestions: [],
+        });
+      } catch (error) {
+        if (cancelled) return;
+
+        if (error instanceof ApiError && error.status === 409) {
+          const detail = error.detail as
+            | { message?: string; followup_questions?: string[] }
+            | null;
+          setReportState({
+            phase: "needs-more-chat",
+            recommendation: null,
+            report: null,
+            message: detail?.message ?? "적성 파악이 아직 부족해요. 대화를 조금 더 나눠주세요.",
+            followupQuestions: detail?.followup_questions ?? [],
+          });
+        } else {
+          setReportState({
+            phase: "error",
+            recommendation: null,
+            report: null,
+            message: error instanceof ApiError ? error.message : "리포트를 준비하지 못했어요.",
+            followupQuestions: [],
+          });
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activePanel, consultationId, reportState.phase]);
 
   const handleNavigationSelect = useCallback((id: NavigationMenuId) => {
     setActiveMenuId(id);
@@ -394,12 +615,29 @@ export function OneToOneConversationPage() {
 
     if (id === "new-consultation") {
       finishVoiceSession(false);
+      sessionStorage.removeItem(CONSULTATION_RESUME_KEY);
       setMessages(initialConversationMessages);
       setInputValue("");
-      setAvatarStatus("thinking");
+      setAvatarStatus("idle");
       setActivePanel("chat");
       setVoiceIssue(null);
       setSurveyAnswers({});
+      setSurveyError(null);
+      setSurveyQuestions([]);
+      setConsultationId(null);
+      setReportState(INITIAL_REPORT_STATE);
+
+      void (async () => {
+        try {
+          const consultation = await createConsultation();
+          sessionStorage.setItem(CONSULTATION_RESUME_KEY, String(consultation.id));
+          setConsultationId(consultation.id);
+          const survey = await fetchSurveyItems(consultation.id);
+          setSurveyQuestions(toSurveyQuestions(survey.items));
+        } catch {
+          // 백엔드 연결 실패 — 로컬 대화만 유지하는 오프라인 폴백
+        }
+      })();
       return;
     }
 
@@ -472,13 +710,18 @@ export function OneToOneConversationPage() {
 
           {activePanel === "survey" ? (
             <SurveyDrawer
+              questions={surveyQuestions}
               answers={surveyAnswers}
+              submitting={surveySubmitting}
+              error={surveyError}
               onAnswerChange={handleSurveyAnswerChange}
               onSubmit={handleSurveySubmit}
             />
           ) : null}
 
-          {activePanel === "report" ? <FinalReportPanel /> : null}
+          {activePanel === "report" ? (
+            <FinalReportPanel reportState={reportState} onRetry={handleReportRetry} />
+          ) : null}
 
           <PanelIndexTabs activePanel={activePanel} onChange={handlePanelChange} />
         </div>
