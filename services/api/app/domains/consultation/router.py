@@ -1,7 +1,6 @@
 import json
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
@@ -10,26 +9,27 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.core.db import get_session
 from app.core.deps import get_current_user
 from app.domains.consultation import resume, service, survey
-from app.domains.consultation.schemas import ConsultationOut, MessageIn, MessageOut, SurveyIn
-from app.models import Consultation, User
+from app.domains.consultation.schemas import (
+    ConsultationListItem,
+    ConsultationOut,
+    ConsultationTitleOut,
+    ConsultationTitleUpdate,
+    MessageIn,
+    MessageOut,
+    SurveyIn,
+)
+from app.models import User
 
 router = APIRouter(prefix="/api/consultations", tags=["consultation"])
 
 
-@router.get("", response_model=list[ConsultationOut])
+@router.get("", response_model=list[ConsultationListItem])
 async def list_consultations(
     session: AsyncSession = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
-    """내 상담 목록 (최신순) — 메인화면 이어가기 진입점."""
-    rows = (
-        await session.execute(
-            select(Consultation)
-            .where(Consultation.user_id == user.id)
-            .order_by(Consultation.id.desc())
-        )
-    ).scalars()
-    return list(rows)
+    """내 상담 목록. 첫 사용자 발화를 제목으로, 마지막 발화를 미리보기로 제공한다."""
+    return await service.list_consultation_summaries(session, user)
 
 
 @router.post("", response_model=ConsultationOut, status_code=201)
@@ -41,6 +41,29 @@ async def create_consultation(
     out = ConsultationOut.model_validate(consultation)
     # 인사 클립이 준비돼 있으면 세션 진입 즉시 재생하라고 알려준다 (없으면 기존 흐름)
     return out.model_copy(update={"greeting_clip_url": service.greeting_clip_url()})
+
+
+@router.patch("/{consultation_id}", response_model=ConsultationTitleOut)
+async def rename_consultation(
+    consultation_id: int,
+    body: ConsultationTitleUpdate,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    consultation = await service.get_owned_consultation(session, consultation_id, user)
+    updated = await service.update_consultation_title(session, consultation, body.title)
+    return ConsultationTitleOut(id=updated.id, title=updated.title or body.title)
+
+
+@router.delete("/{consultation_id}", status_code=204)
+async def remove_consultation(
+    consultation_id: int,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    consultation = await service.get_owned_consultation(session, consultation_id, user)
+    await service.delete_consultation(session, consultation)
+    return Response(status_code=204)
 
 
 @router.get("/{consultation_id}/survey")

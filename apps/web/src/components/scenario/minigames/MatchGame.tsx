@@ -34,6 +34,10 @@ import { GameHud, ResultBar, clampScore, elapsedSeconds, scoringOf, useCountdown
  * 감점 중첩 금지 — 한 사건(선 하나·카드 하나)에는 후보 중 가장 무거운 감점 하나만(_SCHEMA.md).
  * 카드 마커는 PixelSprite 로 그린다 — public/assets/minigames/<sprite id>.svg 가 있으면
  * 도트 아트(ys-03 얼굴·출입증 초상 등), 없으면 지금처럼 sprite id 텍스트 칩으로 폴백.
+ * 확장 블록도 같은 규약으로 그린다: 구슬(stream)·객실 키(keys[].sprite)·돌발 아이콘
+ * (sudden.sprite/stages[].sprite)·휴지통 버튼(discard.sprite). 단 구슬만은 sprite id 가
+ * 이상치 여부를 글자로 유출하므로(구슬_붉은 vs 구슬_파랑 — 규칙 1) 폴백 라벨을 중립 문구
+ * '구슬'로 고정한다.
  */
 
 type Side = "left" | "right";
@@ -42,7 +46,10 @@ type MatchCard = {
   id: string;
   sprite: string;
   label?: string;
-  /** ys-03 — 금속탐지기 반응자. 카드에 빨간 램프를 그린다(시각 단서). */
+  /** ys-03 — 금속탐지기 반응자. 게이트 램프 점멸(확산 링)에 카드 흔들림·붉은 펄스를 얹는다
+   *  (시각 단서 강화 — 디자이너 피드백 2026-07-20). '벨이 정답'을 가리키는 표시는 금지 —
+   *  울림을 잘 보이게만 하고 판단은 유저 몫. 선긋기·도장·인계 어느 쪽이든 카드가 처리되면
+   *  경보가 잦아든다(모든 처리에 동일 — 정답 유출 없음). */
   detector?: boolean;
 };
 
@@ -66,7 +73,7 @@ type MatchData = {
   right_label?: string;
   pairs?: Array<[string, string]>;
   unmatched?: string[];
-  /** stn-04 — 짝없음 도장의 라벨(재검증_표시). 없으면 '짝 없음'. */
+  /** 짝없음 도장의 표시 라벨(표시 전용) — stn-04 재검증_표시, ys-03 불가능. 없으면 '짝 없음'. */
   unmatched_action?: string;
   /** kts-02 — 같은 그룹끼리는 교차 배정도 정답. */
   equivalent?: string[][];
@@ -74,16 +81,16 @@ type MatchData = {
   one_line_per_left?: boolean;
   /** right 스칼라·리스트({left,right}) 및 pair:[l,r](stn-03) 두 형태 모두 지원. */
   forbidden_pairs?: Array<{ left?: string; right?: string | string[]; pair?: [string, string]; reason?: string }>;
-  /** stn-01 — 휴지통. */
-  discard?: { bin?: string; items?: Array<{ id: string; reason?: string }> };
+  /** stn-01 — 휴지통. sprite 는 버리기 버튼의 도트 아이콘(표시 전용 — 채점 무관, 파일 부재 시 기존 텍스트 버튼 그대로). */
+  discard?: { bin?: string; sprite?: string; items?: Array<{ id: string; reason?: string }> };
   /** stn-03 — 흐름 검수. */
   stream?: {
     beads?: Array<{ id: string; sprite?: string }>;
     outliers?: Array<{ id: string; sprite?: string; reason?: string }>;
     decoy_beads?: Array<{ id: string; sprite?: string }>;
   };
-  /** kts-05 — 객실 키 전달. */
-  keys?: Array<{ guest: string; key_color: string; label?: string }>;
+  /** kts-05 — 객실 키 전달. sprite(객실키_파랑 등)는 표시 전용 도트 키 아트 — 없으면 색 원 폴백. */
+  keys?: Array<{ guest: string; key_color: string; label?: string; sprite?: string }>;
   /** kts-03 — 돌발 손님. */
   sudden?: SuddenDef;
   /** when이 카드 id면 '선택한 카드 인계'(ys-03), 상태 조건이면 돌발 패널의 호출 버튼(kts-03). */
@@ -211,6 +218,12 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   }, [stages]);
 
   const keyPalette = useMemo(() => [...new Set(keyDefs.map((k) => k.key_color))], [keyDefs]);
+  // 키 색 → 도트 키 아트(kts-05 객실키_* — 표시 전용). 같은 색은 같은 아트를 공유한다.
+  const keySpriteOf = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const k of keyDefs) if (k.sprite && !map.has(k.key_color)) map.set(k.key_color, k.sprite);
+    return map;
+  }, [keyDefs]);
 
   // ── 진행 상태 ──
   const [lines, setLines] = useState<Line[]>([]);
@@ -222,6 +235,8 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const [escalated, setEscalated] = useState(false); // 상태형(sudden) 호출
   const [earlyEscalate, setEarlyEscalate] = useState(false); // 단계 전 성급 호출
   const [pressedForbidden, setPressedForbidden] = useState<string[]>([]);
+  /** 금지 버튼을 누른 직후의 제지 배너 — tick 은 같은 배너 재등장 시 애니메이션 재생용. */
+  const [forbiddenWarning, setForbiddenWarning] = useState<{ id: string; reason: string; tick: number } | null>(null);
   const [suddenVisible, setSuddenVisible] = useState(false);
   const [keysGiven, setKeysGiven] = useState<Record<string, string>>({});
   const [done, setDone] = useState(false);
@@ -553,6 +568,13 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const pressForbiddenButton = (id: string) => {
     if (done || pressedForbidden.includes(id)) return;
     setPressedForbidden((prev) => [...prev, id]);
+    // 즉각 제지 피드백(2026-07-20 디자이너 확정) — 감점은 기존대로 최종 채점에서 반영되고,
+    // 여기서는 '방금 누른 것이 금지행동'임을 그 자리에서 알린다. 문구는 누른 뒤에만 나오므로
+    // 정답 사전 유출이 아니다(ms-10 금지 오브젝트 클릭 피드백과 같은 패턴).
+    const src =
+      (data.forbidden ?? []).find((f) => f.id === id) ??
+      (sudden?.forbidden_actions ?? []).find((f) => f.id === id);
+    setForbiddenWarning({ id, reason: src?.reason ?? "지금 해서는 안 되는 행동입니다", tick: Date.now() });
   };
 
   const clickBead = (id: string, kind: "normal" | "outlier" | "decoy") => {
@@ -606,6 +628,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
           ref={registerCard(card.id, side)}
           className={styles.card}
           data-state={stateOf(card.id)}
+          data-detector={card.detector || undefined}
           data-verdict={verdict}
           aria-pressed={selected?.id === card.id}
           aria-label={cardAria(card, side)}
@@ -636,19 +659,29 @@ export function MatchGame({ game, onComplete }: EngineProps) {
         {side === "left" && keyDefs.length > 0 && linkedSet.has(card.id) ? (
           <div className={styles.keyRow} role="group" aria-label={`${card.sprite} 객실 키 선택`}>
             <span className={styles.keyHint}>객실 키</span>
-            {keyPalette.map((color) => (
-              <button
-                key={color}
-                type="button"
-                className={styles.keyDot}
-                style={{ background: KEY_COLORS[color] ?? "#8a93a8" }}
-                data-active={keysGiven[card.id] === color}
-                aria-label={`${color} 키 전달`}
-                aria-pressed={keysGiven[card.id] === color}
-                disabled={done}
-                onClick={() => giveKey(card.id, color)}
-              />
-            ))}
+            {keyPalette.map((color) => {
+              const keySprite = keySpriteOf.get(color);
+              return (
+                <button
+                  key={color}
+                  type="button"
+                  className={styles.keyDot}
+                  style={{ background: KEY_COLORS[color] ?? "#8a93a8" }}
+                  data-sprite={keySprite ? "true" : undefined}
+                  data-active={keysGiven[card.id] === color}
+                  aria-label={`${color} 키 전달`}
+                  aria-pressed={keysGiven[card.id] === color}
+                  disabled={done}
+                  onClick={() => giveKey(card.id, color)}
+                >
+                  {/* 색 배경(인라인)은 항상 깔린다 — 아트 파일이 없으면 폴백 스팬이 숨어
+                      기존 색 원 표시가 그대로 남는다(PixelSprite 폴백 규약). */}
+                  {keySprite ? (
+                    <PixelSprite id={keySprite} label={color} size={20} fallbackClassName={styles.spriteFallbackHidden} />
+                  ) : null}
+                </button>
+              );
+            })}
           </div>
         ) : null}
       </div>
@@ -738,14 +771,16 @@ export function MatchGame({ game, onComplete }: EngineProps) {
                   className={styles.bead}
                   style={{
                     animationDelay: `-${((i * FLOW_SECONDS) / flowBeads.length).toFixed(2)}s`,
-                    top: `${10 + (i % 3) * 26}px`,
+                    top: `${8 + (i % 3) * 30}px`,
                   }}
                   data-judged={judged}
                   disabled={done || Boolean(beadClicks[bead.id])}
-                  aria-label={`구슬 ${bead.sprite}`}
+                  aria-label={`구슬 ${i + 1}`}
                   onClick={() => clickBead(bead.id, bead.kind)}
                 >
-                  {bead.sprite}
+                  {/* 이상치 판별은 '색'으로만 — sprite id 텍스트(구슬_붉은 vs 구슬_파랑)는 이상치
+                      여부를 글자로 유출하므로(규칙 1) 폴백 라벨·aria 모두 중립 문구로 고정한다. */}
+                  <PixelSprite id={bead.sprite} label="구슬" size={22} />
                   {judged === "caught" ? <span className={styles.beadMark}>✓</span> : null}
                   {judged === "wrong" ? <span className={styles.beadMark}>✕</span> : null}
                 </button>
@@ -763,7 +798,14 @@ export function MatchGame({ game, onComplete }: EngineProps) {
           data-settled={stagesAllDone && (!sudden.persists_after_stages || escalated)}
         >
           <div className={styles.suddenHead}>
-            {sudden.sprite ? <span className={styles.suddenSprite}>{sudden.sprite}</span> : null}
+            {sudden.sprite ? (
+              <PixelSprite
+                id={sudden.sprite}
+                label={pretty(sudden.sprite)}
+                size={56}
+                fallbackClassName={styles.suddenSprite}
+              />
+            ) : null}
             <span className={styles.suddenLabel}>{sudden.label ?? "돌발 상황 발생"}</span>
           </div>
           <div className={styles.suddenActions}>
@@ -776,7 +818,11 @@ export function MatchGame({ game, onComplete }: EngineProps) {
                 disabled={done || stagesDone.includes(stage.id)}
                 onClick={() => pressStage(stage.id)}
               >
-                <span>{stage.sprite ?? pretty(stage.id)}</span>
+                {stage.sprite ? (
+                  <PixelSprite id={stage.sprite} label={pretty(stage.sprite)} size={36} />
+                ) : (
+                  <span>{pretty(stage.id)}</span>
+                )}
                 {stage.label ? <span className={styles.stageLabel}>{stage.label}</span> : null}
               </button>
             ))}
@@ -786,6 +832,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
                 type="button"
                 className={styles.stageBtn}
                 disabled={done || pressedForbidden.includes(action.id)}
+                data-forbidden-pressed={pressedForbidden.includes(action.id) || undefined}
                 data-done={pressedForbidden.includes(action.id)}
                 onClick={() => pressForbiddenButton(action.id)}
               >
@@ -827,6 +874,16 @@ export function MatchGame({ game, onComplete }: EngineProps) {
               onClick={() => markSelected("discarded")}
               aria-label={`선택한 카드를 ${binLabel}에 버리기`}
             >
+              {/* 도트 아이콘은 표시 전용(stn-01 discard.sprite: 휴지통) — 없거나 파일이 빠지면
+                  폴백 스팬이 숨어 기존 텍스트 버튼 그대로다. */}
+              {data.discard.sprite ? (
+                <PixelSprite
+                  id={data.discard.sprite}
+                  label={binLabel}
+                  size={20}
+                  fallbackClassName={styles.spriteFallbackHidden}
+                />
+              ) : null}
               {binLabel}에 버리기
             </button>
           ) : null}
@@ -851,6 +908,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
               key={item.id}
               type="button"
               className={styles.actionBtn}
+              data-forbidden-pressed={pressedForbidden.includes(item.id) || undefined}
               disabled={pressedForbidden.includes(item.id)}
               onClick={() => pressForbiddenButton(item.id)}
             >
@@ -868,6 +926,13 @@ export function MatchGame({ game, onComplete }: EngineProps) {
           >
             제출
           </button>
+        </div>
+      ) : null}
+
+      {forbiddenWarning && !done ? (
+        <div key={forbiddenWarning.tick} className={styles.forbiddenAlert} role="alert">
+          <span className={styles.forbiddenAlertBadge}>금지행동</span>
+          <span>{forbiddenWarning.reason}</span>
         </div>
       ) : null}
 

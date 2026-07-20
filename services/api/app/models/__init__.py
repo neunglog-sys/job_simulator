@@ -65,6 +65,7 @@ class Consultation(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    title: Mapped[str | None] = mapped_column(EncryptedText)
     status: Mapped[str] = mapped_column(String(20), default="active")  # active|completed
     summary: Mapped[str | None] = mapped_column(EncryptedText)  # Conversation Memory 요약 (암호화)
     survey: Mapped[dict | None] = mapped_column(JSONB)  # 사전 설문 {answers, profile} — 자유대화 전 성향 베이스라인
@@ -176,6 +177,9 @@ class NpcPlacement(Base):
 
 class Recommendation(TimestampMixin, Base):
     __tablename__ = "recommendations"
+    # 상담 1건 = 추천 1건. 추천은 "이 상담의 결론"이라 여러 개면 화면마다 다른 답이 나온다
+    # (탭 두 개·버튼 연타로 실제로 중복 생성됐다).
+    __table_args__ = (UniqueConstraint("consultation_id", name="uq_recommendations_consultation"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))

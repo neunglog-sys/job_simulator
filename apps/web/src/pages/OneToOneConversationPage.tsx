@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { AnimatePresence } from "motion/react";
 import { AiAvatarStage } from "../components/conversation/AiAvatarStage";
 import { AvatarStatusBadge } from "../components/conversation/AvatarStatusBadge";
+import { ConversationHistoryModal } from "../components/conversation/ConversationHistoryModal";
 import { ConversationHeader } from "../components/conversation/ConversationHeader";
 import { ConversationPanel } from "../components/conversation/ConversationPanel";
 import { FinalReportPanel } from "../components/conversation/FinalReportPanel";
 import { FixedNavigationMenu } from "../components/conversation/FixedNavigationMenu";
 import { PanelIndexTabs } from "../components/conversation/PanelIndexTabs";
+import { RecommendedJobsModal } from "../components/conversation/RecommendedJobsModal";
 import { SurveyDrawer } from "../components/conversation/SurveyDrawer";
 import { YouthPolicyCard } from "../components/conversation/YouthPolicyCard";
 import { FRONTEND_ENDPOINTS } from "../config/endpoints";
@@ -15,13 +18,21 @@ import {
   createConsultation,
   createRecommendation,
   createReport,
+  deleteConsultation,
+  fetchConsultations,
   fetchConsultationMessages,
+  fetchLatestRecommendation,
   fetchReport,
+  fetchScenarios,
   fetchSurveyItems,
   speakAvatar,
   streamConsultationReply,
   submitConsultationSurvey,
+  updateConsultationTitle,
   type SurveyItem,
+  type ConsultationSummary,
+  type Recommendation,
+  type ScenarioSummary,
 } from "../lib/api";
 import styles from "../styles/oneToOneConversation.module.css";
 import { INITIAL_REPORT_STATE } from "../types/conversation";
@@ -37,6 +48,8 @@ import type { SurveyAnswers, SurveyQuestionData } from "../types/survey";
 
 // 진행 중이던 상담 id를 기억해 이어받는다 — 새로고침마다 새 상담을 만들면 대화 이력이 날아간다.
 const CONSULTATION_RESUME_KEY = "consultation:current";
+
+type ActiveConversationModal = "history" | "recommendations" | null;
 
 function toSurveyQuestions(items: SurveyItem[]): SurveyQuestionData[] {
   return items.map((item) => ({
@@ -132,7 +145,23 @@ export function OneToOneConversationPage() {
   const [surveySubmitting, setSurveySubmitting] = useState(false);
   const [surveyError, setSurveyError] = useState<string | null>(null);
   const [reportState, setReportState] = useState<ReportState>(INITIAL_REPORT_STATE);
+  const [activeModal, setActiveModal] = useState<ActiveConversationModal>(null);
+  const [consultationHistory, setConsultationHistory] = useState<ConsultationSummary[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
+  const [scenarioSummaries, setScenarioSummaries] = useState<ScenarioSummary[]>([]);
+  const [recommendationLoading, setRecommendationLoading] = useState(false);
+  const [recommendationError, setRecommendationError] = useState<string | null>(null);
+  const [recommendationNeedsMoreChat, setRecommendationNeedsMoreChat] = useState(false);
+  const [recommendationFollowupQuestions, setRecommendationFollowupQuestions] =
+    useState<string[]>([]);
   const sendingRef = useRef(false);
+  const recommendationCacheRef = useRef<Recommendation | null>(null);
+  const recommendationRequestRef = useRef<{
+    consultationId: number;
+    promise: Promise<Recommendation>;
+  } | null>(null);
   const voiceStreamRef = useRef<MediaStream | null>(null);
   const voiceAudioContextRef = useRef<AudioContext | null>(null);
   const voiceSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
@@ -587,6 +616,38 @@ export function OneToOneConversationPage() {
   }, []);
 
   useEffect(() => {
+    recommendationCacheRef.current = recommendation;
+  }, [recommendation]);
+
+  const ensureRecommendation = useCallback(
+    async (targetConsultationId: number): Promise<Recommendation> => {
+      const cachedRecommendation = recommendationCacheRef.current;
+      if (cachedRecommendation?.consultation_id === targetConsultationId) {
+        return cachedRecommendation;
+      }
+
+      const savedRecommendation = await fetchLatestRecommendation(targetConsultationId);
+      if (savedRecommendation) return savedRecommendation;
+
+      const pendingRequest = recommendationRequestRef.current;
+      if (pendingRequest?.consultationId === targetConsultationId) {
+        return pendingRequest.promise;
+      }
+
+      const promise = createRecommendation(targetConsultationId);
+      recommendationRequestRef.current = { consultationId: targetConsultationId, promise };
+      try {
+        return await promise;
+      } finally {
+        if (recommendationRequestRef.current?.promise === promise) {
+          recommendationRequestRef.current = null;
+        }
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
     if (activePanel !== "report" || !consultationId || reportState.phase !== "idle") return;
 
     let cancelled = false;
@@ -594,8 +655,9 @@ export function OneToOneConversationPage() {
 
     (async () => {
       try {
-        const recommendation = await createRecommendation(consultationId);
+        const recommendation = await ensureRecommendation(consultationId);
         if (cancelled) return;
+        setRecommendation(recommendation);
 
         let currentReport = await createReport(consultationId);
         while (!cancelled && currentReport.status === "pending") {
@@ -644,10 +706,181 @@ export function OneToOneConversationPage() {
     return () => {
       cancelled = true;
     };
-  }, [activePanel, consultationId, reportState.phase]);
+  }, [activePanel, consultationId, ensureRecommendation, reportState.phase]);
+
+  const loadConsultationHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      setConsultationHistory(await fetchConsultations());
+    } catch (error) {
+      setHistoryError(
+        error instanceof ApiError ? error.message : "대화 기록을 불러오지 못했어요.",
+      );
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  const handleConsultationRename = useCallback(async (id: number, title: string) => {
+    const updated = await updateConsultationTitle(id, title);
+    setConsultationHistory((current) =>
+      current.map((item) => (item.id === id ? { ...item, title: updated.title } : item)),
+    );
+  }, []);
+
+  const handleConsultationDelete = useCallback(async (id: number) => {
+    await deleteConsultation(id);
+    setConsultationHistory((current) => current.filter((item) => item.id !== id));
+
+    if (id !== consultationId) return;
+
+    finishVoiceSession(false);
+    sessionStorage.removeItem(CONSULTATION_RESUME_KEY);
+    setMessages(initialConversationMessages);
+    setInputValue("");
+    setAvatarStatus("idle");
+    setActivePanel("chat");
+    setVoiceIssue(null);
+    setSurveyAnswers({});
+    setSurveyError(null);
+    setSurveyQuestions([]);
+    setConsultationId(null);
+    setReportState(INITIAL_REPORT_STATE);
+    setRecommendation(null);
+    recommendationCacheRef.current = null;
+    setRecommendationError(null);
+    setRecommendationNeedsMoreChat(false);
+    setRecommendationFollowupQuestions([]);
+
+    try {
+      const consultation = await createConsultation();
+      sessionStorage.setItem(CONSULTATION_RESUME_KEY, String(consultation.id));
+      setConsultationId(consultation.id);
+      const survey = await fetchSurveyItems(consultation.id);
+      setSurveyQuestions(toSurveyQuestions(survey.items));
+    } catch {
+      // 삭제는 완료됐으므로 새 상담 생성 실패 시 기본 화면을 유지한다.
+    }
+  }, [consultationId, finishVoiceSession]);
+
+  const loadRecommendedJobs = useCallback(async () => {
+    if (!consultationId) {
+      setRecommendation(null);
+      setRecommendationError("상담 세션을 연결한 뒤 다시 확인해주세요.");
+      setRecommendationNeedsMoreChat(false);
+      setRecommendationFollowupQuestions([]);
+      return;
+    }
+
+    setRecommendationLoading(true);
+    setRecommendationError(null);
+    setRecommendationNeedsMoreChat(false);
+    setRecommendationFollowupQuestions([]);
+    const [recommendationResult, scenariosResult] = await Promise.allSettled([
+      ensureRecommendation(consultationId),
+      fetchScenarios(),
+    ]);
+
+    if (recommendationResult.status === "fulfilled") {
+      setRecommendation(recommendationResult.value);
+    } else {
+      const error = recommendationResult.reason;
+      if (error instanceof ApiError && error.status === 409) {
+        const detail = error.detail as
+          | { message?: string; followup_questions?: string[] }
+          | null;
+        setRecommendationError(
+          detail?.message ?? "추천을 만들려면 상담을 조금 더 나눠주세요.",
+        );
+        setRecommendationNeedsMoreChat(true);
+        setRecommendationFollowupQuestions(detail?.followup_questions ?? []);
+      } else {
+        setRecommendationError(
+          error instanceof ApiError ? error.message : "추천 결과를 준비하지 못했어요.",
+        );
+      }
+    }
+
+    if (scenariosResult.status === "fulfilled") {
+      setScenarioSummaries(scenariosResult.value);
+    }
+    setRecommendationLoading(false);
+  }, [consultationId, ensureRecommendation]);
+
+  const handleConsultationSelect = useCallback(
+    async (nextConsultationId: number) => {
+      if (nextConsultationId === consultationId) {
+        setActiveModal(null);
+        setActivePanel("chat");
+        return;
+      }
+
+      finishVoiceSession(false);
+      setActiveModal(null);
+      setActivePanel("chat");
+      setInputValue("");
+      setVoiceIssue(null);
+      setSurveyAnswers({});
+      setSurveyError(null);
+      setReportState(INITIAL_REPORT_STATE);
+      setRecommendation(null);
+      recommendationCacheRef.current = null;
+      setRecommendationError(null);
+      setRecommendationNeedsMoreChat(false);
+      setRecommendationFollowupQuestions([]);
+      setConsultationId(nextConsultationId);
+      setAvatarStatus("thinking");
+      sessionStorage.setItem(CONSULTATION_RESUME_KEY, String(nextConsultationId));
+
+      try {
+        const [history, survey] = await Promise.all([
+          fetchConsultationMessages(nextConsultationId),
+          fetchSurveyItems(nextConsultationId),
+        ]);
+        setMessages(
+          history.length > 0
+            ? history.map((message) => ({
+                id: `message-${message.id}`,
+                role: message.role,
+                content: message.content,
+                createdAt: message.created_at,
+              }))
+            : initialConversationMessages,
+        );
+        setSurveyQuestions(toSurveyQuestions(survey.items));
+      } catch (error) {
+        setMessages([
+          {
+            id: `consultation-load-error-${Date.now()}`,
+            role: "assistant",
+            content:
+              error instanceof ApiError
+                ? error.message
+                : "선택한 상담을 불러오지 못했어요. 다시 시도해주세요.",
+          },
+        ]);
+      } finally {
+        setAvatarStatus("idle");
+      }
+    },
+    [consultationId, finishVoiceSession],
+  );
 
   const handleNavigationSelect = useCallback((id: NavigationMenuId) => {
     setActiveMenuId(id);
+
+    if (id === "conversation-list") {
+      setActiveModal("history");
+      void loadConsultationHistory();
+      return;
+    }
+
+    if (id === "recommended-jobs") {
+      setActiveModal("recommendations");
+      void loadRecommendedJobs();
+      return;
+    }
 
     if (id === "virtual-company") {
       window.location.assign(FRONTEND_ENDPOINTS.scenario);
@@ -668,6 +901,11 @@ export function OneToOneConversationPage() {
       setSurveyQuestions([]);
       setConsultationId(null);
       setReportState(INITIAL_REPORT_STATE);
+      setRecommendation(null);
+      recommendationCacheRef.current = null;
+      setRecommendationError(null);
+      setRecommendationNeedsMoreChat(false);
+      setRecommendationFollowupQuestions([]);
 
       void (async () => {
         try {
@@ -687,9 +925,7 @@ export function OneToOneConversationPage() {
       setActivePanel("report");
       return;
     }
-
-    window.dispatchEvent(new CustomEvent(`jobiverse:${id}`));
-  }, [finishVoiceSession]);
+  }, [finishVoiceSession, loadConsultationHistory, loadRecommendedJobs]);
 
   const handlePanelChange = useCallback((panel: ActiveConversationPanel) => {
     setActivePanel(panel);
@@ -765,6 +1001,56 @@ export function OneToOneConversationPage() {
 
           <PanelIndexTabs activePanel={activePanel} onChange={handlePanelChange} />
         </div>
+
+        <AnimatePresence>
+          {activeModal === "history" ? (
+            <ConversationHistoryModal
+              key="conversation-history"
+              currentConsultationId={consultationId}
+              items={consultationHistory}
+              loading={historyLoading}
+              error={historyError}
+              onRetry={() => void loadConsultationHistory()}
+              onSelect={(id) => void handleConsultationSelect(id)}
+              onRename={handleConsultationRename}
+              onDelete={handleConsultationDelete}
+              onClose={() => setActiveModal(null)}
+            />
+          ) : null}
+          {activeModal === "recommendations" ? (
+            <RecommendedJobsModal
+              key="recommended-jobs"
+              recommendation={recommendation}
+              scenarios={scenarioSummaries}
+              loading={recommendationLoading}
+              error={recommendationError}
+              needsMoreChat={recommendationNeedsMoreChat}
+              followupQuestions={recommendationFollowupQuestions}
+              onRetry={() => void loadRecommendedJobs()}
+              onContinueChat={() => {
+                const nextQuestion = recommendationFollowupQuestions[0];
+                if (nextQuestion) {
+                  setMessages((current) => [
+                    ...current,
+                    {
+                      id: `recommendation-followup-${Date.now()}`,
+                      role: "assistant",
+                      content: nextQuestion,
+                    },
+                  ]);
+                }
+                setActiveModal(null);
+                setActivePanel("chat");
+              }}
+              onEnterScenario={(slug) => {
+                window.location.assign(
+                  `${FRONTEND_ENDPOINTS.scenario}?slug=${encodeURIComponent(slug)}`,
+                );
+              }}
+              onClose={() => setActiveModal(null)}
+            />
+          ) : null}
+        </AnimatePresence>
       </div>
     </main>
   );

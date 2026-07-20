@@ -59,6 +59,14 @@ async def test_create_get_and_feedback_flow(client, db_session, mock_llm):
     assert body["feedback"] is None
     rec_id = body["id"]
 
+    latest_resp = await client.get(
+        "/api/recommendations",
+        params={"consultation_id": consultation.id},
+        headers=headers,
+    )
+    assert latest_resp.status_code == 200
+    assert latest_resp.json()["id"] == rec_id
+
     get_resp = await client.get(f"/api/recommendations/{rec_id}", headers=headers)
     assert get_resp.status_code == 200
     assert get_resp.json()["id"] == rec_id
@@ -108,6 +116,24 @@ async def test_create_recommendation_without_messages_is_400(client, db_session,
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_latest_recommendation_is_null_before_creation(client, db_session):
+    user = await _make_user(db_session, "latest-empty@example.com")
+    consultation = Consultation(user_id=user.id, status="active")
+    db_session.add(consultation)
+    await db_session.commit()
+    await db_session.refresh(consultation)
+
+    resp = await client.get(
+        "/api/recommendations",
+        params={"consultation_id": consultation.id},
+        headers={"X-User-Id": str(user.id)},
+    )
+
+    assert resp.status_code == 200
+    assert resp.json() is None
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_feedback_rejects_invalid_value(client, db_session, mock_llm):
     user = await _make_user(db_session, "fb@example.com")
     consultation = await _make_consultation_with_message(db_session, user)
@@ -124,3 +150,25 @@ async def test_feedback_rejects_invalid_value(client, db_session, mock_llm):
         headers={"X-User-Id": str(user.id)},
     )
     assert resp.status_code == 422
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_recommendation_is_idempotent_per_consultation(client, db_session, mock_llm):
+    """같은 상담에서 두 번 요청해도 추천은 하나 — 결과가 화면마다 달라지면 안 된다.
+
+    실제로 탭 두 개·버튼 연타로 중복 생성됐고, LLM 프로필 추출이 매번 달라
+    추천 목록까지 바뀌었다(팝업과 리포트가 서로 다른 답을 보여줌).
+    """
+    user = await _make_user(db_session, "idempotent@example.com")
+    consultation = await _make_consultation_with_message(db_session, user)
+
+    headers = {"X-User-Id": str(user.id)}
+    first = await client.post(
+        "/api/recommendations", json={"consultation_id": consultation.id}, headers=headers
+    )
+    assert first.status_code == 201
+    second = await client.post(
+        "/api/recommendations", json={"consultation_id": consultation.id}, headers=headers
+    )
+    assert second.status_code == 201
+    assert first.json()["id"] == second.json()["id"], "같은 상담인데 추천이 새로 생성됨"

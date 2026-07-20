@@ -14,6 +14,16 @@ from app.models import User
 router = APIRouter(prefix="/api/recommendations", tags=["recommendation"])
 
 
+@router.get("", response_model=RecommendationOut | None)
+async def get_latest_recommendation(
+    consultation_id: int,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """현재 상담에서 가장 최근에 생성한 추천 결과를 반환한다."""
+    return await service.get_latest_recommendation(session, user, consultation_id)
+
+
 @router.post("", response_model=RecommendationOut, status_code=201)
 async def create_recommendation(
     body: RecommendationRequest,

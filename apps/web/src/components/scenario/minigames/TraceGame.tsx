@@ -25,13 +25,21 @@ import {
  * skip_penalty·incomplete. 한 이탈 구간엔 가장 무거운 감점 하나만 붙인다(중첩 금지).
  * terminal_stop 재개·emergency 무시·정밀구간 전면이탈은 즉시 실패.
  *
- * 도트 아트(표시 전용 — 채점·판정 계약과 무관, ms-09):
+ * 도트 아트(표시 전용 — 채점·판정 계약과 무관, ms-08·ms-09):
  *   - data.guide 와 같은 이름의 스프라이트가 있으면 배경 스킨(금속 판재)으로 깔린다.
- *     파일이 없으면 조용히 빠져 기존 그라데이션 배경 그대로다(ms-08 폴백 규약).
+ *     파일이 없으면 조용히 빠져 기존 그라데이션 배경 그대로다(폴백 규약).
  *   - data.head 가 있으면 드래그 지점을 절삭 헤드 스프라이트가 따라다니고,
  *     stage 가 아트 모드(data-art)로 전환돼 밴드·경로 대비만 살짝 올라간다.
  *   - emergency.signal·data.spark_sprite 도 같은 이름의 파일이 있으면 도트로 그려지고,
  *     없으면 기존 라벨 칩·원광 플래시로 폴백한다.
+ *   - start_gate.sprite 가 있으면 확인 카드 텍스트 위에 도트 카드가 얹히고(ms-08
+ *     패치테스트), interrupts[].sprite·terminal_stop.sprite 가 있으면 해당 지점
+ *     마커가 소형 도트 아이콘으로 바뀐다(ms-08 움찔·상처·자세·발적). 필드나
+ *     파일이 없으면 기존 텍스트 카드·라벨 칩 렌더 그대로다(ms-09 는 이 필드가
+ *     없어 emergency 경로·아트 모드 불변).
+ *   - emergency 잠금 중엔 하단 footer 가 전용 경보 슬롯(신호 아이콘+대형 보고 버튼)으로
+ *     바뀐다 — 표시 전용이며 report() 판정·채점은 그대로다. emergency 가 없는 게임
+ *     (ms-08)은 기존 footerRow 렌더만 탄다(디자이너 피드백: 보고 버튼 시인성).
  */
 
 type TraceBand = { from?: number; to?: number; tolerance?: number; color?: string };
@@ -40,9 +48,10 @@ type TraceData = {
   guide?: string;
   tolerance?: number;
   bands?: TraceBand[];
-  start_gate?: { action?: string; reason?: string; skip_penalty?: number };
-  interrupts?: Array<{ at?: number; reason?: string; hold?: number }>;
-  terminal_stop?: { at?: number; reason?: string };
+  /** sprite 류 필드는 전부 표시 전용 — 필드/파일 부재 시 기존 텍스트 카드·라벨 칩 폴백 */
+  start_gate?: { action?: string; reason?: string; skip_penalty?: number; sprite?: string };
+  interrupts?: Array<{ at?: number; reason?: string; hold?: number; sprite?: string }>;
+  terminal_stop?: { at?: number; reason?: string; sprite?: string };
   emergency?: { at?: number; signal?: string; action?: string; resume_after_report?: boolean };
   sparks?: Array<{ at?: number; reason?: string }>;
   no_go?: Array<{ from?: number; to?: number; reason?: string; offset?: number }>;
@@ -64,6 +73,8 @@ type Gate = {
   hold: number; // interrupt 만 사용
   reason: string;
   index: number; // interrupts 배열 인덱스 (그 외 -1)
+  /** 표시 전용 — 마커 도트 스프라이트 id(interrupt·terminal). emergency 는 signal 이 겸한다 */
+  sprite?: string;
 };
 
 const VIEW_W = 960;
@@ -100,6 +111,7 @@ export function TraceGame({ game, onComplete }: EngineProps) {
   const sparkSprite = typeof data.spark_sprite === "string" ? data.spark_sprite : undefined;
   const guideSkin = typeof data.guide === "string" ? data.guide : undefined;
   const emergencySignal = typeof data.emergency?.signal === "string" ? data.emergency.signal : undefined;
+  const startGateSprite = typeof data.start_gate?.sprite === "string" ? data.start_gate.sprite : undefined;
   const bands = useMemo(() => data.bands ?? [], [data.bands]);
   const interrupts = useMemo(() => data.interrupts ?? [], [data.interrupts]);
   const sparks = useMemo(() => data.sparks ?? [], [data.sparks]);
@@ -121,6 +133,7 @@ export function TraceGame({ game, onComplete }: EngineProps) {
       hold: it.hold ?? 0.6,
       reason: it.reason ?? "잠깐 멈추세요",
       index,
+      sprite: typeof it.sprite === "string" ? it.sprite : undefined,
     }));
     if (data.emergency && typeof data.emergency.at === "number") {
       // signal 은 스프라이트 id 를 겸한다(ms-09 균열라인_연기_아이콘) — 표시할 땐 '아이콘' 접미사만 벗긴다
@@ -128,7 +141,14 @@ export function TraceGame({ game, onComplete }: EngineProps) {
       list.push({ kind: "emergency", at: data.emergency.at, hold: 0, reason: signalLabel || "돌발 신호", index: -1 });
     }
     if (data.terminal_stop && typeof data.terminal_stop.at === "number") {
-      list.push({ kind: "terminal", at: data.terminal_stop.at, hold: 0, reason: situationOf(data.terminal_stop.reason) || "즉시 중단", index: -1 });
+      list.push({
+        kind: "terminal",
+        at: data.terminal_stop.at,
+        hold: 0,
+        reason: situationOf(data.terminal_stop.reason) || "즉시 중단",
+        index: -1,
+        sprite: typeof data.terminal_stop.sprite === "string" ? data.terminal_stop.sprite : undefined,
+      });
     }
     return list.sort((a, b) => a.at - b.at);
   }, [interrupts, data.emergency, data.terminal_stop]);
@@ -637,27 +657,35 @@ export function TraceGame({ game, onComplete }: EngineProps) {
 
         {/* 경로 위 신호 마커 — 활성 게이트만 노출(사전 유출 방지).
             emergency 는 signal 과 같은 이름의 스프라이트가 있으면 도트 아이콘으로,
-            없으면 지금처럼 라벨 칩으로 나온다(균열라인_연기_아이콘 — ms-09). */}
+            없으면 지금처럼 라벨 칩으로 나온다(균열라인_연기_아이콘 — ms-09).
+            interrupt·terminal 도 각자 sprite 필드가 있으면 소형 도트 아이콘으로
+            바뀐다(ms-08 움찔·상처·자세·발적) — 필드/파일 부재 시 기존 라벨 칩 폴백. */}
         {pts.length > 0
           ? gates.map((gate, i) => {
               const status = st.current.gateStatus[i];
               if (status === "pending") return null;
               const pos = markerPos(gate.at);
-              const spriteMode = gate.kind === "emergency" && emergencySignal !== undefined;
+              const markerSprite = gate.kind === "emergency" ? emergencySignal : gate.sprite;
+              const spriteMode = markerSprite !== undefined;
               return (
                 <span
                   key={`${gate.kind}-${i}`}
                   className={styles.marker}
                   data-kind={status === "done" ? "done" : gate.kind === "interrupt" ? undefined : "danger"}
                   data-sprite={spriteMode ? "true" : undefined}
+                  // 활성 emergency 만 하단 경보 슬롯의 아이콘과 같은 리듬으로 깜빡인다
+                  // (표시 전용) — interrupt·terminal(ms-08)에는 붙지 않는다.
+                  data-alert={status === "active" && gate.kind === "emergency" ? "true" : undefined}
                   style={{ left: `${(pos.x / VIEW_W) * 100}%`, top: `${(pos.y / VIEW_H) * 100}%` }}
                 >
                   {spriteMode ? (
                     <PixelSprite
-                      id={emergencySignal ?? ""}
+                      id={markerSprite ?? ""}
                       label={situationOf(gate.reason)}
-                      size={44}
-                      fallbackClassName={styles.markerFallback}
+                      size={gate.kind === "interrupt" ? 36 : 44}
+                      // emergency 는 기존 위험 칩 폴백 그대로(ms-09 불변),
+                      // interrupt·terminal 은 부모 data-kind 를 따르는 칩 폴백
+                      fallbackClassName={gate.kind === "emergency" ? styles.markerFallback : styles.markerChipFallback}
                     />
                   ) : (
                     situationOf(gate.reason)
@@ -708,6 +736,14 @@ export function TraceGame({ game, onComplete }: EngineProps) {
 
         {startGateOpen && data.start_gate ? (
           <div className={styles.gateOverlay} style={{ pointerEvents: "none" }}>
+            {startGateSprite ? (
+              // 확인 카드 도트(표시 전용 — ms-08 패치테스트). 래퍼는 display:contents 라
+              // 파일이 없으면 display:none 폴백만 남아 기존 텍스트 카드 레이아웃
+              // (flex gap 포함)이 그대로 유지된다.
+              <span className={styles.gateCard} aria-hidden="true">
+                <PixelSprite id={startGateSprite} label="" size={132} fallbackClassName={styles.spriteHidden} />
+              </span>
+            ) : null}
             <p className={styles.gateText}>{data.start_gate.reason ?? "시작 전 확인이 필요합니다"}</p>
             <button
               type="button"
@@ -723,19 +759,37 @@ export function TraceGame({ game, onComplete }: EngineProps) {
       </div>
 
       {!done ? (
-        <div className={styles.footerRow}>
-          <span className={styles.hintText}>초록 점에서 시작해 점선 경로를 따라 드래그하세요</span>
-          {lockView?.kind === "emergency" ? (
-            <button type="button" className={styles.actionButton} data-variant="alert" onClick={report} aria-label="작업 중지하고 보고">
+        lockView?.kind === "emergency" ? (
+          /* emergency 전용 고정 경보 슬롯 — footer 자리를 통째로 써서 스테이지(경로)를
+             가리지 않는다. 경로 위 마커와 같은 신호 스프라이트(균열·연기)를 대형 보고
+             버튼 옆에 함께 그려 시각적으로 잇는다. 표시 전용 — report() 판정·채점 불변,
+             emergency 가 없는 게임(ms-08)은 아래 기존 footerRow 분기만 탄다. */
+          <div className={styles.emergencyDock}>
+            <span className={styles.emergencySignal} aria-hidden="true">
+              {emergencySignal ? (
+                <PixelSprite id={emergencySignal} label="" size={44} fallbackClassName={styles.emergencyFallback} />
+              ) : (
+                <span className={styles.emergencyFallback} />
+              )}
+            </span>
+            <span className={styles.emergencyText}>
+              {situationOf(lockView.reason) || "돌발 신호"}
+              <small>즉시 멈추고 버튼으로 보고하세요</small>
+            </span>
+            <button type="button" className={styles.actionButton} data-variant="emergency" onClick={report} aria-label="작업 중지하고 보고">
               {emergencyActionLabel || "작업중지 보고"}
             </button>
-          ) : null}
-          {lockView?.kind === "terminal" ? (
-            <button type="button" className={styles.actionButton} data-variant="alert" onClick={terminate} aria-label="여기서 중단하고 종료">
-              여기서 종료
-            </button>
-          ) : null}
-        </div>
+          </div>
+        ) : (
+          <div className={styles.footerRow}>
+            <span className={styles.hintText}>초록 점에서 시작해 점선 경로를 따라 드래그하세요</span>
+            {lockView?.kind === "terminal" ? (
+              <button type="button" className={styles.actionButton} data-variant="alert" onClick={terminate} aria-label="여기서 중단하고 종료">
+                여기서 종료
+              </button>
+            ) : null}
+          </div>
+        )
       ) : null}
 
       {toast ? <span className={styles.hintText} role="status" style={{ textAlign: "center" }}>{toast}</span> : null}

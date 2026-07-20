@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.content import game_map
+from app.content.loader import yaml_scenario_slugs
 from app.core.db import SessionFactory, get_session
 from app.core.deps import get_current_user, resolve_user
 from app.domains.scoring import aggregate
@@ -16,6 +17,35 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["simulation"])
 
+# WS 텍스트 입력 상한 — HTTP MessageIn(max_length=2000)과 같은 캡을 WS 경로에도 강제한다.
+# 없으면 수 MB 문자열을 LLM 프롬프트에 실어 비용 폭증·지연(DoS)을 유발할 수 있다.
+WS_TEXT_MAX = 2000
+
+
+def _ws_text(data: dict, key: str) -> str:
+    """WS 페이로드의 텍스트 필드 검증 — 문자열이 아니거나 상한 초과면 400(HTTPException)."""
+    value = data.get(key, "")
+    if not isinstance(value, str):
+        raise HTTPException(status_code=400, detail=f"{key}는 문자열이어야 합니다")
+    if len(value) > WS_TEXT_MAX:
+        raise HTTPException(status_code=400, detail=f"{key}가 너무 깁니다(최대 {WS_TEXT_MAX}자)")
+    return value
+
+
+def _ws_submission(data: dict):
+    """task_submit content — 서술형(str) 또는 선택·배열형(list) 모두 허용하되 크기를 제한한다."""
+    value = data.get("content", "")
+    if isinstance(value, str):
+        if len(value) > WS_TEXT_MAX:
+            raise HTTPException(status_code=400, detail=f"제출 내용이 너무 깁니다(최대 {WS_TEXT_MAX}자)")
+        return value
+    if isinstance(value, list):
+        # 선택·배열형(key 목록) — 보기 수를 넘는 과도한 배열 차단
+        if len(value) > 100 or any(not isinstance(v, str) or len(v) > 100 for v in value):
+            raise HTTPException(status_code=400, detail="제출 형식이 올바르지 않습니다")
+        return value
+    raise HTTPException(status_code=400, detail="제출 내용은 문자열 또는 배열이어야 합니다")
+
 
 @router.get("/api/scenarios")
 async def list_scenarios(session: AsyncSession = Depends(get_session)):
@@ -23,7 +53,12 @@ async def list_scenarios(session: AsyncSession = Depends(get_session)):
 
     필요한 컬럼만 조회 (steps 등 대형 JSONB 제외). 돌발 퀘스트 보유 여부는
     서프라이즈 스포일러라 노출하지 않는다.
+
+    seed는 시나리오를 지우지 않으므로(upsert만), data/scenarios/_disabled로 뺀
+    시나리오도 DB엔 남는다. 활성 YAML(yaml_scenario_slugs)에 없는 slug는 목록에서 뺀다
+    — 안 그러면 비활성 시나리오(예: yg-05, backend-dev-day1)가 계속 노출된다.
     """
+    active_slugs = yaml_scenario_slugs()
     rows = (
         await session.execute(
             select(Scenario.slug, Scenario.title, Scenario.module, Job.code, Job.title)
@@ -31,16 +66,25 @@ async def list_scenarios(session: AsyncSession = Depends(get_session)):
             .order_by(Scenario.slug)
         )
     ).all()
-    return [
-        {
-            "slug": slug, "title": title, "module": module,
-            "job_code": code, "job_title": jtitle,
-            # geometry까지 로드 가능한 경우에만 — 시뮬 응답의 map과 항상 같은 신호
-            # (목록엔 맵 있다더니 게임 시작하니 null인 어긋남 방지). null이면 module 폴백.
-            "map_id": game_map.available_map_id(slug),
-        }
-        for slug, title, module, code, jtitle in rows
-    ]
+    result = []
+    for slug, title, module, code, jtitle in rows:
+        if slug not in active_slugs:
+            continue  # _disabled로 뺀 시나리오 — DB엔 남아있지만 노출 안 함
+        map_info = game_map.map_info_for(slug)
+        result.append(
+            {
+                "slug": slug,
+                "title": title,
+                "module": module,
+                "job_code": code,
+                "job_title": jtitle,
+                # geometry까지 로드 가능한 경우에만 — 시뮬 응답의 map과 항상 같은 신호
+                # (목록엔 맵 있다더니 게임 시작하니 null인 어긋남 방지). null이면 프론트 이미지 폴백.
+                "map_id": map_info["id"] if map_info else None,
+                "map_background": map_info["background"] if map_info else None,
+            }
+        )
+    return result
 
 
 @router.get("/api/simulations")
@@ -156,7 +200,8 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, token: str | N
                 try:
                     if data.get("type") == "chat":
                         async for kind, payload in service.stream_npc_chat(
-                            session, simulation, scenario, data.get("npc", ""), data.get("content", "")
+                            session, simulation, scenario,
+                            _ws_text(data, "npc"), _ws_text(data, "content"),
                         ):
                             if kind == "token":
                                 await websocket.send_json({"type": "token", "text": payload})
@@ -171,7 +216,7 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, token: str | N
                                     )
                     elif data.get("type") == "task_submit":
                         result = await service.submit_task(
-                            session, simulation, scenario, data.get("content", "")
+                            session, simulation, scenario, _ws_submission(data)
                         )
                         step_changed = result.pop("step_changed")
                         completed = result.pop("completed")

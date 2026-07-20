@@ -168,6 +168,38 @@
 .lamp[data-light="yellow"] { background: #f5c542; color: #f5c542; }
 .lamp[data-light="red"]    { background: #ff5d6e; color: #ff5d6e; }
 
+/* 보조 로그 칩 (yg-04 log_hints) — hover 툴팁은 터치 기기에서 안 보여, 데이터의
+   로그 문구를 노드 곁에 그대로 띄운다(표시 전용). yg-04 는 「글자 판독 금지」의
+   공인 예외 게임이라 로그 텍스트 노출이 허용된다 — 문구는 가공 없이 원문 그대로.
+   log_hints 없는 게임(jm-01·jm-04·stn-02)에선 요소 자체가 안 그려진다. */
+.logChip {
+  --log-shift-x: -50%;
+  --log-shift-y: 18px;
+  position: absolute;
+  transform: translate(var(--log-shift-x), var(--log-shift-y));
+  max-width: 200px;
+  padding: 3px 8px;
+  border: 1px solid rgb(90 220 180 / 0.4);
+  border-radius: 6px;
+  background: rgb(8 12 20 / 0.92);
+  color: #9fe8c8;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* 장식 레이어 — 클릭은 캔버스로 통과한다(경유점 추가 조작 불변) */
+  pointer-events: none;
+}
+
+/* 캔버스 가장자리 노드 — 칩이 잘리지 않게 앵커를 안쪽으로 당긴다 */
+.logChip[data-side="end"]   { --log-shift-x: -88%; }
+.logChip[data-side="start"] { --log-shift-x: -12%; }
+/* 하단 근처 노드 — 아래로 밀면 잘리므로 노드 위로 띄운다 */
+.logChip[data-pos="above"]  { --log-shift-y: calc(-100% - 18px); }
+
 /* 구역 색점 (stn-02 color 필드) */
 .colorDot {
   flex: none;
@@ -199,10 +231,17 @@
   background: #0e7d5d;
 }
 
-/* ── 경로상 발견물 (stn-02 blockers) — 클릭해 발견하고 보고해야 한다 ── */
+/* ── 경로상 발견물 (stn-02 blockers) — 클릭해 발견하고 보고해야 한다 ──
+   sprite 가 있으면 도트 아이콘 + 라벨 가로 칩(노드 마커와 같은 결). 파일이 없거나
+   sprite 미지정이면 아이콘이 spriteHidden 으로 숨어 종전 텍스트 버튼과 동일하다.
+   가로 배치인 이유: stn-02 발견물(y=415)이 캔버스 하단(440) 근처라 세로 적층은
+   overflow: hidden 에 잘린다. */
 .blocker {
   position: absolute;
   transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 5px 8px;
   border: 1px dashed rgb(255 210 110 / 0.55);
   border-radius: 8px;
@@ -381,7 +420,8 @@
   background: linear-gradient(180deg, #131722, #1a2030);
 }
 
-/* 도로 밖(갓길·블록) — 반복 타일 느낌만 준다 */
+/* 도로 밖(갓길·블록) — 반복 타일. backgroundPositionY 를 JS 가 밀어 함께 흐른다
+   (트럭 y 기반 시각 배속 — 판정과 무관한 배경 텍스처 레이어) */
 .roadSide {
   position: absolute;
   top: 0;
@@ -409,6 +449,24 @@
   background-image: linear-gradient(rgb(255 255 255 / 0.26) 0 26px, transparent 26px 54px);
   background-size: 4px 54px;
   background-repeat: repeat-y;
+}
+
+/* 속도 스트릭 — 트럭이 위(앞)일수록 JS 가 opacity 를 올리고 대시보다 빠른
+   오프셋으로 흘린다(바람가르는 부스트감). 순수 연출 레이어 — 판정 무관.
+   x 위치는 여기서 고정하고 y 오프셋만 JS 인라인(backgroundPositionY)이 민다. */
+.speedStreaks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.24) 0 30px, transparent 30px 170px),
+    linear-gradient(rgb(255 255 255 / 0.15) 0 22px, transparent 22px 130px),
+    linear-gradient(rgb(255 255 255 / 0.2) 0 26px, transparent 26px 200px);
+  background-size: 3px 170px, 2px 130px, 2px 200px;
+  background-repeat: repeat-y;
+  background-position-x: 12%, 52%, 87%;
+  transition: opacity 160ms ease-out;
 }
 
 /* 서행 의무 구간 — 진행률이 구간에 들면 화면 전체에 호박색 틴트 */
@@ -562,6 +620,12 @@
   color: #ffd9df;
 }
 
+/* 속도 칩 — 화면 위쪽(고배속)을 달릴 때 부스트 톤으로 강조 */
+.driveChip[data-boost="true"] {
+  background: rgb(20 110 80 / 0.6);
+  color: #d9fff1;
+}
+
 /* 조작줄 — 터치·마우스용 D패드 + 안내문 */
 .driveControls {
   display: flex;
@@ -628,5 +692,9 @@
   .slowBanner[data-speeding="true"],
   .truck[data-hit="true"] {
     animation: none;
+  }
+  /* 속도 스트릭은 JS 도 안 그리지만(reduced 분기) CSS 로도 이중 차단 */
+  .speedStreaks {
+    display: none;
   }
 }

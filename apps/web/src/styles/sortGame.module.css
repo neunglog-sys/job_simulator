@@ -207,9 +207,16 @@
   word-break: keep-all;
 }
 
+/* 통 아트 폴백 칩 — 파일 부재 시 PixelSprite 가 sprite id 텍스트로 그린다(기존 표시 유지) */
 .binSprite {
   font-size: 10px;
   color: rgb(244 240 255 / 0.88); /* 가시성: 0.65 알파 10px는 판독 불가 수준 */
+}
+
+/* 통 아트(도트 스프라이트 img) — 라벨 위에 얹히는 앵커. 좁은 통에서도 넘치지 않게 */
+.bin img {
+  max-width: 100%;
+  margin-bottom: 1px; /* 아트 ↔ 색 점·라벨 사이 숨 고르기 */
 }
 
 /* ── 돌발 배너 — kts-01·kts-04 ── */
@@ -360,6 +367,17 @@
 
 .stageBtn[data-done="true"] .stageOrder {
   background: #5adcb4;
+}
+
+/* 단계 아이콘(도트 스프라이트 img) — 긴 라벨 옆에서 눌리지 않게 폭 고정 */
+.stageBtn img {
+  flex-shrink: 0;
+}
+
+/* 단계 아이콘 폴백 — 라벨 텍스트가 이미 버튼 안에 있으므로 칩을 숨겨 중복을 막는다.
+   아트 파일이 없으면 버튼은 지금과 동일한 '번호 + 라벨' 표시로 남는다. */
+.stageSpriteFallback {
+  display: none;
 }
 
 /* ── 행동 줄: escalate + 마감 ── */
@@ -540,6 +558,55 @@
   text-align: center;
 }
 
+/* '촬영됨' 태그 — 병행필수(gm-01) 사진 증빙 표시. 채점과 무관한 표시 전용 */
+.photoTag {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  padding: 2px 9px;
+  border: 1px solid rgb(255 255 255 / 0.8);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #0e1a2e;
+  background: #cfe4ff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+  animation: photoTagIn 220ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+@keyframes photoTagIn {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 셔터 플래시 — 촬영 순간 검수대를 덮는 흰 섬광. 정지 상태 opacity 0 이라
+   애니메이션이 꺼져도(모션 최소화) 화면을 가리지 않는다 */
+.shutterFlash {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: #fff;
+  opacity: 0;
+  animation: shutterFlash 340ms ease-out;
+}
+
+@keyframes shutterFlash {
+  0% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 .conveyorEmpty {
   z-index: 1;
   margin: 0 0 8px;
@@ -570,6 +637,16 @@
 .doneStamp[data-verdict="wrong"] {
   color: #2a0f16;
   background: #ff8fa3;
+}
+
+/* 스탬프 안의 '촬영' 복기 마크 — 증빙 사진을 남긴 박스 표시(표시 전용) */
+.stampPhoto {
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 900;
+  color: #0e1a2e;
+  background: rgb(255 255 255 / 0.85);
 }
 
 /* ── 발주서(검수서) 패널 — data.order_sheet ──
@@ -690,6 +767,12 @@
   }
   .conveyorItem {
     animation: none; /* 좌→중앙 슬라이드 생략 */
+  }
+  .shutterFlash {
+    animation: none; /* 정지 opacity 0 — 섬광 생략 */
+  }
+  .photoTag {
+    animation: none;
   }
   .escalateBtn[data-armed="true"] {
     animation: none;

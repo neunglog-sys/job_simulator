@@ -1,5 +1,6 @@
 import { UserCircle } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { LogoutConfirmDialog } from "../components/LogoutConfirmDialog";
 import { AiCoachPanel } from "../components/scenario/AiCoachPanel";
 import { BriefingPanel } from "../components/scenario/BriefingPanel";
 import { DashboardHeader } from "../components/scenario/DashboardHeader";
@@ -190,6 +191,7 @@ export function ScenarioGamePage() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isMemoOpen, setIsMemoOpen] = useState(false);
   const [isWorkflowOpen, setIsWorkflowOpen] = useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [scenarioTheme, setScenarioTheme] = useState<ScenarioTheme>(() => {
     const savedTheme = localStorage.getItem("scenario-theme");
     return savedTheme === "deep-space" || savedTheme === "aurora" ? savedTheme : "nebula";
@@ -901,10 +903,7 @@ export function ScenarioGamePage() {
           onThemeChange={setScenarioTheme}
           onHintToggle={() => setIsHintOpen((current) => !current)}
           onFullscreenToggle={toggleFullscreen}
-          onLogout={() => {
-            logout();
-            window.location.assign("/");
-          }}
+          onLogout={() => setIsLogoutConfirmOpen(true)}
           onSettingsOpen={() => setCoachMessage("설정 메뉴에서 사운드와 이동 방식을 조정할 수 있게 될 예정이에요.")}
           onHome={() => window.location.assign("/")}
           onBack={() => {
@@ -1137,6 +1136,14 @@ export function ScenarioGamePage() {
           </div>
         </div>
       ) : null}
+      <LogoutConfirmDialog
+        open={isLogoutConfirmOpen}
+        onCancel={() => setIsLogoutConfirmOpen(false)}
+        onConfirm={() => {
+          logout();
+          window.location.assign("/");
+        }}
+      />
     </main>
   );
 }

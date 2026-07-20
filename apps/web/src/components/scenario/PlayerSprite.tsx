@@ -10,6 +10,8 @@ type PlayerSpriteProps = {
   walking?: boolean;
   // 오클루전 맵의 y-정렬용 — 발 y를 넘기면 가구 오클루더(z=baseline)와 앞뒤가 갈린다
   zIndex?: number;
+  // 컷신(투어)처럼 좌표가 뚝뚝 떨어질 때만 보간 — 조작 중엔 꺼야 카메라와 어긋나지 않는다
+  smooth?: boolean;
 };
 
 export const PLAYER_SIZE = {
@@ -32,14 +34,24 @@ function heroSheet(): string {
   return `/hero/${pick === "male" ? "male" : "female"}.png`;
 }
 
-export function PlayerSprite({ position, facing = "front", walking = false, zIndex }: PlayerSpriteProps) {
+export function PlayerSprite({
+  position,
+  facing = "front",
+  walking = false,
+  zIndex,
+  smooth = false,
+}: PlayerSpriteProps) {
   const [missing, setMissing] = useState(false);
   const sheet = heroSheet();
 
   return (
     <div
       className={styles.playerSprite}
-      style={{ transform: `translate3d(${position.x}px, ${position.y}px, 0)`, zIndex }}
+      style={{
+        transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
+        zIndex,
+        transition: smooth ? "transform 900ms ease-in-out" : undefined,
+      }}
       role="img"
       aria-label="플레이어 캐릭터"
     >

@@ -200,11 +200,21 @@ button.mapSpot:not(:disabled):hover {
   cursor: default;
 }
 
-/* fit 게이트에 잠긴 자리 (받침 미노출) */
+/* fit 게이트에 잠긴 자리 (받침 미노출) — 버튼이지만 유효 드롭이 아님을 커서로 알린다.
+   드롭·클릭하면 잠긴 이유(locked_hint)가 상태줄로 뜬다(감점 없음). */
 .mapSpot[data-state="locked"] {
   border-color: rgb(255 255 255 / 0.3);
   background: rgb(13 17 34 / 0.6);
-  cursor: default;
+  cursor: not-allowed;
+}
+
+/* 잠긴 자리 위 호버·드래그 — 액센트(유효 드롭 신호) 대신 중립 톤으로만 반응 */
+.mapSpot[data-state="locked"]:hover,
+.mapSpot[data-state="locked"][data-drop="true"] {
+  border-style: dashed;
+  border-color: rgb(255 255 255 / 0.5);
+  background: rgb(13 17 34 / 0.75);
+  box-shadow: none;
 }
 
 /* 순서 위반·마감 조기 실행을 부른 자리 */
@@ -223,6 +233,20 @@ button.mapSpot:not(:disabled):hover {
   border-color: var(--scenario-accent, #8a63ee);
   background: rgb(138 99 238 / 0.42);
   box-shadow: 0 0 0 3px var(--scenario-accent-soft, rgb(193 126 255 / 0.32));
+}
+
+/* 다음 차례 자리 안내(beacon 표시 전용 필드) — 은은한 흰 펄스.
+   ms-10 시작 지점(확인 표지판)이 안 보여 '밑이 잠김'으로 읽히던 문제의 안내층.
+   순서 유출 방지: 데이터에서 beacon 을 켠 스텝에만 적용된다(현재 선행공정 확인 하나).
+   드래그 중 드롭 대상이 되면(data-drop) 액센트 하이라이트가 우선하도록 비켜선다. */
+.mapSpot[data-next="true"]:not([data-drop="true"]) {
+  border-color: rgb(255 255 255 / 0.9);
+  animation: spotBeacon 1.5s ease-in-out infinite;
+}
+
+@keyframes spotBeacon {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(255 255 255 / 0.3); }
+  50% { box-shadow: 0 0 0 6px rgb(255 255 255 / 0.1); }
 }
 
 .zoneLabel {
@@ -484,6 +508,10 @@ button.mapSpot:not(:disabled):hover {
   .tileZone[data-ready="true"] {
     animation: none;
     box-shadow: 0 0 0 3px rgb(255 215 110 / 0.3);
+  }
+  .mapSpot[data-next="true"]:not([data-drop="true"]) {
+    animation: none;
+    box-shadow: 0 0 0 3px rgb(255 255 255 / 0.24);
   }
   .trayPiece:hover:enabled {
     transform: none;

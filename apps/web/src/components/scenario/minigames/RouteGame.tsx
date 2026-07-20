@@ -35,6 +35,9 @@ import {
  * 날씨 effect(서행)는 주행 기본 속도를 낮추고 when_effect 구간을 활성화한다.
  * 최종 accuracy = 계획 점수 − 주행 감점(clampScore) — 기존 채점 계약 위에 감점만
  * 얹는다. 장애물·진행률은 시계에서 역산하고 rAF 는 렌더만 한다(PourGame 규약).
+ * 속도감 연출: 트럭이 위(앞)일수록 배경(차선 대시·갓길·스트릭)이 빨리 흐른다 —
+ * 시각 배속은 렌더 전용 레이어에만 곱하고, 판정 좌표(장애물 y·진행률·충돌)와
+ * 장애물 표시 좌표는 배속과 무관하게 기존 시계 역산 그대로다(표시=판정 유지).
  * prefers-reduced-motion 이면 저속·무장애물 간이 모드(충돌 감점 없음, 서행 의무 유지).
  *
  * 좌표가 없는 노드(jm-04·yg-04)는 자동 배치한다: 정답 경유지는 위쪽 호(arc)에,
@@ -42,6 +45,12 @@ import {
  * 그래서 decoy 를 경로에 넣으면 그 선분이 구역을 관통해 자연 감점된다(설계 의도).
  * 노드 id 를 이름에 포함한 구역(yg-04 DB_정상구간)은 그 노드 위에 앉는다 —
  * 갈래에 들어가는 선분이 곧 구역 침범이 된다.
+ *
+ * 표시 전용 확장(yg-04): ① signals 로만 생기는 갈래(extras) 노드는 signals 항목의
+ * sprite 를 도트 마커로 쓴다 — 경로 노드(start/waypoints/decoy)는 각자의 sprite
+ * 필드 그대로다. ② log_hints 는 hover 툴팁 외에 노드 곁 로그 칩으로도 데이터 문구
+ * 그대로 노출한다(터치 기기 대응 — yg-04 는 로그 판독 공인 예외 게임). 둘 다
+ * 필드·파일이 없으면 아무것도 그리지 않는다(다른 route 게임 렌더 불변, 채점 불변).
  */
 
 type Pt = [number, number];
@@ -166,7 +175,7 @@ type RouteModel = {
   extras: RouteNode[];
   zones: Zone[];
   blockers: BlockerDef[];
-  lights: Map<string, { light: string; hint?: string }>;
+  lights: Map<string, { light: string; hint?: string; sprite?: string }>;
   logHints: Map<string, string>;
   reportAt: string | null;
   submitAs: string | null;
@@ -181,12 +190,14 @@ function buildModel(data: Record<string, unknown>): RouteModel {
   const wpRaw = asArray(data.waypoints).map(parseNodeRaw).filter(nonNull);
   const decoyRaw = asArray(data.decoy_waypoints).map(parseNodeRaw).filter(nonNull);
 
-  // 구간 상태등(yg-04) — signals[].at 은 좌표가 아니라 노드 id 참조다
-  const lights = new Map<string, { light: string; hint?: string }>();
+  // 구간 상태등(yg-04) — signals[].at 은 좌표가 아니라 노드 id 참조다.
+  // sprite 는 signals 로만 생기는 갈래(extras) 노드의 표시 전용 도트 마커 슬롯 —
+  // 경로 노드는 각자의 sprite 필드를 쓰므로 이 값은 extras 조립에서만 읽는다.
+  const lights = new Map<string, { light: string; hint?: string; sprite?: string }>();
   for (const s of asArray(data.signals).map(asRecord).filter(nonNull)) {
     const nodeId = str(s.at);
     const light = str(s.light);
-    if (nodeId && light) lights.set(nodeId, { light, hint: str(s.hint) });
+    if (nodeId && light) lights.set(nodeId, { light, hint: str(s.hint), sprite: str(s.sprite) });
   }
   const logHints = new Map<string, string>();
   for (const h of asArray(data.log_hints).map(asRecord).filter(nonNull)) {
@@ -244,6 +255,8 @@ function buildModel(data: Record<string, unknown>): RouteModel {
     id,
     kind: "extra",
     at: [lerp((e + 1) / (extraIds.length + 1))[0], AUTO_EXTRA_Y],
+    // 표시 전용 — signals 항목의 sprite(yg-04 DB). 없으면 종전 램프+라벨 그대로.
+    sprite: lights.get(id)?.sprite,
   }));
 
   const allNodes = [start, ...waypoints, ...decoys, ...extras];
@@ -695,9 +708,30 @@ export function RouteGame({ game, onComplete }: EngineProps) {
           );
         })}
 
+        {/* 보조 로그 칩(yg-04 log_hints) — hover 툴팁은 터치 기기에서 안 보이므로
+            데이터의 로그 문구를 노드 곁에 그대로 띄운다(표시 전용 — 문구 가공 금지,
+            log_hints 없는 게임에선 아무것도 그리지 않는다). */}
+        {nodes
+          .filter((node) => model.logHints.has(node.id))
+          .map((node) => (
+            <span
+              key={`log-${node.id}`}
+              className={styles.logChip}
+              style={{ left: `${(node.at[0] / SCENE.w) * 100}%`, top: `${(node.at[1] / SCENE.h) * 100}%` }}
+              data-side={node.at[0] > SCENE.w * 0.78 ? "end" : node.at[0] < SCENE.w * 0.22 ? "start" : "center"}
+              data-pos={node.at[1] > SCENE.h - 70 ? "above" : "below"}
+              role="note"
+              aria-label={`보조 로그 — ${model.logHints.get(node.id)}`}
+            >
+              {model.logHints.get(node.id)}
+            </span>
+          ))}
+
         {model.blockers.map((blocker) => {
           const isFound = found.includes(blocker.id);
           const isReported = reported.includes(blocker.id);
+          // 발견 전엔 겉모습(sprite 이름), 발견 후엔 정체(label) — 기존 텍스트 계약 그대로
+          const text = isFound ? (blocker.label ?? pretty(blocker.id)) : pretty(blocker.sprite ?? blocker.id);
           return (
             <button
               key={blocker.id}
@@ -707,9 +741,14 @@ export function RouteGame({ game, onComplete }: EngineProps) {
               data-state={isReported ? "reported" : isFound ? "found" : "idle"}
               disabled={done || isFound}
               onClick={clickBlocker(blocker)}
-              aria-label={isFound ? (blocker.label ?? pretty(blocker.id)) : `발견물 확인: ${pretty(blocker.sprite ?? blocker.id)}`}
+              aria-label={isFound ? text : `발견물 확인: ${text}`}
             >
-              {isFound ? (blocker.label ?? pretty(blocker.id)) : pretty(blocker.sprite ?? blocker.id)}
+              {blocker.sprite !== undefined ? (
+                // 도트 발견물(stn-02 적치물_상자더미) — 파일이 없으면 숨고 텍스트 버튼만 남는다.
+                // 22px: stn-02 발견물이 캔버스 하단(y=415/440) 근처라 칩 높이가 이보다 크면 잘린다
+                <PixelSprite id={blocker.sprite} label={text} size={22} fallbackClassName={styles.spriteHidden} />
+              ) : null}
+              {text}
               {isReported ? (
                 <span className={styles.blockerMark} aria-hidden="true">
                   ✓
@@ -788,6 +827,19 @@ const STEER_X = 330; // 트럭 조향 속도(단위/초)
 const STEER_Y = 270;
 const SPAWN_Y = -70; // 장애물이 화면 위 밖에서 태어나는 y
 const SPEEDING_GRACE = 1.0; // 서행 구간에서 이 시간(초) 이상 과속 '유지'해야 위반 1회
+const TRUCK_MIN_Y = 60; // 조향 y 상한(화면 위) — 클램프와 시각 배속이 공유
+const TRUCK_MAX_Y = SCENE.h - TRUCK_H / 2 - 6; // 조향 y 하한(화면 아래)
+
+/* 시각 배속(카트식 속도감) — 배경 텍스처 렌더 전용. 판정(장애물 y·진행률·충돌)과
+   장애물 표시 좌표에는 절대 곱하지 않는다(표시=판정 유지 — 어긋나면 억울한 충돌). */
+const VISUAL_FAST = 1.9; // 트럭이 화면 최상단일 때 배경 배속
+const VISUAL_SLOW = 0.8; // 최하단일 때 — 뒤로 빠지면 유속이 죽어 속도차가 체감된다
+
+/** 트럭 y → 배경 배속. 위(앞)일수록 빠르다. 기상·간이 모드 감속은 scroll 쪽에 이미 있다. */
+function visualFactorOf(y: number): number {
+  const t = Math.min(1, Math.max(0, (y - TRUCK_MIN_Y) / (TRUCK_MAX_Y - TRUCK_MIN_Y)));
+  return VISUAL_FAST + (VISUAL_SLOW - VISUAL_FAST) * t;
+}
 
 /** 장애물 스프라이트별 표시 크기(SCENE 단위) — viewBox 비율과 맞춘다 */
 const OBSTACLE_SIZE: Record<string, { w: number; h: number }> = {
@@ -827,6 +879,10 @@ type Frame = {
   zoneViolated: boolean;
   speeding: boolean;
   hitFlash: boolean;
+  /** 배경 텍스처 스크롤 오프셋(px) — 시각 배속 적분값. 렌더 전용 */
+  visualScroll: number;
+  /** 현재 시각 배속(트럭 y 기반) — 스트릭 농도·속도 칩 표시용 */
+  speedFactor: number;
 };
 
 const KEYMAP: Record<string, "up" | "down" | "left" | "right"> = {
@@ -872,6 +928,7 @@ function DrivingPhase({
   const lastHitAtRef = useRef(-10);
   const violatedRef = useRef(new Set<string>());
   const speedingForRef = useRef(0);
+  const visualScrollRef = useRef(0); // 배경 스크롤 적분값 — 렌더 전용(판정과 무관)
   const endedRef = useRef(false);
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
@@ -884,6 +941,8 @@ function DrivingPhase({
     zoneViolated: false,
     speeding: false,
     hitFlash: false,
+    visualScroll: 0,
+    speedFactor: 1,
   });
   const [events, setEvents] = useState<string[]>([]);
 
@@ -932,7 +991,12 @@ function DrivingPhase({
       if (keys.has("up")) truck.y -= STEER_Y * dt;
       if (keys.has("down")) truck.y += STEER_Y * dt;
       truck.x = Math.max(ROAD_L + TRUCK_W / 2, Math.min(ROAD_R - TRUCK_W / 2, truck.x));
-      truck.y = Math.max(60, Math.min(SCENE.h - TRUCK_H / 2 - 6, truck.y));
+      truck.y = Math.max(TRUCK_MIN_Y, Math.min(TRUCK_MAX_Y, truck.y));
+
+      // 시각 배속 — 위(앞)일수록 배경이 빨리 흐른다. 간이 모드는 배속 없이 평탄하게.
+      // 적분값은 배경 텍스처(차선·갓길·스트릭)에만 쓴다 — 장애물·진행률 판정 불변.
+      const speedFactor = reduced ? 1 : visualFactorOf(truck.y);
+      visualScrollRef.current += scroll * speedFactor * dt;
 
       const progress = Math.min(1, elapsed / driving.duration);
       const zone = zones.find((z) => progress >= z.from && progress <= z.to) ?? null;
@@ -980,6 +1044,8 @@ function DrivingPhase({
         zoneViolated: zone !== null && violatedRef.current.has(zone.id),
         speeding,
         hitFlash: elapsed - lastHitAtRef.current < 0.5,
+        visualScroll: visualScrollRef.current,
+        speedFactor,
       });
 
       if (elapsed >= driving.duration) {
@@ -1013,7 +1079,12 @@ function DrivingPhase({
 
   const remainingSec = Math.max(0, Math.ceil(driving.duration - frame.elapsed));
   const timerPct = Math.max(0, (1 - frame.elapsed / driving.duration) * 100);
-  const scrollPx = Math.round(frame.elapsed * scroll);
+  // 배경 스크롤 오프셋 — 시각 배속 적분값(렌더 전용). 장애물 y 는 여전히 시계 역산.
+  const scrollPx = Math.round(frame.visualScroll);
+  // 배속 정규화(0=최하단, 1=최상단) — 스트릭 농도와 속도 칩 강조에 쓴다
+  const boost = Math.max(0, Math.min(1, (frame.speedFactor - VISUAL_SLOW) / (VISUAL_FAST - VISUAL_SLOW)));
+  // 표시용 시속 — 기본 유속(배속 1)을 80km/h 로 환산. 기상·간이 감속은 scroll 에 반영돼 있다.
+  const speedKmh = Math.round((scroll * frame.speedFactor * 80) / BASE_SCROLL);
   const pctX = (x: number) => `${(x / SCENE.w) * 100}%`;
   const pctY = (y: number) => `${(y / SCENE.h) * 100}%`;
   const visibleObstacles = schedule
@@ -1028,6 +1099,9 @@ function DrivingPhase({
           <span className={shared.timerValue} style={{ width: `${timerPct}%` }} data-low={remainingSec <= 5} />
         </span>
         <span className={styles.driveChip}>{remainingSec}초</span>
+        <span className={styles.driveChip} data-boost={boost >= 0.6}>
+          {speedKmh}km/h
+        </span>
         <span className={styles.driveChip}>계획 {planScore}점</span>
         <span className={styles.driveChip} data-warn={frame.hits > 0}>
           충돌 {frame.hits}
@@ -1039,8 +1113,17 @@ function DrivingPhase({
         role="application"
         aria-label="배송 주행 — 방향키 또는 WASD로 트럭을 움직여 장애물을 피하세요. 서행 구간에서는 트럭을 서행선 아래로 내리세요"
       >
-        <div className={styles.roadSide} style={{ left: 0, width: pctX(ROAD_L) }} aria-hidden="true" />
-        <div className={styles.roadSide} style={{ right: 0, width: pctX(SCENE.w - ROAD_R) }} aria-hidden="true" />
+        {/* 갓길 타일·차선 대시 — 시각 배속이 곱해진 오프셋으로 흐른다(판정 무관 레이어) */}
+        <div
+          className={styles.roadSide}
+          style={{ left: 0, width: pctX(ROAD_L), backgroundPositionY: `${scrollPx}px` }}
+          aria-hidden="true"
+        />
+        <div
+          className={styles.roadSide}
+          style={{ right: 0, width: pctX(SCENE.w - ROAD_R), backgroundPositionY: `${scrollPx}px` }}
+          aria-hidden="true"
+        />
         <div className={styles.road} style={{ left: pctX(ROAD_L), width: pctX(ROAD_R - ROAD_L) }} aria-hidden="true">
           {[1, 2, 3].map((i) => (
             <span
@@ -1050,6 +1133,19 @@ function DrivingPhase({
             />
           ))}
         </div>
+
+        {/* 속도 스트릭 — 위(앞)로 갈수록 진해지고 대시보다 빨리 흘러 바람가르는 느낌.
+            순수 연출 레이어라 간이(reduced) 모드에서는 아예 그리지 않는다. */}
+        {!reduced ? (
+          <div
+            className={styles.speedStreaks}
+            style={{
+              opacity: boost * 0.55,
+              backgroundPositionY: `${Math.round(scrollPx * 1.6)}px, ${Math.round(scrollPx * 1.35)}px, ${Math.round(scrollPx * 1.5)}px`,
+            }}
+            aria-hidden="true"
+          />
+        ) : null}
 
         {frame.zone ? <div className={styles.zoneTint} data-violated={frame.zoneViolated} aria-hidden="true" /> : null}
         {frame.zone ? (

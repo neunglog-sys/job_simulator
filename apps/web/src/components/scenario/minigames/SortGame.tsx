@@ -17,14 +17,17 @@ import {
  *   ms-01(증거 분류) · ms-04(출고 배차) · gm-01(입고 검수) · wh-01(바코드 분류)
  *   yg-02(세공품 검수) · kts-01(환자 트리아지) · kts-04(창구 배정)
  *
- * 조작: 카드를 클릭해 선택 → 통을 클릭해 분류. 아트가 없으므로 sprite id를
- * 라벨 마커로 렌더한다(SpotGame 방식 — 아트가 들어오면 마커만 교체).
+ * 조작: 카드를 클릭해 선택 → 통을 클릭해 분류. sprite id(아이템·통·돌발·단계)는
+ * PixelSprite 로 렌더한다 — 아트 파일이 없으면 컴포넌트 내장 폴백(라벨 칩)으로
+ * 지금까지의 텍스트 마커 표시가 그대로 유지된다.
  *
  * 지원 데이터(_SCHEMA.md sort + 사후 등재 필드):
  *   - legend: 증상/배지 → 행선 기준표. 아이템엔 단서만, 판단은 범례 대조(kts-01·kts-04).
  *   - item.escalate: 통이 아니라 escalate 버튼이 정답(ms-01·ms-04·wh-01·yg-02).
  *   - escalate.when: 아이템 id · id 리스트 · `_발생/_지속` 조건 / requires: 단계 id.
- *   - scoring.escalate_mode: 대체(기본 — 버튼이 통 배치를 대체) | 병행필수(1회 절차 병행 — gm-01).
+ *   - scoring.escalate_mode: 대체(기본 — 버튼이 통 배치를 대체) | 병행필수(격리와 병행하는
+ *     증빙 절차 — gm-01). 병행필수+conveyor 는 중앙 박스가 escalate.when 대상일 때마다
+ *     버튼이 다시 활성화된다(박스별 촬영 — 표시 전용, 채점은 '게임 중 1회 이상'만 본다).
  *   - sudden: appears_at 시점 돌발 등장, freeze_queue(처리 전 분류 잠금),
  *     forbidden_bins(투입 시 금지행동), stages(순서 버튼), persists_after_stages(kts-01·kts-04).
  *   - item.forbidden_bin: 그 통에 넣으면 forbidden_penalty(gm-01·yg-02).
@@ -210,6 +213,16 @@ export function SortGame({ game, onComplete }: EngineProps) {
     [escalateKind, escalateTargetIds],
   );
 
+  /** 병행필수 모드의 촬영 대상 id — esc.when 목록(gm-01 손상 박스 4개). 판정이 아니라 버튼 활성 표시용. */
+  const parallelTargetIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (escalateKind !== "parallel") return ids;
+    const when = esc?.when;
+    if (typeof when === "string") ids.add(when);
+    else if (Array.isArray(when)) when.forEach((w) => typeof w === "string" && ids.add(w));
+    return ids;
+  }, [escalateKind, esc]);
+
   /** equivalent 그룹(gm-01) — 동일 외형이라 어느 조합이든 정답 bin 개수만 맞으면 된다. */
   const equivalentIds = useMemo(
     () => new Set((Array.isArray(data.equivalent) ? data.equivalent : []).filter((x): x is string => typeof x === "string")),
@@ -236,7 +249,11 @@ export function SortGame({ game, onComplete }: EngineProps) {
 
   const [handled, setHandled] = useState<Record<string, Handled>>({});
   const [selected, setSelected] = useState<string | null>(null);
-  const [procedureDone, setProcedureDone] = useState(false); // 병행필수(gm-01 사진 증빙) 1회 절차
+  const [procedureDone, setProcedureDone] = useState(false); // 병행필수(gm-01 사진 증빙) — 채점은 이 1회 여부만 본다
+  // 병행필수+conveyor 표시 전용 상태 — 어떤 박스를 촬영했는지(인스턴스 키)와 셔터 연출 트리거.
+  // 채점 경로(procedureDone·missed_escalate_penalty)에는 일절 관여하지 않는다.
+  const [photographed, setPhotographed] = useState<Set<string>>(() => new Set());
+  const [shutterTick, setShutterTick] = useState<number | null>(null);
   const [sudden, setSudden] = useState({
     phase: "hidden" as SuddenPhase,
     outcome: null as SuddenOutcome,
@@ -603,7 +620,21 @@ export function SortGame({ game, onComplete }: EngineProps) {
   const onEscalate = useCallback(() => {
     if (done || !esc) return;
     if (escalateKind === "parallel") {
-      // gm-01: 격리 배치를 대체하지 않는 1회 절차(사진 증빙). 안 누르면 종료 시 감점.
+      // gm-01: 격리 배치를 대체하지 않는 증빙 절차(사진). 채점은 '게임 중 1회 이상 눌렀는가'만
+      // 본다(missed_escalate_penalty 20 — 한 번도 안 눌렀을 때 1회 부과). 박스별 추가 촬영은
+      // 감점도 가점도 없는 표시 전용 동작이다.
+      if (conveyor) {
+        // 컨베이어 — 중앙 박스가 escalate.when 대상일 때만, 박스마다 한 번씩 촬영할 수 있다.
+        if (!currentItem || !currentKey) return;
+        if (currentItem.id === undefined || !parallelTargetIds.has(currentItem.id)) return;
+        if (photographed.has(currentKey)) return;
+        setPhotographed((prev) => new Set(prev).add(currentKey));
+        setShutterTick(Date.now()); // key 재마운트로 셔터 플래시가 다시 돈다
+        if (!procedureDone) setProcedureDone(true);
+        setFeedback({ kind: "ok", text: `${esc.label ?? "절차"} — 손상 증빙을 남겼습니다. 격리존으로 보내세요` });
+        return;
+      }
+      // 비컨베이어 병행필수(현재 미사용) — 기존 1회 절차 동작 유지
       if (!procedureDone) {
         setProcedureDone(true);
         setFeedback({ kind: "ok", text: `${esc.label ?? "절차"} 완료 — 증빙을 남겼습니다` });
@@ -657,7 +688,7 @@ export function SortGame({ game, onComplete }: EngineProps) {
       setFeedback({ kind: "bad", text: `이 항목은 호출 대상이 아닙니다 (감점 −${penalty})` });
     }
     setSelected(null);
-  }, [done, esc, escalateKind, procedureDone, suddenDef, sudden, stages, selected, items, handled, isEscalateTarget, optNum, game]);
+  }, [done, esc, escalateKind, conveyor, currentItem, currentKey, parallelTargetIds, photographed, procedureDone, suddenDef, sudden, stages, selected, items, handled, isEscalateTarget, optNum, game]);
 
   // ── 렌더 ──────────────────────────────────────────────────
   const suddenVisible = Boolean(suddenDef) && sudden.phase !== "hidden";
@@ -665,9 +696,17 @@ export function SortGame({ game, onComplete }: EngineProps) {
   const processedCount = handledCount + (sudden.phase === "resolved" ? 1 : 0);
   const escalateVisible =
     escalateKind === "parallel" || escalateKind === "replace" || (escalateKind === "condition" && suddenVisible);
+  // 병행필수+conveyor(gm-01) — 중앙 박스가 촬영 대상(escalate.when)인지 / 그 박스를 이미 찍었는지.
+  const currentIsPhotoTarget =
+    conveyor &&
+    escalateKind === "parallel" &&
+    currentItem !== null &&
+    currentItem.id !== undefined &&
+    parallelTargetIds.has(currentItem.id);
+  const currentPhotographed = currentKey !== null && photographed.has(currentKey);
   const escalateDisabled =
     done ||
-    (escalateKind === "parallel" && procedureDone) ||
+    (escalateKind === "parallel" && (conveyor ? !currentIsPhotoTarget || currentPhotographed : procedureDone)) ||
     (escalateKind === "condition" && sudden.phase === "resolved") ||
     (escalateKind === "replace" && (selected === null || selected === SUDDEN_KEY));
   const escalateArmed = escalateKind === "condition" && sudden.phase === "staged" && stagesComplete && needsEscalate;
@@ -743,6 +782,12 @@ export function SortGame({ game, onComplete }: EngineProps) {
                     <span className={styles.stageOrder} aria-hidden="true">
                       {index + 1}
                     </span>
+                    {stage.sprite ? (
+                      // 단계 아이콘(kts-01·kts-04) — 라벨 텍스트가 바로 옆에 있으므로
+                      // alt 는 비우고(장식 이미지 — 낭독 중복 방지), 파일 부재 폴백 칩도
+                      // 숨긴다(stageSpriteFallback). 아트가 없으면 지금과 동일한 라벨만 남는다.
+                      <PixelSprite id={stage.sprite} label="" size={30} fallbackClassName={styles.stageSpriteFallback} />
+                    ) : null}
                     {stage.label ?? stage.id}
                   </button>
                 ))}
@@ -829,6 +874,12 @@ export function SortGame({ game, onComplete }: EngineProps) {
                 <span className={styles.conveyorLabel}>
                   {currentItem.label ?? "아래 통(또는 대응 버튼)으로 이 물건을 보내세요"}
                 </span>
+                {currentPhotographed ? (
+                  // 촬영 증빙 태그 — 표시 전용(채점 무관). 통으로 보내기 전까지 박스에 붙어 있다.
+                  <span className={styles.photoTag} role="status">
+                    촬영됨
+                  </span>
+                ) : null}
               </div>
             ) : (
               <p className={styles.conveyorEmpty}>
@@ -836,6 +887,10 @@ export function SortGame({ game, onComplete }: EngineProps) {
               </p>
             )}
             <div className={styles.belt} data-paused={done || queueFrozen || !currentItem} aria-hidden="true" />
+            {shutterTick !== null ? (
+              // 셔터 플래시 — key 재마운트로 촬영마다 다시 재생된다(애니메이션 종료 후 opacity 0)
+              <span key={shutterTick} className={styles.shutterFlash} aria-hidden="true" />
+            ) : null}
           </div>
         </div>
       ) : (
@@ -893,6 +948,10 @@ export function SortGame({ game, onComplete }: EngineProps) {
             return (
               <span key={keyOf(item, index)} className={styles.doneStamp} data-verdict={entry.verdict}>
                 {entry.verdict === "ok" ? "✓" : "✕"} {entry.destLabel}
+                {photographed.has(keyOf(item, index)) ? (
+                  // 촬영 증빙 복기 마크 — 표시 전용
+                  <span className={styles.stampPhoto}>촬영</span>
+                ) : null}
               </span>
             );
           })}
@@ -909,6 +968,11 @@ export function SortGame({ game, onComplete }: EngineProps) {
             aria-label={`${bin.label ?? bin.id}에 넣기`}
             onClick={() => onBinClick(bin)}
           >
+            {bin.sprite ? (
+              // 통 아트(gm-01 팔레트·ms-01 캐비닛·ms-04 배차트럭) — 파일 부재 시
+              // PixelSprite 가 기존 sprite id 텍스트 칩(binSprite)으로 폴백한다
+              <PixelSprite id={bin.sprite} size={64} fallbackClassName={styles.binSprite} />
+            ) : null}
             {bin.color ? (
               <span
                 className={styles.binDot}
@@ -918,7 +982,6 @@ export function SortGame({ game, onComplete }: EngineProps) {
             ) : null}
             <span className={styles.binLabel}>{bin.label ?? bin.id}</span>
             {bin.icon ? <span className={styles.chip}>{bin.icon}</span> : null}
-            {bin.sprite ? <span className={styles.binSprite}>{bin.sprite}</span> : null}
           </button>
         ))}
       </div>
@@ -940,7 +1003,15 @@ export function SortGame({ game, onComplete }: EngineProps) {
               aria-label={esc.label ?? "호출"}
               onClick={onEscalate}
             >
-              {escalateKind === "parallel" && procedureDone ? `✓ ${esc.label ?? "절차"} 완료` : esc.label ?? "호출"}
+              {escalateKind === "parallel"
+                ? conveyor
+                  ? currentPhotographed
+                    ? "✓ 촬영됨"
+                    : esc.label ?? "촬영"
+                  : procedureDone
+                    ? `✓ ${esc.label ?? "절차"} 완료`
+                    : esc.label ?? "호출"
+                : esc.label ?? "호출"}
             </button>
           ) : null}
           <button type="button" className={styles.submitBtn} onClick={finish} aria-label="마감하고 제출">

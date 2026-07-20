@@ -181,6 +181,16 @@ data:
     - { id: 차단기_직접조작, reason: 신입의 직접 차단은 금지 }
 ```
 
+> 표시 전용(presentation) 필드 — 현장 맵 모드(모든 step 에 at:[x,y]가 있는 게임)에서만
+> 읽히며 채점·순서 계약과 무관. 없으면 기존 렌더 폴백(ys-02·ys-10 카드 UI 불변)
+> (2026-07-20, ms-10 "밑에가 잠겨서 안 됨" 피드백 대응):
+> - `step.beacon: true` — 이 스텝이 다음 차례인 동안 자리를 은은히 펄스(시작 지점 안내).
+>   홈 모양·노출 순서로 읽히지 않는 절차 스텝(ms-10 표지판)에만 켠다 — 자재 매립 순서
+>   스텝에 켜면 정답 순서 유출(규칙 8 취지 위반).
+> - `step.locked_hint` — fit 게이트로 잠긴 자리에 드롭·클릭했을 때 상태줄에 뜨는 사유
+>   문구(감점 없음). 엔진은 잠긴 자리도 입력을 받아 이 문구를 보여준다 — 소리 없이
+>   무시하면 '그냥 안 됨'으로 읽히기 때문. 문구에는 정답 순서를 적지 않는다(물리 사유만).
+
 ### 7. `pour` — 계량·붓기
 표시선까지 붓기. 넘치거나 모자라면 감점.
 
@@ -198,6 +208,9 @@ data:
 > - `data.pour_sprite`: 프레스-홀드 붓기 버튼의 아이콘 id(기본값 `사료포대_삽`).
 > - `vessel.sprite`: 칸 위 개체 도트 아이콘 id(축종 중립). 없으면 라벨 칩 폴백.
 > - `vessel.scale`: 스프라이트 표시 배율(기본 1) — sort 의 `item.scale` 과 동일 규약.
+> - 조작(2026-07-20 디자이너 피드백): 급이 버튼은 하단 공용 1개가 아니라 **구유마다 위에
+>   자기 프레스-홀드 버튼**이다 — 순차 강제 없음(순서 자유), 확정한 구유의 버튼은 비활성,
+>   전 구유 확정 시 종료. `data.pour_sprite` 는 이 스톨별 버튼의 아이콘 id.
 > - 규칙 1 준수: target·tolerance 숫자는 어디에도 표시하지 않는다 — 목표선·허용 밴드
 >   높이로만 읽힌다(기존과 동일).
 
@@ -239,6 +252,10 @@ data:
 >   도트 아이콘으로 나온다. 표시 라벨에서는 `_아이콘` 접미사를 벗겨 쓴다.
 > - `no_go` 유령선에는 엔진이 취소 스탬프(X 모양)를 자동으로 얹는다 — 별도 필드 없음,
 >   글자 금지(규칙 1) 준수.
+> - emergency 잠금 중에는 하단 footer 가 **전용 경보 슬롯**으로 바뀐다 — `emergency.signal`
+>   스프라이트(없으면 경고 원판 폴백)와 대형 보고 버튼이 경로 위 신호 마커와 같은 리듬으로
+>   깜빡여 신호↔대응 버튼을 시각적으로 잇는다. 표시 전용이라 report 판정·채점 불변,
+>   emergency 없는 게임(ms-08)은 기존 footer 그대로 (2026-07-20 디자이너 피드백).
 
 ### 9. `physics` — 밸런스·리듬
 두 가지 모드를 한 엔진이 처리한다.
@@ -326,18 +343,44 @@ data:
   주행 속도·구간 활성에 반영), `driving`(종스크롤 주행 파트 — `{ duration, obstacle_density,
   obstacles, slow_zones[{id, from, to, penalty, sprite?, reason?, when_effect?}] }`),
   scoring `collision_penalty`. 상세는 위 5. route 절 참조. **driving 이 없는 route 게임은
-  전부 기존 단일(계획) 흐름 그대로다.**
+  전부 기존 단일(계획) 흐름 그대로다.** 주행 배경 스크롤에는 트럭 y 기반 시각 배속이 곱해진다
+  (위=빠름, 렌더 전용 — 장애물 y·진행률·충돌 판정은 배속 무관, 2026-07-20 속도감 피드백).
 - **physics balance**: `settle`(내려놓기형 — 크레인류): `{ target_zone, tolerance, sway_fail(기울기 초과=실패), drop_fail(과속 착지=실패) }`.
   intro 가 '실패'라고 고지한 조작은 감점이 아니라 실패로 채점한다.
 - **place**: `stains`(문지르기·교체형 정비 — cln-01): `[{ id, resolve: 문지르기|교체, sprite }]`.
   교체용 새 부품은 슬롯 채우기와 별개 채점 단위로 세지 않는다(이중 계산 금지).
+- **place 씬 아트 맵 모드(2026-07-20)**: `data.scene` + 모든 slot `at` 이 있고
+  public/assets/minigames/`<scene>`.svg 파일이 존재하면 씬 아트 배경의 맵 모드로 렌더된다
+  (파일 없으면 기존 목록 모드 폴백 — cln-01 은 파일 제작 시 자동 전환). 씬 SVG 는 논리
+  캔버스 960×440 정합 비율(viewBox 0 0 96 44 권장, at 좌표 1:10)로 그리고 각 슬롯 at 지점에
+  해당 가구를 그려 넣는다. 이웃 슬롯 at 간격은 논리 48px 이상 권장(컴팩트 패드 폭 4.8%).
+  ms-03(scene 미선언)은 기존 하드코딩 회의실 렌더 그대로다.
 - **match**: `stream`(흐름 속 이상치 클릭 — stn-03): `{ beads: [...], outliers: [...], decoy_beads: [...] }`.
 - **사후 반박 검증(2026-07-20) 추가 등재** — 아래 필드는 엔진이 반드시 지원해야 한다:
   - sort: `must_resolve_sudden`(돌발 처리 전 종료 불가)·`freeze_queue`(kts-01), item `forbidden_bin`(이
     통에 넣으면 금지행동=forbidden_penalty — gm-01·yg-02), scoring `escalate_mode`(대체|병행필수), `item_count`
+  - sort 렌더 규약(2026-07-20 아트 일괄 배선): `bins[].sprite` 는 통 버튼에 도트 아트(64px)로
+    실제 렌더된다(부재 시 id 텍스트 칩 폴백). `sudden.stages[].sprite` 도 단계 버튼에 30px
+    아이콘+라벨로 렌더(부재 시 기존 번호+라벨). `legend`·`item.icon`·`time_badge` 는 의도된
+    텍스트 칩 UI — 스프라이트 파일을 만들어도 렌더되지 않는다.
+  - sort 표시 전용(2026-07-20, gm-01 디자이너 피드백): `병행필수`+`presentation: conveyor` 조합에선
+    escalate(사진) 버튼이 벨트 중앙 박스가 `escalate.when` 대상일 때마다 재활성화된다(박스별 촬영
+    연출 — 셔터+'촬영됨' 태그). 채점은 기존대로 '게임 중 1회 이상 눌렀는가'만 보며 추가 촬영은
+    감점·가점 없음. conveyor 아닌 병행필수는 기존 1회 절차 동작 유지.
   - match: `discard` 블록(휴지통 — stn-01), `keys`+`wrong_key_penalty`(kts-05 객실 키),
     `one_line_per_left`·forbidden_pairs 의 right **리스트** 허용(kts-02),
     `unmatched_action`+`missed_unmatched_penalty`(stn-04), `matched_unmatched_penalty`, `pair_count`/`unmatched_count`
+  - match 렌더 규약(2026-07-20 아트 일괄 배선): `discard.sprite`(버리기 버튼 도트 아이콘 —
+    stn-01 휴지통, 부재 시 텍스트 버튼), `keys[].sprite`(객실 키 도트 — kts-05, 부재 시 key_color
+    색 원), `sudden.sprite`·`stages[].sprite`(돌발 헤드·단계 버튼 — kts-03), `stream.beads[].sprite`
+    (구슬 도트 — stn-03) 전부 PixelSprite 로 렌더된다. 구슬은 sprite id 가 이상치 여부를 글자로
+    드러내므로 엔진이 폴백 라벨·aria 를 중립 문구('구슬'·인덱스)로 고정한다(규칙 1).
+  - match 표시 전용(2026-07-20, ys-03 디자이너 피드백): `unmatched_action` 은 짝없음 도장의
+    **표시 라벨**이기도 하다(채점 무관 — stn-04 `재검증_표시`, ys-03 `불가능`; 없으면 기본 '짝 없음').
+    카드 `detector: true` 는 게이트 경보 램프(하드 점멸+확산 링)+카드 흔들림·붉은 펄스를 그리는
+    시각 단서 — 정답(벨)을 가리키는 표시는 금지, 어떤 방식으로 처리되든 경보는 동일하게 잦아든다.
+    `data.forbidden` 버튼은 누르는 즉시 제지 배너(reason 노출)+빨간 상태로 남는다 — 감점은
+    기존대로 최종 채점 1회 반영, 문구는 누른 뒤에만 나와 사전 유출 아님.
   - place: `fit: any`(비게이트 — 어디든 꽂히되 틀리면 시각 피드백)·`accepts: null`(정상 구간 — stn-05),
     forbidden 항목 `{ id, slots?, reason }`(hr-01)
   - physics rhythm: `stray_input_penalty`(창 밖 연타)·`beat_count`(jm-02)

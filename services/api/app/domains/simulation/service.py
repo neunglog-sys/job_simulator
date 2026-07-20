@@ -18,6 +18,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.content import game_map
 from app.content import minigame
+from app.content.loader import yaml_scenario_slugs
 from app.content.kb_map import kb_jobs_for
 from app.content.knowledge import search_knowledge
 from app.domains.coach import service as coach
@@ -121,6 +122,10 @@ def _clean_npc(text: str) -> str:
 async def create_simulation(
     session: AsyncSession, user: User, scenario_slug: str
 ) -> tuple[Simulation, Scenario]:
+    # _disabled로 뺀 시나리오는 DB에 남아있어도 새 플레이를 못 열게 막는다
+    # (목록에서만 숨기면 slug 직접 지정으로 우회 가능하므로 진입점도 차단).
+    if scenario_slug not in yaml_scenario_slugs():
+        raise HTTPException(status_code=404, detail=f"시나리오 없음: {scenario_slug}")
     scenario = (
         await session.execute(select(Scenario).where(Scenario.slug == scenario_slug))
     ).scalar_one_or_none()
@@ -258,22 +263,17 @@ async def _update_state(
     scenario: Scenario,
     deltas: dict,
 ) -> tuple[dict, str | None]:
-    """delta 적용 + 전이 평가 → (새 상태, 바뀐 스텝 id 또는 None).
+    """delta(상태값 변화)만 적용한다 → (새 상태, None).
 
-    돌발 퀘스트 진행 중에는 상태값 누적만 하고 스텝 전이는 보류 —
-    퀘스트 중 대화/선택으로 본편 스텝이 몰래 넘어가는 것을 방지.
+    스텝 전진은 오직 과제 통과(task.on_pass)로만 일어난다 (게임 설계 확정 2026-07-20).
+    상태값 임계 전이(transitions/when)는 쓰지 않기로 해 어떤 시나리오에도 없으므로,
+    대화·선택의 delta는 상태값만 누적하고 스텝은 절대 바꾸지 않는다(항상 changed_step=None).
     """
-    prev_step = simulation.state["step"]
     new_state = sm.apply_deltas(simulation.state, deltas)
-    quest_active = (simulation.state.get("quest") or {}).get("status") == "active"
-    new_step = (
-        prev_step if quest_active else sm.resolve_transitions(scenario.steps, prev_step, new_state)
-    )
-    new_state["step"] = new_step
     simulation.state = new_state
     flag_modified(simulation, "state")  # JSONB 전체 교체 감지
     await session.flush()
-    return new_state, (new_step if new_step != prev_step else None)
+    return new_state, None
 
 
 def _speaker(m: Message, roster: dict[str, dict]) -> str:
@@ -304,9 +304,16 @@ async def stream_npc_chat(
     _ensure_active(simulation)
     step = _resolve_step(scenario, simulation.state)
     mission_npcs = set(step.get("npcs", []))
+    # 활성 퀘스트 중에는 채점 기준을 퀘스트 과제로 바꾼다 — 안 그러면 퀘스트 NPC와의 대화가
+    # 엉뚱한 본편 스텝 루브릭으로 평가돼 무관한 상태값(trust 등)이 오르내린다.
     quest = simulation.state.get("quest") or {}
-    if quest.get("status") == "active" and scenario.sudden_quest:
-        mission_npcs.add(scenario.sudden_quest.get("npc"))  # 활성 퀘스트 NPC도 미션 대상
+    quest_active = quest.get("status") == "active" and bool(scenario.sudden_quest)
+    if quest_active:
+        quest_npc = scenario.sudden_quest.get("npc")
+        mission_npcs = {quest_npc}  # 퀘스트 중엔 퀘스트 NPC만 채점 대상
+        grading_mission = (scenario.sudden_quest.get("task") or {}).get("prompt", "")
+    else:
+        grading_mission = step["mission"]
 
     roster = await npc_map(session, scenario.id)
     persona = roster.get(npc_id)
@@ -320,12 +327,8 @@ async def stream_npc_chat(
     # 호감도는 NPC별 사회적 값이라 상대가 누구든 즉시 반영한다.
     mission_active = npc_id in mission_npcs
 
-    # 사용자 발화 저장
-    session.add(Message(simulation_id=simulation.id, role="user", content=user_text))
-    await session.commit()
-
     # 호감도: 이번 발화의 태도로 이 NPC 호감도만 가감(룰 기반, 즉시 반영). NPC별 독립값이라
-    # 시나리오 전역 상태값(trust 등)과 별개. state에 써두면 아래 NPC 응답 저장 커밋에 함께 영속된다.
+    # 시나리오 전역 상태값(trust 등)과 별개.
     aff_delta = affinity.delta_for(user_text)
     aff_state, aff_value = affinity.bumped(simulation.state, npc_id, aff_delta)
 
@@ -338,6 +341,12 @@ async def stream_npc_chat(
         aff_state = {**aff_state, "met_npcs": met}
     simulation.state = aff_state
     flag_modified(simulation, "state")
+
+    # 사용자 발화 + 호감도·met_npcs를 한 번에 커밋한다. 이 둘을 NPC 응답 커밋(스트림 종료 후)까지
+    # 미루면, 토큰 스트리밍 중 클라이언트가 끊길 때(탭 닫기 등) 발화만 남고 호감도·met_npcs가
+    # 롤백돼 재접속 시 그 NPC가 자기소개를 반복하고 호감도가 유실된다.
+    session.add(Message(simulation_id=simulation.id, role="user", content=user_text))
+    await session.commit()
 
     # 최근 대화 + NPC 시스템 프롬프트 (화자는 npc_id → 이름으로 표시)
     history = list(
@@ -377,7 +386,7 @@ async def stream_npc_chat(
         scenario_title=scenario.title,
         register=register_for_npc(scenario.slug, kind),
         npc_kind=kind,
-        mission=step["mission"],
+        mission=grading_mission,
         name=persona["name"], role=persona["role"], rank=persona["rank"],
         personality=persona["personality"], likes=persona["likes"],
         dislikes=persona["dislikes"], speech_habits=persona["speech_habits"],
@@ -417,7 +426,7 @@ async def stream_npc_chat(
     new_state = dict(simulation.state)
     if mission_active:
         try:
-            deltas, reason = await scoring.evaluate_chat(step["mission"], user_text, npc_reply)
+            deltas, reason = await scoring.evaluate_chat(grading_mission, user_text, npc_reply)
             new_state, changed_step = await _update_state(session, simulation, scenario, deltas)
             await scoring.log_action(
                 session, simulation.id, "chat",
@@ -671,8 +680,10 @@ def _minigame_result(payload: dict, declared: dict | None) -> dict:
             result["declared_engine"] = declared["engine"]
         else:
             # 통과 여부 — 리포트 서술용 ("재도전 끝에 통과" 등). 점수엔 이미 accuracy로 반영됨.
+            # 반올림한 score가 아니라 원본 accuracy로 판정한다 — 69.5는 round시 70이 돼
+            # pass_score=70을 통과로 기록하지만 저장된 accuracy(69.5)와 모순되기 때문.
             result["pass_score"] = declared["pass_score"]
-            result["passed"] = result["score"] >= declared["pass_score"]
+            result["passed"] = float(accuracy) >= declared["pass_score"]
     return result
 
 
