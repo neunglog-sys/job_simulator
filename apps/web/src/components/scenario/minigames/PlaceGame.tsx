@@ -1,7 +1,10 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { createPortal } from "react-dom";
+import { UserCircle } from "@phosphor-icons/react";
 import base from "../../../styles/minigame.module.css";
 import styles from "../../../styles/placeGame.module.css";
 import { PixelSprite } from "./PixelSprite";
+import { SCENE } from "./types";
 import {
   GameHud,
   ResultBar,
@@ -21,12 +24,27 @@ import {
  * - fit: any (stn-05): 어디든 꽂히되 틀리면 그 자리가 계속 새는 시각 피드백이 남고,
  *   빼서 재배치할 수 있지만 잘못 꽂은 '사건'의 감점은 유지된다(브루트포스 방지).
  *
+ * 레이아웃 두 가지(채점과 무관한 표시층):
+ * - 맵 모드(ms-03 회의실): 모든 slot에 at:[x,y](논리 캔버스 960×440)가 있고 scene이
+ *   없으면, CSS/SVG 배치도(테이블+의자 위에서 본 뷰) 위 실제 위치에 슬롯을 그린다.
+ *   트레이는 2줄(참석자 / 자료·소품)이고 조각을 드래그해 슬롯에 놓을 수 있다.
+ *   접근성 폴백으로 기존 클릭-선택 → 슬롯-클릭도 그대로 동작한다.
+ *   ⚠ scene이 선언된 게임(cln-01·hr-01)의 at 좌표는 도트 씬 아트용 예약값이라
+ *   맵 모드로 올리지 않는다 — 좌표 없는 게임과 함께 기존 목록 UI를 유지한다.
+ * - 목록 모드(나머지 5게임): 기존 그리드 배치판 + 단일 카트.
+ *
  * 확장 필드: marker(ms-03 명패)·visual_cues(라벨 마커)·accepts null(stn-05 정상 구간)·
  * stains(cln-01 문지르기/교체)·forbidden {id, slots?}(cln-01·hr-01)·escalate(보고 버튼).
  * 채점은 파일 scoring 주석이 명세다 — 한 조각(사건)에는 가장 무거운 감점 하나만 적용한다.
  */
 
-type PlaceSlot = { id: string; accepts?: string | null; marker?: string; label?: string };
+type PlaceSlot = {
+  id: string;
+  accepts?: string | null;
+  marker?: string;
+  label?: string;
+  at?: [number, number];
+};
 type PlaceStain = { id: string; sprite?: string; resolve?: string };
 type ForbiddenRule = { id: string; slots?: string[]; reason?: string };
 type PlaceData = {
@@ -57,6 +75,32 @@ type Summary = {
 
 /** 스프라이트가 있으면 도트로 그리고, 없으면 id·단서를 라벨 마커로 폴백(SortGame과 같은 규약). */
 const pretty = (raw: string) => raw.replace(/_/g, " ");
+
+/** slot.at 이 숫자 [x, y] 쌍일 때만 좌표로 인정한다(데이터 방어). */
+const slotAt = (slot: PlaceSlot): [number, number] | null => {
+  const at: unknown = slot.at;
+  return Array.isArray(at) && at.length === 2 && typeof at[0] === "number" && typeof at[1] === "number"
+    ? [at[0], at[1]]
+    : null;
+};
+
+/** 참석자류 조각 — 맵 모드 트레이 윗줄 + 사람 아이콘(UserCircle)으로 그린다. */
+const isPerson = (id: string) => id.startsWith("참석자") || id.startsWith("진행자");
+
+/** 배지·명패 색 어휘 → 표시색. 글자가 아니라 색으로 짝을 맞추는 규약(_SCHEMA.md 규칙 1)의
+ *  표시층이다. 전부 어두운 바탕에서 4.5:1 이상 나오는 밝은 톤으로 고른다. */
+const BADGE_COLORS: ReadonlyArray<readonly [string, string]> = [
+  ["빨강", "#ff9191"],
+  ["파랑", "#8dbcff"],
+  ["초록", "#71dcaa"],
+  ["노랑", "#ffd76e"],
+  ["금", "#f2c14e"],
+  ["회색", "#b9bfcc"],
+];
+const colorOf = (id: string) =>
+  BADGE_COLORS.find(([word]) => id.includes(word))?.[1] ?? "#cfd5e8";
+
+type DragRef = { key: string; pointerId: number; startX: number; startY: number; active: boolean };
 
 export function PlaceGame({ game, onComplete }: EngineProps) {
   const data = game.data as PlaceData;
@@ -98,6 +142,45 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
     return set;
   }, [slots, pieces, extraIds, escalateTargets, forbiddenRules]);
 
+  // 맵 모드 게이트 — 위 docblock 참조(scene 있는 게임의 at는 도트 씬용 예약값)
+  const mapMode = useMemo(
+    () => slots.length > 0 && !data.scene && slots.every((s) => slotAt(s) !== null),
+    [slots, data.scene],
+  );
+
+  // 맵 가구 지오메트리 — 데이터(슬롯 좌표)에서 유도한다.
+  // marker 있는 슬롯 = 좌석(의자를 그린다), 없는 슬롯 = 테이블 위 거치대(테이블 범위 산출).
+  const mapScene = useMemo(() => {
+    if (!mapMode) return null;
+    const located = slots
+      .map((slot) => ({ slot, at: slotAt(slot) }))
+      .filter((e): e is { slot: PlaceSlot; at: [number, number] } => e.at !== null);
+    const seats = located.filter((e) => e.slot.marker);
+    const docks = located.filter((e) => !e.slot.marker);
+    const anchor = (docks.length > 0 ? docks : located).map((e) => e.at);
+    const xs = anchor.map((p) => p[0]);
+    const ys = anchor.map((p) => p[1]);
+    const table = {
+      x: Math.min(...xs) - 100,
+      y: Math.min(...ys) - 40,
+      w: Math.max(...xs) - Math.min(...xs) + 200,
+      h: Math.max(...ys) - Math.min(...ys) + 84,
+    };
+    const cx = table.x + table.w / 2;
+    const cy = table.y + table.h / 2;
+    const chairs = seats.map(({ slot, at: [x, y] }) => {
+      const dx = x - cx;
+      const dy = y - cy;
+      const horiz = Math.abs(dx) > Math.abs(dy);
+      // 등받이 — 테이블 반대쪽 면에 붙인다
+      const back = horiz
+        ? { x: x + Math.sign(dx) * 81 - 5, y: y - 30, w: 10, h: 60 }
+        : { x: x - 30, y: y + Math.sign(dy) * 44 - 5, w: 60, h: 10 };
+      return { id: slot.id, x, y, gold: (slot.marker ?? "").includes("금"), back };
+    });
+    return { table, chairs };
+  }, [mapMode, slots]);
+
   const [placed, setPlaced] = useState<Record<string, string>>({}); // slotId → pieceKey
   const [selected, setSelected] = useState<string | null>(null); // pieceKey
   const [consumed, setConsumed] = useState<Record<string, boolean>>({}); // 얼룩 교체에 쓴 조각
@@ -108,6 +191,13 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
   const [done, setDone] = useState(false);
   const [summary, setSummary] = useState<Summary | null>(null);
   const finished = useRef(false);
+
+  // 드래그 배치(맵 모드) — 포인터 이벤트라 터치도 같은 코드로 동작한다.
+  // 클릭-선택 → 슬롯-클릭 폴백은 그대로 살아 있다(접근성·비포인터 환경).
+  const [drag, setDrag] = useState<{ key: string; x: number; y: number } | null>(null);
+  const [dropHover, setDropHover] = useState<string | null>(null);
+  const dragRef = useRef<DragRef | null>(null);
+  const suppressClick = useRef(false); // 드래그 직후 따라오는 click으로 선택이 토글되는 것 방지
 
   const forbiddenAnywhere = (pieceId: string) =>
     forbiddenRules.some((r) => r.id === pieceId && !r.slots);
@@ -202,6 +292,20 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
     setSelected((cur) => (cur === key ? null : key));
   };
 
+  /** 조각을 슬롯에 놓는다 — 클릭 배치와 드래그 드롭이 같은 경로를 탄다(채점 규칙 단일화). */
+  const placePiece = (slot: PlaceSlot, key: string) => {
+    const pieceId = pieceIdByKey.get(key);
+    if (!pieceId) return;
+    // 배치(있던 조각은 카트로 교체 복귀)
+    setPlaced((cur) => ({ ...cur, [slot.id]: key }));
+    setSelected(null);
+    if (fitAny) {
+      // 사건당 감점 — 빼도 무효화되지 않는다. 함정 조각은 extra 감점 하나만(중첩 금지).
+      if (extraIds.has(pieceId)) setExtrasUsed((cur) => ({ ...cur, [pieceId]: true }));
+      else if (slot.accepts !== pieceId) setWrongEvents((n) => n + 1);
+    }
+  };
+
   const clickSlot = (slot: PlaceSlot) => {
     if (done) return;
     const existing = placed[slot.id];
@@ -216,16 +320,68 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
       }
       return;
     }
-    const pieceId = pieceIdByKey.get(selected);
-    if (!pieceId) return;
-    // 선택한 채 클릭 → 배치(있던 조각은 카트로 교체 복귀)
-    setPlaced((cur) => ({ ...cur, [slot.id]: selected }));
-    setSelected(null);
-    if (fitAny) {
-      // 사건당 감점 — 빼도 무효화되지 않는다. 함정 조각은 extra 감점 하나만(중첩 금지).
-      if (extraIds.has(pieceId)) setExtrasUsed((cur) => ({ ...cur, [pieceId]: true }));
-      else if (slot.accepts !== pieceId) setWrongEvents((n) => n + 1);
+    placePiece(slot, selected);
+  };
+
+  /** 뷰포트 좌표에서 드롭 대상 슬롯 id — 맵 슬롯 버튼의 data-slot-id 로 판정한다. */
+  const slotIdAtPoint = (x: number, y: number): string | null => {
+    const el = document.elementFromPoint(x, y);
+    const hit = el instanceof Element ? el.closest("[data-slot-id]") : null;
+    return hit?.getAttribute("data-slot-id") ?? null;
+  };
+
+  const dragStart = (e: ReactPointerEvent<HTMLButtonElement>, key: string) => {
+    if (done || dragRef.current) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    dragRef.current = { key, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, active: false };
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // 캡처 실패해도 클릭-선택 폴백이 있다
     }
+  };
+
+  const dragMove = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    const st = dragRef.current;
+    if (!st || st.pointerId !== e.pointerId) return;
+    if (!st.active) {
+      // 6px 임계 전에는 탭/클릭으로 취급 — 클릭 폴백과 충돌하지 않는다
+      if (Math.hypot(e.clientX - st.startX, e.clientY - st.startY) < 6) return;
+      st.active = true;
+    }
+    setDrag({ key: st.key, x: e.clientX, y: e.clientY });
+    setDropHover(slotIdAtPoint(e.clientX, e.clientY));
+  };
+
+  const dragEnd = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    const st = dragRef.current;
+    if (!st || st.pointerId !== e.pointerId) return;
+    dragRef.current = null;
+    setDrag(null);
+    setDropHover(null);
+    if (!st.active) return; // 이동 없는 탭 — 뒤따르는 click 이벤트가 선택을 토글한다
+    suppressClick.current = true;
+    window.setTimeout(() => {
+      suppressClick.current = false;
+    }, 0);
+    if (done) return;
+    const slotId = slotIdAtPoint(e.clientX, e.clientY);
+    const slot = slotId ? slots.find((s) => s.id === slotId) : undefined;
+    if (slot) placePiece(slot, st.key);
+  };
+
+  const dragCancel = () => {
+    dragRef.current = null;
+    setDrag(null);
+    setDropHover(null);
+  };
+
+  const clickTrayPiece = (key: string) => {
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      return;
+    }
+    pickPiece(key);
   };
 
   const clickStain = (stain: PlaceStain) => {
@@ -270,11 +426,76 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
     }
   };
 
+  const verdictOf = (slot: PlaceSlot, pieceId: string | null): "ok" | "bad" | undefined =>
+    done
+      ? slot.accepts == null
+        ? pieceId
+          ? "bad"
+          : "ok"
+        : pieceId === slot.accepts
+          ? "ok"
+          : "bad"
+      : undefined;
+
   const placedKeys = useMemo(() => new Set(Object.values(placed)), [placed]);
   const cartPieces = pieces.filter((p) => !placedKeys.has(p.key) && !consumed[p.key]);
+  const personCart = cartPieces.filter((p) => isPerson(p.id));
+  const propCart = cartPieces.filter((p) => !isPerson(p.id));
   const filledCount = slots.filter((s) => s.accepts != null && placed[s.id]).length;
   const resolvedCount = stains.filter((s) => stainState[s.id]?.resolved).length;
   const acceptTotal = slots.filter((s) => s.accepts != null).length;
+  const dragPieceId = drag ? pieceIdByKey.get(drag.key) ?? null : null;
+
+  /** 슬롯 안에 배치된 조각 표시 — 사람은 색 배지 아이콘, 물건은 도트/라벨 칩. */
+  const renderPlaced = (pieceId: string, compact: boolean) =>
+    isPerson(pieceId) ? (
+      <span className={styles.occupant} style={{ color: colorOf(pieceId) }}>
+        <UserCircle size={compact ? 20 : 24} weight="fill" aria-hidden="true" />
+        <span className={styles.occupantName}>{pretty(pieceId)}</span>
+      </span>
+    ) : (
+      <span className={styles.dockItem} style={{ color: colorOf(pieceId) }}>
+        <PixelSprite
+          id={pieceId}
+          label={pretty(pieceId)}
+          size={compact ? 28 : 36}
+          fallbackClassName={styles.dockPiece}
+        />
+      </span>
+    );
+
+  /** 맵 모드 트레이 조각 버튼 — 드래그와 클릭-선택 둘 다 받는다. */
+  const trayButton = (p: { key: string; id: string }) => {
+    const cue = cues[p.id];
+    const person = isPerson(p.id);
+    return (
+      <button
+        key={p.key}
+        type="button"
+        className={`${styles.piece} ${styles.trayPiece}${person ? ` ${styles.personPiece}` : ""}`}
+        data-selected={selected === p.key}
+        data-dragging={drag && drag.key === p.key ? true : undefined}
+        aria-pressed={selected === p.key}
+        disabled={done}
+        onClick={() => clickTrayPiece(p.key)}
+        onPointerDown={(e) => dragStart(e, p.key)}
+        onPointerMove={dragMove}
+        onPointerUp={dragEnd}
+        onPointerCancel={dragCancel}
+        aria-label={`${pretty(p.id)} 조각${cue ? `, ${pretty(cue)}` : ""} — 드래그해 놓거나 눌러서 선택`}
+      >
+        {person ? (
+          <span className={styles.personBody} style={{ color: colorOf(p.id) }}>
+            <UserCircle size={26} weight="fill" aria-hidden="true" />
+            <span className={styles.personName}>{pretty(p.id)}</span>
+          </span>
+        ) : (
+          <PixelSprite id={p.id} label={pretty(p.id)} size={40} fallbackClassName={styles.pieceName} />
+        )}
+        {cue ? <span className={styles.pieceCue}>{pretty(cue)}</span> : null}
+      </button>
+    );
+  };
 
   return (
     <div className={base.shell}>
@@ -317,103 +538,246 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
         </div>
       ) : null}
 
-      <div className={styles.board} role="group" aria-label="배치판">
-        {slots.map((slot) => {
-          const key = placed[slot.id];
-          const pieceId = key ? pieceIdByKey.get(key) ?? null : null;
-          const title = slot.label ?? pretty(slot.id);
-          // fit:any 만 실시간 피드백 — 정답 구간이 미배치·오배치면 계속 새는 표시
-          const leaking = fitAny && !done && slot.accepts != null && pieceId !== slot.accepts;
-          const plugged = fitAny && !done && slot.accepts != null && pieceId === slot.accepts;
-          const verdict = done
-            ? slot.accepts == null
-              ? pieceId
-                ? "bad"
-                : "ok"
-              : pieceId === slot.accepts
-                ? "ok"
-                : "bad"
-            : undefined;
-          return (
-            <button
-              key={slot.id}
-              type="button"
-              className={styles.slot}
-              data-filled={Boolean(pieceId)}
-              data-leak={leaking || undefined}
-              data-verdict={verdict}
-              disabled={done}
-              onClick={() => clickSlot(slot)}
-              aria-label={`${title} 슬롯${pieceId ? ` — ${pretty(pieceId)} 배치됨` : " — 비어 있음"}`}
+      {mapMode ? (
+        <div className={styles.mapWrap}>
+          <div className={styles.mapBoard} role="group" aria-label="회의실 배치도">
+            <svg
+              className={styles.mapScene}
+              viewBox={`0 0 ${SCENE.w} ${SCENE.h}`}
+              aria-hidden="true"
+              focusable="false"
             >
-              {slot.marker ? (
-                <PixelSprite
-                  id={slot.marker}
-                  label={pretty(slot.marker)}
-                  size={44}
-                  fallbackClassName={styles.marker}
-                />
+              {/* 바닥·벽·러그 — 위에서 본 회의실 */}
+              <rect x="0" y="0" width={SCENE.w} height={SCENE.h} fill="#222741" />
+              <rect
+                x="6"
+                y="6"
+                width={SCENE.w - 12}
+                height={SCENE.h - 12}
+                rx="18"
+                fill="none"
+                stroke="#4a5380"
+                strokeWidth="3"
+              />
+              <rect x="150" y="22" width="660" height="398" rx="26" fill="#273052" />
+              {/* 출입문 표시 */}
+              <rect x="40" y={SCENE.h - 14} width="90" height="8" rx="4" fill="#4a5380" />
+              {mapScene ? (
+                <>
+                  {/* 회의 테이블 — 거치대 좌표 범위에서 유도 */}
+                  <rect
+                    x={mapScene.table.x}
+                    y={mapScene.table.y}
+                    width={mapScene.table.w}
+                    height={mapScene.table.h}
+                    rx="28"
+                    fill="#3d466f"
+                    stroke="#8b96c9"
+                    strokeWidth="3"
+                  />
+                  <rect
+                    x={mapScene.table.x + 14}
+                    y={mapScene.table.y + 14}
+                    width={mapScene.table.w - 28}
+                    height={mapScene.table.h - 28}
+                    rx="18"
+                    fill="rgb(255 255 255 / 0.05)"
+                  />
+                  {/* 의자 — 좌석 슬롯 좌표. 상석(금색 단서)은 금색 의자 */}
+                  {mapScene.chairs.map((c) => (
+                    <g key={c.id}>
+                      <rect
+                        x={c.x - 75}
+                        y={c.y - 36}
+                        width={150}
+                        height={72}
+                        rx={16}
+                        fill={c.gold ? "#5b471d" : "#2c3457"}
+                        stroke={c.gold ? "#f2c14e" : "#8b96c9"}
+                        strokeWidth={c.gold ? 3 : 2.5}
+                      />
+                      <rect
+                        x={c.back.x}
+                        y={c.back.y}
+                        width={c.back.w}
+                        height={c.back.h}
+                        rx={5}
+                        fill={c.gold ? "#f2c14e" : "#8b96c9"}
+                        opacity={0.9}
+                      />
+                    </g>
+                  ))}
+                </>
               ) : null}
-              <span className={styles.slotTitle}>{title}</span>
-              {pieceId ? (
-                <PixelSprite
-                  id={pieceId}
-                  label={pretty(pieceId)}
-                  size={48}
-                  fallbackClassName={styles.placedPiece}
-                />
-              ) : (
-                <span className={styles.emptyMark}>빈 자리</span>
-              )}
-              {leaking ? (
-                <span className={styles.leakBadge} aria-hidden="true">
-                  새는 중
-                </span>
-              ) : null}
-              {plugged ? (
-                <span className={styles.pluggedBadge} aria-hidden="true">
-                  막힘
-                </span>
-              ) : null}
-              {verdict ? (
-                <span className={styles.slotMark} data-ok={verdict === "ok"} aria-hidden="true">
-                  {verdict === "ok" ? "✓" : "✕"}
-                </span>
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className={styles.cart} role="group" aria-label="조각 카트">
-        {cartPieces.length > 0 ? (
-          cartPieces.map((p) => {
-            const cue = cues[p.id];
+            </svg>
+            {slots.map((slot) => {
+              const at = slotAt(slot);
+              if (!at) return null;
+              const key = placed[slot.id];
+              const pieceId = key ? pieceIdByKey.get(key) ?? null : null;
+              const title = slot.label ?? pretty(slot.id);
+              const seat = Boolean(slot.marker);
+              const verdict = verdictOf(slot, pieceId);
+              return (
+                <button
+                  key={slot.id}
+                  type="button"
+                  data-slot-id={slot.id}
+                  className={styles.mapSlot}
+                  data-kind={seat ? "seat" : "dock"}
+                  data-filled={Boolean(pieceId)}
+                  data-drop={dropHover === slot.id ? true : undefined}
+                  data-verdict={verdict}
+                  disabled={done}
+                  style={{ left: `${(at[0] / SCENE.w) * 100}%`, top: `${(at[1] / SCENE.h) * 100}%` }}
+                  onClick={() => clickSlot(slot)}
+                  aria-label={`${title} 슬롯${pieceId ? ` — ${pretty(pieceId)} 배치됨` : " — 비어 있음"}`}
+                >
+                  {slot.marker ? (
+                    // 명패·의자 도트 아트가 있으면 그대로, 없으면 배지색 칩 폴백
+                    <span className={styles.seatMarkerWrap} style={{ color: colorOf(slot.marker) }}>
+                      <PixelSprite
+                        id={slot.marker}
+                        label={pretty(slot.marker)}
+                        size={30}
+                        fallbackClassName={styles.seatMarker}
+                      />
+                    </span>
+                  ) : null}
+                  {pieceId ? (
+                    renderPlaced(pieceId, !seat)
+                  ) : (
+                    <span className={styles.mapEmpty}>빈 자리</span>
+                  )}
+                  {verdict ? (
+                    <span className={styles.slotMark} data-ok={verdict === "ok"} aria-hidden="true">
+                      {verdict === "ok" ? "✓" : "✕"}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className={styles.board} role="group" aria-label="배치판">
+          {slots.map((slot) => {
+            const key = placed[slot.id];
+            const pieceId = key ? pieceIdByKey.get(key) ?? null : null;
+            const title = slot.label ?? pretty(slot.id);
+            // fit:any 만 실시간 피드백 — 정답 구간이 미배치·오배치면 계속 새는 표시
+            const leaking = fitAny && !done && slot.accepts != null && pieceId !== slot.accepts;
+            const plugged = fitAny && !done && slot.accepts != null && pieceId === slot.accepts;
+            const verdict = verdictOf(slot, pieceId);
             return (
               <button
-                key={p.key}
+                key={slot.id}
                 type="button"
-                className={styles.piece}
-                data-selected={selected === p.key}
-                aria-pressed={selected === p.key}
+                className={styles.slot}
+                data-filled={Boolean(pieceId)}
+                data-leak={leaking || undefined}
+                data-verdict={verdict}
                 disabled={done}
-                onClick={() => pickPiece(p.key)}
-                aria-label={`${pretty(p.id)} 조각${cue ? `, ${pretty(cue)}` : ""}`}
+                onClick={() => clickSlot(slot)}
+                aria-label={`${title} 슬롯${pieceId ? ` — ${pretty(pieceId)} 배치됨` : " — 비어 있음"}`}
               >
-                <PixelSprite
-                  id={p.id}
-                  label={pretty(p.id)}
-                  size={48}
-                  fallbackClassName={styles.pieceName}
-                />
-                {cue ? <span className={styles.pieceCue}>{pretty(cue)}</span> : null}
+                {slot.marker ? (
+                  <PixelSprite
+                    id={slot.marker}
+                    label={pretty(slot.marker)}
+                    size={44}
+                    fallbackClassName={styles.marker}
+                  />
+                ) : null}
+                <span className={styles.slotTitle}>{title}</span>
+                {pieceId ? (
+                  <PixelSprite
+                    id={pieceId}
+                    label={pretty(pieceId)}
+                    size={48}
+                    fallbackClassName={styles.placedPiece}
+                  />
+                ) : (
+                  <span className={styles.emptyMark}>빈 자리</span>
+                )}
+                {leaking ? (
+                  <span className={styles.leakBadge} aria-hidden="true">
+                    새는 중
+                  </span>
+                ) : null}
+                {plugged ? (
+                  <span className={styles.pluggedBadge} aria-hidden="true">
+                    막힘
+                  </span>
+                ) : null}
+                {verdict ? (
+                  <span className={styles.slotMark} data-ok={verdict === "ok"} aria-hidden="true">
+                    {verdict === "ok" ? "✓" : "✕"}
+                  </span>
+                ) : null}
               </button>
             );
-          })
-        ) : (
-          <span className={styles.cartEmpty}>카트가 비었습니다</span>
-        )}
-      </div>
+          })}
+        </div>
+      )}
+
+      {mapMode ? (
+        <div className={styles.tray} role="group" aria-label="조각 트레이">
+          <div className={styles.trayRow} role="group" aria-label="참석자 조각">
+            <span className={styles.trayLabel}>참석자</span>
+            <div className={styles.trayItems}>
+              {personCart.length > 0 ? (
+                personCart.map(trayButton)
+              ) : (
+                <span className={styles.cartEmpty}>모두 배치했습니다</span>
+              )}
+            </div>
+          </div>
+          <div className={styles.trayRow} role="group" aria-label="자료와 소품 조각">
+            <span className={styles.trayLabel}>자료·소품</span>
+            <div className={styles.trayItems}>
+              {propCart.length > 0 ? (
+                propCart.map(trayButton)
+              ) : (
+                <span className={styles.cartEmpty}>모두 배치했습니다</span>
+              )}
+            </div>
+          </div>
+          <p className={styles.trayHint}>
+            조각을 드래그해 배치도 자리에 놓거나, 조각을 누른 뒤 자리를 누르세요.
+          </p>
+        </div>
+      ) : (
+        <div className={styles.cart} role="group" aria-label="조각 카트">
+          {cartPieces.length > 0 ? (
+            cartPieces.map((p) => {
+              const cue = cues[p.id];
+              return (
+                <button
+                  key={p.key}
+                  type="button"
+                  className={styles.piece}
+                  data-selected={selected === p.key}
+                  aria-pressed={selected === p.key}
+                  disabled={done}
+                  onClick={() => pickPiece(p.key)}
+                  aria-label={`${pretty(p.id)} 조각${cue ? `, ${pretty(cue)}` : ""}`}
+                >
+                  <PixelSprite
+                    id={p.id}
+                    label={pretty(p.id)}
+                    size={48}
+                    fallbackClassName={styles.pieceName}
+                  />
+                  {cue ? <span className={styles.pieceCue}>{pretty(cue)}</span> : null}
+                </button>
+              );
+            })
+          ) : (
+            <span className={styles.cartEmpty}>카트가 비었습니다</span>
+          )}
+        </div>
+      )}
 
       {!done ? (
         <div className={styles.footer}>
@@ -433,6 +797,27 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
           </button>
         </div>
       ) : null}
+
+      {drag && dragPieceId
+        ? createPortal(
+            <div className={styles.dragGhost} style={{ left: drag.x, top: drag.y }} aria-hidden="true">
+              {isPerson(dragPieceId) ? (
+                <span className={styles.personBody} style={{ color: colorOf(dragPieceId) }}>
+                  <UserCircle size={24} weight="fill" />
+                  <span className={styles.personName}>{pretty(dragPieceId)}</span>
+                </span>
+              ) : (
+                <PixelSprite
+                  id={dragPieceId}
+                  label={pretty(dragPieceId)}
+                  size={36}
+                  fallbackClassName={styles.pieceName}
+                />
+              )}
+            </div>,
+            document.body,
+          )
+        : null}
 
       {done && summary ? (
         <ResultBar score={summary.score}>

@@ -57,6 +57,14 @@
 .judgeLine[data-flash="hit"] { box-shadow: 0 0 18px rgb(90 220 180 / 0.9); background: #5adcb4; }
 .judgeLine[data-flash="bad"] { box-shadow: 0 0 18px rgb(255 120 140 / 0.9); background: #ff8fa3; }
 
+/* 히트 밴드 확대(디자이너 확정) — 위아래 2px씩. 3px → 7px, bottom 을 2px 내려
+   밴드 중심은 기존 판정선과 동일하게 유지한다. 타이밍 창 환산은 PhysicsGame.tsx
+   HIT_BAND_EXTRA_PX 와 짝 — 한쪽만 바꾸지 말 것. */
+.judgeLine[data-wide="true"] {
+  height: 7px;
+  bottom: calc(14% - 2px);
+}
+
 /* 노트 — 스프라이트 아트 전까지 라벨 마커(스폿 엔진과 같은 방식) */
 .note {
   position: absolute;
