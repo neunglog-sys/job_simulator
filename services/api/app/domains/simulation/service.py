@@ -640,15 +640,13 @@ async def finish_tour(
     return {"state": public_state(state), "step_changed": None}
 
 
-async def save_minigame_result(
-    session: AsyncSession, simulation: Simulation, payload: dict
-) -> dict:
-    """4단계 실무 미니게임 결과 저장 — 역량 블렌드·리포트의 재료 (팀 결정: B안).
+def _minigame_result(payload: dict, declared: dict | None) -> dict:
+    """미니게임 결과 페이로드 검증·정합 대조 → 저장할 결과 dict (순수 로직, 테스트 대상).
 
-    받는 것: {engine, accuracy(0~100), time_seconds?, mistakes?}
-    점수는 정확도 기반(score = round(accuracy)). 시간·실수는 리포트 서술용으로만 보관하고
-    당장 점수화하지 않는다(튜닝은 팀 논의 대상). 재도전하면 마지막 결과로 덮어쓴다.
-    모르는 엔진(프론트 스텁 포함)도 저장은 한다 — 반영 여부는 aggregate.minigame_of가 거른다.
+    declared = 시나리오에 선언된 게임 정의(content.minigame). 선언이 있으면 그 엔진만
+    인정한다 — 프론트 자진신고를 믿지 않고 데이터와 대조 (사양 도착 후 전환, 2026-07-20).
+    엔진 불일치는 에러로 끊지 않고 rejected 표시로 저장만 한다: 4단계 흐름은 막지 않되
+    가짜 점수가 역량 블렌드에 못 들어가게 (aggregate.minigame_of가 거른다).
     """
     engine = str(payload.get("engine") or "").strip()
     if not engine:
@@ -662,6 +660,34 @@ async def save_minigame_result(
         value = payload.get(key)
         if isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0:
             result[key] = round(float(value), 1)
+
+    if declared:
+        if engine != declared["engine"]:
+            logger.warning(
+                "미니게임 engine 불일치 — 시나리오 선언 '%s' ≠ 수신 '%s' (저장만, 반영 안 함)",
+                declared["engine"], engine,
+            )
+            result["rejected"] = "engine_mismatch"
+            result["declared_engine"] = declared["engine"]
+        else:
+            # 통과 여부 — 리포트 서술용 ("재도전 끝에 통과" 등). 점수엔 이미 accuracy로 반영됨.
+            result["pass_score"] = declared["pass_score"]
+            result["passed"] = result["score"] >= declared["pass_score"]
+    return result
+
+
+async def save_minigame_result(
+    session: AsyncSession, simulation: Simulation, scenario: Scenario, payload: dict
+) -> dict:
+    """4단계 실무 미니게임 결과 저장 — 역량 블렌드·리포트의 재료 (팀 결정: B안).
+
+    받는 것: {engine, accuracy(0~100), time_seconds?, mistakes?}
+    점수는 정확도 기반(score = round(accuracy)). 시간·실수는 리포트 서술용으로만 보관하고
+    당장 점수화하지 않는다(튜닝은 팀 논의 대상). 재도전하면 마지막 결과로 덮어쓴다.
+    엔진은 시나리오의 게임 선언과 대조하고(_minigame_result), 스텁·불일치도 저장은 한다 —
+    반영 여부는 aggregate.minigame_of가 거른다.
+    """
+    result = _minigame_result(payload, minigame.minigame_for(scenario.slug))
 
     state = dict(simulation.state)
     state["minigame"] = result

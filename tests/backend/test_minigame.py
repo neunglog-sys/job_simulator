@@ -5,8 +5,6 @@
 점수·리포트에 반영되지 않는다(파이프라인은 돌되 가짜 점수가 오염시키지 않게).
 """
 
-import asyncio
-
 import pytest
 from fastapi import HTTPException
 
@@ -15,15 +13,10 @@ from app.domains.scoring.aggregate import (
     competency_scores,
     minigame_of,
 )
-from app.domains.simulation.service import save_minigame_result
+from app.domains.simulation.service import _minigame_result
 
-
-class _Sim:
-    state: dict = {}
-
-
-def _save(payload):
-    return asyncio.run(save_minigame_result(None, _Sim(), payload))
+# 시나리오에 선언된 게임 정의 (content.minigame._sanitize 출력 형태)
+_DECLARED = {"engine": "spot", "pass_score": 70.0}
 
 
 @pytest.mark.parametrize(
@@ -40,8 +33,31 @@ def _save(payload):
 )
 def test_save_rejects_invalid_payload(payload):
     with pytest.raises(HTTPException) as err:
-        _save(payload)
+        _minigame_result(payload, None)
     assert err.value.status_code == 400
+
+
+def test_engine_must_match_scenario_declaration():
+    # 선언과 다른 엔진(스텁 포함)은 저장용 rejected 표시 → 블렌드에서 걸러짐
+    result = _minigame_result({"engine": "pour", "accuracy": 90}, _DECLARED)
+    assert result["rejected"] == "engine_mismatch"
+    assert result["declared_engine"] == "spot"
+    assert minigame_of({"minigame": result}) is None
+
+
+def test_matching_engine_gets_pass_verdict():
+    ok = _minigame_result({"engine": "spot", "accuracy": 85}, _DECLARED)
+    assert ok.get("rejected") is None and ok["passed"] is True and ok["pass_score"] == 70.0
+    fail = _minigame_result({"engine": "spot", "accuracy": 40}, _DECLARED)
+    assert fail["passed"] is False
+    assert minigame_of({"minigame": ok}) is not None  # 블렌드 대상
+
+
+def test_no_declaration_keeps_legacy_behavior():
+    # 게임 정의가 없는 시나리오 — 등록 엔진이면 기존대로 반영, passed는 없음
+    result = _minigame_result({"engine": "spot", "accuracy": 90}, None)
+    assert "passed" not in result and "rejected" not in result
+    assert minigame_of({"minigame": result}) is not None
 
 
 def test_minigame_of_filters_unknown_and_invalid():
