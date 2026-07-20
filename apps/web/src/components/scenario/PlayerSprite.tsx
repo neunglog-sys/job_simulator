@@ -8,6 +8,8 @@ type PlayerSpriteProps = {
   position: Position;
   facing?: NpcFacing;
   walking?: boolean;
+  // 오클루전 맵의 y-정렬용 — 발 y를 넘기면 가구 오클루더(z=baseline)와 앞뒤가 갈린다
+  zIndex?: number;
 };
 
 export const PLAYER_SIZE = {
@@ -30,14 +32,14 @@ function heroSheet(): string {
   return `/hero/${pick === "male" ? "male" : "female"}.png`;
 }
 
-export function PlayerSprite({ position, facing = "front", walking = false }: PlayerSpriteProps) {
+export function PlayerSprite({ position, facing = "front", walking = false, zIndex }: PlayerSpriteProps) {
   const [missing, setMissing] = useState(false);
   const sheet = heroSheet();
 
   return (
     <div
       className={styles.playerSprite}
-      style={{ transform: `translate3d(${position.x}px, ${position.y}px, 0)` }}
+      style={{ transform: `translate3d(${position.x}px, ${position.y}px, 0)`, zIndex }}
       role="img"
       aria-label="플레이어 캐릭터"
     >
