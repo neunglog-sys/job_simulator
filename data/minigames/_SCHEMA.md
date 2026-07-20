@@ -131,6 +131,38 @@ data:
   budget: { time: 90 }             # 연료 등 제약이 있으면 여기 추가
 ```
 
+**계획+주행 2단계 확장 (jm-01)** — 아래 필드가 있을 때만 켜진다. 없는 게임은 불변:
+
+```yaml
+data:
+  avoid:
+    - zone: 어린이보호구역
+      penalty: 40
+      visible: true                # 계획 화면에 처음부터 반투명 존+표지 렌더.
+                                   # 원문이 지도에 위험구역을 미리 표기하는 경우만
+                                   # (jm-01 "노선도에 지름길이 보호구역 경유로 표시").
+                                   # 없으면 기존 '침범 후 공개'(stn-02) 유지.
+  weather_pool:                    # 게임 시작 시 1개 랜덤 — 상단 기상 배너로 표시
+    - { id: 맑음, notice: 특이사항 없음 }
+    - { id: 호우, effect: 서행, notice: 시야 불량 — 전 구간 서행 }
+                                   # effect: 서행 → 주행 기본 속도 감소 +
+                                   # when_effect: 서행 구간 활성 (규칙에 반영)
+  driving:                         # 계획 제출 후 종스크롤 주행 파트(방향키/WASD 회피 조작)
+    duration: 24                   # 주행 시간(초) — 20~30 권장
+    obstacle_density: 0.5          # 장애물 스폰 밀도 0~1
+    obstacles: [장애물_차량, 물웅덩이]   # 낙하 장애물 스프라이트 id 목록
+    slow_zones:                    # 서행 의무 구간 — from/to 는 주행 진행률(0~1)
+      - { id: 어린이보호구역, from: 0.3, to: 0.5, penalty: 40, sprite: 어린이보호구역_표지, reason: … }
+      - { id: 시야불량구간, from: 0.6, to: 0.8, penalty: 10, when_effect: 서행 }  # 해당 기상일 때만
+```
+
+> 주행 채점: `accuracy = 계획 점수 − 주행 감점` (0~100 클램프 — 기존 채점 계약 위에
+> 감점만 얹는다). 장애물 충돌 1건 = scoring `collision_penalty`(표준 키, 장애물 하나에
+> 감점 하나), 서행 위반(서행선 위 과속 ≈1초 유지) = 해당 zone `penalty` **구역당 1회**
+> — 감점 중첩 금지 규약 그대로. 보호구역 과속은 원문 금지행동이라 40↑(규칙 7),
+> 단순 서행 의무 구간은 10~15. `prefers-reduced-motion` 환경에서는 저속·무장애물
+> 간이 모드가 된다(충돌 감점 없음, 서행 의무는 판단 요소라 유지).
+
 ### 6. `sequence` — 순서·절차
 정해진 순서대로 누르기. **틀린 순서를 누르면 즉시 실패**가 원칙(안전 절차라서).
 
@@ -250,6 +282,7 @@ data:
 | `ignore_sudden_penalty` | 돌발을 아예 응대하지 않고 종료 | **40** |
 | `early_escalate_penalty` | 단계 전 성급한 호출 | 25 (escalate.early_penalty 와 중복 정의 금지 — scoring 쪽만) |
 | `decoy_penalty` | 함정 클릭 | '전부 클릭' 합계가 30을 넘게 (개당 15~20 또는 개수 확보) |
+| `collision_penalty` | route 주행: 장애물 충돌 (장애물 하나 = 사건 하나) | 5~10 (금지행동 아님 — 서행 위반은 slow_zones 의 zone별 penalty) |
 | 감점 중첩 | 한 사건에는 **가장 무거운 감점 하나만** 적용 (중첩 금지) — 전 엔진 공통 |
 
 ## 엔진 확장 필드 추가분 (45개 작성 과정에서 확정)
@@ -260,6 +293,12 @@ data:
   `blockers`(경로상 발견·보고물 — stn-02): `[{ id, at, sprite, action, missed_penalty }]`
   — 통과·회피가 아니라 **발견해 action(보고)** 하는 것이 정답. 보고 없이 제출하면(방치)
   missed_penalty (원문 금지행동이면 40).
+- **route 계획+주행 2단계 (jm-01, 2026-07-20)**: avoid 항목 `visible: true`(계획 화면 사전
+  표시 — 원문이 지도에 표기하는 구역만), `weather_pool`(랜덤 기상 배너 — `effect: 서행`은
+  주행 속도·구간 활성에 반영), `driving`(종스크롤 주행 파트 — `{ duration, obstacle_density,
+  obstacles, slow_zones[{id, from, to, penalty, sprite?, reason?, when_effect?}] }`),
+  scoring `collision_penalty`. 상세는 위 5. route 절 참조. **driving 이 없는 route 게임은
+  전부 기존 단일(계획) 흐름 그대로다.**
 - **physics balance**: `settle`(내려놓기형 — 크레인류): `{ target_zone, tolerance, sway_fail(기울기 초과=실패), drop_fail(과속 착지=실패) }`.
   intro 가 '실패'라고 고지한 조작은 감점이 아니라 실패로 채점한다.
 - **place**: `stains`(문지르기·교체형 정비 — cln-01): `[{ id, resolve: 문지르기|교체, sprite }]`.

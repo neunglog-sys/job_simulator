@@ -13,80 +13,79 @@
 # ※ 3스텝 "동시 주문 조리 순서 배치"는 2단계 order 퀴즈와 그대로 겹치므로 게임에 넣지
 #    않았다(_SCHEMA.md 규칙 3). 여기서 다루는 순서는 칼질 타이밍뿐이다.
 # ※ 화면에 수량·시간 숫자를 띄우지 않는다. 마디 수는 내려오는 노트로만 읽힌다(규칙 1).
+# ※ 단일 바 개편(디자이너 확정 2026-07-20): 레인 4개 → 1개. 교차 오염 분리(모범답안 ④)는
+#    화면 분할이 아니라 재료 스프라이트 + swap 노트(칼·도마 교체)로 읽힌다.
+#    구역(재료) 경계는 swap 노트가 표시하고, 배수 계량 비율은 구역별 마디 수로 남는다.
 scenario_id: ms-07
 engine: physics
 title: 재료 전처리 리듬
-intro: 도마 위로 내려오는 재료를 판정선에서 스페이스로 다듬으세요. 상한 재료는 치지 말고, 구역이 바뀌면 칼과 도마를 교체하세요.
+intro: 도마 위로 내려오는 재료를 판정선에서 스페이스로 다듬으세요. 상한 재료는 치지 말고, 재료가 바뀌는 지점에서는 Shift로 칼과 도마를 교체하세요.
 time_limit: 60
 pass_score: 70
 
 data:
   mode: rhythm
   bpm: 100
-  hit_window: 0.12           # 판정선 앞뒤 허용 시간(초)
+  hit_window: 0.12           # 판정선 앞뒤 허용 시간(초) — 엔진이 히트 밴드 ±2px 만큼 환산해 더한다
   judge_marker: 판정선_칼날   # 판정선 위 칼날 도트 마커
 
-  # 레인 = 교차 오염을 막기 위해 분리해 둔 보관·손질 구역 (1스텝 모범답안 ④)
-  # portion = 20인분 배수 계량 결과. 구역마다 다듬을 양이 다르다.
-  # sprite = 그 구역에서 손질하는 재료(정상·신선) — cut 노트가 이 도트로 내려온다.
+  # 단일 바 — 모든 노트(재료·avoid·swap)가 이 바 하나로 내려온다.
+  # 재료 구분은 노트별 sprite 가 담당한다(레인 분할 없음).
   lanes:
-    - { id: 구역_1, label: 분리 구역 1, portion: 많음, sprite: 재료_당근 }
-    - { id: 구역_2, label: 분리 구역 2, portion: 적음, sprite: 재료_양파 }
-    - { id: 구역_3, label: 분리 구역 3, portion: 중간, sprite: 재료_감자 }
-    - { id: 구역_4, label: 분리 구역 4, portion: 소량 정밀, sprite: 재료_마늘 }
+    - { id: 도마, label: 전처리 도마 }
 
   # 노트 종류
   #   wash  — 손 위생. 이걸 치기 전엔 칼이 잡히지 않는다 (모범답안 ①)
-  #   cut   — 스페이스로 칼질
-  #   swap  — 칼·도마 교체. 구역이 바뀌는 지점 (조리도구 분리)
+  #   cut   — 스페이스로 칼질. sprite = 그 구역에서 손질하는 재료(정상·신선)
+  #   swap  — Shift 로 칼·도마 교체. 재료(구역)가 바뀌는 지점 (조리도구 분리)
   #   avoid — 검수 탈락 재료. 치면 실수 (warning "상한 재료 사용")
   #           sprite = 그 구역 재료의 변색 + 파리 점 버전 — 색·점으로만 구분(규칙 1)
   beats:
     - { at: 1.5,  key: space, type: wash, sprite: 손세정_소독, label: 작업 전 손 위생 }
 
-    # 구역 1 — 배수 계량상 가장 많은 양
-    - { at: 3.0,  key: space, type: cut, lane: 구역_1 }
-    - { at: 3.5,  key: space, type: cut, lane: 구역_1 }
-    - { at: 4.0,  key: space, type: cut, lane: 구역_1 }
-    - { at: 4.5,  key: space, type: cut, lane: 구역_1 }
-    - { at: 5.0,  key: space, type: cut, lane: 구역_1 }
-    - { at: 5.5,  key: space, type: cut, lane: 구역_1 }
-    - { at: 6.0,  key: space, type: cut, lane: 구역_1 }
-    - { at: 6.5,  type: avoid, lane: 구역_1, sprite: 재료_무름, label: 신선도 불량 }
-    - { at: 7.0,  key: space, type: cut, lane: 구역_1 }
-    - { at: 7.5,  key: space, type: cut, lane: 구역_1 }
+    # 구역 1 · 당근 — 배수 계량상 가장 많은 양(portion 많음)
+    - { at: 3.0,  key: space, type: cut, sprite: 재료_당근 }
+    - { at: 3.5,  key: space, type: cut, sprite: 재료_당근 }
+    - { at: 4.0,  key: space, type: cut, sprite: 재료_당근 }
+    - { at: 4.5,  key: space, type: cut, sprite: 재료_당근 }
+    - { at: 5.0,  key: space, type: cut, sprite: 재료_당근 }
+    - { at: 5.5,  key: space, type: cut, sprite: 재료_당근 }
+    - { at: 6.0,  key: space, type: cut, sprite: 재료_당근 }
+    - { at: 6.5,  type: avoid, sprite: 재료_무름, label: 신선도 불량 }
+    - { at: 7.0,  key: space, type: cut, sprite: 재료_당근 }
+    - { at: 7.5,  key: space, type: cut, sprite: 재료_당근 }
 
-    - { at: 8.5,  key: shift, type: swap, from: 구역_1, to: 구역_2, sprite: 칼_도마_교체 }
+    - { at: 8.5,  key: shift, type: swap, sprite: 칼_도마_교체 }   # 당근 → 양파
 
-    # 구역 2 — 적은 양
-    - { at: 10.0, key: space, type: cut, lane: 구역_2 }
-    - { at: 10.6, key: space, type: cut, lane: 구역_2 }
-    - { at: 11.2, key: space, type: cut, lane: 구역_2 }
-    - { at: 11.8, type: avoid, lane: 구역_2, sprite: 재료_기한경과, label: 유통기한 경과 }
-    - { at: 12.4, key: space, type: cut, lane: 구역_2 }
-    - { at: 13.0, key: space, type: cut, lane: 구역_2 }
+    # 구역 2 · 양파 — 적은 양(portion 적음)
+    - { at: 10.0, key: space, type: cut, sprite: 재료_양파 }
+    - { at: 10.6, key: space, type: cut, sprite: 재료_양파 }
+    - { at: 11.2, key: space, type: cut, sprite: 재료_양파 }
+    - { at: 11.8, type: avoid, sprite: 재료_기한경과, label: 유통기한 경과 }
+    - { at: 12.4, key: space, type: cut, sprite: 재료_양파 }
+    - { at: 13.0, key: space, type: cut, sprite: 재료_양파 }
 
-    - { at: 14.0, key: shift, type: swap, from: 구역_2, to: 구역_3, sprite: 칼_도마_교체 }
+    - { at: 14.0, key: shift, type: swap, sprite: 칼_도마_교체 }   # 양파 → 감자
 
-    # 구역 3 — 중간 양
-    - { at: 15.5, key: space, type: cut, lane: 구역_3 }
-    - { at: 16.0, key: space, type: cut, lane: 구역_3 }
-    - { at: 16.5, key: space, type: cut, lane: 구역_3 }
-    - { at: 17.0, key: space, type: cut, lane: 구역_3 }
-    - { at: 17.5, type: avoid, lane: 구역_3, sprite: 재료_온도이탈, label: 보관온도 이탈 }
-    - { at: 18.0, key: space, type: cut, lane: 구역_3 }
-    - { at: 18.5, key: space, type: cut, lane: 구역_3 }
-    - { at: 19.0, key: space, type: cut, lane: 구역_3 }
+    # 구역 3 · 감자 — 중간 양(portion 중간)
+    - { at: 15.5, key: space, type: cut, sprite: 재료_감자 }
+    - { at: 16.0, key: space, type: cut, sprite: 재료_감자 }
+    - { at: 16.5, key: space, type: cut, sprite: 재료_감자 }
+    - { at: 17.0, key: space, type: cut, sprite: 재료_감자 }
+    - { at: 17.5, type: avoid, sprite: 재료_온도이탈, label: 보관온도 이탈 }
+    - { at: 18.0, key: space, type: cut, sprite: 재료_감자 }
+    - { at: 18.5, key: space, type: cut, sprite: 재료_감자 }
+    - { at: 19.0, key: space, type: cut, sprite: 재료_감자 }
 
-    - { at: 20.0, key: shift, type: swap, from: 구역_3, to: 구역_4, sprite: 칼_도마_교체 }
+    - { at: 20.0, key: shift, type: swap, sprite: 칼_도마_교체 }   # 감자 → 마늘
 
-    # 구역 4 — 소량 정밀. 간격이 좁아 제일 어렵다
-    - { at: 21.5, key: space, type: cut, lane: 구역_4 }
-    - { at: 22.2, key: space, type: cut, lane: 구역_4 }
-    - { at: 22.9, key: space, type: cut, lane: 구역_4 }
-    - { at: 23.6, type: avoid, lane: 구역_4, sprite: 재료_이물혼입, label: 이물 혼입 }
-    - { at: 24.2, key: space, type: cut, lane: 구역_4 }
-    - { at: 24.8, key: space, type: cut, lane: 구역_4 }
+    # 구역 4 · 마늘 — 소량 정밀(portion 소량 정밀). 간격이 좁아 제일 어렵다
+    - { at: 21.5, key: space, type: cut, sprite: 재료_마늘 }
+    - { at: 22.2, key: space, type: cut, sprite: 재료_마늘 }
+    - { at: 22.9, key: space, type: cut, sprite: 재료_마늘 }
+    - { at: 23.6, type: avoid, sprite: 재료_이물혼입, label: 이물 혼입 }
+    - { at: 24.2, key: space, type: cut, sprite: 재료_마늘 }
+    - { at: 24.8, key: space, type: cut, sprite: 재료_마늘 }
 
 scoring:
   # 쳐야 할 노트 30 = cut 26 + swap 3 + wash 1. avoid 4개는 치면 안 된다.

@@ -412,7 +412,7 @@ export const PREVIEW_GAMES: Record<string, MinigameDef> = {
   "jm-01": {
     "engine": "route",
     "title": "3구역 배송 루트",
-    "intro": "출발 전 노선도를 확인하고, 배송지를 순서대로 이어 시간 안에 종점까지 경로를 그으세요. 어린이보호구역은 지나가면 안 됩니다.",
+    "intro": "출발 전 노선도와 기상 안내를 확인하고, 배송지를 순서대로 이어 경로를 계획하세요. 제출하면 실제 주행이 시작됩니다 — 방향키로 장애물을 피하고 서행 구간을 지키세요.",
     "time_limit": 90,
     "pass_score": 70,
     "data": {
@@ -485,6 +485,7 @@ export const PREVIEW_GAMES: Record<string, MinigameDef> = {
           "radius": 90,
           "penalty": 40,
           "reason": "보호구역 지름길·통과는 금지행동 — 민원 압박에도 상위 배치 금지",
+          "visible": true,
           "sprite": "어린이보호구역_표지"
         },
         {
@@ -505,11 +506,57 @@ export const PREVIEW_GAMES: Record<string, MinigameDef> = {
       },
       "budget": {
         "time": 90
+      },
+      "weather_pool": [
+        {
+          "id": "맑음",
+          "notice": "기상 특이사항 없음"
+        },
+        {
+          "id": "호우",
+          "effect": "서행",
+          "notice": "호우로 시야 불량 — 전 구간 서행"
+        },
+        {
+          "id": "안개",
+          "effect": "서행",
+          "notice": "짙은 안개 — 시야 확보 어려움",
+          "서행": null
+        }
+      ],
+      "driving": {
+        "duration": 24,
+        "obstacle_density": 0.5,
+        "obstacles": [
+          "장애물_차량",
+          "물웅덩이",
+          "장애물_라바콘"
+        ],
+        "slow_zones": [
+          {
+            "id": "어린이보호구역",
+            "from": 0.3,
+            "to": 0.52,
+            "penalty": 40,
+            "sprite": "어린이보호구역_표지",
+            "reason": "보호구역 과속·무정차 통과는 금지행동"
+          },
+          {
+            "id": "시야불량구간",
+            "from": 0.64,
+            "to": 0.84,
+            "penalty": 10,
+            "when_effect": "서행",
+            "reason": "시야 불량 — 서행 의무",
+            "과속 만회 금지": null
+          }
+        ]
       }
     },
     "scoring": {
       "waypoint_count": 5,
-      "order_matters": true
+      "order_matters": true,
+      "collision_penalty": 8
     }
   },
   "ms-10": {
@@ -523,33 +570,63 @@ export const PREVIEW_GAMES: Record<string, MinigameDef> = {
         {
           "id": "선행공정_확인",
           "sprite": "트렌치_굴착완료",
+          "at": [
+            150,
+            88
+          ],
+          "zone": "확인_표지판",
           "label": "선행공정(트렌치 굴착) 완료 확인"
         },
         {
           "id": "배관_안착",
           "sprite": "배관_자재",
           "fit": "트렌치_바닥_큰반원홈",
+          "at": [
+            480,
+            368
+          ],
+          "zone": "바닥_큰_홈",
           "label": "배관을 트렌치 바닥 홈에 안착"
         },
         {
           "id": "전선관_배선",
           "sprite": "전선관_자재",
           "fit": "배관위_클립받침",
+          "at": [
+            480,
+            288
+          ],
+          "zone": "배관_위_받침",
           "label": "전선관을 위 받침대에 배선"
         },
         {
           "id": "간섭점_표시",
           "sprite": "간섭점_마킹",
+          "at": [
+            620,
+            330
+          ],
+          "zone": "교차_지점",
           "label": "배관·전선 교차 간섭점 표시"
         },
         {
           "id": "되메움_고정",
           "sprite": "되메움_모래",
+          "at": [
+            480,
+            208
+          ],
+          "zone": "되메움_구역",
           "label": "되메움으로 자재 고정"
         },
         {
           "id": "마감타일_덮기",
           "sprite": "마감_타일",
+          "at": [
+            480,
+            140
+          ],
+          "zone": "표면_마감_구역",
           "label": "마감 타일로 덮기 (맨 끝)"
         }
       ],
@@ -557,11 +634,19 @@ export const PREVIEW_GAMES: Record<string, MinigameDef> = {
         {
           "id": "미확인배관_천공",
           "sprite": "미확인_배관",
+          "at": [
+            340,
+            248
+          ],
           "reason": "미확인 배관 위 임의 천공 — sudden_quest는 '작업중지·접근통제'가 정답"
         },
         {
           "id": "구두지시_임의배치",
           "sprite": "구두지시_메모",
+          "at": [
+            835,
+            90
+          ],
           "reason": "변경도면 없이 구두지시대로 배치 — 2스텝 warning (임의 반영 금지)"
         }
       ]
@@ -575,7 +660,7 @@ export const PREVIEW_GAMES: Record<string, MinigameDef> = {
   "ms-07": {
     "engine": "physics",
     "title": "재료 전처리 리듬",
-    "intro": "도마 위로 내려오는 재료를 판정선에서 스페이스로 다듬으세요. 상한 재료는 치지 말고, 구역이 바뀌면 칼과 도마를 교체하세요.",
+    "intro": "도마 위로 내려오는 재료를 판정선에서 스페이스로 다듬으세요. 상한 재료는 치지 말고, 재료가 바뀌는 지점에서는 Shift로 칼과 도마를 교체하세요.",
     "time_limit": 60,
     "pass_score": 70,
     "data": {
@@ -585,28 +670,8 @@ export const PREVIEW_GAMES: Record<string, MinigameDef> = {
       "judge_marker": "판정선_칼날",
       "lanes": [
         {
-          "id": "구역_1",
-          "label": "분리 구역 1",
-          "portion": "많음",
-          "sprite": "재료_당근"
-        },
-        {
-          "id": "구역_2",
-          "label": "분리 구역 2",
-          "portion": "적음",
-          "sprite": "재료_양파"
-        },
-        {
-          "id": "구역_3",
-          "label": "분리 구역 3",
-          "portion": "중간",
-          "sprite": "재료_감자"
-        },
-        {
-          "id": "구역_4",
-          "label": "분리 구역 4",
-          "portion": "소량 정밀",
-          "sprite": "재료_마늘"
+          "id": "도마",
+          "label": "전처리 도마"
         }
       ],
       "beats": [
@@ -621,48 +686,47 @@ export const PREVIEW_GAMES: Record<string, MinigameDef> = {
           "at": 3.0,
           "key": "space",
           "type": "cut",
-          "lane": "구역_1"
+          "sprite": "재료_당근"
         },
         {
           "at": 3.5,
           "key": "space",
           "type": "cut",
-          "lane": "구역_1"
+          "sprite": "재료_당근"
         },
         {
           "at": 4.0,
           "key": "space",
           "type": "cut",
-          "lane": "구역_1"
+          "sprite": "재료_당근"
         },
         {
           "at": 4.5,
           "key": "space",
           "type": "cut",
-          "lane": "구역_1"
+          "sprite": "재료_당근"
         },
         {
           "at": 5.0,
           "key": "space",
           "type": "cut",
-          "lane": "구역_1"
+          "sprite": "재료_당근"
         },
         {
           "at": 5.5,
           "key": "space",
           "type": "cut",
-          "lane": "구역_1"
+          "sprite": "재료_당근"
         },
         {
           "at": 6.0,
           "key": "space",
           "type": "cut",
-          "lane": "구역_1"
+          "sprite": "재료_당근"
         },
         {
           "at": 6.5,
           "type": "avoid",
-          "lane": "구역_1",
           "sprite": "재료_무름",
           "label": "신선도 불량"
         },
@@ -670,44 +734,41 @@ export const PREVIEW_GAMES: Record<string, MinigameDef> = {
           "at": 7.0,
           "key": "space",
           "type": "cut",
-          "lane": "구역_1"
+          "sprite": "재료_당근"
         },
         {
           "at": 7.5,
           "key": "space",
           "type": "cut",
-          "lane": "구역_1"
+          "sprite": "재료_당근"
         },
         {
           "at": 8.5,
           "key": "shift",
           "type": "swap",
-          "from": "구역_1",
-          "to": "구역_2",
           "sprite": "칼_도마_교체"
         },
         {
           "at": 10.0,
           "key": "space",
           "type": "cut",
-          "lane": "구역_2"
+          "sprite": "재료_양파"
         },
         {
           "at": 10.6,
           "key": "space",
           "type": "cut",
-          "lane": "구역_2"
+          "sprite": "재료_양파"
         },
         {
           "at": 11.2,
           "key": "space",
           "type": "cut",
-          "lane": "구역_2"
+          "sprite": "재료_양파"
         },
         {
           "at": 11.8,
           "type": "avoid",
-          "lane": "구역_2",
           "sprite": "재료_기한경과",
           "label": "유통기한 경과"
         },
@@ -715,50 +776,47 @@ export const PREVIEW_GAMES: Record<string, MinigameDef> = {
           "at": 12.4,
           "key": "space",
           "type": "cut",
-          "lane": "구역_2"
+          "sprite": "재료_양파"
         },
         {
           "at": 13.0,
           "key": "space",
           "type": "cut",
-          "lane": "구역_2"
+          "sprite": "재료_양파"
         },
         {
           "at": 14.0,
           "key": "shift",
           "type": "swap",
-          "from": "구역_2",
-          "to": "구역_3",
           "sprite": "칼_도마_교체"
         },
         {
           "at": 15.5,
           "key": "space",
           "type": "cut",
-          "lane": "구역_3"
+          "sprite": "재료_감자"
         },
         {
           "at": 16.0,
           "key": "space",
           "type": "cut",
-          "lane": "구역_3"
+          "sprite": "재료_감자"
         },
         {
           "at": 16.5,
           "key": "space",
           "type": "cut",
-          "lane": "구역_3"
+          "sprite": "재료_감자"
         },
         {
           "at": 17.0,
           "key": "space",
           "type": "cut",
-          "lane": "구역_3"
+          "sprite": "재료_감자"
         },
         {
           "at": 17.5,
           "type": "avoid",
-          "lane": "구역_3",
           "sprite": "재료_온도이탈",
           "label": "보관온도 이탈"
         },
@@ -766,50 +824,47 @@ export const PREVIEW_GAMES: Record<string, MinigameDef> = {
           "at": 18.0,
           "key": "space",
           "type": "cut",
-          "lane": "구역_3"
+          "sprite": "재료_감자"
         },
         {
           "at": 18.5,
           "key": "space",
           "type": "cut",
-          "lane": "구역_3"
+          "sprite": "재료_감자"
         },
         {
           "at": 19.0,
           "key": "space",
           "type": "cut",
-          "lane": "구역_3"
+          "sprite": "재료_감자"
         },
         {
           "at": 20.0,
           "key": "shift",
           "type": "swap",
-          "from": "구역_3",
-          "to": "구역_4",
           "sprite": "칼_도마_교체"
         },
         {
           "at": 21.5,
           "key": "space",
           "type": "cut",
-          "lane": "구역_4"
+          "sprite": "재료_마늘"
         },
         {
           "at": 22.2,
           "key": "space",
           "type": "cut",
-          "lane": "구역_4"
+          "sprite": "재료_마늘"
         },
         {
           "at": 22.9,
           "key": "space",
           "type": "cut",
-          "lane": "구역_4"
+          "sprite": "재료_마늘"
         },
         {
           "at": 23.6,
           "type": "avoid",
-          "lane": "구역_4",
           "sprite": "재료_이물혼입",
           "label": "이물 혼입"
         },
@@ -817,13 +872,13 @@ export const PREVIEW_GAMES: Record<string, MinigameDef> = {
           "at": 24.2,
           "key": "space",
           "type": "cut",
-          "lane": "구역_4"
+          "sprite": "재료_마늘"
         },
         {
           "at": 24.8,
           "key": "space",
           "type": "cut",
-          "lane": "구역_4"
+          "sprite": "재료_마늘"
         }
       ]
     },

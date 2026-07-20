@@ -137,20 +137,355 @@
   letter-spacing: 0.04em;
 }
 
+/* ── 현장 맵 모드 (ms-10 트렌치 단면) ──
+   보드는 논리 캔버스 960×440 비율 고정 + 좁은 화면에선 가로 스크롤(min-width)로
+   자리들이 겹치지 않게 한다(PlaceGame 맵 모드와 같은 규약). 자리는 at 좌표를 % 로
+   환산해 절대배치. 글자 대비는 어두운 칩 바탕 기준 4.5:1 이상(흰 글자 알파 0.72↑). */
+.mapWrap {
+  overflow-x: auto;
+  border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.2));
+  border-radius: 14px;
+  background: linear-gradient(160deg, rgb(38 44 66 / 0.96), rgb(24 27 44 / 0.98));
+}
+
+.mapBoard {
+  position: relative;
+  min-width: 560px;
+  aspect-ratio: 960 / 440;
+}
+
+.mapScene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 13px;
+}
+
+/* 자리(spot) — 자재가 들어갈 곳. 버튼(활성)과 div(완료·잠김)가 같은 겉모습을 쓴다 */
+.mapSpot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 13%;
+  min-width: 88px;
+  min-height: 44px;
+  padding: 5px 7px;
+  border: 1.5px dashed rgb(255 255 255 / 0.55);
+  border-radius: 10px;
+  background: rgb(13 17 34 / 0.7);
+  color: #fff;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.mapSpot:disabled {
+  cursor: default;
+}
+
+button.mapSpot:not(:disabled):hover {
+  background: rgb(46 53 88 / 0.9);
+}
+
+/* 자재가 앉은 자리 — 순번 배지와 라벨이 공개된다 */
+.mapSpot[data-state="done"] {
+  border-style: solid;
+  border-color: rgb(120 240 200 / 0.75);
+  background: rgb(20 74 60 / 0.9);
+  cursor: default;
+}
+
+/* fit 게이트에 잠긴 자리 (받침 미노출) */
+.mapSpot[data-state="locked"] {
+  border-color: rgb(255 255 255 / 0.3);
+  background: rgb(13 17 34 / 0.6);
+  cursor: default;
+}
+
+/* 순서 위반·마감 조기 실행을 부른 자리 */
+.mapSpot[data-state="fail"],
+.tileZone[data-state="fail"] {
+  border-style: solid;
+  border-color: #ff4d6d;
+  background: rgb(84 26 42 / 0.92);
+  box-shadow: 0 0 0 3px rgb(255 77 109 / 0.3);
+  animation: cardShake 300ms ease-out;
+}
+
+/* 드래그 중 포인터가 올라간 자리 — 드롭 대상 하이라이트 */
+.mapSpot[data-drop="true"] {
+  border-style: solid;
+  border-color: var(--scenario-accent, #8a63ee);
+  background: rgb(138 99 238 / 0.42);
+  box-shadow: 0 0 0 3px var(--scenario-accent-soft, rgb(193 126 255 / 0.32));
+}
+
+.zoneLabel {
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: center;
+  color: rgb(255 255 255 / 0.88);
+}
+
+.spotEmpty {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgb(255 255 255 / 0.74);
+}
+
+/* 마감 구역 — 드롭 대상이 아니라 "마감하기" 버튼이 덮는 지표 개착부 */
+.tileZone {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 37.5%;
+  min-height: 34px;
+  padding: 4px 8px;
+  border: 1.5px dashed rgb(255 215 110 / 0.6);
+  border-radius: 8px;
+  background: rgb(13 17 34 / 0.62);
+  color: #ffd76e;
+  pointer-events: none;
+}
+
+/* 매립 자재를 다 깐 상태 — 이제 덮을 차례라는 신호 */
+.tileZone[data-ready="true"] {
+  border-color: #ffd76e;
+  background: rgb(90 70 20 / 0.55);
+  animation: tilePulse 1.2s ease-in-out infinite;
+}
+
+.tileZone[data-state="done"] {
+  border-style: solid;
+  border-color: rgb(120 240 200 / 0.75);
+  background: rgb(20 74 60 / 0.9);
+  color: #fff;
+}
+
+@keyframes tilePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(255 215 110 / 0.35); }
+  50% { box-shadow: 0 0 0 5px rgb(255 215 110 / 0.12); }
+}
+
+/* 함정 오브젝트(forbidden) — 현장에 놓인 물건처럼 보이게 칩 배경을 얇게 깐다 */
+.trap {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 7px;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 10px;
+  background: rgb(13 17 34 / 0.4);
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.trap:not(:disabled):hover {
+  background: rgb(46 53 88 / 0.6);
+}
+
+.trap:disabled {
+  cursor: default;
+}
+
+/* 함정 클릭(감점 모드) — 사유는 상태줄(hint)에 드러난다 */
+.trap[data-state="hit"] {
+  border-color: rgb(255 130 150 / 0.8);
+  background: rgb(190 50 80 / 0.34);
+}
+
+.trap[data-state="fail"] {
+  border-color: #ff4d6d;
+  background: rgb(190 50 80 / 0.45);
+  box-shadow: 0 0 0 3px rgb(255 77 109 / 0.3);
+  animation: cardShake 300ms ease-out;
+}
+
+.trapTag {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgb(190 50 80 / 0.5);
+  color: #ffb3c1;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+/* ── 자재 트레이 — 드래그와 클릭-선택 둘 다 받는다 ── */
+.tray {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.2));
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.05);
+}
+
+.trayLabel {
+  flex: 0 0 44px;
+  padding-top: 14px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.78));
+}
+
+.trayItems {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+}
+
+/* 드래그 가능한 자재 — 터치 스크롤 대신 드래그를 받도록 touch-action 차단 */
+.trayPiece {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 7px 11px;
+  border: 1px solid rgb(255 255 255 / 0.28);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.09);
+  color: #fff;
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: transform 140ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1)), background-color 140ms ease;
+}
+
+.trayPiece:hover:enabled {
+  background: rgb(255 255 255 / 0.16);
+  transform: translateY(-1px);
+}
+
+.trayPiece:active {
+  cursor: grabbing;
+}
+
+.trayPiece:disabled {
+  cursor: default;
+}
+
+.trayPiece[data-selected="true"] {
+  border-color: var(--scenario-accent, #8a63ee);
+  background: rgb(138 99 238 / 0.28);
+  box-shadow: 0 0 0 3px var(--scenario-accent-soft, rgb(193 126 255 / 0.24));
+}
+
+.trayPiece[data-dragging="true"] {
+  opacity: 0.45;
+}
+
+.trayEmpty {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgb(255 255 255 / 0.72);
+}
+
+/* 상태줄 — 안내·모양 불일치·금지 사유가 여기로 드러난다 */
+.hint {
+  margin: 0;
+  min-height: 1.5em;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.78));
+}
+
+/* ── 마감하기 버튼 — 타일 덮기 + 제출을 한 번에 ── */
+.footer {
+  display: flex;
+  justify-content: center;
+}
+
+.finishButton {
+  min-height: 44px;
+  padding: 0 26px;
+  border: 1px solid rgb(255 255 255 / 0.22);
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--scenario-accent, #8a63ee), var(--scenario-accent-2, #ef71bc));
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.finishButton:active {
+  transform: translateY(1px);
+}
+
+/* 매립 자재를 다 깐 뒤 — 이제 누르라는 신호 */
+.finishButton[data-ready="true"] {
+  box-shadow: 0 0 0 3px rgb(255 215 110 / 0.35);
+}
+
+/* 드래그 고스트 — body 포털, 포인터를 따라다니는 미리보기 */
+.dragGhost {
+  position: fixed;
+  z-index: 90;
+  transform: translate(-50%, -110%);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  border: 1px solid var(--scenario-accent, #8a63ee);
+  border-radius: 10px;
+  background: rgb(34 39 65 / 0.96);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: 0 10px 26px rgb(0 0 0 / 0.45);
+}
+
 /* ── 접근성·모션 ── */
-.card:focus-visible {
+.card:focus-visible,
+.mapSpot:focus-visible,
+.trap:focus-visible,
+.trayPiece:focus-visible,
+.finishButton:focus-visible {
   outline: 2px solid #fff;
   outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .card {
+  .card,
+  .mapSpot,
+  .trap,
+  .trayPiece {
     transition: none;
   }
-  .card[data-state="fail"] {
+  .card[data-state="fail"],
+  .mapSpot[data-state="fail"],
+  .tileZone[data-state="fail"],
+  .trap[data-state="fail"] {
     animation: none;
   }
   .order {
     animation: none;
+  }
+  .tileZone[data-ready="true"] {
+    animation: none;
+    box-shadow: 0 0 0 3px rgb(255 215 110 / 0.3);
+  }
+  .trayPiece:hover:enabled {
+    transform: none;
   }
 }
