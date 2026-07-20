@@ -366,6 +366,13 @@ export function MovementArea({
     [geometry, worldBounds],
   );
 
+  /** 화면 픽셀 격자에 맞춘 좌표 — 소수점 위치로 그리면 확대된 픽셀아트에 잔상이 남는다.
+   *  (상태값은 소수점을 유지해야 매 프레임 누적 이동이 매끄럽다) */
+  const snap = useCallback(
+    (value: number) => (geometry ? Math.round(value * ZOOM) / ZOOM : value),
+    [geometry],
+  );
+
   // 카메라 — 플레이어를 화면 중앙에 두되 맵 경계를 넘어가지 않는다.
   const camera = useMemo(() => {
     if (!geometry || !areaSize) return { x: 0, y: 0 };
@@ -638,7 +645,7 @@ export function MovementArea({
           // 오클루전 맵: 플레이어를 오클루더와 같은 스태킹 컨텍스트에 넣고 발 y로 z-정렬 —
           // 가구 밑변(baseline)보다 발이 위면 가려지고, 아래면 캐릭터가 가구 위에 그려진다.
           <PlayerSprite
-            position={position}
+            position={{ x: snap(position.x), y: snap(position.y) }}
             facing={playerFacing}
             walking={playerWalking}
             zIndex={Math.round(position.y + PLAYER_SIZE.height)}
@@ -648,7 +655,7 @@ export function MovementArea({
       </div>
       {occluders.length === 0 ? (
         <PlayerSprite
-          position={position}
+          position={{ x: snap(position.x), y: snap(position.y) }}
           facing={playerFacing}
           walking={playerWalking}
           smooth={guidePosition != null}
