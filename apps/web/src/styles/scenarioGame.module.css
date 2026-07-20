@@ -971,6 +971,7 @@ button.headerOrb:active {
 }
 
 .dialogueComposer {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 60px 60px;
   align-items: center;
@@ -1012,12 +1013,15 @@ button.headerOrb:active {
 }
 
 .voiceDialogueButton {
+  position: relative;
   display: flex;
+  flex: 0 0 60px;
   width: 60px;
   height: 60px;
   align-items: center;
   justify-content: center;
   padding: 0;
+  overflow: hidden;
   border: 1px solid rgb(255 255 255 / 0.5);
   border-radius: 50%;
   color: var(--scenario-accent);
@@ -1026,7 +1030,7 @@ button.headerOrb:active {
     inset 0 1px 0 rgb(255 255 255 / 0.7),
     0 10px 24px var(--scenario-accent-soft);
   cursor: pointer;
-  transition: color 180ms ease, background-color 180ms ease, transform 180ms ease;
+  transition: color 150ms ease, background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .voiceDialogueButton svg {
@@ -1034,18 +1038,52 @@ button.headerOrb:active {
   height: 28px;
 }
 
-.voiceDialogueButton:hover,
-.voiceDialogueButtonActive {
+.voiceDialogueButton:hover {
   color: #ffffff;
   background: linear-gradient(145deg, var(--scenario-accent), var(--scenario-accent-2));
-  transform: translateY(-1px);
 }
 
-.voiceDialogueButtonActive {
+.voiceDialogueButtonActive,
+.voiceDialogueButtonActive:hover {
+  border-color: rgb(255 216 222 / 0.88);
+  color: #ffffff;
+  background: linear-gradient(145deg, #f36d82, #c83d63);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.45),
-    0 0 0 6px var(--scenario-accent-soft),
-    0 10px 26px var(--scenario-banner-shadow);
+    inset 0 1px 0 rgb(255 255 255 / 0.48),
+    0 10px 26px rgb(132 29 68 / 0.28);
+}
+
+.voiceDialogueButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.voiceDialogueSpinner {
+  animation: voiceDialogueSpin 800ms linear infinite;
+}
+
+.scenarioVoiceIssue {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  z-index: 12;
+  max-width: 520px;
+  margin: 0;
+  padding: 9px 13px;
+  border: 1px solid rgb(255 255 255 / 0.54);
+  border-radius: 14px;
+  color: #6f2945;
+  background: rgb(255 236 243 / 0.94);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    0 10px 24px rgb(96 39 72 / 0.2);
+  font-size: calc(12px * var(--scenario-ui-text-scale));
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+@keyframes voiceDialogueSpin {
+  to { transform: rotate(360deg); }
 }
 
 .dialogueHeader {
@@ -2040,13 +2078,13 @@ button.headerOrb:active {
 .tourBody strong {
   display: flex;
   align-items: center;
-  font-size: 13px;
+  font-size: calc(13px * var(--scenario-ui-text-scale));
   gap: 8px;
 }
 
 .tourBody p {
   margin: 4px 0 0;
-  font-size: 14px;
+  font-size: calc(14px * var(--scenario-ui-text-scale));
   line-height: 1.55;
 }
 
@@ -2054,7 +2092,7 @@ button.headerOrb:active {
   padding: 1px 8px;
   border-radius: 999px;
   background: rgb(255 255 255 / 0.22);
-  font-size: 11px;
+  font-size: calc(11px * var(--scenario-ui-text-scale));
   font-weight: 700;
 }
 
@@ -2922,18 +2960,22 @@ button.headerIconButton:active {
 .hintCategory {
   color: #ffffff;
   background: var(--scenario-accent-soft);
-  font-size: 12px;
+  font-size: calc(12px * var(--scenario-ui-text-scale));
+}
+
+.hintIndex {
+  font-size: calc(11px * var(--scenario-ui-text-scale));
 }
 
 .hintCard h3 {
-  font-size: calc(17px * var(--scenario-ui-text-scale));
-  line-height: 1.4;
+  font-size: calc(15px * var(--scenario-ui-text-scale));
+  line-height: 1.38;
 }
 
 .hintCard p {
   color: var(--scenario-reading-muted);
-  font-size: calc(14px * var(--scenario-ui-text-scale));
-  line-height: 1.55;
+  font-size: calc(13px * var(--scenario-ui-text-scale));
+  line-height: 1.5;
 }
 
 .historyPanel {
@@ -3411,7 +3453,7 @@ button.headerIconButton:active {
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.3),
     0 10px 24px var(--scenario-accent-soft);
-  font-size: 14px;
+  font-size: calc(14px * var(--scenario-ui-text-scale));
   font-weight: 800;
   cursor: pointer;
   transition: filter 150ms ease, transform 150ms ease, opacity 150ms ease;
@@ -3858,11 +3900,13 @@ button.headerIconButton:active {
   .themeMenu,
   .headerIconButton,
   .dialogueUtilityButton,
-  .dialogueUtilityButton span {
+  .dialogueUtilityButton span,
+  .voiceDialogueButton {
     transition-duration: 0.01ms;
   }
 
-  .progressRocket svg {
+  .progressRocket svg,
+  .voiceDialogueSpinner {
     animation: none;
   }
 }
