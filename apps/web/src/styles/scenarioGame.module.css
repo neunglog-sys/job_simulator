@@ -38,6 +38,8 @@
   --hud-height: 324px;
   --hud-bottom: 10px;
   --scenario-ui-text-scale: 1;
+  --scenario-history-title-size: calc(14px * var(--scenario-ui-text-scale));
+  --scenario-history-body-size: calc(12px * var(--scenario-ui-text-scale));
   position: absolute;
   top: 50%;
   left: 50%;
@@ -2928,7 +2930,7 @@ button.headerIconButton:active {
   align-items: center;
   gap: 5px;
   color: var(--scenario-reading-muted);
-  font-size: calc(10.5px * var(--scenario-ui-text-scale));
+  font-size: 10.5px;
   font-weight: 800;
   letter-spacing: 0.14em;
 }
@@ -2939,12 +2941,16 @@ button.headerIconButton:active {
 }
 
 .themeMenuHeading strong {
-  font-size: calc(16px * var(--scenario-ui-text-scale));
+  font-family: inherit;
+  font-size: var(--scenario-history-body-size);
+  font-weight: 400;
+  line-height: 1.55;
+  letter-spacing: 0.1em;
 }
 
 .themeOption {
   display: grid;
-  grid-template-columns: calc(34px * var(--scenario-ui-text-scale)) minmax(0, 1fr);
+  grid-template-columns: 34px minmax(0, 1fr);
   grid-template-rows: auto auto;
   align-items: center;
   column-gap: 10px;
@@ -2973,8 +2979,8 @@ button.headerIconButton:active {
   grid-column: 1;
   grid-row: 1;
   display: flex;
-  width: calc(34px * var(--scenario-ui-text-scale));
-  height: calc(34px * var(--scenario-ui-text-scale));
+  width: 34px;
+  height: 34px;
   align-items: center;
   justify-content: center;
   border-radius: 13px;
@@ -2986,8 +2992,8 @@ button.headerIconButton:active {
 .themeOptionIcon[data-theme-preview="aurora"] { background: linear-gradient(145deg, #20bca7, #9a75f0); }
 
 .themeOptionIcon svg {
-  width: calc(18px * var(--scenario-ui-text-scale));
-  height: calc(18px * var(--scenario-ui-text-scale));
+  width: 18px;
+  height: 18px;
 }
 
 .themeOption > span:last-child {
@@ -2998,7 +3004,7 @@ button.headerIconButton:active {
   grid-column: 2;
   grid-row: 1;
   align-self: center;
-  font-size: calc(16px * var(--scenario-ui-text-scale));
+  font-size: var(--scenario-history-title-size);
   line-height: 1.25;
 }
 
@@ -3007,7 +3013,7 @@ button.headerIconButton:active {
   grid-row: 2;
   padding: 0 2px;
   color: var(--scenario-reading-muted);
-  font-size: calc(14px * var(--scenario-ui-text-scale));
+  font-size: var(--scenario-history-body-size);
   line-height: 1.4;
 }
 
@@ -3019,7 +3025,7 @@ button.headerIconButton:active {
 
 .utilityMenuAction {
   display: grid;
-  grid-template-columns: calc(34px * var(--scenario-ui-text-scale)) minmax(0, 1fr);
+  grid-template-columns: 34px minmax(0, 1fr);
   grid-template-rows: auto auto;
   align-items: center;
   column-gap: 10px;
@@ -3043,8 +3049,8 @@ button.headerIconButton:active {
 .utilityMenuAction > svg {
   grid-column: 1;
   grid-row: 1;
-  width: calc(18px * var(--scenario-ui-text-scale));
-  height: calc(18px * var(--scenario-ui-text-scale));
+  width: 18px;
+  height: 18px;
   margin: auto;
 }
 
@@ -3056,7 +3062,7 @@ button.headerIconButton:active {
   grid-column: 2;
   grid-row: 1;
   align-self: center;
-  font-size: calc(16px * var(--scenario-ui-text-scale));
+  font-size: var(--scenario-history-title-size);
   line-height: 1.25;
 }
 
@@ -3065,7 +3071,7 @@ button.headerIconButton:active {
   grid-row: 2;
   padding: 0 2px;
   color: var(--scenario-reading-muted);
-  font-size: calc(14px * var(--scenario-ui-text-scale));
+  font-size: var(--scenario-history-body-size);
   line-height: 1.4;
 }
 
@@ -3088,30 +3094,30 @@ button.headerIconButton:active {
 }
 
 .hintPanelHeader {
-  grid-template-columns: calc(36px * var(--scenario-ui-text-scale)) 1fr 34px;
+  grid-template-columns: 36px 1fr 34px;
   padding: 2px 2px 12px;
 }
 
 .hintTitleIcon {
-  width: calc(36px * var(--scenario-ui-text-scale));
-  height: calc(36px * var(--scenario-ui-text-scale));
+  width: 36px;
+  height: 36px;
   border-radius: 13px;
   background: linear-gradient(145deg, var(--scenario-accent), var(--scenario-accent-2));
 }
 
 .hintTitleIcon svg {
-  width: calc(20px * var(--scenario-ui-text-scale));
-  height: calc(20px * var(--scenario-ui-text-scale));
+  width: 20px;
+  height: 20px;
 }
 
 .hintPanelHeader small {
   color: var(--scenario-reading-muted);
-  font-size: calc(10.5px * var(--scenario-ui-text-scale));
+  font-size: 10.5px;
 }
 
 .hintPanelHeader strong {
   color: #ffffff;
-  font-size: calc(16px * var(--scenario-ui-text-scale));
+  font-size: 16px;
 }
 
 .hintPanelHeader button {
@@ -3136,21 +3142,24 @@ button.headerIconButton:active {
 .hintCategory {
   color: #ffffff;
   background: var(--scenario-accent-soft);
-  font-size: calc(12px * var(--scenario-ui-text-scale));
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .hintIndex {
-  font-size: calc(11px * var(--scenario-ui-text-scale));
+  font-size: 11px;
 }
 
 .hintCard h3 {
-  font-size: calc(16px * var(--scenario-ui-text-scale));
+  font-size: var(--scenario-history-title-size);
+  font-weight: 400;
   line-height: 1.38;
 }
 
 .hintCard p {
   color: var(--scenario-reading-muted);
-  font-size: calc(14px * var(--scenario-ui-text-scale));
+  font-size: var(--scenario-history-body-size);
+  font-weight: 400;
   line-height: 1.5;
 }
 
@@ -3312,7 +3321,7 @@ button.headerIconButton:active {
 .historyEntryHeading strong {
   min-width: 0;
   overflow: hidden;
-  font-size: calc(14px * var(--scenario-ui-text-scale));
+  font-size: var(--scenario-history-title-size);
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3321,7 +3330,7 @@ button.headerIconButton:active {
 .historyEntry p {
   margin: 0;
   color: var(--scenario-reading-muted);
-  font-size: calc(12px * var(--scenario-ui-text-scale));
+  font-size: var(--scenario-history-body-size);
   font-weight: 600;
   line-height: 1.55;
   overflow-wrap: anywhere;
