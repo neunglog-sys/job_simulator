@@ -14,7 +14,7 @@ from app.core.config import settings
 from app.core.db import SessionFactory
 import asyncio
 
-from app.domains.consultation.service import get_owned_consultation, list_messages
+from app.domains.consultation.service import list_messages
 from app.domains.reporting.pdf import render_report_pdf
 from app.domains.recommendation.service import get_latest_recommendation
 from app.domains.scoring import aggregate
