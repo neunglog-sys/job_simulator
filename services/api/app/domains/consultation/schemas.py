@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ConsultationOut(BaseModel):
@@ -22,6 +22,23 @@ class ConsultationListItem(BaseModel):
     message_count: int
     created_at: datetime
     updated_at: datetime
+
+
+class ConsultationTitleUpdate(BaseModel):
+    title: str = Field(min_length=1, max_length=80)
+
+    @field_validator("title")
+    @classmethod
+    def normalize_title(cls, value: str) -> str:
+        normalized = " ".join(value.split())
+        if not normalized:
+            raise ValueError("상담 제목을 입력해주세요.")
+        return normalized
+
+
+class ConsultationTitleOut(BaseModel):
+    id: int
+    title: str
 
 
 class MessageIn(BaseModel):

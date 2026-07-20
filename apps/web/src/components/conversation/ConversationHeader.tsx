@@ -1,7 +1,9 @@
 import { ArrowLeft, GameController, GearSix, House, SignOut } from "@phosphor-icons/react";
+import { useState } from "react";
 import { FRONTEND_ENDPOINTS } from "../../config/endpoints";
 import { logout } from "../../lib/auth";
 import styles from "../../styles/oneToOneConversation.module.css";
+import { LogoutConfirmDialog } from "../LogoutConfirmDialog";
 import { BrandLogo } from "./BrandLogo";
 import { GlassIconButton } from "./GlassIconButton";
 
@@ -24,7 +26,10 @@ function goBack() {
 }
 
 export function ConversationHeader() {
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+
   return (
+    <>
     <header className={styles.header}>
       <div className={styles.headerLeft}>
         <div className={styles.headerButtonPair}>
@@ -38,10 +43,7 @@ export function ConversationHeader() {
         <button
           className={styles.logoutButton}
           type="button"
-          onClick={() => {
-            logout();
-            goHome();
-          }}
+          onClick={() => setIsLogoutConfirmOpen(true)}
         >
           <SignOut aria-hidden="true" />
           로그아웃
@@ -58,5 +60,14 @@ export function ConversationHeader() {
         />
       </div>
     </header>
+    <LogoutConfirmDialog
+      open={isLogoutConfirmOpen}
+      onCancel={() => setIsLogoutConfirmOpen(false)}
+      onConfirm={() => {
+        logout();
+        goHome();
+      }}
+    />
+    </>
   );
 }

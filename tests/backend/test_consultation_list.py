@@ -80,3 +80,50 @@ async def test_empty_consultation_has_safe_default_copy(client, db_session):
     assert item["title"] == "새로운 상담"
     assert item["preview"] == "아직 나눈 대화가 없어요."
     assert item["message_count"] == 0
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_consultation_title_can_be_renamed(client, db_session):
+    user = await _make_user(db_session, "rename-history@example.com")
+    consultation = Consultation(user_id=user.id, status="active")
+    db_session.add(consultation)
+    await db_session.commit()
+    await db_session.refresh(consultation)
+
+    response = await client.patch(
+        f"/api/consultations/{consultation.id}",
+        headers={"X-User-Id": str(user.id)},
+        json={"title": "  콘텐츠   기획 상담  "},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"id": consultation.id, "title": "콘텐츠 기획 상담"}
+
+    list_response = await client.get(
+        "/api/consultations", headers={"X-User-Id": str(user.id)}
+    )
+    assert list_response.json()[0]["title"] == "콘텐츠 기획 상담"
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_consultation_can_be_deleted_by_owner(client, db_session):
+    user = await _make_user(db_session, "delete-history@example.com")
+    consultation = Consultation(user_id=user.id, status="active")
+    db_session.add(consultation)
+    await db_session.commit()
+    await db_session.refresh(consultation)
+    db_session.add(
+        Message(consultation_id=consultation.id, role="user", content="삭제할 상담")
+    )
+    await db_session.commit()
+
+    response = await client.delete(
+        f"/api/consultations/{consultation.id}",
+        headers={"X-User-Id": str(user.id)},
+    )
+
+    assert response.status_code == 204
+    list_response = await client.get(
+        "/api/consultations", headers={"X-User-Id": str(user.id)}
+    )
+    assert list_response.json() == []

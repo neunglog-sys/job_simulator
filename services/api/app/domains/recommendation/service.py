@@ -65,7 +65,7 @@ def _extraction_schema(competency_keys: list[str]) -> dict:
 async def _extract_profile(session: AsyncSession, consultation: Consultation) -> dict:
     messages = await list_messages(session, consultation.id)
     if not messages:
-        raise HTTPException(status_code=400, detail="상담 대화가 없어 추천할 수 없음")
+        raise HTTPException(status_code=400, detail="상담 후에 결과를 보실 수 있습니다.")
 
     competencies = load_competencies()
     transcript = "\n".join(

@@ -42,7 +42,7 @@ export function RecommendedJobsModal({
   return (
     <ConversationModalShell
       title="추천 직무"
-      description="설문과 상담 내용을 바탕으로 지금 가장 잘 맞는 직무를 모았어요."
+      description="설문과 상담 내용을 바탕으로 가장 잘 어울리는 진로를 추천합니다!"
       icon={SuitcaseSimple}
       size="recommendations"
       onClose={onClose}
@@ -59,7 +59,7 @@ export function RecommendedJobsModal({
           <strong>
             {needsMoreChat
               ? "상담을 조금 더 이어가주세요."
-              : "추천 결과를 준비하지 못했어요."}
+              : "아직 준비 중이에요!"}
           </strong>
           <p>{error}</p>
           {needsMoreChat ? (

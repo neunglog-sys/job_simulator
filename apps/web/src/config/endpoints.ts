@@ -30,6 +30,7 @@ export const API_ENDPOINTS = {
   consultations: {
     list: apiUrl("/api/consultations"),
     create: apiUrl("/api/consultations"),
+    detail: (id: number) => apiUrl(`/api/consultations/${id}`),
     survey: (id: number) => apiUrl(`/api/consultations/${id}/survey`),
     messages: (id: number) => apiUrl(`/api/consultations/${id}/messages`),
   },
