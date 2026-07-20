@@ -114,6 +114,9 @@ async def stream_reply(
             context,
             system=system,
             temperature=0.4,
+            # 상담은 즉답형 대화 — 사고 토큰을 끄면 첫 토큰이 수 초 빨라진다 (6.7s→1.2s 실측).
+            # 채점 등 품질 우선 호출은 기본값(None=모델 기본)을 유지한다.
+            thinking_budget=0,
         ):
             if first_token_ms is None:
                 first_token_ms = (time.perf_counter() - t0) * 1000

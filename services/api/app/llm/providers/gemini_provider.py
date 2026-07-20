@@ -98,10 +98,16 @@ class GeminiProvider:
         *,
         system: str | None = None,
         temperature: float = 0.7,
+        thinking_budget: int | None = None,
     ) -> AsyncIterator[str]:
-        config = types.GenerateContentConfig(
-            system_instruction=system, temperature=temperature
-        )
+        config_kwargs: dict = {"system_instruction": system, "temperature": temperature}
+        if thinking_budget is not None:
+            # Gemini는 thinking(사고 토큰)이 기본 활성 — 대화형 스트리밍에선 이 '보이지 않는
+            # 사고'가 첫 토큰을 수 초 지연시킨다 (상담 실측: 첫토큰 6.7s → 0이면 1.2s).
+            config_kwargs["thinking_config"] = types.ThinkingConfig(
+                thinking_budget=thinking_budget
+            )
+        config = types.GenerateContentConfig(**config_kwargs)
         attempts = settings.llm_max_retries + 1
         for attempt in range(1, attempts + 1):
             yielded = False

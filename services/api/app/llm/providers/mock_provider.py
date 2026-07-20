@@ -64,6 +64,7 @@ class MockProvider:
         *,
         system: str | None = None,
         temperature: float = 0.7,
+        thinking_budget: int | None = None,
     ) -> AsyncIterator[str]:
         text = await self.chat(messages, system=system, temperature=temperature)
         for i in range(0, len(text), 8):
