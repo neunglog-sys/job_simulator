@@ -21,24 +21,31 @@ pass_score: 70
 data:
   ok_zone: [90, 100]     # 녹색 구간 — 원문 기준표 "90% 미만 재충전". 눈금판에 색 띠로만 표시
 
+  # sprite = 다이얼 옆 장비 도트 아트(public/assets/minigames/) — 전 게이지 동일 외관.
+  # 판정 단서가 아니라 카드 장식이다(정답은 바늘 위치로만 갈린다).
   gauges:
     - id: 공기호흡기_1
+      sprite: 공기호흡기_본체
       value: 96
       verdict: pass
       action: 적재칸
     - id: 공기호흡기_2
+      sprite: 공기호흡기_본체
       value: 91          # 함정 — 녹색 경계 바로 위. 색으로 보면 아슬아슬하게 합격
       verdict: pass
       action: 적재칸
     - id: 공기호흡기_3
+      sprite: 공기호흡기_본체
       value: 88          # 함정 — 녹색 경계 바로 아래. 대충 보면 '이상무'로 통과시키게 된다
       verdict: fail       # (원문 흔한 실수가 정확히 이 지점이다)
       action: 재충전대
     - id: 공기호흡기_4
+      sprite: 공기호흡기_본체
       value: 72
       verdict: fail
       action: 재충전대
     - id: 공기호흡기_5
+      sprite: 공기호흡기_본체
       value: 34          # 적색 잔압 경보 구간 — 한눈에 보이는 미달
       verdict: fail
       action: 재충전대
@@ -47,6 +54,7 @@ data:
   # 원문 ⑤ "사용 불가 표시를 하고 반장에게 교체를 보고한다"(_SCHEMA.md 규칙 2).
   escalate:
     label: 사용 불가 표시 + 반장에게 교체 보고
+    sprite: 무전기_보고   # 보고 버튼 장식 아이콘
     when: 미달_장비_발생
 
   # 눌러선 안 되는 것

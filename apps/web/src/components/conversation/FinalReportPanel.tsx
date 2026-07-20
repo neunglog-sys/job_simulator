@@ -1,10 +1,31 @@
 import { Briefcase, ChartLineUp, CheckCircle } from "@phosphor-icons/react";
 import { useRef } from "react";
 import styles from "../../styles/oneToOneConversation.module.css";
+import type { ReportState } from "../../types/conversation";
 import { GlassScrollbar } from "./GlassScrollbar";
 
-export function FinalReportPanel() {
+type FinalReportPanelProps = {
+  reportState: ReportState;
+  onRetry: () => void;
+};
+
+const retryButtonStyle = {
+  marginTop: 14,
+  padding: "10px 18px",
+  border: "1px solid rgba(121,81,187,0.35)",
+  borderRadius: 12,
+  background: "rgba(121,81,187,0.12)",
+  color: "#3b2f53",
+  fontWeight: 700,
+  cursor: "pointer",
+} as const;
+
+export function FinalReportPanel({ reportState, onRetry }: FinalReportPanelProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const { phase, recommendation, report, message, followupQuestions } = reportState;
+
+  const topJob = recommendation?.results[0] ?? null;
+  const otherJobs = recommendation?.results.slice(1, 4) ?? [];
 
   return (
     <section className={styles.finalReportPanel} aria-label="최종 직무 추천 리포트">
@@ -14,39 +35,94 @@ export function FinalReportPanel() {
         <p>대화와 설문 응답을 바탕으로 정리한 추천 결과입니다.</p>
       </div>
       <div ref={viewportRef} className={styles.reportViewport}>
-        <div className={styles.reportHero}>
-          <span className={styles.reportHeroIcon} aria-hidden="true">
-            <Briefcase weight="duotone" />
-          </span>
-          <div>
-            <small>가장 잘 맞는 추천 직무</small>
-            <h3>서비스 기획자</h3>
-            <p>사람들과 소통하며 문제를 구조화하고 해결하는 강점이 돋보여요.</p>
+        {phase === "idle" || phase === "loading" ? (
+          <div className={styles.reportHero}>
+            <span className={styles.reportHeroIcon} aria-hidden="true">
+              <Briefcase weight="duotone" />
+            </span>
+            <div>
+              <small>분석 중</small>
+              <h3>대화를 바탕으로 리포트를 만들고 있어요</h3>
+              <p>상담 내용을 분석해서 적합한 직무를 찾고 있어요. 잠시만 기다려주세요.</p>
+            </div>
           </div>
-        </div>
-        <article className={styles.reportSection}>
-          <h3><CheckCircle weight="fill" aria-hidden="true" /> 발견한 강점</h3>
-          <ul>
-            <li>협업 과정에서 의견을 조율하는 능력</li>
-            <li>사용자의 문제를 빠르게 파악하는 관찰력</li>
-            <li>새로운 상황에 유연하게 대응하는 태도</li>
-          </ul>
-        </article>
-        <article className={styles.reportSection}>
-          <h3><ChartLineUp weight="fill" aria-hidden="true" /> 추천 성장 방향</h3>
-          <p>사용자 조사와 데이터 분석 경험을 쌓고, 작은 프로젝트에서 요구사항을 문서화해보세요.</p>
-        </article>
-        <article className={styles.reportSection}>
-          <h3><Briefcase weight="fill" aria-hidden="true" /> 함께 살펴볼 직무</h3>
-          <div className={styles.reportTags}>
-            <span>UX 리서처</span><span>프로덕트 매니저</span><span>고객경험 기획자</span>
-          </div>
-        </article>
+        ) : null}
+
+        {phase === "needs-more-chat" ? (
+          <article className={styles.reportSection}>
+            <h3>
+              <CheckCircle weight="fill" aria-hidden="true" /> 조금 더 이야기해볼까요?
+            </h3>
+            <p>{message}</p>
+            {followupQuestions.length > 0 ? (
+              <ul>
+                {followupQuestions.map((question) => (
+                  <li key={question}>{question}</li>
+                ))}
+              </ul>
+            ) : null}
+          </article>
+        ) : null}
+
+        {phase === "error" ? (
+          <article className={styles.reportSection}>
+            <h3>
+              <CheckCircle weight="fill" aria-hidden="true" /> 리포트를 만들지 못했어요
+            </h3>
+            <p>{message}</p>
+            <button type="button" onClick={onRetry} style={retryButtonStyle}>
+              다시 시도
+            </button>
+          </article>
+        ) : null}
+
+        {phase === "ready" && topJob ? (
+          <>
+            <div className={styles.reportHero}>
+              <span className={styles.reportHeroIcon} aria-hidden="true">
+                <Briefcase weight="duotone" />
+              </span>
+              <div>
+                <small>가장 잘 맞는 추천 직무 · 적합도 {topJob.score}%</small>
+                <h3>{topJob.job_title}</h3>
+                <p>{topJob.reason}</p>
+              </div>
+            </div>
+            <article className={styles.reportSection}>
+              <h3>
+                <CheckCircle weight="fill" aria-hidden="true" /> 발견한 강점
+              </h3>
+              <ul>
+                {(report?.strengths ?? []).map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </article>
+            <article className={styles.reportSection}>
+              <h3>
+                <ChartLineUp weight="fill" aria-hidden="true" /> 추천 성장 방향
+              </h3>
+              <p>{report?.advice}</p>
+            </article>
+            {otherJobs.length > 0 ? (
+              <article className={styles.reportSection}>
+                <h3>
+                  <Briefcase weight="fill" aria-hidden="true" /> 함께 살펴볼 직무
+                </h3>
+                <div className={styles.reportTags}>
+                  {otherJobs.map((job) => (
+                    <span key={job.job_code}>{job.job_title}</span>
+                  ))}
+                </div>
+              </article>
+            ) : null}
+          </>
+        ) : null}
       </div>
       <GlassScrollbar
         viewportRef={viewportRef}
         className={styles.reportScrollbar}
-        refreshKey="final-report"
+        refreshKey={phase}
       />
     </section>
   );

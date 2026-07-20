@@ -8,7 +8,9 @@ services:
       - ../tests:/app/tests:ro                # 테스트 실행용: docker compose exec api python -m pytest tests/backend
       - ../scripts:/app/scripts:ro            # 레포 루트 스크립트 (코치·NPC 검증 도구 — 테스트가 임포트)
       - ../maps:/app/maps:ro                  # 게임 맵 (geometry.json + 배경 — /maps 정적 서빙·게임 API가 읽음)
-    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    # --reload-dir app: 워치 범위를 실제 앱 소스로 한정 — tests/scripts/alembic 저장으로
+    # 불필요한 재시작(진행 중이던 스트리밍 응답까지 끊김)이 발생하지 않게 한다.
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir app"
 
   db:
     ports:

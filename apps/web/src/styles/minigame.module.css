@@ -295,6 +295,10 @@
   color: #fff;
 }
 
+.resultScore[data-fail="true"] {
+  color: #ff8fa3;
+}
+
 .resultBreakdown {
   font-size: 12px;
   line-height: 1.55;

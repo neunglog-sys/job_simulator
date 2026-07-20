@@ -415,7 +415,7 @@ button.headerOrb:active {
   pointer-events: auto; /* 클릭 → 대화 */
   cursor: pointer;
   transform: translate(-50%, -50%);
-  animation: objectFloat 4s ease-in-out infinite alternate;
+  /* 도트 캐릭터는 바닥에 서 있어야 해서 둥둥 뜨는 objectFloat는 쓰지 않는다 */
 }
 
 .npcMarkerAvatar {
@@ -446,6 +446,79 @@ button.headerOrb:active {
   height: 32px;
 }
 
+/* NPC 도트 스프라이트 — 시트(192×384)에서 64×96 프레임 하나만 보여준다.
+   background-position: X=동작(idle 0 / left_step -64 / right_step -128), Y=방향(인라인 지정) */
+.npcSprite {
+  display: block;
+  width: 64px;
+  height: 96px;
+  background-repeat: no-repeat;
+  background-position-x: 0;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 10px 12px rgb(60 40 130 / 0.4));
+  transition: transform 150ms ease;
+}
+
+.npcMarker:hover .npcSprite {
+  transform: scale(1.08);
+}
+
+/* 걷기 사이클 1-0-2-0 (에셋 animation_config: 6fps ≈ 667ms/사이클), step-end로 프레임 점프 */
+.npcSpriteWalking {
+  animation: npcWalkCycle 667ms step-end infinite;
+}
+
+@keyframes npcWalkCycle {
+  0% {
+    background-position-x: -64px;
+  }
+  25% {
+    background-position-x: 0;
+  }
+  50% {
+    background-position-x: -128px;
+  }
+  75% {
+    background-position-x: 0;
+  }
+  100% {
+    background-position-x: -64px;
+  }
+}
+
+/* 주인공 도트 스프라이트 — 시트 열 순서가 NPC와 다름: 0=왼발, 1=idle, 2=오른발 */
+.heroSprite {
+  display: block;
+  width: 64px;
+  height: 96px;
+  margin: 0 auto;
+  background-repeat: no-repeat;
+  background-position-x: -64px; /* idle */
+  image-rendering: pixelated;
+}
+
+.heroSpriteWalking {
+  animation: heroWalkCycle 667ms step-end infinite;
+}
+
+@keyframes heroWalkCycle {
+  0% {
+    background-position-x: 0;
+  }
+  25% {
+    background-position-x: -64px;
+  }
+  50% {
+    background-position-x: -128px;
+  }
+  75% {
+    background-position-x: -64px;
+  }
+  100% {
+    background-position-x: 0;
+  }
+}
+
 .npcMarkerName {
   padding: 3px 11px;
   border: 1px solid rgb(255 255 255 / 0.62);
@@ -472,6 +545,12 @@ button.headerOrb:active {
   box-shadow:
     0 0 0 4px rgb(255 216 92 / 0.55),
     0 14px 28px rgb(60 40 130 / 0.42);
+}
+
+/* 스프라이트 마커의 담당 NPC 강조 — 원형 테두리 대신 노란 글로우 */
+.npcMarkerActive .npcSprite {
+  filter: drop-shadow(0 0 5px rgb(255 216 92 / 0.9))
+    drop-shadow(0 10px 12px rgb(60 40 130 / 0.4));
 }
 
 .npcMarkerActive .npcMarkerName {

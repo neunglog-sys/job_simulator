@@ -4,6 +4,7 @@ data/knowledge/<job_code>/*.md|txt 파일을 청크로 쪼개 임베딩 후 doc_
 파일 내용 sha256이 그대로면 스킵 → 재기동해도 바뀐 파일만 임베딩 (비용 절약).
 """
 
+import asyncio
 import hashlib
 import logging
 from pathlib import Path
@@ -105,6 +106,7 @@ async def search_knowledge(
     job_code: str | list[str] | None = None,
     top_k: int = 5,
     max_distance: float | None = None,
+    embed_timeout: float | None = None,
 ) -> list[DocChunk]:
     """질의 임베딩 → 코사인 거리 기준 top-k 청크.
 
@@ -119,7 +121,12 @@ async def search_knowledge(
         job_code = list(job_code)
         if not job_code:
             return []  # 빈 스코프 → RAG 미주입 (임베딩 호출도 생략)
-    [qvec] = await get_llm().embed([query], task_type="RETRIEVAL_QUERY")
+    # embed_timeout: 임베딩 API 왕복에만 건다 — DB 쿼리 도중 취소는 커넥션 상태를
+    # 오염시킬 수 있어 위험하고, 지연의 대부분은 이 외부 호출이다. 초과 시 TimeoutError.
+    embed_call = get_llm().embed([query], task_type="RETRIEVAL_QUERY")
+    if embed_timeout:
+        embed_call = asyncio.wait_for(embed_call, timeout=embed_timeout)
+    [qvec] = await embed_call
     distance = DocChunk.embedding.cosine_distance(qvec)
     stmt = select(DocChunk)
     if job_code:

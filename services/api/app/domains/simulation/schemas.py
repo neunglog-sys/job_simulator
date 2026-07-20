@@ -24,7 +24,7 @@ class NpcOut(BaseModel):
     name: str
     role: str
     rank: str | None = None
-    spawn: str | None = None  # 맵 geometry.spawns의 자리 id(teamjang|sasu|bujang) — NPC를 그릴 위치
+    spawn: str | None = None  # 맵 geometry.spawns의 자리 id(teamjang|sasu|bujang|npc4|npc5) — NPC를 그릴 위치
 
 
 class GameMapOut(BaseModel):

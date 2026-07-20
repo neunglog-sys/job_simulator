@@ -21,7 +21,6 @@ import {
 } from "react";
 import { CLIENT_EVENTS, FRONTEND_ENDPOINTS } from "../config/endpoints";
 import { AVATAR_IMAGE, LANDING_COPY } from "../content";
-import { createConsultation } from "../lib/api";
 import { logout, useAuth } from "../lib/auth";
 import { AuthModal, type AuthMode } from "./AuthModal";
 
@@ -596,14 +595,8 @@ export function CareerLaunch() {
 
   const startCareerExploration = useCallback(() => {
     window.dispatchEvent(new CustomEvent(CLIENT_EVENTS.startCareerExploration));
-    // 테스트 단계: 화면 전환이 목적이라 상담 생성을 '기다리지 않는다'.
-    // (이전엔 await createConsultation() 로 기다리다, 로그인 상태에서 상담 생성이 지연되면
-    //  화면이 안 넘어가는 문제가 있었다. 로그인 시 백그라운드로 시도만 하고 즉시 이동.)
-    if (auth.status === "authed") {
-      void createConsultation().catch(() => {});
-    }
     window.location.assign(FRONTEND_ENDPOINTS.conversation);
-  }, [auth.status]);
+  }, []);
 
   const handlePointerMove = (event: PointerEvent<HTMLElement>) => {
     if (reduceMotion || event.pointerType === "touch") return;
