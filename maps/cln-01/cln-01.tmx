@@ -4,7 +4,7 @@
   <image source="cln-01.png" width="1920" height="1080"/>
  </imagelayer>
  <objectgroup id="2" name="walkable">
-  <object id="1" name="floor" x="30" y="30" width="1860" height="965"/>
+  <object id="1" name="floor" x="70" y="80" width="1780" height="656"/>
  </objectgroup>
  <objectgroup id="3" name="collision">
   <!-- ── 벽 ── 문 자리는 갭으로 비워 통과 가능 (문짝에는 collision 없음) -->
@@ -99,10 +99,10 @@
   <object id="150" name="player" x="720" y="500">
    <point/>
   </object>
-  <object id="151" name="teamjang" x="748" y="790">
+  <object id="151" name="teamjang" x="745" y="700">
    <point/>
   </object>
-  <object id="152" name="sasu" x="540" y="735">
+  <object id="152" name="sasu" x="540" y="700">
    <point/>
   </object>
   <object id="153" name="bujang" x="180" y="300">
