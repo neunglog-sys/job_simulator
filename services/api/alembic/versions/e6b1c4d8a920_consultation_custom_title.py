@@ -18,8 +18,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("consultations", sa.Column("title", sa.Text(), nullable=True))
+    # 멱등: 과거 유령 리비전 사고로 이 컬럼이 이미 물리적으로 존재하는 공용 DB가 있다.
+    # 순수 add_column이면 그런 DB에서 DuplicateColumn으로 배포가 크래시하므로 IF NOT EXISTS로
+    # 방어한다 — 컬럼이 있든(공용 DB) 없든(CI·새 로컬) 안전하게 통과한다.
+    op.execute("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS title TEXT")
 
 
 def downgrade() -> None:
-    op.drop_column("consultations", "title")
+    op.execute("ALTER TABLE consultations DROP COLUMN IF EXISTS title")
