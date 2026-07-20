@@ -37,11 +37,27 @@ async function refresh(): Promise<void> {
 /** 로그인/회원가입 실행 → 토큰 저장 → 내 정보 로드. 실패 시 ApiError를 그대로 던진다. */
 export async function authenticate(
   mode: "signIn" | "signUp",
-  body: { email: string; password: string; name?: string },
+  body: {
+    email: string;
+    password: string;
+    name?: string;
+    termsAgreed?: boolean;
+    privacyAgreed?: boolean;
+  },
 ): Promise<void> {
+  if (mode === "signUp" && (!body.termsAgreed || !body.privacyAgreed)) {
+    throw new api.ApiError(400, null, "필수 약관 동의가 필요해요.");
+  }
+
   const token =
     mode === "signUp"
-      ? await api.signup({ email: body.email, password: body.password, name: body.name ?? "" })
+      ? await api.signup({
+          email: body.email,
+          password: body.password,
+          name: body.name ?? "",
+          terms_agreed: true,
+          privacy_agreed: true,
+        })
       : await api.login({ email: body.email, password: body.password });
   api.setToken(token.access_token);
   await refresh();

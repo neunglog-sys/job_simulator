@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
@@ -9,7 +11,14 @@ from app.core.db import get_session
 from app.core.deps import get_current_user
 from app.core.security import create_token, hash_password, verify_password
 from app.domains.auth import oauth
-from app.domains.auth.schemas import LoginIn, MeOut, SignupIn, TokenOut
+from app.domains.auth.schemas import (
+    PRIVACY_VERSION,
+    TERMS_VERSION,
+    LoginIn,
+    MeOut,
+    SignupIn,
+    TokenOut,
+)
 from app.models import User
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -22,11 +31,16 @@ async def signup(body: SignupIn, session: AsyncSession = Depends(get_session)):
     ).scalar_one_or_none()
     if exists:
         raise HTTPException(status_code=409, detail="이미 가입된 이메일")
+    agreed_at = datetime.now(timezone.utc)
     user = User(
         email=body.email,
         email_hash=email_hash(body.email),
         name=body.name,
         pw_hash=hash_password(body.password),
+        terms_agreed_at=agreed_at,
+        terms_version=TERMS_VERSION,
+        privacy_agreed_at=agreed_at,
+        privacy_version=PRIVACY_VERSION,
     )
     session.add(user)
     await session.commit()
