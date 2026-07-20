@@ -2,7 +2,6 @@ import {
   Briefcase,
   ClipboardText,
   DesktopTower,
-  UserCircle,
   type Icon,
 } from "@phosphor-icons/react";
 import {
@@ -10,9 +9,11 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   type PointerEvent,
 } from "react";
 import type { GameMapData, GameNpc } from "../../lib/api";
+import { NpcSprite, type NpcFacing } from "./NpcSprite";
 import { PlayerSprite, PLAYER_SIZE } from "./PlayerSprite";
 import type { Position } from "./types";
 import styles from "../../styles/scenarioGame.module.css";
@@ -46,6 +47,16 @@ const MOVE_STEP = 18;
 // 같은 spawn 자리를 쓰는 NPC들을 좌우로 벌리는 간격(px) — 맵 자리(3개)보다 인원이 많을 때.
 // 투어 앵커 계산(ScenarioGamePage)도 같은 값을 써야 마커와 어긋나지 않는다.
 export const SLOT_SPREAD = 92;
+
+// 걷기 애니메이션을 끄는 NPC — step 프레임이 실제 보폭 없이 옷·골반만 뒤바뀌어
+// 재생하면 파닥거려 보이는 에셋 불량 (투어 가이드 46명 중 5명). 에셋 재생성 시 제거.
+const WALK_DISABLED_NPCS = new Set([
+  "npc_kts-02_02",
+  "npc_ms-04_01",
+  "npc_ms-07_01",
+  "npc_stn-04_01",
+  "npc_wh-01_01",
+]);
 
 // WASD·방향키 → 이동량. 대소문자·한글 자판(ㅈㅁㄴㅇ) 모두 받는다 —
 // 한글 입력 상태에서도 게임이 멈추지 않게 (event.key가 자모로 들어옴).
@@ -136,6 +147,61 @@ export function MovementArea({
     }));
   }, [geometry, origin]);
 
+  // 투어 중인 사수의 진행 방향 — 좌표 변화의 지배 축으로 판정해 스프라이트가 걷는 쪽을 본다.
+  // ref에 이전 좌표와 함께 저장: 좌표가 실제로 바뀐 렌더에서만 갱신 (StrictMode 이중 렌더 안전).
+  const guideTrack = useRef<{ pos: Position | null; facing: NpcFacing }>({
+    pos: null,
+    facing: "front",
+  });
+  if (guidePosition) {
+    const prev = guideTrack.current.pos;
+    if (prev && (prev.x !== guidePosition.x || prev.y !== guidePosition.y)) {
+      const dx = guidePosition.x - prev.x;
+      const dy = guidePosition.y - prev.y;
+      guideTrack.current.facing =
+        Math.abs(dx) >= Math.abs(dy)
+          ? dx > 0
+            ? "screen_right"
+            : "screen_left"
+          : dy > 0
+            ? "front"
+            : "back";
+    }
+    guideTrack.current.pos = guidePosition;
+  } else {
+    guideTrack.current = { pos: null, facing: "front" };
+  }
+
+  // 마커 이동은 CSS transition(900ms)이라, 좌표가 바뀔 때마다 그 시간만큼만 걷기 애니메이션을 켠다.
+  const [guideWalking, setGuideWalking] = useState(false);
+  useEffect(() => {
+    if (!guidePosition) return;
+    setGuideWalking(true);
+    const timer = setTimeout(() => setGuideWalking(false), 900);
+    return () => clearTimeout(timer);
+  }, [guidePosition]);
+
+  // 주인공 바라보는 방향·걷기 — 이동 delta의 지배 축으로 판정, 입력이 멎으면 220ms 뒤 idle 복귀
+  // (키 리피트 간격보다 길어야 걷는 중에 끊기지 않는다)
+  const [playerFacing, setPlayerFacing] = useState<NpcFacing>("front");
+  const [playerWalking, setPlayerWalking] = useState(false);
+  const playerWalkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const notePlayerMove = useCallback((dx: number, dy: number) => {
+    if (dx === 0 && dy === 0) return;
+    setPlayerFacing(
+      Math.abs(dx) >= Math.abs(dy)
+        ? dx > 0
+          ? "screen_right"
+          : "screen_left"
+        : dy > 0
+          ? "front"
+          : "back",
+    );
+    setPlayerWalking(true);
+    if (playerWalkTimer.current) clearTimeout(playerWalkTimer.current);
+    playerWalkTimer.current = setTimeout(() => setPlayerWalking(false), 220);
+  }, []);
+
   const npcMarkers = useMemo<NpcMarker[]>(() => {
     if (!geometry?.spawns) return [];
     const byId = new Map(geometry.spawns.map((s) => [s.id, s]));
@@ -217,9 +283,10 @@ export function MovementArea({
         const next = { x: nextX, y: nextY };
         positionRef.current = next; // 다음 입력이 곧바로 이어지도록 즉시 반영
         onPositionChange(next);
+        notePlayerMove(next.x - from.x, next.y - from.y);
       }
     },
-    [clampPosition, collidesAt, onPositionChange],
+    [clampPosition, collidesAt, onPositionChange, notePlayerMove],
   );
 
   // 이동 키는 window에서 받는다 — 이동영역 div에 포커스가 있어야만 동작하던 탓에
@@ -264,7 +331,10 @@ export function MovementArea({
       if (collidesAt(point)) break; // 처음 막히는 지점 직전까지만
       reachable = point;
     }
-    if (reachable !== from) onPositionChange(reachable);
+    if (reachable !== from) {
+      onPositionChange(reachable);
+      notePlayerMove(reachable.x - from.x, reachable.y - from.y);
+    }
   };
 
   useEffect(() => {
@@ -304,9 +374,17 @@ export function MovementArea({
                   !
                 </span>
               ) : null}
-              <span className={styles.npcMarkerAvatar} aria-hidden="true">
-                <UserCircle weight="duotone" />
-              </span>
+              <NpcSprite
+                npcId={marker.npc_id}
+                facing={
+                  guideNpcId === marker.npc_id ? guideTrack.current.facing : "front"
+                }
+                walking={
+                  guideNpcId === marker.npc_id &&
+                  guideWalking &&
+                  !WALK_DISABLED_NPCS.has(marker.npc_id)
+                }
+              />
               <span className={styles.npcMarkerName}>{marker.name}</span>
             </button>
           ))
@@ -328,7 +406,7 @@ export function MovementArea({
           })
         )}
       </div>
-      <PlayerSprite position={position} />
+      <PlayerSprite position={position} facing={playerFacing} walking={playerWalking} />
     </div>
   );
 }
