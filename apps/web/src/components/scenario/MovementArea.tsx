@@ -445,6 +445,11 @@ export function MovementArea({
             className={styles.occluder}
             aria-hidden="true"
             style={{
+              // 레이아웃에 필수인 값은 인라인으로 둔다 — CSS 모듈 클래스가 유실되면
+              // (머지 사고 등) position:static이 되어 오클루더가 화면을 밀어버린다
+              position: "absolute",
+              pointerEvents: "none",
+              backgroundRepeat: "no-repeat",
               left: o.left,
               top: o.top,
               width: o.width,

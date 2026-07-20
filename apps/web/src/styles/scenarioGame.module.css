@@ -579,6 +579,17 @@ button.headerOrb:active {
   font-weight: 900;
 }
 
+/* overhead 오클루더 — 배경의 가구 상단부 크롭. z-index(=밑변 y)로 캐릭터와 앞뒤 경쟁 */
+.occluder {
+  position: absolute;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+}
+
 .playerSprite {
   position: absolute;
   top: 0;
