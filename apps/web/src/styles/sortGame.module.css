@@ -1,0 +1,478 @@
+/* sort 엔진 — 분류·트리아지 전용 스타일.
+   공용 껍데기(HUD·결과 바)는 minigame.module.css 를 그대로 쓰고,
+   여기에는 대기열 카드·통·범례·돌발 배너·행동 버튼만 둔다.
+   시나리오 HUD 의 --scenario-* 토큰을 동일하게 따른다. */
+
+/* ── 범례(기준표) — kts-01·kts-04: 증상/배지 → 행선 ── */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 9px 13px;
+  border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.22));
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.05);
+}
+
+.legendTitle {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.74));
+  white-space: nowrap;
+}
+
+.legendRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendArrow {
+  font-size: 12px;
+  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.6));
+}
+
+.legendDest {
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+}
+
+/* 증상·배지·아이콘 공용 칩 — 스프라이트 아트 전까지 텍스트 마커로 쓴다 */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px solid rgb(255 255 255 / 0.26);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: rgb(255 255 255 / 0.92);
+  background: rgb(255 255 255 / 0.08);
+  white-space: nowrap;
+}
+
+.chip[data-kind="badge"] {
+  border-color: rgb(255 215 110 / 0.55);
+  background: rgb(255 215 110 / 0.14);
+  color: #ffd76e;
+}
+
+/* ── 대기열 ── */
+.queue {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.2));
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 22% 18%, rgb(255 255 255 / 0.06), transparent 42%),
+    linear-gradient(160deg, rgb(38 44 66 / 0.96), rgb(24 27 44 / 0.98));
+}
+
+/* 아이템 카드 — sprite id 를 라벨 마커로 렌더(SpotGame 방식, 아트 들어오면 교체) */
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border: 1px solid rgb(255 255 255 / 0.28);
+  border-radius: 10px;
+  color: rgb(255 255 255 / 0.92);
+  background: rgb(255 255 255 / 0.07);
+  cursor: pointer;
+  text-align: center;
+  transition:
+    transform 140ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1)),
+    background-color 140ms ease,
+    border-color 140ms ease;
+}
+
+.card:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.14);
+  transform: translateY(-2px);
+}
+
+.card:disabled {
+  cursor: default;
+}
+
+.card[data-state="selected"] {
+  border-color: var(--scenario-accent, #8a63ee);
+  background: var(--scenario-accent-soft, rgb(193 126 255 / 0.2));
+  box-shadow: 0 0 0 3px var(--scenario-accent-soft, rgb(193 126 255 / 0.24));
+}
+
+.card[data-state="ok"] {
+  border-color: rgb(120 240 200 / 0.6);
+  background: rgb(30 160 130 / 0.24);
+  opacity: 0.85;
+}
+
+.card[data-state="wrong"] {
+  border-color: rgb(255 130 150 / 0.6);
+  background: rgb(190 50 80 / 0.24);
+  opacity: 0.85;
+}
+
+.cardSprite {
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.cardChips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+}
+
+.cardLabel {
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.74));
+}
+
+/* 처리 결과 도장 — ✓ 간 곳 / ✕ 잘못 간 곳 */
+.cardDest {
+  font-size: 10px;
+  font-weight: 900;
+  padding: 1px 8px;
+  border-radius: 999px;
+  color: #06231d;
+  background: #5adcb4;
+}
+
+.cardDest[data-verdict="wrong"] {
+  color: #2a0f16;
+  background: #ff8fa3;
+}
+
+/* ── 통(bin) ── */
+.bins {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.bin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-height: 58px;
+  padding: 9px 8px;
+  border: 2px dashed rgb(255 255 255 / 0.3);
+  border-radius: 12px;
+  color: #fff;
+  background: rgb(255 255 255 / 0.05);
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
+}
+
+.bin:hover:not(:disabled) {
+  border-color: var(--scenario-accent, #8a63ee);
+  background: var(--scenario-accent-soft, rgb(193 126 255 / 0.16));
+  transform: translateY(-2px);
+}
+
+.bin:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.binDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgb(0 0 0 / 0.3);
+}
+
+.binLabel {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.3;
+  text-align: center;
+  word-break: keep-all;
+}
+
+.binSprite {
+  font-size: 10px;
+  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.65));
+}
+
+/* ── 돌발 배너 — kts-01·kts-04 ── */
+.sudden {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 11px 13px;
+  border: 1px solid rgb(255 170 90 / 0.6);
+  border-radius: 12px;
+  background: rgb(255 140 60 / 0.1);
+  animation: suddenIn 260ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+.sudden[data-phase="resolved"] {
+  border-color: rgb(255 255 255 / 0.24);
+  background: rgb(255 255 255 / 0.05);
+}
+
+@keyframes suddenIn {
+  from {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.suddenHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.suddenBadge {
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: #2a1204;
+  background: #ffb35c;
+}
+
+.suddenLabel {
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.suddenCard {
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 9px 14px;
+  border: 1px solid rgb(255 170 90 / 0.7);
+  border-radius: 10px;
+  color: #fff;
+  background: rgb(255 140 60 / 0.16);
+  cursor: pointer;
+  transition: box-shadow 140ms ease, background-color 140ms ease;
+}
+
+.suddenCard:hover:not(:disabled) {
+  background: rgb(255 140 60 / 0.26);
+}
+
+.suddenCard[aria-pressed="true"] {
+  box-shadow: 0 0 0 3px rgb(255 179 92 / 0.4);
+  background: rgb(255 140 60 / 0.3);
+}
+
+.suddenNote {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.78));
+}
+
+.suddenNote[data-kind="warn"] {
+  color: #ffd76e;
+  font-weight: 700;
+}
+
+.suddenNote[data-kind="bad"] {
+  color: #ff8fa3;
+  font-weight: 700;
+}
+
+.suddenNote[data-kind="ok"] {
+  color: #5adcb4;
+  font-weight: 700;
+}
+
+/* 응대 단계 버튼 — 매뉴얼 순서대로 눌러야 한다 */
+.stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stageBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: 1px solid rgb(255 255 255 / 0.28);
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: rgb(255 255 255 / 0.92);
+  background: rgb(255 255 255 / 0.08);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.stageBtn:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.16);
+}
+
+.stageBtn:disabled {
+  cursor: default;
+}
+
+.stageBtn[data-done="true"] {
+  border-color: rgb(120 240 200 / 0.6);
+  background: rgb(30 160 130 / 0.28);
+}
+
+.stageOrder {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 900;
+  color: #06231d;
+  background: rgb(255 255 255 / 0.85);
+  flex-shrink: 0;
+}
+
+.stageBtn[data-done="true"] .stageOrder {
+  background: #5adcb4;
+}
+
+/* ── 행동 줄: escalate + 마감 ── */
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.escalateBtn {
+  min-height: 42px;
+  padding: 0 20px;
+  border: 1px solid rgb(255 130 150 / 0.55);
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffd3db;
+  background: rgb(190 50 80 / 0.28);
+  cursor: pointer;
+  transition: background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.escalateBtn:hover:not(:disabled) {
+  background: rgb(190 50 80 / 0.44);
+}
+
+.escalateBtn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* 단계를 다 밟아 지금 누르는 것이 정답인 상태 — 은은히 깜빡여 알린다 */
+.escalateBtn[data-armed="true"] {
+  animation: armedPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes armedPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(255 130 150 / 0);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgb(255 130 150 / 0.28);
+  }
+}
+
+.submitBtn {
+  min-height: 42px;
+  padding: 0 22px;
+  border: 1px solid rgb(255 255 255 / 0.22);
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, var(--scenario-accent, #8a63ee), var(--scenario-accent-2, #ef71bc));
+  cursor: pointer;
+}
+
+.submitBtn:active {
+  transform: translateY(1px);
+}
+
+/* ── 직전 행동 피드백 ── */
+.feedback {
+  margin: 0;
+  padding: 7px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  background: rgb(255 255 255 / 0.06);
+  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.8));
+}
+
+.feedback[data-kind="ok"] {
+  border-color: rgb(120 240 200 / 0.45);
+  color: #5adcb4;
+}
+
+.feedback[data-kind="warn"] {
+  border-color: rgb(255 215 110 / 0.5);
+  color: #ffd76e;
+}
+
+.feedback[data-kind="bad"] {
+  border-color: rgb(255 130 150 / 0.5);
+  color: #ff8fa3;
+}
+
+/* ── 접근성: 키보드 초점 ── */
+.card:focus-visible,
+.bin:focus-visible,
+.suddenCard:focus-visible,
+.stageBtn:focus-visible,
+.escalateBtn:focus-visible,
+.submitBtn:focus-visible {
+  outline: 2px solid var(--scenario-accent, #8a63ee);
+  outline-offset: 2px;
+}
+
+/* ── 모션 최소화 존중 ── */
+@media (prefers-reduced-motion: reduce) {
+  .sudden {
+    animation: none;
+  }
+  .escalateBtn[data-armed="true"] {
+    animation: none;
+    box-shadow: 0 0 0 3px rgb(255 130 150 / 0.28);
+  }
+  .card,
+  .bin,
+  .stageBtn,
+  .suddenCard,
+  .escalateBtn {
+    transition: none;
+  }
+}

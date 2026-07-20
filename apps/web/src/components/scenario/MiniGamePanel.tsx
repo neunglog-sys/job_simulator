@@ -1,15 +1,26 @@
 import { GameController } from "@phosphor-icons/react";
+import type * as React from "react";
 import styles from "../../styles/scenarioGame.module.css";
+import { GaugeGame } from "./minigames/GaugeGame";
+import { MatchGame } from "./minigames/MatchGame";
+import { PhysicsGame } from "./minigames/PhysicsGame";
+import { PlaceGame } from "./minigames/PlaceGame";
 import { PourGame } from "./minigames/PourGame";
+import { RouteGame } from "./minigames/RouteGame";
+import { SequenceGame } from "./minigames/SequenceGame";
+import { SortGame } from "./minigames/SortGame";
 import { SpotGame } from "./minigames/SpotGame";
-import type { MinigameDef, MinigameResult, PourData, SpotData } from "./minigames/types";
+import { TraceGame } from "./minigames/TraceGame";
+import { TypingGame } from "./minigames/TypingGame";
+import type { EngineProps } from "./minigames/shared";
+import type { Engine, MinigameDef, MinigameResult, PourData, SpotData } from "./minigames/types";
 
 /**
  * 4단계 — 앞 단계에서 익힌 '신입의 주 업무'를 실제로 해보는 미니게임.
  *
  * 게임 정의는 시뮬레이션 응답의 `minigame`(= data/minigames/<slug>.yaml)에서 온다.
- * 아직 게임 데이터가 없는 시나리오는 null로 와서 기존 '준비 중' 빈 창으로 폴백한다 —
- * 45개를 채우는 동안에도 4단계가 막히지 않아야 하므로.
+ * 엔진 11종 전부 연결 — 게임 데이터가 없는 시나리오만 '준비 중' 빈 창으로 폴백한다.
+ * spot·pour는 초기 구현이라 자체 props를 쓰고, 나머지 9종은 EngineProps 공용 계약.
  */
 type MiniGamePanelProps = {
   missionTitle: string;
@@ -18,8 +29,23 @@ type MiniGamePanelProps = {
   onClear: (result?: MinigameResult & { engine: string }) => void;
 };
 
+// EngineProps 계약을 따르는 9종. spot·pour는 아래에서 별도 분기.
+const ENGINE_COMPONENTS: Partial<Record<Engine, React.ComponentType<EngineProps>>> = {
+  match: MatchGame,
+  sort: SortGame,
+  place: PlaceGame,
+  gauge: GaugeGame,
+  route: RouteGame,
+  sequence: SequenceGame,
+  physics: PhysicsGame,
+  trace: TraceGame,
+  typing: TypingGame,
+};
+
 export function MiniGamePanel({ missionTitle, game, onClear }: MiniGamePanelProps) {
   const heading = game?.title || missionTitle;
+  const EngineComponent = game ? ENGINE_COMPONENTS[game.engine] : undefined;
+  const complete = (result: MinigameResult) => onClear({ ...result, engine: game!.engine });
 
   return (
     <div className={styles.missionOverlay} role="dialog" aria-modal="true" aria-label="실무 미니게임">
@@ -31,22 +57,16 @@ export function MiniGamePanel({ missionTitle, game, onClear }: MiniGamePanelProp
           </div>
         </div>
 
-        {game && (game.engine === "spot" || game.engine === "pour") ? (
+        {game && (game.engine === "spot" || game.engine === "pour" || EngineComponent) ? (
           <>
             {game.intro ? <p className={styles.miniGameBody}>{game.intro}</p> : null}
             {game.engine === "spot" ? (
-              <SpotGame
-                data={toSpotData(game)}
-                timeLimit={game.time_limit}
-                onComplete={(result) => onClear({ ...result, engine: game.engine })}
-              />
-            ) : (
-              <PourGame
-                data={toPourData(game)}
-                timeLimit={game.time_limit}
-                onComplete={(result) => onClear({ ...result, engine: game.engine })}
-              />
-            )}
+              <SpotGame data={toSpotData(game)} timeLimit={game.time_limit} onComplete={complete} />
+            ) : game.engine === "pour" ? (
+              <PourGame data={toPourData(game)} timeLimit={game.time_limit} onComplete={complete} />
+            ) : EngineComponent ? (
+              <EngineComponent game={game} onComplete={complete} />
+            ) : null}
           </>
         ) : (
           <>

@@ -53,6 +53,7 @@ class OpenAIProvider:
         *,
         system: str | None = None,
         temperature: float = 0.7,
+        thinking_budget: int | None = None,
     ) -> AsyncIterator[str]:
         try:
             stream = await self._client.chat.completions.create(

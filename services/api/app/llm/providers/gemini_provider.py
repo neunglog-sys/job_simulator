@@ -98,10 +98,16 @@ class GeminiProvider:
         *,
         system: str | None = None,
         temperature: float = 0.7,
+        thinking_budget: int | None = None,
     ) -> AsyncIterator[str]:
-        config = types.GenerateContentConfig(
-            system_instruction=system, temperature=temperature
-        )
+        config_kwargs: dict = {"system_instruction": system, "temperature": temperature}
+        if thinking_budget is not None:
+            # Gemini는 thinking(사고 토큰)이 기본 활성 — 대화형 스트리밍에선 이 '보이지 않는
+            # 사고'가 첫 토큰을 수 초 지연시킨다 (상담 실측: 첫토큰 6.7s → 0이면 1.2s).
+            config_kwargs["thinking_config"] = types.ThinkingConfig(
+                thinking_budget=thinking_budget
+            )
+        config = types.GenerateContentConfig(**config_kwargs)
         attempts = settings.llm_max_retries + 1
         for attempt in range(1, attempts + 1):
             yielded = False
@@ -115,7 +121,8 @@ class GeminiProvider:
                     if chunk.text:
                         yielded = True
                         yield chunk.text
-                return
+                if yielded:
+                    return
             except Exception as e:  # noqa: BLE001
                 # 이미 토큰을 내보낸 뒤면 재시도 시 중복 출력 → 재시도 불가, 그대로 실패
                 if yielded or attempt >= attempts or not _is_retryable(e):
@@ -126,6 +133,18 @@ class GeminiProvider:
                     delay, attempt, attempts, e,
                 )
                 await asyncio.sleep(delay)
+                continue
+
+            # 예외 없이 스트림이 끝났는데 텍스트가 하나도 없음(세이프티 필터 등) —
+            # 그대로 두면 상위에서 "성공(ok=true, 0자)"으로 조용히 묻혀 재현·추적이 안 됨.
+            if attempt >= attempts:
+                raise LLMError("gemini stream 실패: 빈 응답(세이프티 필터 등으로 텍스트 없음)")
+            delay = 0.5 * (2 ** (attempt - 1))
+            logger.warning(
+                "gemini stream 빈 응답, %.1fs 후 재시도 (%d/%d)",
+                delay, attempt, attempts,
+            )
+            await asyncio.sleep(delay)
 
     async def embed(
         self, texts: list[str], *, task_type: str = "RETRIEVAL_DOCUMENT"

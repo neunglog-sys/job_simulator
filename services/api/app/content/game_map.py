@@ -24,8 +24,11 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# NPC 자리 표준 id 3종 — 백엔드·프론트 계약은 항상 이 영문 id로 통일한다
-NPC_SLOTS = ("teamjang", "sasu", "bujang")
+# NPC 자리 표준 id — 백엔드·프론트 계약은 항상 이 영문 id로 통일한다.
+# 기본 3종 + 확장 2종(npc4·npc5): 미션 등장 NPC가 4~5명인 시나리오용 (맵 리메이크 규격 v2).
+# 순서 = 배정 우선순위. 맵에 실제로 찍힌 자리만 쓰이므로(npc_slots_in) 자리 3개짜리
+# 기존 맵은 동작이 변하지 않는다.
+NPC_SLOTS = ("teamjang", "sasu", "bujang", "npc4", "npc5")
 
 # 일부 맵(tmx)은 spawn 이름을 한글로 찍었다 — 로드 시점에 표준 id로 정규화
 _SPAWN_ALIASES = {"팀장": "teamjang", "사수": "sasu", "부장": "bujang", "플레이어": "player"}

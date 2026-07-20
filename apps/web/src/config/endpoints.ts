@@ -56,8 +56,8 @@ export const API_ENDPOINTS = {
   avatar: {
     // 아바타 사용 가능 여부. Colab 세션이 안 떠 있으면 enabled=false → idle 루프만 재생.
     status: apiUrl("/api/avatar/status"),
-    // 발화 텍스트 → HLS 재생목록 URL. 영상 세그먼트는 브라우저가 GPU 서버에서 직접 받아간다
-    // (백엔드를 안 거침). 첫 URL까지 약 7초 — 그동안 프론트는 thinking 상태 유지.
+    // 발화 텍스트 → 백엔드가 재봉합한 연속 fragmented MP4 스트림 URL.
+    // 첫 URL까지 약 7초 — 그동안 프론트는 thinking 상태 유지.
     speak: apiUrl("/api/avatar/speak"),
   },
 } as const;

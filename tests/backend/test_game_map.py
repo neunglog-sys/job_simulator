@@ -158,6 +158,32 @@ def test_spawn_overflow_cycles():
     assert all(s in game_map.NPC_SLOTS for s in slots.values())
 
 
+def test_five_slot_map_seats_five_npcs_without_doubling():
+    # 맵 리메이크 규격 v2 — npc4·npc5 spawn을 찍은 맵은 5명이 전부 다른 자리에 앉는다
+    geo = {"spawns": [{"id": s} for s in ("player", "teamjang", "sasu", "bujang", "npc4", "npc5")]}
+    slots = game_map.npc_slots_in(geo)
+    assert slots == ("teamjang", "sasu", "bujang", "npc4", "npc5")
+    npcs = [
+        {"npc_id": "a", "role": "팀장", "rank": None},
+        {"npc_id": "b", "role": "사수", "rank": None},
+        {"npc_id": "c", "role": "부장", "rank": None},
+        {"npc_id": "d", "role": "고객", "rank": None},
+        {"npc_id": "e", "role": "협력사", "rank": None},
+    ]
+    assigned = game_map.assign_spawn_slots(npcs, slots)
+    assert len(set(assigned.values())) == 5  # 겹침 없음
+    assert {assigned["d"], assigned["e"]} == {"npc4", "npc5"}  # 키워드 없는 둘이 확장 자리
+
+
+def test_three_slot_map_unchanged_by_extension():
+    # npc4·npc5가 표준에 추가돼도, 자리 3개짜리 기존 맵의 배정은 이전과 동일
+    geo = {"spawns": [{"id": s} for s in ("player", "teamjang", "sasu", "bujang")]}
+    assert game_map.npc_slots_in(geo) == ("teamjang", "sasu", "bujang")
+    npcs = [{"npc_id": f"n{i}", "role": "", "rank": None} for i in range(4)]
+    assigned = game_map.assign_spawn_slots(npcs, game_map.npc_slots_in(geo))
+    assert set(assigned.values()) <= {"teamjang", "sasu", "bujang"}  # 확장 자리 미사용
+
+
 def test_every_completed_map_assignment_resolves():
     resolved = [s for s in game_map.load_scenario_game_map() if game_map.map_info_for(s)]
     assert len(resolved) >= 30, f"좌표 완료 맵이 {len(resolved)}개뿐 — maps/ 마운트나 geometry 확인"
