@@ -879,8 +879,7 @@ export function ScenarioGamePage() {
         data-debug="false"
         data-scenario-theme={scenarioTheme}
       >
-        {/* 무대(MovementArea)가 맵을 원본 크기로 그리므로, 배경 레이어는 그 바깥 여백만 채운다 */}
-        <GameMapLayer imageUrl={gameMap?.geometry ? undefined : mapImage} />
+        <GameMapLayer imageUrl={mapImage} />
         <MovementArea
           position={playerPosition}
           // 컷신·모달 중에는 조작을 뺏지 않는다 — 이동은 exploring에서만.

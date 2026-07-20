@@ -141,6 +141,9 @@ export function MovementArea({
   // NPC 마커 clamp용 컨테이너 크기 — 플레이어(clampPosition)와 달리 마커는 렌더 시점에
   // area.clientWidth/Height를 직접 읽을 수 없어(첫 렌더엔 ref가 비어있음) state로 들고 간다.
   const [areaSize, setAreaSize] = useState<{ width: number; height: number } | null>(null);
+  // 월드 좌표 1px이 실제 화면에서 몇 px인가 — 게임 화면 전체가 --scenario-stage-scale로
+  // 축소돼 있어 ZOOM만으로는 알 수 없다. 잔상(픽셀 어긋남) 억제에 쓴다.
+  const [deviceScale, setDeviceScale] = useState(ZOOM);
   // 지금 눌려 있는 이동 키 — 프레임 루프가 매 프레임 읽는다 (리렌더 유발 안 함)
   const heldKeysRef = useRef<Set<string>>(new Set());
 
@@ -369,8 +372,9 @@ export function MovementArea({
   /** 화면 픽셀 격자에 맞춘 좌표 — 소수점 위치로 그리면 확대된 픽셀아트에 잔상이 남는다.
    *  (상태값은 소수점을 유지해야 매 프레임 누적 이동이 매끄럽다) */
   const snap = useCallback(
-    (value: number) => (geometry ? Math.round(value * ZOOM) / ZOOM : value),
-    [geometry],
+    (value: number) =>
+      geometry && deviceScale > 0 ? Math.round(value * deviceScale) / deviceScale : value,
+    [geometry, deviceScale],
   );
 
   // 카메라 — 플레이어를 화면 중앙에 두되 맵 경계를 넘어가지 않는다.
@@ -513,6 +517,10 @@ export function MovementArea({
 
     const resizeObserver = new ResizeObserver(() => {
       setAreaSize({ width: area.clientWidth, height: area.clientHeight });
+      const rect = area.getBoundingClientRect();
+      if (area.clientWidth > 0) {
+        setDeviceScale((rect.width / area.clientWidth) * ZOOM * (window.devicePixelRatio || 1));
+      }
       const nextPosition = clampPosition(position);
       if (nextPosition.x !== position.x || nextPosition.y !== position.y) {
         onPositionChange(nextPosition);
@@ -538,8 +546,8 @@ export function MovementArea({
                 left: 0,
                 top: 0,
                 transformOrigin: "0 0",
-                // 화면 픽셀 격자에 맞춰 반올림 — 소수점 오프셋이 남으면 픽셀아트가 일렁인다
-        transform: `scale(${ZOOM}) translate(${-Math.round(camera.x * ZOOM) / ZOOM}px, ${-Math.round(camera.y * ZOOM) / ZOOM}px)`,
+                // 실제 화면 픽셀 격자에 맞춰 반올림 — 어긋난 채로 두면 확대된 픽셀아트가 일렁인다
+        transform: `scale(${ZOOM}) translate(${-snap(camera.x)}px, ${-snap(camera.y)}px)`,
                 willChange: "transform",
               }
             : undefined
@@ -559,7 +567,6 @@ export function MovementArea({
               top: worldBounds.minY,
               width: worldBounds.maxX - worldBounds.minX,
               height: worldBounds.maxY - worldBounds.minY,
-              imageRendering: "pixelated",
               pointerEvents: "none",
             }}
           />
