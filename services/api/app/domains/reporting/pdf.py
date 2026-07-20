@@ -53,7 +53,10 @@ def render_report_pdf(
         leftMargin=18 * mm, rightMargin=18 * mm, topMargin=18 * mm, bottomMargin=18 * mm,
     )
     story = [
-        Paragraph("진로 적합도 리포트", _title),
+        Paragraph(
+            # 상담만으로 낸 것과 체험까지 반영한 것은 성격이 다르다 — 제목으로 구분한다
+            "직무 체험 최종 리포트" if performance else "상담 결과 리포트", _title
+        ),
         Paragraph(f"{user_name} 님 · 나의 직무 아카데미아", _muted),
         HRFlowable(width="100%", thickness=1, color=colors.black, spaceAfter=10),
         Paragraph("추천 직무", _h2),

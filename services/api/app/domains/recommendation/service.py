@@ -12,6 +12,7 @@ import math
 
 from fastapi import HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.content.loader import load_competencies, load_job_scenario_map
@@ -165,6 +166,15 @@ async def create_recommendation(
     session: AsyncSession, user: User, consultation_id: int
 ) -> Recommendation:
     consultation = await get_owned_consultation(session, consultation_id, user)
+
+    # 멱등: 이 상담에 이미 추천이 있으면 그대로 돌려준다.
+    # 매번 새로 만들면 ① LLM 프로필 추출이 매번 달라 추천 결과가 바뀌고(화면마다 다른 답)
+    # ② 탭을 두 개 열거나 버튼을 두 번 누르면 행이 여러 개 쌓인다.
+    # 추천은 "이 상담의 결론" 하나뿐이어야 리포트·체험 연결의 기준이 흔들리지 않는다.
+    existing = await get_latest_recommendation(session, user, consultation_id)
+    if existing is not None:
+        return existing
+
     profile = await _extract_profile(session, consultation)
 
     # 중간 게이트: 적성 파악이 부족하면 추천하지 않고 추가 상담으로 유도.
@@ -221,7 +231,15 @@ async def create_recommendation(
     consultation.summary = profile.get("summary")
     consultation.status = "completed"
     session.add(recommendation)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError:
+        # 동시 요청(탭 두 개 등)이 유니크 제약에 걸린 경우 — 먼저 저장된 것을 돌려준다
+        await session.rollback()
+        winner = await get_latest_recommendation(session, user, consultation_id)
+        if winner is not None:
+            return winner
+        raise
     await session.refresh(recommendation)
     logger.info(
         "추천 생성: consultation=%d, breakdown=%s",
