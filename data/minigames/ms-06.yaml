@@ -12,24 +12,33 @@ pass_score: 70
 
 data:
   # target·tolerance 는 0~1 비율. 화면엔 숫자가 아니라 표시선으로만 보인다.
+  # sprite·scale·trough_sprite·pour_sprite 는 표시 전용(presentation) — 채점·데이터 계약과 무관.
+  # 아트 파일이 없으면 폴백: 개체=라벨 칩, 구유=사각 게이지, 버튼=텍스트만(PixelSprite 규약).
+  trough_sprite: 구유_나무      # 구유 프레임 도트 — 내부 개구부가 투명해 사료 채움이 비친다
+  pour_sprite: 사료포대_삽      # 프레스-홀드 급이 버튼의 사료 포대 아이콘
   vessels:
     - id: 1번축사_성체
       label: 1번 축사 · 성체 6두
       target: 0.78
       tolerance: 0.06
+      sprite: 가축_성체          # 표시 전용 — 큰 실루엣(축종 중립)
     # '자돈'은 특정 축종(돼지)을 함의 — 원문은 축종을 특정하지 않으므로 중립 표현 사용
     - id: 2번축사_어린개체
       label: 2번 축사 · 어린 개체 12두
       target: 0.40
       tolerance: 0.05
+      sprite: 가축_어린개체      # 표시 전용 — 작은 실루엣 무리
+      scale: 1.3                 # 표시 전용 — 무리 스프라이트 폭 보정(SortGame item.scale 규약)
     - id: 3번축사_임신개체
       label: 3번 축사 · 임신 개체 2두
       target: 0.62
       tolerance: 0.05
+      sprite: 가축_임신개체      # 표시 전용 — 배가 볼록한 실루엣
     - id: 4번축사_회복개체
       label: 4번 축사 · 회복 중 1두
       target: 0.25
       tolerance: 0.04    # 회복 개체 — 소량·정밀. 제일 어려운 칸
+      sprite: 가축_회복개체      # 표시 전용 — 머리 붕대·담요 덮고 엎드린 실루엣
 
 scoring:
   # 표시선에서 벗어난 정도로 감점. tolerance 안이면 만점.

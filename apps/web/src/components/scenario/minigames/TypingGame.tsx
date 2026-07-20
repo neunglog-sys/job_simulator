@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 import local from "../../../styles/typingGame.module.css";
 import shared from "../../../styles/minigame.module.css";
+import { PixelSprite } from "./PixelSprite";
 import { GameHud, ResultBar, clampScore, elapsedSeconds, scoringOf, useCountdown } from "./shared";
 import type { EngineProps } from "./shared";
 
@@ -20,10 +21,32 @@ import type { EngineProps } from "./shared";
  * 탭이 백그라운드로 가도 setInterval 백스톱이 시각 기준으로 miss 를 확정하므로
  * 줄이 공중에 얼어붙지 않는다. prefers-reduced-motion 이면 낙하 대신
  * 정적 카드 + 남은 시간 바로 같은 마감 규칙을 보여준다.
+ *
+ * 표시 전용 스킨(data.presentation: dev_desk — backend-dev-day1):
+ *   낙하 스테이지가 도트 모니터(터미널 창 프레임)가 되고, 코드 줄은 '알림 봉투' 카드에
+ *   담겨 내려온다. 봉투는 line/distractor 가 겉모습이 완전히 동일하다 — 이 게임은
+ *   글자 판독 공인 예외라 코드 내용(실제 DOM 텍스트)으로만 구분한다. 그래서 스킨
+ *   모드에서는 정답을 유출하는 label 배지도 낙하 중에는 그리지 않는다.
+ *   정확 입력 = 발송 차단 스탬프 연출, distractor 입력 = 경고 스탬프 연출(FX 는
+ *   presentation 전용 — 채점·데이터 계약과 낙하 물리는 그대로다). presentation 키가
+ *   없거나 스프라이트 파일이 없으면 기존 플레인 렌더로 폴백한다(PixelSprite 규약).
  */
 
 type FallKind = "line" | "distractor";
 type FallStatus = "typed" | "missed" | "distractor";
+
+/** dev_desk 스킨 스프라이트 id — 파일이 없으면 폴백(spriteHidden)으로 조용히 빠진다. */
+const SKIN_SPRITES = {
+  frame: "모니터_터미널",
+  keyboard: "키보드_자판",
+  envelope: "알림_봉투",
+  blocked: "발송차단_스탬프",
+  warning: "경고_스탬프",
+} as const;
+
+/** 입력 확정 FX — 봉투가 차단 스탬프(정답)나 경고 스탬프(distractor)를 받고 사라진다. */
+type FxKind = "blocked" | "warn";
+type FxItem = { key: string; lane: number; topPct: number; kind: FxKind; text: string };
 
 type FallLine = {
   id: string;
@@ -98,9 +121,13 @@ export function TypingGame({ game, onComplete }: EngineProps) {
     return Array.isArray(raw) ? raw.filter((id): id is string => typeof id === "string") : [];
   }, [game.scoring]);
 
+  // 표시 전용 스킨 — 이 값이 아니면(다른 typing 게임·필드 부재) 기존 플레인 렌더 그대로.
+  const skin = game.data.presentation === "dev_desk";
+
   const [resolved, setResolved] = useState<Record<string, FallStatus>>({});
   const [typos, setTypos] = useState(0);
   const [value, setValue] = useState("");
+  const [fx, setFx] = useState<FxItem[]>([]);
   const [feedback, setFeedback] = useState<{ tone: "ok" | "warn" | "bad"; text: string } | null>(null);
   const [done, setDone] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -201,18 +228,36 @@ export function TypingGame({ game, onComplete }: EngineProps) {
     const typed = normalize(value);
     if (!typed) return;
     const stamp = Date.now();
-    const hit = order.find(
+    const hitIndex = order.findIndex(
       (item, i) =>
         !resolved[item.id] &&
         spawnAt.current[i] <= stamp &&
         stamp < spawnAt.current[i] + fallMs &&
         normalize(item.text) === typed,
     );
-    if (!hit) {
+    if (hitIndex === -1) {
       // 오타 — mistakes 만 세고 입력을 남겨 고쳐 낼 수 있게 한다(점수 감점 없음).
       setTypos((count) => count + 1);
       setFeedback({ tone: "warn", text: "화면의 줄과 일치하지 않습니다 — 오타를 고쳐 다시 제출하세요" });
       return;
+    }
+    const hit = order[hitIndex];
+    // 표시 전용 FX — 방금 있던 낙하 위치에서 봉투가 스탬프를 받고 사라진다.
+    // reduced-motion 은 FX 를 만들지 않는다(애니메이션 자체가 연출 전부라서).
+    if (skin && !reducedMotion) {
+      const progress = Math.min(1, Math.max(0, (stamp - spawnAt.current[hitIndex]) / fallMs));
+      const fxKey = `${hit.id}-${stamp}`;
+      setFx((list) => [
+        ...list,
+        {
+          key: fxKey,
+          lane: hitIndex % 2,
+          topPct: progress * 100,
+          kind: hit.kind === "line" ? "blocked" : "warn",
+          text: hit.text,
+        },
+      ]);
+      window.setTimeout(() => setFx((list) => list.filter((item) => item.key !== fxKey)), 1000);
     }
     if (hit.kind === "line") {
       setResolved((prev) => (prev[hit.id] ? prev : { ...prev, [hit.id]: "typed" }));
@@ -247,16 +292,29 @@ export function TypingGame({ game, onComplete }: EngineProps) {
     .filter(({ item, spawn }) => !resolved[item.id] && spawn <= now && now < spawn + fallMs)
     .map((card) => ({ ...card, progress: Math.min(1, Math.max(0, (now - card.spawn) / fallMs)) }));
 
+  // 입력 중 매칭 하이라이트 — 지금 치는 내용과 앞부분이 일치하는 줄에 링을 띄운다.
+  // 중립(액센트) 색을 쓴다: distractor 도 똑같이 빛나야 정오답을 유출하지 않는다.
+  const typedNorm = normalize(value);
+
   const cards = activeCards.map(({ item, lane, progress }) => (
     <div
       key={item.id}
       className={reducedMotion ? local.staticCard : local.card}
       data-lane={lane}
       data-danger={progress > 0.72}
+      data-match={typedNorm.length > 0 && normalize(item.text).startsWith(typedNorm)}
       style={reducedMotion ? undefined : { top: `${progress * 100}%`, transform: `translateY(${-progress * 100}%)` }}
     >
-      {item.label ? <span className={local.badge}>{item.label}</span> : null}
-      <code className={local.code}>{item.text}</code>
+      {/* 스킨 모드에선 label 배지를 낙하 중 감춘다 — 봉투 겉모습이 전부 동일해야 한다 */}
+      {item.label && !skin ? <span className={local.badge}>{item.label}</span> : null}
+      <span className={local.cardRow}>
+        {skin ? (
+          <span className={local.envelope} aria-hidden="true">
+            <PixelSprite id={SKIN_SPRITES.envelope} label="알림 봉투" size={30} fallbackClassName={local.spriteHidden} />
+          </span>
+        ) : null}
+        <code className={local.code}>{item.text}</code>
+      </span>
       {reducedMotion ? (
         <span className={local.timeTrack} aria-hidden="true">
           <span className={local.timeLeft} style={{ width: `${(1 - progress) * 100}%` }} data-low={progress > 0.72} />
@@ -264,6 +322,35 @@ export function TypingGame({ game, onComplete }: EngineProps) {
       ) : null}
     </div>
   ));
+
+  // 입력 확정 FX — 채점과 무관한 잔상. 봉투+코드가 스탬프를 받고 사라진다.
+  const fxCards =
+    skin && !reducedMotion
+      ? fx.map((item) => (
+          <div
+            key={item.key}
+            className={local.fxCard}
+            data-lane={item.lane}
+            style={{ top: `${item.topPct}%`, transform: `translateY(${-item.topPct}%)` }}
+            aria-hidden="true"
+          >
+            <span className={local.fxInner} data-kind={item.kind}>
+              <span className={local.envelope}>
+                <PixelSprite id={SKIN_SPRITES.envelope} label="알림 봉투" size={30} fallbackClassName={local.spriteHidden} />
+              </span>
+              <code className={local.code}>{item.text}</code>
+              <span className={local.fxStamp}>
+                <PixelSprite
+                  id={item.kind === "blocked" ? SKIN_SPRITES.blocked : SKIN_SPRITES.warning}
+                  label={item.kind === "blocked" ? "발송 차단" : "경고"}
+                  size={item.kind === "blocked" ? 30 : 34}
+                  fallbackClassName={local.spriteHidden}
+                />
+              </span>
+            </span>
+          </div>
+        ))
+      : null;
 
   return (
     <div className={shared.shell}>
@@ -276,12 +363,33 @@ export function TypingGame({ game, onComplete }: EngineProps) {
       />
 
       <div
-        className={reducedMotion ? local.staticList : local.stage}
+        className={reducedMotion ? local.staticList : skin ? `${local.stage} ${local.stageSkin}` : local.stage}
         role="group"
         aria-label={reducedMotion ? "입력할 코드 줄 목록" : "내려오는 코드 줄"}
       >
-        {cards}
-        {activeCards.length === 0 && !done ? <span className={local.stageHint}>다음 줄이 내려옵니다…</span> : null}
+        {reducedMotion ? (
+          <>
+            {cards}
+            {activeCards.length === 0 && !done ? <span className={local.stageHint}>다음 줄이 내려옵니다…</span> : null}
+          </>
+        ) : (
+          <>
+            {skin ? (
+              // 도트 모니터 프레임 — 화면 전체에 늘려 깐다(RouteGame mapLayer 수법).
+              // 파일이 없으면 spriteHidden 폴백으로 조용히 빠지고 플레인 스테이지만 남는다.
+              <div className={local.frameLayer} aria-hidden="true">
+                <PixelSprite id={SKIN_SPRITES.frame} label="터미널 창" size={640} fallbackClassName={local.spriteHidden} />
+              </div>
+            ) : null}
+            <div className={local.fallLayer}>
+              {cards}
+              {fxCards}
+              {activeCards.length === 0 && fx.length === 0 && !done ? (
+                <span className={local.stageHint}>다음 줄이 내려옵니다…</span>
+              ) : null}
+            </div>
+          </>
+        )}
       </div>
 
       <div className={local.feedback} role="status" aria-live="polite" data-tone={feedback?.tone}>
@@ -290,6 +398,12 @@ export function TypingGame({ game, onComplete }: EngineProps) {
 
       {!done ? (
         <form className={local.inputRow} onSubmit={handleSubmit}>
+          {skin ? (
+            // 책상의 키보드 실루엣 — 입력창 옆 장식. 파일이 없으면 아무것도 안 그린다.
+            <span className={local.deskKeyboard} aria-hidden="true">
+              <PixelSprite id={SKIN_SPRITES.keyboard} label="키보드" size={76} fallbackClassName={local.spriteHidden} />
+            </span>
+          ) : null}
           <input
             ref={inputRef}
             className={local.input}

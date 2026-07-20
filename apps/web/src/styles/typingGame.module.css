@@ -1,6 +1,6 @@
 /* typing 엔진 — backend-dev-day1 전용(코드 낙하 + 입력).
    공용 껍데기(shell·hud·result)는 minigame.module.css 를 그대로 쓰고,
-   여기는 낙하 스테이지·코드 카드·입력줄만 정의한다. */
+   여기는 낙하 스테이지·코드 카드·입력줄 + dev_desk 스킨(도트 모니터·봉투)을 정의한다. */
 
 /* ── 낙하 스테이지 ── */
 .stage {
@@ -14,13 +14,54 @@
   overflow: hidden;
 }
 
+/* 낙하 좌표계 — 플레인 모드에선 스테이지 전체, 스킨 모드에선 모니터 '화면' 안쪽.
+   카드의 top/translateY 는 이 레이어 기준이라 두 모드의 물리 계산이 동일하다. */
+.fallLayer {
+  position: absolute;
+  inset: 0;
+}
+
 /* 바닥선 — 여기 닿기 전에 입력을 끝내야 한다 */
-.stage::after {
+.fallLayer::after {
   content: "";
   position: absolute;
   inset: auto 0 0 0;
   height: 3px;
   background: linear-gradient(90deg, rgb(255 122 89 / 0.6), rgb(255 77 109 / 0.6));
+}
+
+/* ── dev_desk 스킨 — 도트 모니터 프레임(모니터_터미널) 위에서 낙하 ── */
+/* 낙하 영역을 타이틀바 아래·베젤 안쪽으로 좁힌다(프레임 스프라이트 64×32 비율 기준) */
+.stageSkin .fallLayer {
+  inset: 17% 3.5% 7.5%;
+}
+
+/* 스캔라인 — 픽셀 줄 느낌의 가로줄(스프라이트가 아니라 CSS라 그라데이션 허용) */
+.stageSkin::before {
+  content: "";
+  position: absolute;
+  inset: 16% 3% 7%;
+  pointer-events: none;
+  background: repeating-linear-gradient(180deg, rgb(255 255 255 / 0.03) 0 2px, transparent 2px 4px);
+}
+
+/* 프레임 스프라이트 — 스테이지에 꽉 늘려 깐다(RouteGame mapLayer 수법).
+   화면부는 투명이라 기존 스테이지 배경이 그대로 비친다. */
+.frameLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.frameLayer img {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* 스프라이트 파일이 없을 때 폴백 칩 대신 아무것도 안 그린다 — 장식이 조용히 빠지고
+   플레인 렌더(도트 아트 전과 동일한 화면)로 남는다 */
+.spriteHidden {
+  display: none;
 }
 
 .stageHint {
@@ -65,6 +106,21 @@
   background: #cdb2ff;
 }
 
+/* 봉투+코드 한 줄 — 플레인 모드에선 봉투가 없어 기존과 동일하게 보인다 */
+.cardRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+}
+
+/* 알림 봉투(알림_봉투) — line/distractor 겉모습 동일. 내용 텍스트로만 구분한다 */
+.envelope {
+  display: flex;
+  flex-shrink: 0;
+  filter: drop-shadow(0 3px 6px rgb(0 0 0 / 0.45));
+}
+
 .code {
   display: block;
   padding: 8px 12px;
@@ -84,6 +140,125 @@
 .staticCard[data-danger="true"] .code {
   border-color: rgb(255 130 150 / 0.8);
   box-shadow: 0 0 0 3px rgb(255 77 109 / 0.2), 0 6px 18px rgb(0 0 0 / 0.35);
+}
+
+/* 입력 중 앞부분이 일치하는 줄 — 중립 액센트 링(정오답 비유출). danger 뒤라 우선한다 */
+.card[data-match="true"] .code,
+.staticCard[data-match="true"] .code {
+  border-color: var(--scenario-accent, #8a63ee);
+  box-shadow: 0 0 0 3px rgb(138 99 238 / 0.3), 0 6px 18px rgb(0 0 0 / 0.35);
+}
+
+/* 매칭 중엔 봉투가 살짝 들썩인다 — 지금 이 봉투를 잡고 있다는 신호 */
+.card[data-match="true"] .envelope {
+  animation: envelopeReady 700ms ease-in-out infinite;
+}
+
+@keyframes envelopeReady {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+/* ── 입력 확정 FX — 봉투가 스탬프를 받고 사라진다(채점 무관, 스킨 전용) ── */
+.fxCard {
+  position: absolute;
+  max-width: 88%;
+  pointer-events: none;
+}
+
+.fxCard[data-lane="0"] {
+  left: 3%;
+}
+
+.fxCard[data-lane="1"] {
+  right: 3%;
+}
+
+.fxInner {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* 정확 입력 — 발송 차단 성공: 초록 링과 함께 위로 떠오르며 사라진다 */
+.fxInner[data-kind="blocked"] {
+  animation: fxBlocked 850ms ease forwards;
+}
+
+.fxInner[data-kind="blocked"] .code {
+  border-color: rgb(120 240 200 / 0.75);
+}
+
+/* distractor 입력 — 경고: 붉게 물들어 흔들리다 사라진다 */
+.fxInner[data-kind="warn"] {
+  animation: fxWarn 950ms ease forwards;
+}
+
+.fxInner[data-kind="warn"] .code {
+  border-color: rgb(255 130 150 / 0.85);
+  background: rgb(58 16 30 / 0.94);
+}
+
+.fxStamp {
+  position: absolute;
+  top: -14px;
+  right: -10px;
+  filter: drop-shadow(0 3px 6px rgb(0 0 0 / 0.5));
+  animation: fxStampIn 240ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1)) both;
+}
+
+@keyframes fxBlocked {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  30% {
+    transform: translateY(-2px) scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.88);
+  }
+}
+
+@keyframes fxWarn {
+  0%,
+  36%,
+  70% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  12% {
+    transform: translateX(-5px);
+  }
+  24%,
+  48% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+}
+
+@keyframes fxStampIn {
+  from {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 /* ── prefers-reduced-motion: 낙하 대신 정적 카드 + 남은 시간 바 ── */
@@ -162,6 +337,20 @@
   gap: 8px;
 }
 
+/* 책상의 키보드 실루엣(키보드_자판) — 입력창 왼쪽 장식. 좁은 화면에선 숨긴다 */
+.deskKeyboard {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  filter: drop-shadow(0 4px 8px rgb(0 0 0 / 0.4));
+}
+
+@media (max-width: 480px) {
+  .deskKeyboard {
+    display: none;
+  }
+}
+
 .input {
   flex: 1;
   min-width: 0;
@@ -208,5 +397,13 @@
   }
   .submit:active {
     transform: none;
+  }
+  /* FX 는 스킨의 reduced-motion 분기에서 생성 자체를 막지만, OS 설정 전환 경합 대비 이중 안전망 */
+  .fxCard {
+    display: none;
+  }
+  .card[data-match="true"] .envelope,
+  .staticCard[data-match="true"] .envelope {
+    animation: none;
   }
 }
