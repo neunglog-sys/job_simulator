@@ -115,7 +115,8 @@ class GeminiProvider:
                     if chunk.text:
                         yielded = True
                         yield chunk.text
-                return
+                if yielded:
+                    return
             except Exception as e:  # noqa: BLE001
                 # 이미 토큰을 내보낸 뒤면 재시도 시 중복 출력 → 재시도 불가, 그대로 실패
                 if yielded or attempt >= attempts or not _is_retryable(e):
@@ -126,6 +127,18 @@ class GeminiProvider:
                     delay, attempt, attempts, e,
                 )
                 await asyncio.sleep(delay)
+                continue
+
+            # 예외 없이 스트림이 끝났는데 텍스트가 하나도 없음(세이프티 필터 등) —
+            # 그대로 두면 상위에서 "성공(ok=true, 0자)"으로 조용히 묻혀 재현·추적이 안 됨.
+            if attempt >= attempts:
+                raise LLMError("gemini stream 실패: 빈 응답(세이프티 필터 등으로 텍스트 없음)")
+            delay = 0.5 * (2 ** (attempt - 1))
+            logger.warning(
+                "gemini stream 빈 응답, %.1fs 후 재시도 (%d/%d)",
+                delay, attempt, attempts,
+            )
+            await asyncio.sleep(delay)
 
     async def embed(
         self, texts: list[str], *, task_type: str = "RETRIEVAL_DOCUMENT"
