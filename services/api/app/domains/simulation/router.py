@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.content import game_map
+from app.content.loader import yaml_scenario_slugs
 from app.core.db import SessionFactory, get_session
 from app.core.deps import get_current_user, resolve_user
 from app.domains.scoring import aggregate
@@ -52,7 +53,12 @@ async def list_scenarios(session: AsyncSession = Depends(get_session)):
 
     필요한 컬럼만 조회 (steps 등 대형 JSONB 제외). 돌발 퀘스트 보유 여부는
     서프라이즈 스포일러라 노출하지 않는다.
+
+    seed는 시나리오를 지우지 않으므로(upsert만), data/scenarios/_disabled로 뺀
+    시나리오도 DB엔 남는다. 활성 YAML(yaml_scenario_slugs)에 없는 slug는 목록에서 뺀다
+    — 안 그러면 비활성 시나리오(예: yg-05, backend-dev-day1)가 계속 노출된다.
     """
+    active_slugs = yaml_scenario_slugs()
     rows = (
         await session.execute(
             select(Scenario.slug, Scenario.title, Scenario.module, Job.code, Job.title)
@@ -62,6 +68,8 @@ async def list_scenarios(session: AsyncSession = Depends(get_session)):
     ).all()
     result = []
     for slug, title, module, code, jtitle in rows:
+        if slug not in active_slugs:
+            continue  # _disabled로 뺀 시나리오 — DB엔 남아있지만 노출 안 함
         map_info = game_map.map_info_for(slug)
         result.append(
             {
