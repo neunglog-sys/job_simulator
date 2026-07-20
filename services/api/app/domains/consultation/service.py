@@ -6,7 +6,7 @@ import time
 from typing import AsyncIterator
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.content.counseling import build_safety_notes
@@ -84,7 +84,12 @@ def _truncate(value: str, limit: int) -> str:
 async def list_consultation_summaries(
     session: AsyncSession, user: User
 ) -> list[dict]:
-    """상담방 목록에 필요한 제목·미리보기·최근 활동 시각을 기존 메시지로 계산한다."""
+    """상담방 목록에 필요한 제목·미리보기·최근 활동 시각을 계산한다.
+
+    제목/미리보기에 필요한 건 상담방당 '첫 user 메시지 1건 + 마지막 메시지 1건 + 건수'뿐이다.
+    전체 메시지를 로드하면(content는 EncryptedText라 행마다 복호화) 상담·대화가 쌓일수록 목록이
+    느려지므로, DB 집계로 필요한 메시지 id만 뽑고 그 2건/상담만 복호화한다.
+    """
     consultations = list(
         (
             await session.execute(
@@ -97,44 +102,51 @@ async def list_consultation_summaries(
     if not consultations:
         return []
 
-    consultation_ids = [consultation.id for consultation in consultations]
-    messages = list(
-        (
-            await session.execute(
-                select(Message)
-                .where(Message.consultation_id.in_(consultation_ids))
-                .order_by(Message.created_at, Message.id)
+    consultation_ids = [c.id for c in consultations]
+    # 상담별 집계 — 건수, 첫 user 메시지 id, 마지막 메시지 id (id 순증가라 정렬 기준으로 안전)
+    rows = (
+        await session.execute(
+            select(
+                Message.consultation_id,
+                func.count().label("cnt"),
+                func.min(case((Message.role == "user", Message.id))).label("first_user_id"),
+                func.max(Message.id).label("last_id"),
+                func.max(Message.created_at).label("updated_at"),
             )
+            .where(Message.consultation_id.in_(consultation_ids))
+            .group_by(Message.consultation_id)
+        )
+    ).all()
+    agg = {r.consultation_id: r for r in rows}
+
+    # 실제로 내용을 꺼낼 메시지 id만 모아 한 번에 조회 (상담당 최대 2건 → 복호화 최소화)
+    wanted_ids = {
+        mid
+        for r in rows
+        for mid in (r.first_user_id, r.last_id)
+        if mid is not None
+    }
+    contents: dict[int, str] = {}
+    if wanted_ids:
+        picked = (
+            await session.execute(select(Message).where(Message.id.in_(wanted_ids)))
         ).scalars()
-    )
-    grouped: dict[int, list[Message]] = {consultation_id: [] for consultation_id in consultation_ids}
-    for message in messages:
-        if message.consultation_id is not None:
-            grouped[message.consultation_id].append(message)
+        contents = {m.id: m.content for m in picked}
 
     items: list[dict] = []
     for consultation in consultations:
-        history = grouped[consultation.id]
-        first_user_message = next((message for message in history if message.role == "user"), None)
-        latest_message = history[-1] if history else None
-        updated_at = latest_message.created_at if latest_message else consultation.created_at
+        r = agg.get(consultation.id)
+        first_user = contents.get(r.first_user_id) if r else None
+        latest = contents.get(r.last_id) if r else None
         items.append(
             {
                 "id": consultation.id,
                 "status": consultation.status,
-                "title": (
-                    _truncate(first_user_message.content, 34)
-                    if first_user_message
-                    else "새로운 상담"
-                ),
-                "preview": (
-                    _truncate(latest_message.content, 72)
-                    if latest_message
-                    else "아직 나눈 대화가 없어요."
-                ),
-                "message_count": len(history),
+                "title": _truncate(first_user, 34) if first_user else "새로운 상담",
+                "preview": _truncate(latest, 72) if latest else "아직 나눈 대화가 없어요.",
+                "message_count": r.cnt if r else 0,
                 "created_at": consultation.created_at,
-                "updated_at": updated_at,
+                "updated_at": r.updated_at if r else consultation.created_at,
             }
         )
 
@@ -221,7 +233,9 @@ async def stream_reply(
             len(system.encode()) / 1024,
             "유" if knowledge else "무",
         )
-        # 클라이언트가 중간에 끊어도 생성된 부분까지는 저장
+        # 클라이언트가 중간에 끊어도 생성된 부분까지는 저장.
+        # SSE 취소(탭 닫기) 중에는 이 finally가 취소된 태스크 안이라, shield 없이 await commit하면
+        # 즉시 CancelledError로 저장이 유실된다 — shield로 감싸 부분 응답을 확실히 남긴다.
         if full:
             session.add(
                 Message(
@@ -230,4 +244,4 @@ async def stream_reply(
                     content=reply,
                 )
             )
-            await session.commit()
+            await asyncio.shield(session.commit())

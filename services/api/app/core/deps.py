@@ -7,6 +7,7 @@ from fastapi import Depends, Header, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.crypto import email_hash
 from app.core.db import get_session
 from app.core.security import decode_token
@@ -23,9 +24,12 @@ async def resolve_user(
 ) -> User:
     """인증 정책 단일 정의처 — HTTP·WS 공용.
 
-    우선순위: JWT(검증) > X-User-Id 개발 스텁 > 데모 사용자. WS는 헤더를 못 붙이므로
-    쿼리스트링 토큰을 token으로 넘긴다. **원시 user_id를 토큰 없이 신뢰하지 않는다** —
-    그건 임의 사용자 사칭을 허용하던 취약점이었다.
+    우선순위: JWT(검증) > [개발 전용] X-User-Id 스텁 > 데모 사용자. WS는 헤더를 못 붙이므로
+    쿼리스트링 토큰을 token으로 넘긴다.
+
+    ⚠️ X-User-Id 스텁과 데모 폴백은 settings.allow_dev_auth=True(개발)에서만 동작한다.
+    배포에서 false면 토큰이 없거나 유효하지 않으면 401 — 헤더로 임의 사용자를 사칭하거나
+    익명 요청이 데모 계정으로 뒤섞이는 일이 없다.
     """
     if token:
         user_id = decode_token(token)
@@ -36,7 +40,11 @@ async def resolve_user(
             raise HTTPException(status_code=401, detail="존재하지 않는 사용자")
         return user
 
-    if x_user_id is not None:  # 개발용 스텁 헤더 (시연 전 제거 대상)
+    if not settings.allow_dev_auth:
+        # 배포 모드 — 토큰 없이는 인증 불가 (개발 스텁·데모 폴백 차단)
+        raise HTTPException(status_code=401, detail="인증이 필요합니다")
+
+    if x_user_id is not None:  # 개발용 스텁 헤더 (allow_dev_auth 전용)
         user = await session.get(User, x_user_id)
         if user is None:
             raise HTTPException(status_code=401, detail="존재하지 않는 사용자")

@@ -7,20 +7,22 @@ import logging
 from pathlib import Path
 
 from fastapi import HTTPException
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.content.loader import load_competencies
 from app.core.config import settings
 from app.core.db import SessionFactory
+import asyncio
+
 from app.domains.consultation.service import get_owned_consultation, list_messages
 from app.domains.reporting.pdf import render_report_pdf
+from app.domains.recommendation.service import get_latest_recommendation
 from app.domains.scoring import aggregate
 from app.domains.simulation.service import get_owned_simulation
 from app.llm import get_llm
 from app.llm.base import ChatMessage
 from app.llm.prompts import render_prompt
-from app.models import Recommendation, Report, Scenario, Simulation, User
+from app.models import Report, Scenario, Simulation, User
 
 logger = logging.getLogger(__name__)
 
@@ -43,17 +45,10 @@ async def create_report(
     consultation_id: int,
     simulation_id: int | None = None,
 ) -> Report:
-    await get_owned_consultation(session, consultation_id, user)
     # 추천의 유일한 기준은 저장된 recommendations.results — 리포트가 추천을 다시 만들지 않는다
-    # (팀 결정 2026-07-20). 화면마다 다른 추천이 나오지 않게 하는 규칙이다.
-    recommendation = (
-        await session.execute(
-            select(Recommendation)
-            .where(Recommendation.consultation_id == consultation_id)
-            .order_by(Recommendation.id.desc())
-            .limit(1)
-        )
-    ).scalar_one_or_none()
+    # (팀 결정 2026-07-20). 조회는 recommendation 도메인의 단일 헬퍼로 통일해, 세 곳에서 각자
+    # 인라인 select 하다 '최신 추천' 판별 기준이 갈라지는 것을 막는다. (소유권 체크도 헬퍼가 함)
+    recommendation = await get_latest_recommendation(session, user, consultation_id)
     if recommendation is None:
         raise HTTPException(
             status_code=400, detail="추천 결과가 없음 — 먼저 직무 추천을 실행하세요"
@@ -82,14 +77,13 @@ async def generate_report(report_id: int) -> None:
         try:
             user = await session.get(User, report.user_id)
             messages = await list_messages(session, report.consultation_id)
-            recommendation = (
-                await session.execute(
-                    select(Recommendation)
-                    .where(Recommendation.consultation_id == report.consultation_id)
-                    .order_by(Recommendation.id.desc())
-                    .limit(1)
-                )
-            ).scalar_one()
+            # create_report와 같은 헬퍼로 조회 — 생성~실행 사이 추천이 지워졌으면 None이므로
+            # scalar_one()의 NoResultFound(→failed로 조용히 묻힘) 대신 명시적으로 처리한다.
+            recommendation = await get_latest_recommendation(
+                session, user, report.consultation_id
+            )
+            if recommendation is None:
+                raise HTTPException(status_code=400, detail="추천 결과가 사라짐 — 리포트 생성 불가")
 
             # 수행 데이터 (시뮬레이션 연결 시) — 확정 공식: 최종 = 상담 50% + 수행 50%
             performance = None
@@ -133,7 +127,10 @@ async def generate_report(report_id: int) -> None:
             pdf_dir = Path(settings.storage_dir) / "reports"
             pdf_dir.mkdir(parents=True, exist_ok=True)
             pdf_path = pdf_dir / f"report_{report.id}.pdf"
-            render_report_pdf(
+            # PDF 렌더는 동기 CPU/파일IO — 이벤트루프에서 직접 돌리면 렌더 동안 모든 WS·SSE
+            # 스트림과 API가 멈춘다. 스레드로 오프로드해 루프를 비운다.
+            await asyncio.to_thread(
+                render_report_pdf,
                 pdf_path,
                 user_name=user.name,
                 recommendations=recommendation.results,
@@ -151,10 +148,16 @@ async def generate_report(report_id: int) -> None:
             report.advice = analysis["advice"]
             report.pdf_path = str(pdf_path)
             report.status = "done"
+            await session.commit()
         except Exception:  # noqa: BLE001
             logger.exception("리포트 생성 실패 (id=%d)", report_id)
-            report.status = "failed"
-        await session.commit()
+            # DB-레이어 오류였다면 세션이 무효 상태 — rollback 없이 status 커밋을 시도하면
+            # PendingRollbackError로 실패해 status가 pending에 영구히 남아 프론트가 무한 폴링한다.
+            await session.rollback()
+            report = await session.get(Report, report_id)
+            if report is not None:
+                report.status = "failed"
+                await session.commit()
 
 
 async def get_owned_report(

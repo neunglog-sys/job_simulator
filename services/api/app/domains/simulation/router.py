@@ -16,6 +16,35 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["simulation"])
 
+# WS 텍스트 입력 상한 — HTTP MessageIn(max_length=2000)과 같은 캡을 WS 경로에도 강제한다.
+# 없으면 수 MB 문자열을 LLM 프롬프트에 실어 비용 폭증·지연(DoS)을 유발할 수 있다.
+WS_TEXT_MAX = 2000
+
+
+def _ws_text(data: dict, key: str) -> str:
+    """WS 페이로드의 텍스트 필드 검증 — 문자열이 아니거나 상한 초과면 400(HTTPException)."""
+    value = data.get(key, "")
+    if not isinstance(value, str):
+        raise HTTPException(status_code=400, detail=f"{key}는 문자열이어야 합니다")
+    if len(value) > WS_TEXT_MAX:
+        raise HTTPException(status_code=400, detail=f"{key}가 너무 깁니다(최대 {WS_TEXT_MAX}자)")
+    return value
+
+
+def _ws_submission(data: dict):
+    """task_submit content — 서술형(str) 또는 선택·배열형(list) 모두 허용하되 크기를 제한한다."""
+    value = data.get("content", "")
+    if isinstance(value, str):
+        if len(value) > WS_TEXT_MAX:
+            raise HTTPException(status_code=400, detail=f"제출 내용이 너무 깁니다(최대 {WS_TEXT_MAX}자)")
+        return value
+    if isinstance(value, list):
+        # 선택·배열형(key 목록) — 보기 수를 넘는 과도한 배열 차단
+        if len(value) > 100 or any(not isinstance(v, str) or len(v) > 100 for v in value):
+            raise HTTPException(status_code=400, detail="제출 형식이 올바르지 않습니다")
+        return value
+    raise HTTPException(status_code=400, detail="제출 내용은 문자열 또는 배열이어야 합니다")
+
 
 @router.get("/api/scenarios")
 async def list_scenarios(session: AsyncSession = Depends(get_session)):
@@ -163,7 +192,8 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, token: str | N
                 try:
                     if data.get("type") == "chat":
                         async for kind, payload in service.stream_npc_chat(
-                            session, simulation, scenario, data.get("npc", ""), data.get("content", "")
+                            session, simulation, scenario,
+                            _ws_text(data, "npc"), _ws_text(data, "content"),
                         ):
                             if kind == "token":
                                 await websocket.send_json({"type": "token", "text": payload})
@@ -178,7 +208,7 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, token: str | N
                                     )
                     elif data.get("type") == "task_submit":
                         result = await service.submit_task(
-                            session, simulation, scenario, data.get("content", "")
+                            session, simulation, scenario, _ws_submission(data)
                         )
                         step_changed = result.pop("step_changed")
                         completed = result.pop("completed")
