@@ -10,7 +10,7 @@ import {
 } from "react";
 import { API_ENDPOINTS } from "../config/endpoints";
 import { ApiError } from "../lib/api";
-import { authenticate } from "../lib/auth";
+import { authenticate, rememberOAuthReturnTo } from "../lib/auth";
 import {
   AUTH_LEGAL_META,
   AuthLegalDocument,
@@ -276,9 +276,13 @@ export function AuthModal({ mode, onClose, onModeChange, onSuccess }: Props) {
   };
 
   const guardSocialAuthentication = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (!consentRequired) return;
-    event.preventDefault();
-    setError("소셜 계정으로 가입하려면 필수 약관을 먼저 확인해주세요.");
+    if (consentRequired) {
+      event.preventDefault();
+      setError("소셜 계정으로 가입하려면 필수 약관을 먼저 확인해주세요.");
+      return;
+    }
+
+    rememberOAuthReturnTo();
   };
 
   return (
