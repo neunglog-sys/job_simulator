@@ -101,7 +101,7 @@ npcs:
   - 결함·위험 목록(개인정보 노출·롤백 부재)
   - 사고 보고서 초안
   appearance:
-    location: teamjang
+    location: npc4
     available_steps:
     - m4
 - npc_id: npc_yg-04_05
@@ -123,5 +123,5 @@ npcs:
   - 핵심부터 봅시다.
   responsibilities: []
   appearance:
-    location: sasu
+    location: npc5
     available_steps: []
