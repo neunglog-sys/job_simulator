@@ -16,6 +16,7 @@ from app.core.redis import redis_client
 from app.domains.auth.router import router as auth_router
 from app.domains.avatar import service as avatar_service
 from app.domains.avatar.router import router as avatar_router
+from app.domains.careertest.router import router as careertest_router
 from app.domains.consultation.router import router as consultation_router
 from app.domains.jobs.router import router as jobs_router
 from app.domains.profile.router import router as profile_router
@@ -26,6 +27,9 @@ from app.domains.tts.router import router as tts_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+# httpx가 요청 URL을 통째로 INFO 로그에 남긴다 — 쿼리스트링으로 인증키를 보내는 외부
+# API(커리어넷 등) 호출 시 키가 컨테이너 로그에 평문으로 찍히는 걸 막는다.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 @asynccontextmanager
@@ -77,6 +81,7 @@ app.include_router(reporting_router)
 app.include_router(simulation_router)
 app.include_router(tts_router)
 app.include_router(avatar_router)
+app.include_router(careertest_router)
 
 # 아바타 연속 스트림 서빙 — ffmpeg가 Colab HLS를 연속 타임라인으로 재인코딩한 결과(.m3u8/.ts).
 # 브라우저(hls.js)가 여기서 직접 받아 끊김 없이 재생한다.

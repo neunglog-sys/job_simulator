@@ -83,6 +83,14 @@ class Settings(BaseSettings):
     avatar_stream_root: str = "/app/avatar_streams"
     avatar_transcode_timeout_ms: int = 30_000  # 연속 스트림 첫 세그먼트 대기 상한
 
+    # ── 공공데이터 API (직무 지식 RAG 보강 — scripts/harvest-public-job-data.py 전용) ──
+    # 고용24(워크넷) 채용정보·NCS — 2026-07-22 포기. 신청서가 단일 양식인데 채용정보목록/상세는
+    # 개인회원 이용 불가(민간 직업소개·정보제공 사업자만, 사업자등록증 등 필요) 확인돼서 발급 포기.
+    # 항상 빈 값 — 스크립트는 코드만 남겨둠(재도전 시 참고용).
+    work24_api_key: str = ""
+    # 커리어넷 진로심리검사 — 인증키 승인 완료, /api/career-test 연동 완료(2026-07-20).
+    careernet_api_key: str = ""
+
     # CORS — 프론트 개발 서버 주소 (콤마 구분)
     cors_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost"
 
