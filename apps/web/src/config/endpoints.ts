@@ -66,6 +66,9 @@ export const API_ENDPOINTS = {
     speakChunks: apiUrl("/api/avatar/speak-chunks"),
     ws: (token?: string | null) =>
       `${WS_BASE_URL}/api/avatar/ws${token ? `?token=${encodeURIComponent(token)}` : ""}`,
+    // 아바타 모델 콜드스타트 완화용 워밍업 트리거 — 백엔드 준비 전까지는 404/네트워크 실패를
+    // 조용히 무시한다 (warmupAvatar 참고). 실제 스펙 확정되면 경로만 맞추면 됨.
+    warmup: apiUrl("/api/avatar/warmup"),
   },
 } as const;
 

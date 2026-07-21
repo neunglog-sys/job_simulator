@@ -21,6 +21,7 @@ import {
 } from "react";
 import { CLIENT_EVENTS, FRONTEND_ENDPOINTS } from "../config/endpoints";
 import { AVATAR_IMAGE, LANDING_COPY } from "../content";
+import { warmupAvatar } from "../lib/api";
 import { logout, useAuth } from "../lib/auth";
 import { AuthModal, type AuthMode } from "./AuthModal";
 import { LogoutConfirmDialog } from "./LogoutConfirmDialog";
@@ -620,6 +621,7 @@ export function CareerLaunch() {
   }, [auth.status, postAuthDestination]);
 
   const startCareerExploration = useCallback(() => {
+    warmupAvatar();
     if (auth.status !== "authed") {
       setPostAuthDestination(FRONTEND_ENDPOINTS.conversation);
       setAuthMode("signIn");
@@ -770,7 +772,10 @@ export function CareerLaunch() {
                 <button
                   className="nav-account-button sign-up-button"
                   type="button"
-                  onClick={() => setAuthMode("signUp")}
+                  onClick={() => {
+                    warmupAvatar();
+                    setAuthMode("signUp");
+                  }}
                 >
                   {LANDING_COPY.actions.signUp}
                 </button>
@@ -778,7 +783,10 @@ export function CareerLaunch() {
                 <button
                   className="nav-account-button sign-in-button"
                   type="button"
-                  onClick={() => setAuthMode("signIn")}
+                  onClick={() => {
+                    warmupAvatar();
+                    setAuthMode("signIn");
+                  }}
                 >
                   {LANDING_COPY.actions.signIn}
                 </button>

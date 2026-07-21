@@ -1,4 +1,5 @@
 import { UserCircle } from "@phosphor-icons/react";
+import { AnimatePresence } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { LogoutConfirmDialog } from "../components/LogoutConfirmDialog";
 import { SpaceLoadingScreen } from "../components/SpaceLoadingScreen";
@@ -129,6 +130,11 @@ const DEFAULT_SCENARIO_SLUG =
   new URLSearchParams(window.location.search).get("slug") ||
   import.meta.env.VITE_SCENARIO_SLUG?.trim() ||
   "ms-06";
+
+// 로컬 개발에서는 항상, Docker 프로덕션 빌드에서는 ?reflectionTest=1일 때만 노출한다.
+// 실제 사용자 화면에 테스트 제어가 보이지 않으면서 배포 이미지에서도 검수할 수 있다.
+const REFLECTION_TEST_ENABLED =
+  import.meta.env.DEV || new URLSearchParams(window.location.search).get("reflectionTest") === "1";
 
 // 플레이어가 담당 NPC 좌표(스테이지 로컬 px)에 이 거리 안으로 들어오면 업무를 건넨다.
 const ENCOUNTER_RADIUS = 150;
@@ -271,8 +277,9 @@ export function ScenarioGamePage() {
     () => buildHints(activeStep, adviceCards, coachCards, briefedSteps.includes(activeStep?.id ?? "")),
     [activeStep, adviceCards, coachCards, briefedSteps],
   );
-  // 진행률 = 완료한 본편 미션 수 / 전체 (완주 시 100%). 돌발 퀘스트는 stepIds에 없어 제외됨.
-  const progress = phase === "completed"
+  // 진행률 = 완료한 본편 미션 수 / 전체. 소감문 단계에 도달하면 업무 체험은 100% 완료다.
+  // 돌발 퀘스트는 stepIds에 없어 제외된다.
+  const progress = phase === "reflection" || phase === "completed"
     ? 100
     : stepIds.length
       ? Math.round((Math.max(0, stepIds.indexOf(activeStep?.id ?? "")) / stepIds.length) * 100)
@@ -841,6 +848,11 @@ export function ScenarioGamePage() {
     }
   }, []);
 
+  const handleReflectionTest = useCallback(() => {
+    setReflectionSending(false);
+    setPhase("reflection");
+  }, []);
+
   // 미션(과제) 제출 — WS task_submit. 통과 시 step_changed로 다음 미션, 마지막이면 완료.
   const handleTaskSubmit = useCallback((content: string | string[]) => {
     const socket = socketRef.current;
@@ -1058,6 +1070,16 @@ export function ScenarioGamePage() {
           <kbd>WASD</kbd>
           <span>이동</span>
         </span>
+        {REFLECTION_TEST_ENABLED ? (
+          <button
+            className={styles.reflectionTestButton}
+            type="button"
+            onClick={handleReflectionTest}
+            disabled={connStatus !== "open"}
+          >
+            소감문 테스트
+          </button>
+        ) : null}
       </div>
 
       {/* ── 페이즈별 화면 — 조건 조합 대신 페이즈 하나로 결정된다 ── */}
@@ -1105,13 +1127,17 @@ export function ScenarioGamePage() {
       ) : null}
 
       {/* 5단계 — 체험 소감문 (채점하지 않음. 최종 리포트의 재료) */}
-      {phase === "reflection" ? (
-        <ReflectionPanel
-          scenarioTitle={scenarioTitle}
-          submitting={reflectionSending}
-          onSubmit={handleReflectionSubmit}
-        />
-      ) : null}
+      <AnimatePresence>
+        {phase === "reflection" ? (
+          <ReflectionPanel
+            key="reflection"
+            scenarioTitle={scenarioTitle}
+            theme={scenarioTheme}
+            submitting={reflectionSending}
+            onSubmit={handleReflectionSubmit}
+          />
+        ) : null}
+      </AnimatePresence>
 
       {phase === "completed" ? (
         <div

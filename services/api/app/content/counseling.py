@@ -64,6 +64,41 @@ def _dimension_group(dimension_code: str) -> str:
     return dimension_code.split(".", 1)[0]
 
 
+def get_evidence_rule(rule_id: str) -> dict | None:
+    return next((r for r in load_evidence_rules()["rules"] if r["rule_id"] == rule_id), None)
+
+
+# ── 근거 신뢰도 계산 (규칙 기반, LLM 호출 없음) ──────────────────────────
+
+def score_evidence_confidence(
+    rule_id: str,
+    bonus_flags: set[str] | list[str] | None = None,
+    penalty_flags: set[str] | list[str] | None = None,
+) -> int:
+    """evidence_rules.json 기준 base_confidence + bonus - penalty, 0~100 클램프.
+
+    bonus_flags/penalty_flags에는 해당 rule의 confidence_bonus/confidence_penalty
+    목록 중 이번 근거에 실제로 해당하는 "when" 값만 넣는다(해당 없는 항목은 무시).
+    penalty의 amount는 데이터팩에 이미 음수로 정의되어 있다.
+    """
+    rule = get_evidence_rule(rule_id)
+    if rule is None:
+        raise ValueError(f"알 수 없는 evidence rule_id: {rule_id}")
+
+    bonus_flags = set(bonus_flags or [])
+    penalty_flags = set(penalty_flags or [])
+
+    score = rule["base_confidence"]
+    for bonus in rule["confidence_bonus"]:
+        if bonus["when"] in bonus_flags:
+            score += bonus["amount"]
+    for penalty in rule["confidence_penalty"]:
+        if penalty["when"] in penalty_flags:
+            score += penalty["amount"]
+
+    return max(0, min(100, score))
+
+
 # ── 다음 질문 선택 (규칙 기반, LLM 호출 없음) ────────────────────────────
 
 def select_next_question(

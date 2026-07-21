@@ -19,9 +19,11 @@ type PixelSpriteProps = {
   size?: number;
   /** 폴백 칩에 적용할 클래스(기존 라벨 마커 스타일 유지용) */
   fallbackClassName?: string;
+  /** 카툰·일러스트 SVG처럼 픽셀 보간이 필요 없는 자산은 부드럽게 렌더한다. */
+  smooth?: boolean;
 };
 
-export function PixelSprite({ id, label, size = 56, fallbackClassName }: PixelSpriteProps) {
+export function PixelSprite({ id, label, size = 56, fallbackClassName, smooth = false }: PixelSpriteProps) {
   const [failed, setFailed] = useState(false);
   if (!id || failed) {
     return <span className={fallbackClassName}>{label ?? id}</span>;
@@ -31,7 +33,7 @@ export function PixelSprite({ id, label, size = 56, fallbackClassName }: PixelSp
       src={`${import.meta.env.BASE_URL}assets/minigames/${encodeURIComponent(id)}.svg`}
       alt={label ?? id}
       width={size}
-      style={{ imageRendering: "pixelated", height: "auto", display: "block" }}
+      style={{ imageRendering: smooth ? "auto" : "pixelated", height: "auto", display: "block" }}
       draggable={false}
       onError={() => setFailed(true)}
     />
