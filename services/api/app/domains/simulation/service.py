@@ -329,13 +329,18 @@ async def stream_npc_chat(
 
     # 호감도: 이번 발화의 태도로 이 NPC 호감도만 가감(룰 기반, 즉시 반영). NPC별 독립값이라
     # 시나리오 전역 상태값(trust 등)과 별개.
+    # 첫 대면 여부를 먼저 판정한다 — 인사 예절 페널티가 호감도 델타에 반영돼야 하므로.
+    # 만난 동료를 state에 기록해 둔다(1단계 진행도: 모든 동료와 인사해야 업무가 열림).
+    met = list(simulation.state.get("met_npcs") or [])
+    first_meeting = npc_id not in met
+    greeted = affinity.is_greeting(user_text)
+
     aff_delta = affinity.delta_for(user_text)
+    # 첫 대면인데 인사 없이 용건부터 꺼내면 예의 없음 → 추가 감점(톡식 반응과 짝을 이룸).
+    if first_meeting and not greeted:
+        aff_delta += affinity.FIRST_MEETING_NO_GREETING_PENALTY
     aff_state, aff_value = affinity.bumped(simulation.state, npc_id, aff_delta)
 
-    # 첫 대면이면 오리엔테이션 — 이 NPC는 업무 지시 대신 자기소개와 자기가 맡은 일을 알려준다.
-    # 만난 동료를 state에 기록해 둔다(1단계 진행도: 모든 동료와 인사해야 업무가 열림).
-    met = list(aff_state.get("met_npcs") or [])
-    first_meeting = npc_id not in met
     if first_meeting:
         met.append(npc_id)
         aff_state = {**aff_state, "met_npcs": met}
@@ -394,6 +399,7 @@ async def stream_npc_chat(
         state=simulation.state,
         affinity=aff_value, affinity_band=affinity.band(aff_value),
         knowledge=knowledge,
+        greeted=greeted,  # 첫 대면 무인사 → 톡식 분기(system.md). work 단계에선 무시됨.
         # 첫 대면은 소개하는 자리 — 짧은 메신저 말투·업무 복귀 규칙을 완화한다.
         #   투어 중(tour_done 전) = 사수가 방금 소개했으니 인사만 짧게 받는다(자기소개 중복 방지)
         #   투어 밖에서 처음 만남 = 스스로 소개한다
