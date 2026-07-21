@@ -339,6 +339,16 @@ def write_playtest(geometry: dict, path: Path) -> None:
         {k: geometry[k] for k in ("playable", "walkable", "collision", "collision_polys", "overhead", "spawns", "npc_paths")},
         ensure_ascii=False,
     )
+    # 실제 게임 주인공 스프라이트(public/hero/female.png, 192×384 = 3열×4행, 프레임 64×96)를
+    # data URI로 박아 playtest를 자체완결로 만든다. 없으면 캡슐 폴백.
+    hero_src = ""
+    try:
+        import base64
+        hp = Path(__file__).resolve().parents[2] / "apps" / "web" / "public" / "hero" / "female.png"
+        if hp.exists():
+            hero_src = "data:image/png;base64," + base64.b64encode(hp.read_bytes()).decode()
+    except Exception:
+        hero_src = ""
     path.write_text(
         f"""<!doctype html><meta charset="utf-8"><title>{geometry["map_id"]} 플레이 테스트</title>
 <style>
@@ -347,16 +357,15 @@ body{{margin:0;background:#1a1a1a;font-family:sans-serif;overflow:hidden}}
   transform-origin:0 0}}
 .ov{{position:absolute;border:1px solid rgba(0,0,0,.4);display:none}}
 .show .ov{{display:block}}
-#player{{position:absolute;width:34px;height:44px;margin:-40px 0 0 -17px;
+#player{{position:absolute;width:64px;height:96px;margin:-96px 0 0 -32px;
+  image-rendering:pixelated;background-repeat:no-repeat;
   transition:left 70ms linear,top 70ms linear}}
+#player.fallback{{width:34px;height:44px;margin:-40px 0 0 -17px;border-radius:50% 50% 42% 42%;
+  background:linear-gradient(160deg,#6143ca,#d963aa);border:3px solid #fff}}
 .occ-line .occ{{outline:2px dashed #e91e63}}
 .occtag{{position:absolute;display:none;color:#ff4081;font-size:13px;font-weight:700;
   text-shadow:0 1px 3px #000;z-index:9999;white-space:nowrap}}
 .occ-line .occtag{{display:block}}
-#player .body{{width:34px;height:34px;border-radius:50% 50% 42% 42%;
-  background:linear-gradient(160deg,#6143ca,#d963aa);border:3px solid #fff;
-  box-shadow:0 6px 14px rgba(0,0,0,.45)}}
-#player .shadow{{width:26px;height:8px;margin:2px auto 0;border-radius:50%;background:rgba(0,0,0,.4)}}
 .npc{{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;
   background:#3498db;border:2px solid #fff;z-index:5}}
 .npc b{{position:absolute;top:-22px;left:50%;transform:translateX(-50%);color:#fff;
@@ -394,10 +403,14 @@ for (const n of npcs) {{
 
 const spawn = G.spawns.find(s => s.id === "player") || {{x: 200, y: 400}};
 let px = spawn.x, py = spawn.y;
+const HERO_SRC = "{hero_src}";
+const HERO_ROW = {{front: 0, screen_left: 1, screen_right: 2, back: 3}};  // 시트 행: 아래/좌/우/위
 const player = document.createElement("div");
 player.id = "player";
-player.innerHTML = '<div class="body"></div><div class="shadow"></div>';
+if (HERO_SRC) player.style.backgroundImage = `url(${{HERO_SRC}})`;
+else player.className = "fallback";
 stage.appendChild(player);
+let facing = "front", walkFrame = 0, moving = false, moveTimer = null;
 
 // overhead 오클루더 — 같은 배경에서 그 영역만 잘라(크롭+clip-path) 겹침. z = 밑변(baseline).
 // 플레이어 z = 발 y → 발이 밑변보다 위(뒤)면 가려지고, 아래(앞)면 안 가려짐. 프론트 구현 방식 그대로.
@@ -445,6 +458,10 @@ function render() {{
   player.style.left = px + "px";
   player.style.top = py + "px";
   player.style.zIndex = Math.round(py);  // y-정렬: 발 y가 오클루더 baseline과 경쟁
+  if (HERO_SRC) {{  // 스프라이트 프레임: 열 0=왼발·1=정지·2=오른발, 행=바라보는 방향
+    const col = moving ? (walkFrame ? 2 : 0) : 1;
+    player.style.backgroundPosition = `${{-col * 64}}px ${{-HERO_ROW[facing] * 96}}px`;
+  }}
   const near = npcs.map(n => ({{n, d: Math.hypot(n.x - px, n.y - py)}}))
     .filter(o => o.d < TALK_DIST).sort((a, b) => a.d - b.d)[0];
   const hint = document.getElementById("hint");
@@ -460,6 +477,10 @@ document.addEventListener("keydown", (e) => {{
              arrowleft:[-STEP,0], a:[-STEP,0], arrowright:[STEP,0], d:[STEP,0]}}[k];
   if (!d) return;
   e.preventDefault();
+  if (d[0] < 0) facing = "screen_left"; else if (d[0] > 0) facing = "screen_right";
+  else if (d[1] < 0) facing = "back"; else if (d[1] > 0) facing = "front";
+  moving = true; walkFrame ^= 1;                       // 걸음마다 좌/우발 번갈아
+  clearTimeout(moveTimer); moveTimer = setTimeout(() => {{ moving = false; render(); }}, 180);
   if (canStand(px + d[0], py)) px += d[0];   // 축 분리 → 벽에 스치며 슬라이딩
   if (canStand(px, py + d[1])) py += d[1];
   render();
