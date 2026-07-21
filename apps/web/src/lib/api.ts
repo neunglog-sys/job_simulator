@@ -113,6 +113,24 @@ export function fetchMe(): Promise<Me> {
   return request(API_ENDPOINTS.auth.me, { method: "GET" });
 }
 
+// --- 아바타 워밍업 — 콜드스타트(최초 발화 시 UNet forward + ffmpeg 첫 실행, ~23초) 완화용.
+// 회원가입/로그인/직무 탐색 시작 등 진입 초입 트리거에서 미리 한 번 쏴 둔다. 세션당 1회만
+// 보내면 되므로 여러 트리거가 겹쳐 호출해도 무시(dedup). 백엔드 엔드포인트가 아직 없을 수
+// 있어 실패(404/네트워크 오류)는 조용히 삼킨다 — 실패해도 사용자 흐름엔 영향 없어야 한다.
+let avatarWarmupSent = false;
+
+export function warmupAvatar(): void {
+  if (avatarWarmupSent) return;
+  avatarWarmupSent = true;
+
+  const headers = new Headers({ "Content-Type": "application/json" });
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  fetch(API_ENDPOINTS.avatar.warmup, { method: "POST", headers }).catch(() => {
+    /* 워밍업 실패는 무시 — 실제 대화 흐름에서 정상적으로 콜드스타트가 발생할 뿐 */
+  });
+}
+
 export function createConsultation(): Promise<Consultation> {
   return request(API_ENDPOINTS.consultations.create, { method: "POST" });
 }
