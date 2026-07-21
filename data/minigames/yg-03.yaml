@@ -1,9 +1,11 @@
 # 4단계 미니게임 — yg-03 웹·앱·소프트웨어 개발
 # 웹개발 시나리오의 실무 미니게임을 타이핑(코드 입력) 게임으로 운영한다.
-# 내용은 (비활성 데모였던) 백엔드 타이핑 게임과 동일 — '알림 발송 예외 처리':
-#   같은 사용자 중복 발송, 수신거부 사용자, 야간 시간대 세 예외를 코드로 걸러낸다.
-#   웹개발(풀스택) 신입이 실제로 하는 서버측 예외 처리 업무라 웹개발 시나리오에 맞다.
-#   (이전 place 검수 게임은 git 이력에 보존 — 필요 시 복원 가능)
+# 근거: 3스텝 "배포 전 체크리스트 점검" — 박도윤: "릴리스 후보 배포 예정이니 마지막으로
+#   배포 체크리스트 한번 돌려 봐. 이상 있으면 그 자리에서 멈추고 나한테 먼저 보고해.
+#   절대 혼자 고치거나 실행하지 말고." / answer_guide: 개인정보 평문 노출·API 키 하드코딩·
+#   백업 없는 마이그레이션 같은 치명 위험을 탐지해 배포 중단을 건의.
+#   → 이 세 치명 위험을 막는 '배포 전 안전 점검 코드'를 정확히 입력하는 타이핑 게임.
+#   금지행동(warning): 일정 압박에 배포 강행 / 위험을 발견하고도 혼자 스크립트 수정·실행.
 #
 # ⚠ 「글자 판독 금지」 원칙의 공인 예외 2건 중 하나 (팀 확정 2026-07-20).
 #   코드 입력 자체가 업무라 글자가 불가피하다. 다만 전제가 붙는다:
@@ -12,51 +14,49 @@
 #   - 그래서 fall_seconds 는 넉넉하게 둔다 — 압박이 아니라 정확도를 보는 게임이다.
 scenario_id: yg-03
 engine: typing
-title: 알림 발송 예외 처리
-intro: 막아야 할 예외 조건이 위에서 내려옵니다. 정확히 입력해 걸러내세요. 스펙에 없는 줄은 입력하면 안 됩니다.
+title: 배포 전 안전 점검
+intro: 릴리스 배포 전 마지막 점검입니다. 치명 위험을 막는 점검 코드를 정확히 입력하세요. 위험을 발견하면 혼자 고치지 말고 배포를 중단·보고해야 합니다. 스펙에 없는 줄은 입력하면 안 됩니다.
 time_limit: 90
 pass_score: 70
 
 data:
-  fall_seconds: 14         # 정확도를 보는 게임 — 조급하게 만들지 않는다
-                           # (9→14, 2026-07-20 디자이너 피드백 "재밌는데 너무 어려움" — 속도 미채점이라 완화 무비용)
+  fall_seconds: 14         # 정확도를 보는 게임 — 조급하게 만들지 않는다(속도 미채점)
   # 표시 전용(채점·데이터 계약 불변) — 개발자 책상 스킨. TypingGame 이 이 값일 때만
   # 도트 모니터 프레임(모니터_터미널)·알림 봉투(알림_봉투)·키보드(키보드_자판)·
   # 발송차단/경고 스탬프 연출을 그린다. 봉투는 lines/distractors 겉모습이 동일하고
   # 코드 텍스트(실제 DOM 텍스트)로만 구분한다 — 글자 판독 공인 예외 게임이라 허용.
   # 이 키가 없거나 스프라이트 파일이 없으면 기존 플레인 렌더로 폴백한다.
   presentation: dev_desk
-  # 입력해야 할 줄 — 세 가지 예외 + 기록
+  # 입력해야 할 줄 — 3스텝의 치명 위험 3종을 막는 점검 + 중단 시 선임 보고
   lines:
-    - id: dup
-      text: "if already_sent(user, notice): skip()"
-      label: 같은 사용자에게 중복 발송 차단
-    - id: optout
-      text: "if user.opted_out: skip()"
-      label: 수신거부 사용자 제외
-    - id: night
-      text: "if is_night(now): hold_until_morning()"
-      label: 야간 시간대 발송 보류
-    - id: log
-      text: "log_skipped(user, reason)"
-      label: 걸러진 건을 사유와 함께 기록
+    - id: pii
+      text: "if has_plaintext_pii(logs): block_release()"
+      label: 로그의 개인정보 평문 노출 탐지 → 배포 중단
+    - id: secret
+      text: "if api_key_in_source(config): block_release()"
+      label: 소스에 하드코딩된 API 키 탐지 → 배포 중단
+    - id: backup
+      text: "if migration_lacks_backup(): block_release()"
+      label: 백업 없는 마이그레이션 탐지 → 배포 중단
+    - id: report
+      text: "if release_blocked: report_to_lead()"
+      label: 중단 시 선임에게 보고 (혼자 처리 금지)
 
-  # 입력하면 안 되는 줄 — 금지행동(조건 확인 없이 전체 발송)
+  # 입력하면 안 되는 줄 — 원문 금지행동(warning)
   distractors:
     - id: force
-      text: "send_all(users)"
-      reason: 조건 확인 없이 전체 발송부터 시도
-    - id: retry
-      text: "cancel_after_send()"
-      reason: 일단 보내고 문제 생기면 취소하는 방식
+      text: "deploy_anyway(ignore_warnings=True)"
+      reason: 일정 압박에 밀려 경고를 무시하고 배포 강행
+    - id: selffix
+      text: "patch_secret_and_deploy()"
+      reason: 위험을 발견하고도 혼자 스크립트를 수정·실행
 
 scoring:
-  # accuracy = 정확히 입력한 lines / 전체 lines * 100 − 아래 감점들. 속도 미반영
-  # (time_seconds 는 서술용). 감점:
-  #   distractor 입력 = 금지행동('조건 확인 없이 전체 발송') → 40 (합격선 관통)
-  #   핵심 예외 3줄(dup·optout·night) 중 1줄이라도 누락 → 누락당 40. log 는 비율 감점만.
+  # accuracy = 정확히 입력한 lines / 전체 lines * 100 − 아래 감점들. 속도 미반영.
+  #   distractor 입력 = 금지행동(배포 강행·혼자 수정) → 40 (합격선 관통)
+  #   치명 점검 3줄(pii·secret·backup) 중 1줄이라도 누락 → 누락당 40. report 는 비율 감점만.
   line_count: 4
-  critical_lines: [dup, optout, night]
+  critical_lines: [pii, secret, backup]
   missed_critical_penalty: 40
   distractor_penalty: 40
   count_speed: false

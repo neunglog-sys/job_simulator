@@ -4089,8 +4089,8 @@ export const PREVIEW_GAMES = {
   },
   "yg-03": {
     "engine": "typing",
-    "title": "알림 발송 예외 처리",
-    "intro": "막아야 할 예외 조건이 위에서 내려옵니다. 정확히 입력해 걸러내세요. 스펙에 없는 줄은 입력하면 안 됩니다.",
+    "title": "배포 전 안전 점검",
+    "intro": "릴리스 배포 전 마지막 점검입니다. 치명 위험을 막는 점검 코드를 정확히 입력하세요. 위험을 발견하면 혼자 고치지 말고 배포를 중단·보고해야 합니다. 스펙에 없는 줄은 입력하면 안 됩니다.",
     "time_limit": 90,
     "pass_score": 70,
     "data": {
@@ -4098,45 +4098,45 @@ export const PREVIEW_GAMES = {
       "presentation": "dev_desk",
       "lines": [
         {
-          "id": "dup",
-          "text": "if already_sent(user, notice): skip()",
-          "label": "같은 사용자에게 중복 발송 차단"
+          "id": "pii",
+          "text": "if has_plaintext_pii(logs): block_release()",
+          "label": "로그의 개인정보 평문 노출 탐지 → 배포 중단"
         },
         {
-          "id": "optout",
-          "text": "if user.opted_out: skip()",
-          "label": "수신거부 사용자 제외"
+          "id": "secret",
+          "text": "if api_key_in_source(config): block_release()",
+          "label": "소스에 하드코딩된 API 키 탐지 → 배포 중단"
         },
         {
-          "id": "night",
-          "text": "if is_night(now): hold_until_morning()",
-          "label": "야간 시간대 발송 보류"
+          "id": "backup",
+          "text": "if migration_lacks_backup(): block_release()",
+          "label": "백업 없는 마이그레이션 탐지 → 배포 중단"
         },
         {
-          "id": "log",
-          "text": "log_skipped(user, reason)",
-          "label": "걸러진 건을 사유와 함께 기록"
+          "id": "report",
+          "text": "if release_blocked: report_to_lead()",
+          "label": "중단 시 선임에게 보고 (혼자 처리 금지)"
         }
       ],
       "distractors": [
         {
           "id": "force",
-          "text": "send_all(users)",
-          "reason": "조건 확인 없이 전체 발송부터 시도"
+          "text": "deploy_anyway(ignore_warnings=True)",
+          "reason": "일정 압박에 밀려 경고를 무시하고 배포 강행"
         },
         {
-          "id": "retry",
-          "text": "cancel_after_send()",
-          "reason": "일단 보내고 문제 생기면 취소하는 방식"
+          "id": "selffix",
+          "text": "patch_secret_and_deploy()",
+          "reason": "위험을 발견하고도 혼자 스크립트를 수정·실행"
         }
       ]
     },
     "scoring": {
       "line_count": 4,
       "critical_lines": [
-        "dup",
-        "optout",
-        "night"
+        "pii",
+        "secret",
+        "backup"
       ],
       "missed_critical_penalty": 40,
       "distractor_penalty": 40,
