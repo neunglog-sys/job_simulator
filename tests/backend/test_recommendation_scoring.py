@@ -12,9 +12,12 @@ from app.domains.recommendation.service import (
 )
 
 
-def _job(competencies, title="테스트 직무", interest_profile=None):
+def _job(competencies, title="테스트 직무", interest_profile=None, dimension_weights=None):
     return SimpleNamespace(
-        competencies=competencies, title=title, interest_profile=interest_profile or {}
+        competencies=competencies,
+        title=title,
+        interest_profile=interest_profile or {},
+        dimension_weights=dimension_weights or {},
     )
 
 

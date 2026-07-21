@@ -113,27 +113,63 @@ def _interest_match(job_profile: dict[str, int], user_profile: dict[str, int]) -
 
 
 def is_recommendable(job: Job) -> bool:
-    """추천 후보 자격 — 역량 가중치가 있어야 점수를 매길 수 있다.
+    """추천 후보 자격 — 역량 가중치(competencies)나 8모듈 43축 가중치(dimension_weights)
+    중 하나는 있어야 점수를 매길 수 있다.
 
-    빈 competencies는 NEUTRAL_SCORE만 받아 진짜 추천이 아니므로 후보에서 제외한다.
-    게임 시나리오 전용으로 생성된 '플레이용' 직무(build_scenarios YAML 방출)가
-    추천 상위에 섞이던 오염을 막는다. slug==code 관례에 의존하지 않는 판별.
+    빈 competencies는 NEUTRAL_SCORE만 받아 진짜 추천이 아니므로 원래는 후보에서
+    전부 제외했다. 다만 competencies가 비어있는 40개 카테고리 직무(kts/ms/ys/jm/
+    stn/yg-*)는 module_mapping.json에서 이식된 dimension_weights를 갖고 있어
+    (_score_job 참고) 이것으로 근거 있는 점수를 매길 수 있으므로 후보에 포함한다.
+    둘 다 없는(순수 '플레이용') 직무만 여전히 배제된다.
     """
-    return bool(job.competencies)
+    return bool(job.competencies) or bool(job.dimension_weights)
+
+
+def _module_interest_match(
+    dimension_weights: dict[str, float], user_profile: dict[str, int]
+) -> int | None:
+    """dimension_weights의 interest.* 서브셋만 추출해 사용자 흥미유형과 코사인 매칭.
+
+    work_target/work_style/skill 등 나머지 축 그룹은 사전 설문(RIASEC)에 대응하는
+    사용자 신호가 없다 — NEUTRAL_SCORE로 채우면 근거 없는 점수를 만드는 것이므로,
+    _weighted_avg처럼 채우지 않고 interest 그룹만으로 판단한다.
+    """
+    interest_weights = {
+        key.removeprefix("interest."): weight
+        for key, weight in dimension_weights.items()
+        if key.startswith("interest.")
+    }
+    if not interest_weights:
+        return None
+    return _interest_match(interest_weights, user_profile)
 
 
 def _score_job(job: Job, scores: dict[str, int], interest_profile: dict[str, int] | None = None) -> int:
-    """직무 역량 중요도(1~5) 가중 평균 → 0~100 적합도. 사전 설문이 있으면 흥미유형 매칭을 보조 신호로 blend."""
-    competency_score = _weighted_avg(job.competencies, scores)
-    if competency_score is None:
-        competency_score = NEUTRAL_SCORE
+    """직무 역량 중요도(1~5) 가중 평균 → 0~100 적합도. 사전 설문이 있으면 흥미유형 매칭을 보조 신호로 blend.
 
-    if not interest_profile:
-        return competency_score
-    interest_score = _interest_match(job.interest_profile, interest_profile)
-    if interest_score is None:
-        return competency_score
-    return round(competency_score * (1 - INTEREST_WEIGHT) + interest_score * INTEREST_WEIGHT)
+    competencies가 비어있는 카테고리 직무(dimension_weights만 있는 40개)는 역량 근거
+    자체가 없으므로 이 블렌드 대신 dimension_weights의 interest.* 서브셋과 사전 설문의
+    코사인 매칭 점수를 그대로 사용한다.
+    """
+    if job.competencies:
+        competency_score = _weighted_avg(job.competencies, scores)
+        if competency_score is None:
+            competency_score = NEUTRAL_SCORE
+
+        if not interest_profile:
+            return competency_score
+        interest_score = _interest_match(job.interest_profile, interest_profile)
+        if interest_score is None:
+            return competency_score
+        return round(competency_score * (1 - INTEREST_WEIGHT) + interest_score * INTEREST_WEIGHT)
+
+    if job.dimension_weights:
+        if not interest_profile:
+            return NEUTRAL_SCORE  # 사전 설문 자체가 없는 완전 무근거 케이스만 예외적으로 폴백
+        module_score = _module_interest_match(job.dimension_weights, interest_profile)
+        return module_score if module_score is not None else NEUTRAL_SCORE
+
+    return NEUTRAL_SCORE
 
 
 def _build_reason(
@@ -145,7 +181,12 @@ def _build_reason(
     """해당 직무에서 중요하면서(가중치) 사용자가 강한(점수) 역량 상위 2개로 근거 구성.
 
     사전 설문 흥미유형이 이 직무의 핵심 흥미유형과 겹치면 한 문장 덧붙임.
+    competencies가 비어있는 카테고리 직무(dimension_weights만 있음)는 역량 근거가
+    없으므로 별도 함수(_build_reason_from_dimension_weights)로 근거를 구성한다.
     """
+    if not job.competencies:
+        return _build_reason_from_dimension_weights(job, interest_profile)
+
     ranked = sorted(
         job.competencies.items(),
         key=lambda kv: kv[1] * scores.get(kv[0], NEUTRAL_SCORE),
@@ -160,6 +201,27 @@ def _build_reason(
         if job_top_weight >= 4 and interest_profile.get(job_top_dim, 0) >= 60:
             reason += f" 사전 설문에서 나타난 '{labels.get(job_top_dim, job_top_dim)}' 성향과도 잘 맞아요."
     return reason
+
+
+def _build_reason_from_dimension_weights(
+    job: Job, interest_profile: dict[str, int] | None
+) -> str:
+    """competencies 없이 dimension_weights만 있는 카테고리 직무의 근거 문구.
+
+    상담 역량 점수 대신, 8모듈 43축 가중치의 interest.* 서브셋과 사전 설문에서
+    가장 강하게 겹치는 흥미유형 이름으로 근거를 구성한다(_score_job과 동일한 신호).
+    """
+    interest_weights = {
+        key.removeprefix("interest."): weight
+        for key, weight in job.dimension_weights.items()
+        if key.startswith("interest.")
+    }
+    if interest_weights and interest_profile:
+        labels = survey.dimension_labels()
+        top_dim = max(interest_weights.items(), key=lambda kv: kv[1])[0]
+        label = labels.get(top_dim, top_dim)
+        return f"사전 설문에서 나타난 '{label}' 성향이 {job.title} 직무와 잘 맞습니다."
+    return f"{job.title} 직무는 관심 분야 체계(8모듈) 기준으로 추천되었습니다."
 
 
 async def create_recommendation(
@@ -255,6 +317,13 @@ async def create_recommendation(
                 "interest_score": (
                     _interest_match(job.interest_profile, interest_profile)
                     if interest_profile
+                    else None
+                ),
+                # dimension_weights만 있는 카테고리 직무(40개)는 위 두 값이 의미 없으므로
+                # 실제 채점에 쓰인 모듈-흥미유형 매칭 점수를 별도로 남긴다.
+                "module_interest_score": (
+                    _module_interest_match(job.dimension_weights, interest_profile)
+                    if job.dimension_weights and interest_profile
                     else None
                 ),
                 "blended_score": result["score"],
