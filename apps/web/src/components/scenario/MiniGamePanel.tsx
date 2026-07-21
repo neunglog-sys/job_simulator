@@ -61,7 +61,12 @@ export function MiniGamePanel({ missionTitle, game, onClear }: MiniGamePanelProp
         {game && EngineComponent ? (
           <>
             {game.intro ? <p className={styles.miniGameBody}>{game.intro}</p> : null}
-            <EngineComponent game={game} onComplete={complete} />
+            {/* 게임 영역은 모달 안에서 스크롤되게 가둔다 — 카드/아이템이 많아도(match 15장 등)
+                모달·뷰포트 밖으로 넘치지 않는다. match 선 좌표는 보드 기준 상대값이라
+                보드가 한 덩어리로 스크롤돼도 선이 어긋나지 않는다. */}
+            <div className={styles.missionGameScroll}>
+              <EngineComponent game={game} onComplete={complete} />
+            </div>
           </>
         ) : (
           <>
