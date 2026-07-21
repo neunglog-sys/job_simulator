@@ -728,7 +728,7 @@ async def save_memo(session: AsyncSession, simulation: Simulation, content: str)
     return {"state": public_state(state), "step_changed": None}
 
 
-REFLECTION_MAX = 2000
+REFLECTION_MAX = 1000
 
 
 async def save_reflection(

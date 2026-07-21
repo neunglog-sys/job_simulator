@@ -8,6 +8,15 @@ type AuthState =
   | { status: "anon"; me: null }
   | { status: "authed"; me: api.Me };
 
+const OAUTH_RETURN_TO_KEY = "jobiverse:oauth-return-to";
+
+function isAllowedReturnTo(destination: string | null): destination is string {
+  return Boolean(
+    destination &&
+      (destination.startsWith("/conversation") || destination.startsWith("/scenario")),
+  );
+}
+
 let state: AuthState = api.getToken()
   ? { status: "loading", me: null } // 토큰은 있으나 /me 확인 전
   : { status: "anon", me: null };
@@ -64,9 +73,33 @@ export async function authenticate(
 }
 
 /** OAuth 리다이렉트 URL의 토큰을 저장하고, 로그인 사용자 정보를 즉시 갱신한다. */
-export async function completeOAuthAuthentication(token: string): Promise<void> {
+export async function completeOAuthAuthentication(token: string): Promise<boolean> {
   api.setToken(token);
   await refresh();
+  return state.status === "authed";
+}
+
+/** 소셜 로그인으로 페이지를 벗어나기 전에 원래 가려던 보호 경로를 보관한다. */
+export function rememberOAuthReturnTo(): void {
+  const destination = new URLSearchParams(window.location.search).get("returnTo");
+  if (!isAllowedReturnTo(destination)) return;
+
+  try {
+    window.sessionStorage.setItem(OAUTH_RETURN_TO_KEY, destination);
+  } catch {
+    /* sessionStorage를 사용할 수 없는 환경에서는 메인 화면으로 복귀한다. */
+  }
+}
+
+/** OAuth 인증이 끝난 뒤 한 번만 사용할 보호 경로를 꺼낸다. */
+export function consumeOAuthReturnTo(): string | null {
+  try {
+    const destination = window.sessionStorage.getItem(OAUTH_RETURN_TO_KEY);
+    window.sessionStorage.removeItem(OAUTH_RETURN_TO_KEY);
+    return isAllowedReturnTo(destination) ? destination : null;
+  } catch {
+    return null;
+  }
 }
 
 export function logout(): void {

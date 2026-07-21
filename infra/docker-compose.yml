@@ -12,6 +12,9 @@ services:
       # `docker compose --profile localdb up -d` 로 기동.
       REDIS_URL: redis://redis:6379/0
       STORAGE_DIR: /app/storage
+      # Docker 웹은 80 포트에서 서비스되므로 OAuth 성공 후 같은 origin으로 복귀시킨다.
+      # 배포 환경에서는 .env의 FRONTEND_URL로 실제 프론트 주소를 지정한다.
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
     ports:
       - "8000:8000"
     volumes:
