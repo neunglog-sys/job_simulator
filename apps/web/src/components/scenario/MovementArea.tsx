@@ -96,6 +96,10 @@ function isTypingTarget(target: EventTarget | null): boolean {
 // 충돌은 스프라이트 전체가 아니라 발밑 영역으로 판정 — 벽에 자연스럽게 붙는다.
 const FOOT_WIDTH = 46;
 const FOOT_HEIGHT = 26;
+// 문/모서리 진입 보조(코너 어시스트) — 진행 방향이 막히면 수직으로 이만큼까지 밀어보며
+// 통로에 맞으면 미끄러져 들어간다. 좁은 문 앞에서 정확히 정렬 안 해도 자연스럽게 들어가짐.
+const DOOR_ASSIST = 20;
+const ASSIST_STEP = 2;
 
 const GAME_OBJECTS: GameObject[] = [
   {
@@ -406,18 +410,41 @@ export function MovementArea({
   const movePlayer = useCallback(
     (deltaX: number, deltaY: number) => {
       const from = positionRef.current;
-      // 축 분리 이동 — 벽에 부딪혀도 다른 축으로는 미끄러진다.
-      let nextX = from.x;
-      let nextY = from.y;
-      const tryX = clampPosition({ x: from.x + deltaX, y: from.y });
-      if (!collidesAt(tryX)) nextX = tryX.x;
-      const tryY = clampPosition({ x: nextX, y: from.y + deltaY });
-      if (!collidesAt(tryY)) nextY = tryY.y;
-      if (nextX !== from.x || nextY !== from.y) {
-        const next = { x: nextX, y: nextY };
-        positionRef.current = next; // 다음 입력이 곧바로 이어지도록 즉시 반영
-        onPositionChange(next);
-        notePlayerMove(next.x - from.x, next.y - from.y);
+      const freeAt = (x: number, y: number) => {
+        const c = clampPosition({ x, y });
+        return collidesAt(c) ? null : c;
+      };
+      const cur = { x: from.x, y: from.y };
+      // 한 축 이동 — 막히면 진행 방향에 수직으로 살짝 밀어(코너 어시스트) 문/모서리로 미끄러진다.
+      const slide = (dx: number, dy: number) => {
+        if (dx === 0 && dy === 0) return;
+        const direct = freeAt(cur.x + dx, cur.y + dy);
+        if (direct) {
+          cur.x = direct.x;
+          cur.y = direct.y;
+          return;
+        }
+        for (let off = ASSIST_STEP; off <= DOOR_ASSIST; off += ASSIST_STEP) {
+          for (const s of [off, -off]) {
+            const px = dx === 0 ? s : 0; // 세로 이동이면 좌우로, 가로 이동이면 상하로 민다
+            const py = dy === 0 ? s : 0;
+            const shifted = freeAt(cur.x + px, cur.y + py);
+            if (!shifted) continue;
+            const moved = freeAt(shifted.x + dx, shifted.y + dy);
+            if (moved) {
+              cur.x = moved.x;
+              cur.y = moved.y;
+              return;
+            }
+          }
+        }
+      };
+      slide(deltaX, 0);
+      slide(0, deltaY);
+      if (cur.x !== from.x || cur.y !== from.y) {
+        positionRef.current = { ...cur }; // 다음 입력이 곧바로 이어지도록 즉시 반영
+        onPositionChange({ ...cur });
+        notePlayerMove(cur.x - from.x, cur.y - from.y);
       }
     },
     [clampPosition, collidesAt, onPositionChange, notePlayerMove],
