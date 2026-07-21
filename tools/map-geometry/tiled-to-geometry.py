@@ -381,7 +381,7 @@ body{{margin:0;background:#1a1a1a;font-family:sans-serif;overflow:hidden}}
 <div id="help">이동: WASD/방향키 · 오버레이: G · 오클루더 윤곽: O</div>
 <script>
 const G = {data};
-const STEP = 18, FOOT_W = 28, FOOT_H = 16, TALK_DIST = 130;  // NPC가 책상 뒤라 책상 너머 대화 가능한 반경
+const STEP = 18, FOOT_W = 46, FOOT_H = 26, TALK_DIST = 130, DOOR_ASSIST = 20;  // 게임과 동일: 발박스 46×26 + 문 진입 보조
 const stage = document.getElementById("stage");
 
 for (const [kind, color] of [["walkable","rgba(46,204,113,.30)"],["collision","rgba(231,76,60,.35)"]])
@@ -452,7 +452,9 @@ const hitsPoly = (x, y) => (G.collision_polys || []).some(p =>
   [[x - FOOT_W / 2, y - FOOT_H], [x + FOOT_W / 2, y - FOOT_H],
    [x - FOOT_W / 2, y], [x + FOOT_W / 2, y], [x, y - FOOT_H / 2]]
     .some(([cx, cy]) => pip(cx, cy, p.points)));
-const canStand = (x, y) => inWalkable(x, y) && !hitsCollision(x, y) && !hitsPoly(x, y);
+// 게임과 동일: walkable은 이동 판정에 안 쓴다(collision만). walkable은 좌표 원점 잡는 용도.
+const inBounds = (x, y) => x - FOOT_W / 2 >= 0 && x + FOOT_W / 2 <= {w} && y - FOOT_H >= 0 && y <= {h};
+const canStand = (x, y) => inBounds(x, y) && !hitsCollision(x, y) && !hitsPoly(x, y);
 
 function render() {{
   player.style.left = px + "px";
@@ -481,8 +483,20 @@ document.addEventListener("keydown", (e) => {{
   else if (d[1] < 0) facing = "back"; else if (d[1] > 0) facing = "front";
   moving = true; walkFrame ^= 1;                       // 걸음마다 좌/우발 번갈아
   clearTimeout(moveTimer); moveTimer = setTimeout(() => {{ moving = false; render(); }}, 180);
-  if (canStand(px + d[0], py)) px += d[0];   // 축 분리 → 벽에 스치며 슬라이딩
-  if (canStand(px, py + d[1])) py += d[1];
+  // 게임과 동일한 문 진입 보조(코너 어시스트): 막히면 진행 방향 수직으로 살짝 밀어 통로에 미끄러진다
+  const slide = (dx, dy) => {{
+    if (!dx && !dy) return;
+    if (canStand(px + dx, py + dy)) {{ px += dx; py += dy; return; }}
+    for (let off = 2; off <= DOOR_ASSIST; off += 2) {{
+      for (const s of [off, -off]) {{
+        const sx = dx === 0 ? s : 0, sy = dy === 0 ? s : 0;
+        if (canStand(px + sx, py + sy) && canStand(px + sx + dx, py + sy + dy)) {{
+          px += sx + dx; py += sy + dy; return;
+        }}
+      }}
+    }}
+  }};
+  slide(d[0], 0); slide(0, d[1]);
   render();
 }});
 
