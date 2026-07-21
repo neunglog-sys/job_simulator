@@ -43,6 +43,25 @@ _POLITE = re.compile(
 # 턴당 변동 폭 — 무례(-)가 공손(+)보다 크게(비대칭).
 _MIN_DELTA, _MAX_DELTA = -6, 3
 
+# 첫 대면 인사말 — 용건과 섞여 있어도(예: "안녕하세요, 이거 어떻게…") 인사로 인정한다.
+_GREETING = re.compile(
+    r"안녕|반갑|반가워|처음\s*뵙|뵙겠|뵙습|잘\s*부탁|좋은\s*(아침|오후|저녁)"
+    r"|하이|헬로|hello|안뇽|방가|인사\s*드",
+    re.IGNORECASE,
+)
+_GREETING_EN = re.compile(r"\bhi\b", re.IGNORECASE)  # 영어 hi 단독(단어경계) — history 등 오탐 방지
+
+# 첫 대면인데 인사 없이 용건부터 꺼낼 때의 예절 페널티(호감도 감소). 무례(-6)보단 약하게.
+FIRST_MEETING_NO_GREETING_PENALTY = -5
+
+
+def is_greeting(user_text: str) -> bool:
+    """발화에 첫 대면 인사말이 들어 있는가(용건과 섞여 있어도 인사로 인정)."""
+    text = (user_text or "").strip()
+    if not text:
+        return False
+    return bool(_GREETING.search(text) or _GREETING_EN.search(text))
+
 
 def current(state: dict, npc_id: str) -> int:
     """이 NPC에 대한 현재 호감도. 아직 대화 전이면 기본값(BASE)."""
