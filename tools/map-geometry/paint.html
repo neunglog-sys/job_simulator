@@ -98,11 +98,18 @@
     <div class="row">
       <button id="erase">지우개 (우클릭)</button>
       <button id="undo">되돌리기 (Ctrl+Z)</button>
+      <button id="redo">다시(Ctrl+Y)</button>
     </div>
     <div class="row">
       <button id="grid" class="on">그리드</button>
       <button id="clearlayer">이 레이어 비우기</button>
     </div>
+    <div class="row">확대
+      <button id="zoomout">−</button><span id="zoomval">100%</span><button id="zoomin">+</button>
+      <button id="zoomreset">맞춤</button>
+      <span class="hint" style="margin:0">Ctrl+휠 · +/−</span>
+    </div>
+    <div id="savenote" class="hint" style="color:#7fdca0">자동저장 대기</div>
 
     <h4>④ 내보내기</h4>
     <button class="big go" id="exp">ZIP 내보내기 (TMX+마스크)</button>
@@ -114,7 +121,8 @@
       <b>방향키/WASD</b> 커서 · <b>Space</b> 펜 · <b>Enter</b> 콕/자리<br>
       마우스 드래그로도 그리기 · 우클릭=지우기<br>
       레이어 <b>1</b>walk <b>2</b>coll <b>3</b>over <b>4</b>spawn<br>
-      브러시 <b>[ ]</b> · 지우개 <b>E</b> · 되돌리기 <b>Ctrl+Z</b>
+      브러시 <b>[ ]</b> · 지우개 <b>E</b><br>
+      되돌리기 <b>Ctrl+Z</b> · 다시 <b>Ctrl+Y</b> (자동저장됨 — 새로고침해도 복원)
     </div>
   </div>
 
@@ -161,14 +169,40 @@ const isOver = () => layer === "overhead";
 const overRadius = () => Math.max(3, brush * 6);   // overhead 브러시 반경(px)
 
 // ── 표시 크기 ──
+let baseScale = 1, zoom = 1;
 function fit() {
   const availW = window.innerWidth - 250 - 48;
   const availH = window.innerHeight - 48;
-  const s = Math.min(availW / MAPW, availH / MAPH, 1);
+  baseScale = Math.min(availW / MAPW, availH / MAPH, 1);
+  applyZoom();
+}
+function applyZoom() {
+  const s = baseScale * zoom;
   cv.style.width = (MAPW * s) + "px";
   cv.style.height = (MAPH * s) + "px";
+  const zv = document.getElementById("zoomval");
+  if (zv) zv.textContent = Math.round(zoom * 100) + "%";
+}
+function setZoom(z, pivot) {
+  const wrap = document.getElementById("stagewrap");
+  const before = cv.getBoundingClientRect();
+  const fx = pivot ? (pivot.x - before.left) / before.width : 0.5;
+  const fy = pivot ? (pivot.y - before.top) / before.height : 0.5;
+  zoom = Math.max(1, Math.min(6, z));
+  applyZoom();
+  const after = cv.getBoundingClientRect();
+  wrap.scrollLeft += fx * (after.width - before.width);   // 커서(또는 중앙) 위치 유지
+  wrap.scrollTop += fy * (after.height - before.height);
 }
 window.addEventListener("resize", fit);
+document.getElementById("zoomin").onclick = () => setZoom(zoom * 1.25);
+document.getElementById("zoomout").onclick = () => setZoom(zoom / 1.25);
+document.getElementById("zoomreset").onclick = () => setZoom(1);
+document.getElementById("stagewrap").addEventListener("wheel", e => {
+  if (!e.ctrlKey) return;                 // Ctrl+휠만 확대 (그냥 휠은 스크롤=이동)
+  e.preventDefault();
+  setZoom(zoom * (e.deltaY < 0 ? 1.2 : 1 / 1.2), { x: e.clientX, y: e.clientY });
+}, { passive: false });
 
 // ── 그리기 ──
 function draw() {
@@ -278,6 +312,7 @@ function updateStats() {
   document.getElementById("stats").innerHTML =
     `walkable <b>${cnt("walkable")}</b>칸 · collision <b>${cnt("collision")}</b>칸<br>` +
     `overhead 그려짐 · spawn <b>${spawns.length}</b>개`;
+  scheduleSave();   // 변경 있을 때마다 디바운스 자동저장
 }
 
 // ── 좌표 ──
@@ -312,19 +347,35 @@ function paintOver(mx, my, erase) {
   overCtx.globalCompositeOperation = "source-over";
 }
 
-function snapshot() {
-  const snap = { spawns: JSON.parse(JSON.stringify(spawns)),
-                 over: overCtx.getImageData(0, 0, MAPW, MAPH) };
-  for (const L of CELL_LAYERS) snap[L] = grid[L].slice();
-  history.push(snap);
-  if (history.length > 10) history.shift();
+const redoStack = [];
+function captureState() {
+  const s = { spawns: JSON.parse(JSON.stringify(spawns)),
+              over: overCtx.getImageData(0, 0, MAPW, MAPH) };
+  for (const L of CELL_LAYERS) s[L] = grid[L].slice();
+  return s;
+}
+function applyState(s) {   // 스냅샷은 원본 보존 — 복사해서 적용
+  spawns = JSON.parse(JSON.stringify(s.spawns));
+  for (const L of CELL_LAYERS) grid[L] = s[L].slice();
+  overCtx.putImageData(s.over, 0, 0);
+}
+function snapshot() {   // 액션 직전 현재 상태 저장 (undo용)
+  history.push(captureState());
+  if (history.length > 50) history.shift();
+  redoStack.length = 0;   // 새 액션이 생기면 redo 무효
 }
 function undo() {
   const snap = history.pop();
   if (!snap) return;
-  spawns = snap.spawns;
-  for (const L of CELL_LAYERS) grid[L] = snap[L];
-  overCtx.putImageData(snap.over, 0, 0);
+  redoStack.push(captureState());   // 현재를 redo로
+  applyState(snap);
+  draw();
+}
+function redo() {
+  const snap = redoStack.pop();
+  if (!snap) return;
+  history.push(captureState());
+  applyState(snap);
   draw();
 }
 
@@ -457,7 +508,13 @@ function togglePen() {
 }
 window.addEventListener("keydown", e => {
   const k = e.key.toLowerCase();
-  if (e.ctrlKey && k === "z") { e.preventDefault(); penDown = false; undo(); return; }
+  if (e.ctrlKey && (k === "z" || k === "y")) {
+    e.preventDefault();
+    if (e.repeat) return;              // 꾹 누름(키 반복)으로 한 번에 다 날아가는 것 방지
+    penDown = false;
+    if (k === "y" || e.shiftKey) redo(); else undo();
+    return;
+  }
   if (MOVE[k] && img) {
     e.preventDefault();
     if (penDown && !penDidSnapshot) { snapshot(); penDidSnapshot = true; }
@@ -486,6 +543,8 @@ window.addEventListener("keydown", e => {
   else if (k === "[") setBrush(brush - 1);
   else if (k === "]") setBrush(brush + 1);
   else if (k === "e") document.getElementById("erase").click();
+  else if (k === "+" || k === "=") setZoom(zoom * 1.25);
+  else if (k === "-" || k === "_") setZoom(zoom / 1.25);
 });
 window.addEventListener("keyup", () => {});
 
@@ -549,6 +608,7 @@ document.getElementById("clearlayer").onclick = () => {
   draw();
 };
 document.getElementById("undo").onclick = undo;
+document.getElementById("redo").onclick = redo;
 for (const L of ["walkable", "collision", "overhead"]) {
   document.getElementById("vis-" + L).onclick = e => {
     vis[L] = !vis[L]; e.target.classList.toggle("on", vis[L]); draw();
@@ -557,22 +617,55 @@ for (const L of ["walkable", "collision", "overhead"]) {
 
 // ── 이미지 로드 ──
 let slug = "map";
-function loadImageFile(f) {
+function loadImageFile(f, promptRestore) {
   slug = f.name.replace(/\.[^.]+$/, "");
   document.getElementById("loadedname").innerHTML = "열림: <b>" + f.name + "</b> → slug <b>" + slug + "</b>";
   return new Promise(res => {
     const url = URL.createObjectURL(f);
     img = new Image();
-    img.onload = () => { buildSrc(); fit(); draw(); URL.revokeObjectURL(url); res(); };
+    img.onload = () => { buildSrc(); fit(); draw(); URL.revokeObjectURL(url); if (promptRestore) checkRestore(); res(); };
     img.onerror = () => { URL.revokeObjectURL(url); res(); };
     img.src = url;
   });
 }
-document.getElementById("imgfile").onchange = e => { const f = e.target.files[0]; if (f) loadImageFile(f); };
+document.getElementById("imgfile").onchange = e => { const f = e.target.files[0]; if (f) loadImageFile(f, true); };
 function buildSrc() {                 // 자동누끼용 배경 픽셀 캐시
   const sc = document.createElement("canvas"); sc.width = MAPW; sc.height = MAPH;
   const sx = sc.getContext("2d"); sx.drawImage(img, 0, 0, MAPW, MAPH);
   srcData = sx.getImageData(0, 0, MAPW, MAPH).data;
+}
+
+// ── 자동 중간 저장 (localStorage) — 새로고침/실수로 닫아도 작업 유지 ──
+function gridToB64(g) { let s = ""; for (let i = 0; i < g.length; i += 8192) s += String.fromCharCode.apply(null, g.subarray(i, i + 8192)); return btoa(s); }
+function b64ToGrid(b64) { const s = atob(b64); const g = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) g[i] = s.charCodeAt(i); return g; }
+let saveTimer = null;
+function scheduleSave() { if (!img) return; clearTimeout(saveTimer); saveTimer = setTimeout(saveLocal, 700); }
+function saveLocal() {
+  try {
+    localStorage.setItem("paintmap:" + slug, JSON.stringify({
+      slug, ts: Date.now(), spawns,
+      walkable: gridToB64(grid.walkable), collision: gridToB64(grid.collision),
+      over: overCanvas.toDataURL("image/png"),
+    }));
+    const el = document.getElementById("savenote");
+    if (el) el.textContent = "💾 자동저장 " + new Date().toLocaleTimeString();
+  } catch (e) { const el = document.getElementById("savenote"); if (el) el.textContent = "⚠ 저장 실패(용량?)"; }
+}
+function restoreLocal(d) {
+  grid.walkable = b64ToGrid(d.walkable); grid.collision = b64ToGrid(d.collision);
+  spawns = d.spawns || [];
+  overCtx.clearRect(0, 0, MAPW, MAPH);
+  const im = new Image();
+  im.onload = () => { overCtx.drawImage(im, 0, 0); history.length = 0; redoStack.length = 0; draw(); };
+  im.src = d.over;
+}
+function checkRestore() {
+  const raw = localStorage.getItem("paintmap:" + slug);
+  if (!raw) return;
+  try {
+    const d = JSON.parse(raw);
+    if (confirm(`이 맵(${slug})의 자동저장 작업이 있습니다.\n(${new Date(d.ts).toLocaleString()})\n\n확인=복원 · 취소=새로 시작`)) restoreLocal(d);
+  } catch (e) {}
 }
 
 // ── 기존 작업 불러오기 (walkable/collision/spawn + overhead 마스크까지 복원) ──
