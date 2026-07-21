@@ -30,8 +30,9 @@ import {
  *   슬롯에 놓을 수 있다. 접근성 폴백으로 기존 클릭-선택 → 슬롯-클릭도 그대로 동작한다.
  *   배경은 두 갈래:
  *   · scene 없음(ms-03 회의실) — 기존 CSS/SVG 배치도(테이블+의자 위에서 본 뷰) 그대로.
- *   · scene 있음(hr-01·cln-01) — public/assets/minigames/<scene>.svg 도트 씬을
- *     캔버스에 꽉 채워 깔고(RouteGame map 배경 패턴, pixelated) 슬롯은 컴팩트 패드로
+ *   · scene 있음(hr-01·cln-01·stn-05) — 확장자 없는 scene 은 기존
+ *     public/assets/minigames/<scene>.svg 도트 씬으로, 확장자를 명시한 scene 은 해당
+ *     래스터/벡터 파일로 불러와 캔버스에 꽉 채운다. 슬롯은 컴팩트 패드로
  *     올린다. 씬 파일이 없거나 로드에 실패하면 맵 모드로 올리지 않고 기존 목록 UI로
  *     폴백한다 — 아트 추가 전과 동일 화면(회귀 금지).
  * - 목록 모드(at 없는 게임 + 씬 파일이 아직 없는 scene 게임): 기존 그리드 배치판 + 단일 카트.
@@ -48,6 +49,7 @@ type PlaceSlot = {
   accepts?: string | null;
   marker?: string;
   label?: string;
+  kind?: "seat" | "dock";
   at?: [number, number];
 };
 /** at 은 표시 전용(씬 아트 맵 위 오버레이 위치) — 채점·resolve 계약과 무관하다. */
@@ -166,9 +168,15 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
 
   // 씬 배경 로드 — scene 파일을 미리 로드해 '성공했을 때만' 씬 아트 맵 모드로 올린다.
   // 파일이 없으면(아트 미제작) 실패로 남아 기존 목록 렌더 그대로다.
-  const sceneUrl = data.scene
-    ? `${import.meta.env.BASE_URL}assets/minigames/${encodeURIComponent(data.scene)}.svg`
+  const sceneFile = data.scene
+    ? /\.(?:avif|png|svg|webp)$/i.test(data.scene)
+      ? data.scene
+      : `${data.scene}.svg`
     : null;
+  const sceneUrl = sceneFile
+    ? `${import.meta.env.BASE_URL}assets/minigames/${encodeURIComponent(sceneFile)}`
+    : null;
+  const smoothScene = sceneFile !== null && !sceneFile.toLowerCase().endsWith(".svg");
   const [sceneOk, setSceneOk] = useState(false);
   useEffect(() => {
     setSceneOk(false);
@@ -547,6 +555,7 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
           label={pretty(pieceId)}
           size={compact ? 28 : 36}
           fallbackClassName={styles.dockPiece}
+          smooth={fitAny}
         />
       </span>
     );
@@ -577,7 +586,13 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
             <span className={styles.personName}>{pretty(p.id)}</span>
           </span>
         ) : (
-          <PixelSprite id={p.id} label={pretty(p.id)} size={40} fallbackClassName={styles.pieceName} />
+          <PixelSprite
+            id={p.id}
+            label={pretty(p.id)}
+            size={40}
+            fallbackClassName={styles.pieceName}
+            smooth={fitAny}
+          />
         )}
         {cue ? <span className={styles.pieceCue}>{pretty(cue)}</span> : null}
       </button>
@@ -645,6 +660,7 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
           <div
             className={styles.mapBoard}
             data-art={sceneArt || undefined}
+            data-fit-any={fitAny || undefined}
             role="group"
             aria-label={sceneArt && data.scene ? pretty(data.scene) : "회의실 배치도"}
           >
@@ -654,6 +670,7 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
               <img
                 className={styles.mapSceneArt}
                 src={sceneUrl}
+                data-smooth={smoothScene || undefined}
                 alt=""
                 draggable={false}
                 aria-hidden="true"
@@ -736,7 +753,9 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
               const key = placed[slot.id];
               const pieceId = key ? pieceIdByKey.get(key) ?? null : null;
               const title = slot.label ?? pretty(slot.id);
-              const seat = Boolean(slot.marker);
+              const seat = slot.kind ? slot.kind === "seat" : Boolean(slot.marker);
+              const leaking = fitAny && !done && slot.accepts != null && pieceId !== slot.accepts;
+              const plugged = fitAny && !done && slot.accepts != null && pieceId === slot.accepts;
               const verdict = verdictOf(slot, pieceId);
               return (
                 <button
@@ -747,6 +766,8 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
                   data-kind={seat ? "seat" : "dock"}
                   data-filled={Boolean(pieceId)}
                   data-drop={!done && dropHover === slot.id ? true : undefined}
+                  data-leak={leaking || undefined}
+                  data-plugged={plugged || undefined}
                   data-verdict={verdict}
                   disabled={done}
                   style={{ left: `${(at[0] / SCENE.w) * 100}%`, top: `${(at[1] / SCENE.h) * 100}%` }}
@@ -762,11 +783,12 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
                         label={pretty(slot.marker)}
                         size={30}
                         fallbackClassName={styles.seatMarker}
+                        smooth={fitAny}
                       />
                     </span>
                   ) : null}
                   {pieceId ? (
-                    renderPlaced(pieceId, !seat)
+                    renderPlaced(pieceId, !seat && !fitAny)
                   ) : sceneArt ? (
                     // 씬 아트 위에선 가구가 자리를 설명한다 — 라벨 대신 컴팩트 드롭 패드
                     <span className={styles.mapEmptyPad}>＋</span>
@@ -776,6 +798,16 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
                   {verdict ? (
                     <span className={styles.slotMark} data-ok={verdict === "ok"} aria-hidden="true">
                       {verdict === "ok" ? "✓" : "✕"}
+                    </span>
+                  ) : null}
+                  {leaking ? (
+                    <span className={styles.leakBadge} aria-hidden="true">
+                      새는 중
+                    </span>
+                  ) : null}
+                  {plugged ? (
+                    <span className={styles.pluggedBadge} aria-hidden="true">
+                      막힘
                     </span>
                   ) : null}
                 </button>
@@ -863,6 +895,7 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
                     label={pretty(slot.marker)}
                     size={44}
                     fallbackClassName={styles.marker}
+                    smooth={fitAny}
                   />
                 ) : null}
                 <span className={styles.slotTitle}>{title}</span>
@@ -872,6 +905,7 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
                     label={pretty(pieceId)}
                     size={48}
                     fallbackClassName={styles.placedPiece}
+                    smooth={fitAny}
                   />
                 ) : (
                   <span className={styles.emptyMark}>빈 자리</span>
@@ -946,6 +980,7 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
                     label={pretty(p.id)}
                     size={48}
                     fallbackClassName={styles.pieceName}
+                    smooth={fitAny}
                   />
                   {cue ? <span className={styles.pieceCue}>{pretty(cue)}</span> : null}
                 </button>
@@ -992,6 +1027,7 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
                   label={pretty(dragPieceId)}
                   size={36}
                   fallbackClassName={styles.pieceName}
+                  smooth={fitAny}
                 />
               )}
             </div>,

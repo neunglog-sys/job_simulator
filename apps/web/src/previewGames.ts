@@ -3735,30 +3735,39 @@ export const PREVIEW_GAMES = {
     "time_limit": 80,
     "pass_score": 70,
     "data": {
+      "scene": "stn-05-onboarding-funnel-cartoon.png",
       "fit": "any",
       "slots": [
         {
           "id": "구멍_구간1",
           "accepts": "막개_말풍선_노랑",
           "marker": "근거카드_말풍선_노랑",
-          "label": "구간 1"
+          "label": "구간 1",
+          "kind": "dock",
+          "at": [173, 174]
         },
         {
           "id": "구멍_구간2",
           "accepts": "막개_마이크_파랑",
           "marker": "근거카드_마이크_파랑",
-          "label": "구간 2"
+          "label": "구간 2",
+          "kind": "dock",
+          "at": [356, 174]
         },
         {
           "id": "구멍_구간3",
           "accepts": "막개_화면화살표_보라",
           "marker": "근거카드_화면화살표_보라",
-          "label": "구간 3"
+          "label": "구간 3",
+          "kind": "dock",
+          "at": [575, 174]
         },
         {
           "id": "구간_정상",
           "accepts": null,
-          "label": "구간 4"
+          "label": "구간 4",
+          "kind": "dock",
+          "at": [777, 174]
         }
       ],
       "pieces": [

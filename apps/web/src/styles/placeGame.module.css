@@ -343,6 +343,12 @@
   user-select: none;
 }
 
+/* 생성형 카툰 배경은 픽셀 확대를 적용하지 않는다. 기존 확장자 없는 SVG 씬은 종전대로
+   pixelated 렌더링을 유지한다. */
+.mapSceneArt[data-smooth="true"] {
+  image-rendering: auto;
+}
+
 /* 아트 위 거치대 슬롯은 컴팩트 드롭 패드 — 배치도의 가구가 이미 자리를 설명하고,
    이웃 슬롯이 논리 50px 간격(hr-01 평가표·이력서 쌍)이라 폭을 그 아래로 줄여
    서로 겹치지 않게 한다. 좁은 보드에선 min-width 로 탭 목표를 지킨다. */
@@ -789,6 +795,50 @@
   border-radius: 18px;
   background: #334363;
   box-shadow: 0 5px 0 var(--cartoon-ink), inset 0 2px 0 rgb(255 255 255 / 0.12);
+}
+
+/* stn-05 fit:any 퍼널 — 파이프 소켓 위에 충분한 드롭 영역을 만들고 근거 카드는
+   소켓 위로 띄운다. 배경·근거·막개는 서로 다른 레이어라 판정과 아트를 독립 유지한다. */
+.mapBoard[data-fit-any="true"] .mapSlot[data-kind="dock"] {
+  width: 8.5%;
+  min-width: 54px;
+  min-height: 54px;
+  padding: 5px;
+  border-radius: 50%;
+  background: rgb(7 13 33 / 0.72);
+}
+
+.mapBoard[data-fit-any="true"] .seatMarkerWrap {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px;
+  border: 2px solid var(--cartoon-ink, #20243a);
+  border-radius: 9px;
+  background: #fff2d6;
+  box-shadow: 0 3px 0 var(--cartoon-ink, #20243a);
+}
+
+.mapBoard[data-fit-any="true"] .mapSlot[data-leak="true"] {
+  border-color: #ff6f61;
+  background: rgb(96 12 25 / 0.62);
+  box-shadow: inset 0 0 0 2px var(--cartoon-ink, #20243a), 0 0 22px rgb(255 76 76 / 0.52);
+}
+
+.mapBoard[data-fit-any="true"] .mapSlot[data-plugged="true"] {
+  border-style: solid;
+  border-color: #5bd7d0;
+  background: rgb(11 78 78 / 0.9);
+  box-shadow: inset 0 0 0 2px var(--cartoon-ink, #20243a), 0 0 22px rgb(91 215 208 / 0.52);
+}
+
+.mapBoard[data-fit-any="true"] .leakBadge,
+.mapBoard[data-fit-any="true"] .pluggedBadge {
+  top: calc(100% + 7px);
+  right: 50%;
+  transform: translateX(50%);
+  width: max-content;
 }
 .mapSceneArt { filter: none; }
 .cart,

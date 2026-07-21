@@ -97,8 +97,13 @@ export function MiniGamePanel({ missionTitle, game, onClear }: MiniGamePanelProp
   const reflected = reflectedResult(attempts);
 
   return (
-    <div className={styles.missionOverlay} role="dialog" aria-modal="true" aria-label="실무 미니게임">
-      <div className={styles.missionModal}>
+    <div
+      className={`${styles.missionOverlay} ${styles.miniGameOverlay}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label="실무 미니게임"
+    >
+      <div className={`${styles.missionModal} ${styles.miniGameModal}`}>
         <div className={styles.missionHeader}>
           <div className={styles.missionHeadingText}>
             <span className={styles.missionKindBadge}>실무 미니게임</span>
