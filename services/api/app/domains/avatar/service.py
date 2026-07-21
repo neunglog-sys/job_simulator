@@ -581,6 +581,62 @@ async def relay_musetalk_ws(client_ws) -> None:
             await client_ws.close(code=1011, reason="코랩 서버 연결 실패")
 
 
+# ── MuseTalk 워밍업 (콜드스타트 제거) ────────────────────────────────────────
+# UNet forward + ffmpeg는 **첫 실제 발화**에서만 데워진다(모델 로드만으론 부족 → 첫 요청 ~23초).
+# 랜딩/로그인 등 진입점에서 더미 발화를 미리 쏴 예열한다. 단 여러 진입점(랜딩→로그인 등)에서
+# 중복 요청될 수 있고 UNet+ffmpeg가 무거우니, **진행 중이거나 최근에 끝났으면 no-op**으로 dedup한다.
+# (단일 워커 async라 check→set 사이에 await가 없어 별도 락 없이 안전.)
+_warmup_state: dict = {"in_progress": False, "warmed_at": 0.0}
+_WARMUP_COOLDOWN_S = 240.0  # 최근 예열 후 이 시간 내 재요청은 무시
+
+
+async def warmup_musetalk() -> dict:
+    """더미 발화로 MuseTalk 추론 경로 예열. 중복 요청은 dedup(no-op)."""
+    if not settings.avatar_musetalk_ws_url.strip():
+        return {"status": "disabled"}
+    now = time.monotonic()
+    if _warmup_state["in_progress"]:
+        return {"status": "already_warming"}
+    if _warmup_state["warmed_at"] and now - _warmup_state["warmed_at"] < _WARMUP_COOLDOWN_S:
+        return {"status": "recently_warmed", "age_s": round(now - _warmup_state["warmed_at"], 1)}
+
+    _warmup_state["in_progress"] = True
+    t0 = time.monotonic()
+    try:
+        await asyncio.wait_for(_fire_dummy_warmup(), timeout=90)
+        _warmup_state["warmed_at"] = time.monotonic()
+        elapsed = round(time.monotonic() - t0, 1)
+        logger.info("MuseTalk 워밍업 완료: %.1fs", elapsed)
+        return {"status": "warmed", "elapsed_s": elapsed}
+    except Exception:  # noqa: BLE001 — 코랩 미기동 등. 예열 실패해도 서비스는 계속
+        logger.warning("MuseTalk 워밍업 실패", exc_info=True)
+        return {"status": "failed"}
+    finally:
+        _warmup_state["in_progress"] = False
+
+
+async def _fire_dummy_warmup() -> None:
+    """코랩에 더미 발화 1회 — done까지 소비해 GPU를 비우고(다음 실제 요청이 큐잉 안 되게) 끝낸다."""
+    ws_url = settings.avatar_musetalk_ws_url.strip()
+    import websockets
+
+    async with websockets.connect(
+        ws_url,
+        additional_headers={"ngrok-skip-browser-warning": "true"},
+        max_size=None,
+        open_timeout=15,
+        ping_interval=20,
+    ) as ws:
+        await ws.send(json.dumps({"speaker_id": "coach", "text": "안녕하세요."}))
+        async for m in ws:
+            if isinstance(m, str):
+                try:
+                    if json.loads(m).get("type") in ("done", "error"):
+                        return
+                except Exception:  # noqa: BLE001
+                    continue
+
+
 async def speak_chunk_events(text: str, voice: str | None = None):
     """문장 청킹 아바타 생성 이벤트.
 

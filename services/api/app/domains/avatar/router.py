@@ -64,6 +64,17 @@ async def speak_chunks(body: SpeakIn, user: User = Depends(get_current_user)):
     return EventSourceResponse(service.speak_chunk_events(body.text, body.voice))
 
 
+@router.post("/warmup")
+async def warmup():
+    """MuseTalk 콜드스타트 예열 — 랜딩/로그인 등 진입점에서 더미 발화 1회 트리거.
+
+    인증 없음(랜딩은 로그인 전). 여러 진입점에서 중복 호출돼도 서버가 **dedup**한다:
+    이미 예열 중이거나 최근에 끝났으면 no-op(status: already_warming / recently_warmed).
+    무거운 UNet+ffmpeg가 중복 실행되지 않도록 보호.
+    """
+    return await service.warmup_musetalk()
+
+
 @router.websocket("/ws")
 async def avatar_ws(
     websocket: WebSocket,
