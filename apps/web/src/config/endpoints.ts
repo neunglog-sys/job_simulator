@@ -62,12 +62,15 @@ export const API_ENDPOINTS = {
     // 발화 텍스트 → 백엔드가 재봉합한 연속 fragmented MP4 스트림 URL.
     // 첫 URL까지 약 7초 — 그동안 프론트는 thinking 상태 유지.
     speak: apiUrl("/api/avatar/speak"),
+    // 긴 답변을 문장 단위로 나눠 각 MP4 스트림 URL을 SSE로 순차 전달.
+    speakChunks: apiUrl("/api/avatar/speak-chunks"),
+    ws: (token?: string | null) =>
+      `${WS_BASE_URL}/api/avatar/ws${token ? `?token=${encodeURIComponent(token)}` : ""}`,
   },
 } as const;
 
-// idle 루프 영상 — SoulX가 발화와 동일한 설정(av6_2 512x512 / lite / seed 123)으로 만든 것.
-// 핑퐁(정+역)이라 시작=끝 → 루프 이음새 없음. 오디오 트랙 없음.
-export const AVATAR_IDLE_SRC = "/avatar-idle.mp4";
+// idle 루프 영상 — MuseTalk 발화 영상과 같은 720p 기준으로 맞춘 driving/idle/idle_02.mp4 변환본.
+export const AVATAR_IDLE_SRC = "/avatar-idle-720p.mp4";
 
 // 게임 WebSocket URL — 로그인 토큰이 있으면 쿼리로 실어 보낸다 (없으면 데모 사용자).
 export const wsSimulation = (id: number, token?: string | null) =>

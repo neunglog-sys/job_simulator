@@ -19,16 +19,20 @@ import {
   createRecommendation,
   createReport,
   deleteConsultation,
+  fetchAvatarStatus,
   fetchConsultations,
   fetchConsultationMessages,
   fetchLatestRecommendation,
   fetchReport,
   fetchScenarios,
   fetchSurveyItems,
-  speakAvatar,
+  generateMuseTalkBlob,
+  streamAvatarSpeakChunks,
   streamConsultationReply,
   submitConsultationSurvey,
   updateConsultationTitle,
+  type AvatarProvider,
+  type ConsultationStreamDoneMetrics,
   type SurveyItem,
   type ConsultationSummary,
   type Recommendation,
@@ -50,6 +54,132 @@ import type { SurveyAnswers, SurveyQuestionData } from "../types/survey";
 const CONSULTATION_RESUME_KEY = "consultation:current";
 
 type ActiveConversationModal = "history" | "recommendations" | null;
+
+type ConversationPerfTrace = {
+  id: string;
+  sent_at: number;
+  llm_first_token_at?: number;
+  llm_done_at?: number;
+  avatar_started_at?: number;
+  user_chars: number;
+  llm_output_chars?: number;
+  avatar_speech_chars?: number;
+  server?: ConsultationStreamDoneMetrics;
+};
+
+function splitMuseTalkSpeech(text: string): string[] {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return [];
+
+  const sentenceMatches =
+    normalized.match(/[^.!?。！？]+[.!?。！？]?/g)?.map((sentence) => sentence.trim()) ??
+    [normalized];
+  const chunks: string[] = [];
+  let current = "";
+
+  const pushCurrent = () => {
+    const chunk = current.trim();
+    if (chunk) chunks.push(chunk);
+    current = "";
+  };
+
+  const pushLongSentence = (sentence: string) => {
+    const words = sentence.split(" ");
+    let buffer = "";
+    for (const word of words) {
+      const candidate = buffer ? `${buffer} ${word}` : word;
+      if (candidate.length <= MUSE_TALK_CHUNK_MAX_CHARS) {
+        buffer = candidate;
+        continue;
+      }
+      if (buffer) chunks.push(buffer);
+      buffer = word;
+    }
+    if (buffer) chunks.push(buffer);
+  };
+
+  for (const sentence of sentenceMatches) {
+    if (!sentence) continue;
+    const candidate = current ? `${current} ${sentence}` : sentence;
+    if (candidate.length <= MUSE_TALK_CHUNK_MAX_CHARS) {
+      current = candidate;
+      continue;
+    }
+
+    pushCurrent();
+    if (sentence.length > MUSE_TALK_CHUNK_MAX_CHARS) pushLongSentence(sentence);
+    else current = sentence;
+  }
+
+  pushCurrent();
+  return chunks.length > 0 ? chunks : [normalized];
+}
+
+function takeCompletedMuseTalkSentences(
+  text: string,
+  force = false,
+): { chunks: string[]; rest: string } {
+  const matches = Array.from(text.matchAll(/[.!?。！？]\s*/g));
+  const lastBoundary = matches.at(-1);
+  const boundaryEnd =
+    lastBoundary && lastBoundary.index !== undefined
+      ? lastBoundary.index + lastBoundary[0].length
+      : -1;
+
+  if (boundaryEnd > 0) {
+    return {
+      chunks: splitMuseTalkSpeech(text.slice(0, boundaryEnd)),
+      rest: text.slice(boundaryEnd),
+    };
+  }
+
+  if (force && text.trim()) {
+    return { chunks: splitMuseTalkSpeech(text), rest: "" };
+  }
+
+  return { chunks: [], rest: text };
+}
+
+function toAvatarSpeechText(text: string): string {
+  const normalized = text
+    .replace(/\*\*/g, "")
+    .replace(/[`*_~>#-]/g, "")
+    .replace(/\[[^\]]+\]\([^)]+\)/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return "";
+
+  const sentences =
+    normalized.match(/[^.!?。！？]+[.!?。！？]?/g)?.map((sentence) => sentence.trim()) ??
+    [normalized];
+  const selected: string[] = [];
+  let totalLength = 0;
+
+  for (const sentence of sentences) {
+    const candidateLength = totalLength + sentence.length;
+    if (selected.length >= AVATAR_SPEECH_MAX_SENTENCES) break;
+    if (candidateLength > AVATAR_SPEECH_MAX_CHARS && selected.length > 0) break;
+    selected.push(sentence);
+    totalLength = candidateLength;
+  }
+
+  const speech = selected.join(" ").trim();
+  if (speech.length <= AVATAR_SPEECH_MAX_CHARS) return speech;
+
+  const limited = speech.slice(0, AVATAR_SPEECH_MAX_CHARS);
+  const naturalEnd = Math.max(
+    limited.lastIndexOf("."),
+    limited.lastIndexOf("!"),
+    limited.lastIndexOf("?"),
+    limited.lastIndexOf("。"),
+    limited.lastIndexOf("！"),
+    limited.lastIndexOf("？"),
+  );
+
+  return naturalEnd > AVATAR_SPEECH_MAX_CHARS * 0.55
+    ? limited.slice(0, naturalEnd + 1).trim()
+    : `${limited.replace(/[,\s]+$/g, "")}.`;
+}
 
 function toSurveyQuestions(items: SurveyItem[]): SurveyQuestionData[] {
   return items.map((item) => ({
@@ -119,6 +249,10 @@ const DESIGN_HEIGHT = 900;
 const VOICE_LEVEL_THRESHOLD = 0.025;
 const VOICE_START_GRACE_MS = 1_400;
 const VOICE_SILENCE_TIMEOUT_MS = 2_800;
+const MUSE_TALK_CHUNK_MAX_CHARS = 420;
+const MUSE_TALK_STREAM_SENTENCE_FLUSH = false;
+const AVATAR_SPEECH_MAX_SENTENCES = 5;
+const AVATAR_SPEECH_MAX_CHARS = 420;
 
 const STAR_POINTS = Array.from({ length: 54 }, (_, index) => ({
   left: `${(index * 37 + 7) % 98}%`,
@@ -133,6 +267,9 @@ export function OneToOneConversationPage() {
   const [inputValue, setInputValue] = useState("");
   const [avatarStatus, setAvatarStatus] = useState<AvatarStatus>("thinking");
   const [avatarHlsUrl, setAvatarHlsUrl] = useState<string | null>(null);
+  const [avatarProvider, setAvatarProvider] = useState<AvatarProvider | null>(null);
+  const [museTalkRequest, setMuseTalkRequest] =
+    useState<{ id: number; text: string } | null>(null);
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [voiceIssue, setVoiceIssue] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<ActiveConversationPanel>("chat");
@@ -162,6 +299,7 @@ export function OneToOneConversationPage() {
     consultationId: number;
     promise: Promise<Recommendation>;
   } | null>(null);
+  const perfTraceRef = useRef<ConversationPerfTrace | null>(null);
   const voiceStreamRef = useRef<MediaStream | null>(null);
   const voiceAudioContextRef = useRef<AudioContext | null>(null);
   const voiceSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
@@ -171,6 +309,146 @@ export function OneToOneConversationPage() {
   const voiceSessionActiveRef = useRef(false);
   const voiceInputBaseRef = useRef("");
   const voiceFinalTranscriptRef = useRef("");
+  const avatarQueueRef = useRef<string[]>([]);
+  const avatarPlayingRef = useRef(false);
+  const museTalkRequestIdRef = useRef(0);
+  const museTalkPrefetchGenerationRef = useRef(0);
+  const museTalkPendingTextRef = useRef<string[]>([]);
+  const museTalkPrefetchRunningRef = useRef(false);
+  const museTalkBlobUrlsRef = useRef<string[]>([]);
+
+  const revokeMuseTalkBlobUrl = useCallback((url: string | null) => {
+    if (!url?.startsWith("blob:")) return;
+    URL.revokeObjectURL(url);
+    museTalkBlobUrlsRef.current = museTalkBlobUrlsRef.current.filter((item) => item !== url);
+  }, []);
+
+  const revokeMuseTalkBlobUrls = useCallback(() => {
+    for (const url of museTalkBlobUrlsRef.current) URL.revokeObjectURL(url);
+    museTalkBlobUrlsRef.current = [];
+  }, []);
+
+  const resetAvatarSpeech = useCallback(() => {
+    museTalkPrefetchGenerationRef.current += 1;
+    avatarQueueRef.current = [];
+    museTalkPendingTextRef.current = [];
+    museTalkPrefetchRunningRef.current = false;
+    revokeMuseTalkBlobUrls();
+    avatarPlayingRef.current = false;
+    setAvatarHlsUrl(null);
+    setMuseTalkRequest(null);
+  }, [revokeMuseTalkBlobUrls]);
+
+  const enqueueAvatarSpeech = useCallback((hlsUrl: string) => {
+    if (!avatarPlayingRef.current) {
+      avatarPlayingRef.current = true;
+      setAvatarHlsUrl(hlsUrl);
+      setAvatarStatus("speaking");
+      return;
+    }
+    avatarQueueRef.current.push(hlsUrl);
+  }, []);
+
+  const pumpMuseTalkPrefetch = useCallback(
+    async (generation: number) => {
+      if (museTalkPrefetchRunningRef.current) return;
+      museTalkPrefetchRunningRef.current = true;
+
+      try {
+        while (generation === museTalkPrefetchGenerationRef.current) {
+          const chunk = museTalkPendingTextRef.current.shift();
+          if (!chunk) return;
+
+        try {
+          const result = await generateMuseTalkBlob({ text: chunk });
+          if (generation !== museTalkPrefetchGenerationRef.current) {
+            return;
+          }
+
+          const url = URL.createObjectURL(result.blob);
+          museTalkBlobUrlsRef.current.push(url);
+          console.info("[MuseTalk]", "prefetch_done", {
+            pending: museTalkPendingTextRef.current.length,
+            bytes: result.bytes,
+            elapsed_ms: result.elapsed_ms,
+            statuses: result.statuses,
+          });
+          enqueueAvatarSpeech(url);
+        } catch (error) {
+          if (generation === museTalkPrefetchGenerationRef.current) {
+            console.error("[MuseTalk]", "prefetch_failed", error);
+          }
+          return;
+        }
+        }
+      } finally {
+        museTalkPrefetchRunningRef.current = false;
+        if (
+          generation === museTalkPrefetchGenerationRef.current &&
+          museTalkPendingTextRef.current.length > 0
+        ) {
+          void pumpMuseTalkPrefetch(generation);
+        }
+      }
+    },
+    [enqueueAvatarSpeech],
+  );
+
+  const enqueueMuseTalkChunk = useCallback(
+    (text: string) => {
+      const chunk = text.trim();
+      if (!chunk) return;
+
+      const pipelineBusy =
+        avatarPlayingRef.current ||
+        avatarQueueRef.current.length > 0 ||
+        museTalkPendingTextRef.current.length > 0 ||
+        museTalkPrefetchRunningRef.current;
+
+      if (!pipelineBusy) {
+        avatarPlayingRef.current = true;
+        if (perfTraceRef.current && !perfTraceRef.current.avatar_started_at) {
+          perfTraceRef.current.avatar_started_at = window.performance.now();
+        }
+        setMuseTalkRequest({ id: ++museTalkRequestIdRef.current, text: chunk });
+        setAvatarStatus("speaking");
+        return;
+      }
+
+      const generation = museTalkPrefetchGenerationRef.current;
+      museTalkPendingTextRef.current.push(chunk);
+      void pumpMuseTalkPrefetch(generation);
+    },
+    [pumpMuseTalkPrefetch],
+  );
+
+  const enqueueMuseTalkSpeech = useCallback(
+    (text: string) => {
+      const chunks = splitMuseTalkSpeech(text);
+      console.info("[MuseTalk]", "sentence_chunks", chunks.length, chunks);
+      museTalkPrefetchGenerationRef.current += 1;
+      if (chunks.length === 0) {
+        setAvatarStatus("idle");
+        return;
+      }
+
+      for (const chunk of chunks) enqueueMuseTalkChunk(chunk);
+    },
+    [enqueueMuseTalkChunk],
+  );
+
+  const playQueuedAvatarSpeech = useCallback(() => {
+    const nextUrl = avatarQueueRef.current.shift();
+    if (!nextUrl) {
+      avatarPlayingRef.current = false;
+      setAvatarStatus("idle");
+      return;
+    }
+
+    avatarPlayingRef.current = true;
+    setAvatarHlsUrl(nextUrl);
+    setAvatarStatus("speaking");
+  }, []);
 
   const cleanupVoiceResources = useCallback(() => {
     if (voiceAnimationFrameRef.current !== null) {
@@ -243,6 +521,24 @@ export function OneToOneConversationPage() {
     updateScale();
     window.addEventListener("resize", updateScale);
     return () => window.removeEventListener("resize", updateScale);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const status = await fetchAvatarStatus();
+        if (cancelled) return;
+        setAvatarProvider(status.enabled ? (status.provider ?? "gradio") : null);
+      } catch {
+        if (!cancelled) setAvatarProvider(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -333,30 +629,86 @@ export function OneToOneConversationPage() {
 
     sendingRef.current = true;
     setAvatarStatus("thinking");
-    setAvatarHlsUrl(null);
+    resetAvatarSpeech();
     const assistantMessageId = `message-${Date.now()}-assistant`;
+    const traceId = `conv-${Date.now()}`;
+    perfTraceRef.current = {
+      id: traceId,
+      sent_at: window.performance.now(),
+      user_chars: content.length,
+    };
+    console.info("[PERF]", "request_start", {
+      trace_id: traceId,
+      consultation_id: consultationId,
+      user_chars: content.length,
+    });
     let started = false;
     let reply = "";
+    let museTalkSentenceBuffer = "";
+    let museTalkStartedFromStream = false;
+
+    const flushMuseTalkSentences = (force = false) => {
+      if (avatarProvider !== "musetalk" || !MUSE_TALK_STREAM_SENTENCE_FLUSH) return;
+      const result = takeCompletedMuseTalkSentences(museTalkSentenceBuffer, force);
+      museTalkSentenceBuffer = result.rest;
+      if (result.chunks.length === 0) return;
+
+      museTalkStartedFromStream = true;
+      console.info("[MuseTalk]", "llm_sentence_flush", result.chunks);
+      for (const sentence of result.chunks) enqueueMuseTalkChunk(sentence);
+    };
 
     try {
-      await streamConsultationReply(consultationId, content, (chunk) => {
-        reply += chunk;
-        if (!started) {
-          started = true;
-          setMessages((current) => [
-            ...current,
-            { id: assistantMessageId, role: "assistant", content: chunk },
-          ]);
-        } else {
-          setMessages((current) =>
-            current.map((message) =>
-              message.id === assistantMessageId
-                ? { ...message, content: message.content + chunk }
-                : message,
-            ),
-          );
-        }
-      });
+      await streamConsultationReply(
+        consultationId,
+        content,
+        (chunk) => {
+          const trace = perfTraceRef.current;
+          if (trace && !trace.llm_first_token_at) {
+            trace.llm_first_token_at = window.performance.now();
+            console.info("[PERF]", "llm_first_token", {
+              trace_id: trace.id,
+              client_first_token_ms: Math.round(trace.llm_first_token_at - trace.sent_at),
+            });
+          }
+          reply += chunk;
+          museTalkSentenceBuffer += chunk;
+          flushMuseTalkSentences(false);
+          if (!started) {
+            started = true;
+            setMessages((current) => [
+              ...current,
+              { id: assistantMessageId, role: "assistant", content: chunk },
+            ]);
+          } else {
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === assistantMessageId
+                  ? { ...message, content: message.content + chunk }
+                  : message,
+              ),
+            );
+          }
+        },
+        {
+          onDone: (metrics) => {
+            const trace = perfTraceRef.current;
+            if (!trace) return;
+            trace.llm_done_at = window.performance.now();
+            trace.server = metrics;
+            trace.llm_output_chars = metrics.server_output_chars;
+            console.info("[PERF]", "llm_done", {
+              trace_id: trace.id,
+              client_llm_total_ms: Math.round(trace.llm_done_at - trace.sent_at),
+              client_llm_chars_per_s: Number(
+                ((metrics.server_output_chars ?? reply.length) /
+                  Math.max((trace.llm_done_at - trace.sent_at) / 1000, 0.001)).toFixed(2),
+              ),
+              ...metrics,
+            });
+          },
+        },
+      );
 
       if (!started) {
         // 스트림은 에러 없이 끝났는데 토큰을 하나도 못 받은 경우 — 백엔드 핫리로드 등으로
@@ -375,6 +727,7 @@ export function OneToOneConversationPage() {
         return;
       }
 
+      flushMuseTalkSentences(true);
     } catch (error) {
       const recovered = await recoverAssistantReply();
       setMessages((current) => [
@@ -387,25 +740,120 @@ export function OneToOneConversationPage() {
             (error instanceof ApiError ? error.message : "응답을 받아오지 못했어요. 다시 시도해주세요."),
         },
       ]);
-      setAvatarHlsUrl(null);
+      resetAvatarSpeech();
       setAvatarStatus("idle");
       sendingRef.current = false;
       return;
     }
 
-    try {
-      const { hls_url } = await speakAvatar(reply);
-      setAvatarHlsUrl(hls_url);
-      setAvatarStatus("speaking");
-    } catch {
-      setAvatarHlsUrl(null);
+    if (avatarProvider === "musetalk") {
+      const avatarSpeech = toAvatarSpeechText(reply);
+      if (perfTraceRef.current) {
+        perfTraceRef.current.avatar_speech_chars = avatarSpeech.length;
+      }
+      console.info("[MuseTalk]", "avatar_speech_text", {
+        source_chars: reply.length,
+        speech_chars: avatarSpeech.length,
+        text: avatarSpeech,
+      });
+      if (!museTalkStartedFromStream) enqueueMuseTalkSpeech(avatarSpeech);
+    } else if (avatarProvider) {
+      try {
+        await streamAvatarSpeakChunks(reply, (chunk) => enqueueAvatarSpeech(chunk.hls_url));
+      } catch {
+        resetAvatarSpeech();
+        setAvatarStatus("idle");
+      }
+    } else {
       setAvatarStatus("idle");
     }
     sendingRef.current = false;
-  }, [consultationId, inputValue, recoverAssistantReply]);
+  }, [
+    avatarProvider,
+    consultationId,
+    enqueueAvatarSpeech,
+    enqueueMuseTalkChunk,
+    enqueueMuseTalkSpeech,
+    inputValue,
+    recoverAssistantReply,
+    resetAvatarSpeech,
+  ]);
 
   const handleSpeakingEnd = useCallback(() => {
+    if (museTalkRequest) {
+      setMuseTalkRequest(null);
+      playQueuedAvatarSpeech();
+      return;
+    }
+
+    revokeMuseTalkBlobUrl(avatarHlsUrl);
+    playQueuedAvatarSpeech();
+  }, [avatarHlsUrl, museTalkRequest, playQueuedAvatarSpeech, revokeMuseTalkBlobUrl]);
+
+  const handleSpeakingError = useCallback(() => {
+    resetAvatarSpeech();
     setAvatarStatus("idle");
+  }, [resetAvatarSpeech]);
+
+  const handleMuseTalkMetrics = useCallback((metrics: Record<string, unknown>) => {
+    const trace = perfTraceRef.current;
+    if (!trace) {
+      console.info("[PERF]", "avatar_done_without_trace", metrics);
+      return;
+    }
+
+    const now = window.performance.now();
+    const llmDoneAt = trace.llm_done_at ?? now;
+    const avatarStartedAt = trace.avatar_started_at ?? llmDoneAt;
+    const ttsSeconds = Number(metrics.tts_seconds ?? 0);
+    const firstStreamByteSeconds = Number(metrics.first_stream_byte_seconds ?? 0);
+    const firstBinaryAt = Number(metrics.first_binary_at ?? 0);
+    const firstPlayAt = Number(metrics.first_play_at ?? 0);
+    const browserTotalSeconds = Number(metrics.browser_total_s ?? 0);
+
+    console.info("[PERF]", "summary", {
+      trace_id: trace.id,
+      user_chars: trace.user_chars,
+      llm_output_chars: trace.llm_output_chars,
+      avatar_speech_chars: trace.avatar_speech_chars,
+      server_request_first_token_ms: trace.server?.server_first_token_ms,
+      server_request_total_ms: trace.server?.server_total_ms,
+      server_output_chars_per_s: trace.server?.server_output_chars_per_s,
+      client_llm_first_token_ms: trace.llm_first_token_at
+        ? Math.round(trace.llm_first_token_at - trace.sent_at)
+        : null,
+      client_llm_total_ms: trace.llm_done_at
+        ? Math.round(trace.llm_done_at - trace.sent_at)
+        : null,
+      avatar_start_after_llm_ms: Math.round(avatarStartedAt - llmDoneAt),
+      tts_first_byte_s: metrics.tts_first_byte_seconds,
+      tts_total_s: metrics.tts_seconds,
+      tts_model: metrics.tts_model,
+      musetalk_first_stream_byte_s: metrics.first_stream_byte_seconds,
+      browser_first_binary_s: metrics.first_binary_at,
+      browser_first_play_s: metrics.first_play_at,
+      avatar_browser_total_s: metrics.browser_total_s,
+      avatar_server_total_s: metrics.total_seconds,
+      tunnel_to_browser_first_binary_s:
+        firstBinaryAt && firstStreamByteSeconds
+          ? Number((firstBinaryAt - firstStreamByteSeconds).toFixed(3))
+          : null,
+      playback_buffer_wait_s:
+        firstPlayAt && firstBinaryAt ? Number((firstPlayAt - firstBinaryAt).toFixed(3)) : null,
+      end_to_end_first_play_ms: firstPlayAt
+        ? Math.round(avatarStartedAt - trace.sent_at + firstPlayAt * 1000)
+        : null,
+      end_to_end_avatar_done_ms: browserTotalSeconds
+        ? Math.round(avatarStartedAt - trace.sent_at + browserTotalSeconds * 1000)
+        : Math.round(now - trace.sent_at),
+      sent_bytes: metrics.sent_bytes,
+      stream_chunks: metrics.stream_chunks,
+      peak_vram_gb: metrics.peak_vram_gb,
+      tts_share_of_avatar_server:
+        ttsSeconds && Number(metrics.total_seconds)
+          ? Number((ttsSeconds / Number(metrics.total_seconds)).toFixed(3))
+          : null,
+    });
   }, []);
 
   const handleVoiceInput = useCallback(async () => {
@@ -893,7 +1341,7 @@ export function OneToOneConversationPage() {
       setMessages(initialConversationMessages);
       setInputValue("");
       setAvatarStatus("idle");
-      setAvatarHlsUrl(null);
+      resetAvatarSpeech();
       setActivePanel("chat");
       setVoiceIssue(null);
       setSurveyAnswers({});
@@ -925,7 +1373,9 @@ export function OneToOneConversationPage() {
       setActivePanel("report");
       return;
     }
-  }, [finishVoiceSession, loadConsultationHistory, loadRecommendedJobs]);
+
+    window.dispatchEvent(new CustomEvent(`jobiverse:${id}`));
+  }, [finishVoiceSession, loadConsultationHistory, loadRecommendedJobs, resetAvatarSpeech]);
 
   const handlePanelChange = useCallback((panel: ActiveConversationPanel) => {
     setActivePanel(panel);
@@ -966,7 +1416,10 @@ export function OneToOneConversationPage() {
           <AiAvatarStage
             status={avatarStatus}
             hlsUrl={avatarHlsUrl}
+            museTalkRequest={museTalkRequest}
             onSpeakingEnd={handleSpeakingEnd}
+            onSpeakingError={handleSpeakingError}
+            onMuseTalkMetrics={handleMuseTalkMetrics}
           />
 
           {activePanel === "chat" ? <YouthPolicyCard /> : null}

@@ -21,7 +21,10 @@ Colab에서 공식 `gradio_app_streaming.py`를 `share=True`로 띄우면 **모�
 """
 
 import asyncio
+import contextlib
+import json
 import logging
+import re
 import shutil
 import subprocess
 import tempfile
@@ -32,6 +35,7 @@ import urllib.request
 import uuid
 from pathlib import Path
 
+import httpx
 from fastapi import HTTPException
 
 from app.core.config import settings
@@ -49,6 +53,7 @@ _active_jobs: set = set()
 # 연속 변환(ffmpeg) 프로세스 추적 — 끝났거나 오래된 것은 정리한다.
 _transcodes: list[dict] = []
 _TRANSCODE_MAX_AGE_S = 300
+_CHUNK_MAX_CHARS = 140
 
 
 def _reap_jobs() -> None:
@@ -268,6 +273,55 @@ def _find_stream(stream_id: str) -> dict | None:
     return None
 
 
+def split_text_chunks(text: str, max_chars: int = _CHUNK_MAX_CHARS) -> list[str]:
+    """긴 답변을 문장 단위 발화 청크로 나눈다.
+
+    SoulX는 클립마다 정면 포즈에서 시작하므로 너무 잘게 자르면 전환 튐이 커진다. 그래서 1문장씩
+    먼저 나누되, 짧은 문장은 140자 안에서 묶어 과도한 클립 수를 막는다.
+    """
+    normalized = re.sub(r"\s+", " ", text).strip()
+    if not normalized:
+        return []
+
+    sentences: list[str] = []
+    start = 0
+    for match in re.finditer(r"[.!?。！？]+(?:[\"'”’])?\s+", normalized):
+        sentence = normalized[start : match.end()].strip()
+        if sentence:
+            sentences.append(sentence)
+        start = match.end()
+    tail = normalized[start:].strip()
+    if tail:
+        sentences.append(tail)
+    if not sentences:
+        sentences = [normalized]
+
+    chunks: list[str] = []
+    current = ""
+    for sentence in sentences:
+        if len(sentence) > max_chars:
+            if current:
+                chunks.append(current)
+                current = ""
+            chunks.extend(
+                sentence[start : start + max_chars].strip()
+                for start in range(0, len(sentence), max_chars)
+                if sentence[start : start + max_chars].strip()
+            )
+            continue
+
+        candidate = f"{current} {sentence}".strip() if current else sentence
+        if current and len(candidate) > max_chars:
+            chunks.append(current)
+            current = sentence
+        else:
+            current = candidate
+
+    if current:
+        chunks.append(current)
+    return chunks
+
+
 async def stream_mp4(stream_id: str):
     """자라는 fragmented MP4 파일을 처음부터 끝까지 흘려보낸다(생성 중이면 새 데이터를 기다림).
 
@@ -305,11 +359,12 @@ async def stream_mp4(stream_id: str):
 
 
 async def speak(text: str, voice: str | None = None) -> dict:
-    """발화 텍스트 → HLS 스트림 URL. 프론트는 이 URL을 hls.js로 재생한다."""
-    if not settings.avatar_gradio_url:
+    """발화 텍스트 → 연속 MP4 스트림 URL."""
+    if not settings.avatar_gradio_url and not settings.avatar_fastapi_url:
         # Colab 세션이 안 떠 있으면 여기로 — 프론트는 idle 영상 유지로 폴백
         raise HTTPException(
-            status_code=503, detail="아바타 서버가 설정되지 않았어요 (AVATAR_GRADIO_URL)"
+            status_code=503,
+            detail="아바타 서버가 설정되지 않았어요 (AVATAR_GRADIO_URL 또는 AVATAR_FASTAPI_URL)",
         )
 
     if not Path(settings.avatar_image_path).is_file():
@@ -326,6 +381,9 @@ async def speak(text: str, voice: str | None = None) -> dict:
         tmp.write(audio)
         audio_path = tmp.name
     try:
+        if settings.avatar_fastapi_url:
+            return await _speak_fastapi_provider(text, audio_path, media_type, voice)
+
         t0 = time.monotonic()
         colab_url = await asyncio.to_thread(_submit_sync, audio_path)
         logger.info("Colab HLS URL 확보: %.2fs", time.monotonic() - t0)
@@ -344,3 +402,237 @@ async def speak(text: str, voice: str | None = None) -> dict:
         raise HTTPException(status_code=502, detail="아바타 서버와 통신하지 못했어요.") from e
     finally:
         Path(audio_path).unlink(missing_ok=True)
+
+
+async def _speak_fastapi_provider(
+    text: str, audio_path: str, media_type: str, voice: str | None = None
+) -> dict:
+    """Colab FastAPI/ngrok POC provider.
+
+    계약:
+    - POST `{AVATAR_FASTAPI_URL}/speak`
+    - multipart: `audio` 파일 + `text`, `voice`, `model_type`, `seed`
+    - 응답: `{stream_url}` 또는 `{hls_url}` 또는 `{video_url}`
+
+    FastAPI provider가 연속 fMP4 재봉합/서빙까지 처리해야 끊김이 재발하지 않는다.
+    """
+    base = settings.avatar_fastapi_url.rstrip("/")
+    timeout = max(settings.avatar_timeout_ms, settings.avatar_transcode_timeout_ms) / 1000 + 60
+    t0 = time.monotonic()
+    try:
+        with open(audio_path, "rb") as audio_file:
+            files = {
+                "audio": (
+                    Path(audio_path).name,
+                    audio_file,
+                    media_type,
+                )
+            }
+            data = {
+                "text": text,
+                "voice": voice or "",
+                "model_type": settings.avatar_model_type,
+                "seed": str(settings.avatar_seed),
+            }
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                res = await client.post(
+                    f"{base}/speak",
+                    data=data,
+                    files=files,
+                    headers={"ngrok-skip-browser-warning": "true"},
+                )
+                res.raise_for_status()
+                payload = res.json()
+    except httpx.HTTPStatusError as e:
+        detail = e.response.text[-500:] if e.response is not None else str(e)
+        logger.exception("아바타 FastAPI provider HTTP 실패")
+        raise HTTPException(status_code=502, detail=f"아바타 FastAPI provider 실패: {detail}") from e
+    except Exception as e:  # noqa: BLE001
+        logger.exception("아바타 FastAPI provider 통신 실패")
+        raise HTTPException(status_code=502, detail="아바타 FastAPI provider와 통신하지 못했어요.") from e
+
+    stream_url = payload.get("stream_url") or payload.get("hls_url") or payload.get("video_url")
+    stream_id = payload.get("stream_id")
+    if not stream_id and stream_url:
+        # ngrok URL 마지막 경로 세그먼트가 stream_id (…/stream/<id>)
+        stream_id = stream_url.rstrip("/").split("/")[-1]
+    if not stream_id:
+        raise HTTPException(status_code=502, detail="아바타 FastAPI provider 응답에 stream ID가 없어요.")
+
+    # ⚠️ ngrok 무료 URL을 브라우저 <video>가 직접 열면 interstitial(HTML 경고)이 떠서
+    # CORB로 차단된다(<video>는 ngrok-skip-browser-warning 헤더를 못 붙임).
+    # → 우리 백엔드가 같은 origin으로 프록시(skip 헤더 붙여 대신 받아옴)한 URL을 반환한다.
+    public_base = settings.avatar_public_base.rstrip("/")
+    proxy_url = f"{public_base}/api/avatar/fastapi-stream/{stream_id}"
+
+    logger.info(
+        "FastAPI 아바타 스트림 준비: %.2fs (proxy=%s, colab_id=%s, provider_first_ready=%s)",
+        time.monotonic() - t0,
+        proxy_url,
+        stream_id,
+        payload.get("first_ready_s"),
+    )
+    return {
+        "hls_url": proxy_url,
+        "model_type": payload.get("model_type") or settings.avatar_model_type,
+        "provider": "fastapi",
+    }
+
+
+async def proxy_fastapi_stream(stream_id: str):
+    """Colab FastAPI/ngrok의 `/stream/<id>`를 우리 백엔드가 대신 받아 브라우저로 흘려보낸다.
+
+    브라우저 <video src>는 커스텀 헤더를 못 붙여 ngrok interstitial(HTML)에 걸리고
+    CORB로 차단된다. 여기서 `ngrok-skip-browser-warning` 헤더를 달아 프록시하면 같은 origin의
+    video/mp4로 전달돼 정상 재생된다.
+    """
+    base = settings.avatar_fastapi_url.rstrip("/")
+    url = f"{base}/stream/{stream_id}"
+    # 스트림은 길 수 있으니 read 타임아웃은 없앤다(connect만 제한).
+    timeout = httpx.Timeout(connect=10.0, read=None, write=30.0, pool=10.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        async with client.stream(
+            "GET", url, headers={"ngrok-skip-browser-warning": "true"}
+        ) as resp:
+            if resp.status_code != 200:
+                body = (await resp.aread())[:500]
+                logger.error("FastAPI 스트림 프록시 실패 %s: %r", resp.status_code, body)
+                return
+            async for chunk in resp.aiter_bytes():
+                yield chunk
+
+
+# ── MuseTalk WebSocket 릴레이 ────────────────────────────────────────────────
+# 프론트(브라우저) ↔ 우리 백엔드 ↔ 코랩 MuseTalk WS 를 **투명 양방향**으로 잇는다.
+# 백엔드는 내용을 만들지 않고 그대로 중계만 한다:
+#   - 프론트→코랩: 텍스트 JSON(발화 요청 `{text, ...}`)
+#   - 코랩→프론트: status 텍스트(JSON) + fMP4 프레임(바이너리) → 프론트가 MSE로 append
+# ngrok interstitial은 **서버 사이드 핸드셰이크**에서 skip 헤더로 회피(브라우저는 헤더 못 붙임).
+
+
+async def _pump_bidirectional(client_ws, upstream) -> None:
+    """client_ws(스타렛 WebSocket) ↔ upstream(websockets 연결)을 양방향으로 편다.
+
+    한쪽이 닫히면 반대쪽도 닫아 두 태스크가 같이 끝나게 한다.
+    """
+    from fastapi import WebSocketDisconnect
+
+    async def client_to_upstream() -> None:
+        try:
+            while True:
+                msg = await client_ws.receive()
+                if msg.get("type") == "websocket.disconnect":
+                    break
+                if (txt := msg.get("text")) is not None:
+                    await upstream.send(txt)
+                elif (data := msg.get("bytes")) is not None:
+                    await upstream.send(data)
+        except WebSocketDisconnect:
+            pass
+        except Exception:  # noqa: BLE001 — 릴레이 파이프 정리용
+            logger.debug("client→upstream 종료", exc_info=True)
+        finally:
+            with contextlib.suppress(Exception):
+                await upstream.close()
+
+    async def upstream_to_client() -> None:
+        try:
+            async for msg in upstream:
+                if isinstance(msg, (bytes, bytearray)):
+                    await client_ws.send_bytes(bytes(msg))
+                else:
+                    await client_ws.send_text(msg)
+        except Exception:  # noqa: BLE001 — 코랩 끊김 등
+            logger.debug("upstream→client 종료", exc_info=True)
+        finally:
+            with contextlib.suppress(Exception):
+                await client_ws.close()
+
+    await asyncio.gather(client_to_upstream(), upstream_to_client())
+
+
+async def relay_musetalk_ws(client_ws) -> None:
+    """프론트 WS를 코랩 MuseTalk WS로 투명 릴레이. `client_ws`는 이미 accept된 상태.
+
+    `AVATAR_MUSETALK_WS_URL` 미설정이면 정책 코드로 닫는다.
+    """
+    ws_url = settings.avatar_musetalk_ws_url.strip()
+    if not ws_url:
+        with contextlib.suppress(Exception):
+            await client_ws.close(code=1011, reason="MuseTalk WS 미설정")
+        return
+
+    import websockets
+
+    try:
+        async with websockets.connect(
+            ws_url,
+            additional_headers={"ngrok-skip-browser-warning": "true"},
+            max_size=None,  # fMP4 프레임이 클 수 있어 프레임 크기 제한 해제
+            ping_interval=20,
+            ping_timeout=20,
+            open_timeout=15,
+        ) as upstream:
+            logger.info("MuseTalk WS 연결: %s", ws_url)
+            await _pump_bidirectional(client_ws, upstream)
+    except Exception:  # noqa: BLE001 — 코랩 미기동/URL오류/핸드셰이크 실패
+        logger.exception("MuseTalk WS 릴레이 실패: %s", ws_url)
+        with contextlib.suppress(Exception):
+            await client_ws.close(code=1011, reason="코랩 서버 연결 실패")
+
+
+async def speak_chunk_events(text: str, voice: str | None = None):
+    """문장 청킹 아바타 생성 이벤트.
+
+    첫 청크 URL을 받자마자 프론트가 재생을 시작하고, 이 제너레이터는 이어서 다음 청크를 만든다.
+    사용자가 첫 클립을 보는 동안 다음 TTS/SoulX/ffmpeg 작업이 겹쳐져 체감 대기 시간이 줄어든다.
+    """
+    chunks = split_text_chunks(text)
+    yield {
+        "event": "plan",
+        "data": json.dumps(
+            {"total": len(chunks), "chunks": chunks},
+            ensure_ascii=False,
+        ),
+    }
+
+    for index, chunk in enumerate(chunks):
+        t0 = time.monotonic()
+        try:
+            result = await speak(chunk, voice)
+        except HTTPException as e:
+            yield {
+                "event": "error",
+                "data": json.dumps(
+                    {"index": index, "status": e.status_code, "detail": e.detail},
+                    ensure_ascii=False,
+                ),
+            }
+            return
+        except Exception as e:  # noqa: BLE001
+            logger.exception("아바타 청크 생성 실패(index=%s)", index)
+            yield {
+                "event": "error",
+                "data": json.dumps(
+                    {"index": index, "detail": str(e) or "아바타 청크 생성 실패"},
+                    ensure_ascii=False,
+                ),
+            }
+            return
+
+        yield {
+            "event": "chunk",
+            "data": json.dumps(
+                {
+                    "index": index,
+                    "total": len(chunks),
+                    "text": chunk,
+                    "hls_url": result["hls_url"],
+                    "model_type": result["model_type"],
+                    "elapsed_ms": round((time.monotonic() - t0) * 1000),
+                },
+                ensure_ascii=False,
+            ),
+        }
+
+    yield {"event": "done", "data": json.dumps({"total": len(chunks)}, ensure_ascii=False)}

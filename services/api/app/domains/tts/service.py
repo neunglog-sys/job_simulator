@@ -49,8 +49,36 @@ def _gtts_mp3_sync(text: str) -> bytes:
     return buf.getvalue()
 
 
+async def _elevenlabs_mp3(text: str, voice: str | None = None) -> bytes:
+    """ElevenLabs TTS — 단일 연속 스트림 mp3 (gTTS식 조각 이음매 팝 없음).
+
+    voice는 ElevenLabs voice_id. 미지정 시 설정값 사용. 한국어는 multilingual/flash 모델이 처리.
+    """
+    import httpx
+
+    voice_id = voice or settings.elevenlabs_voice_id
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        res = await client.post(
+            url,
+            headers={"xi-api-key": settings.elevenlabs_api_key, "accept": "audio/mpeg"},
+            params={"output_format": "mp3_44100_128"},
+            json={"text": text, "model_id": settings.elevenlabs_model},
+        )
+        res.raise_for_status()
+        return res.content
+
+
 async def synthesize(text: str, voice: str | None = None) -> tuple[bytes, str]:
     """텍스트 → (오디오 바이트, media_type)."""
+    # 팀 확정 TTS — 키 있으면 최우선 (gTTS 팝·과도한 쉼 없음)
+    if settings.elevenlabs_api_key:
+        try:
+            audio = await _elevenlabs_mp3(text, voice)
+            return audio, "audio/mpeg"
+        except Exception:  # noqa: BLE001 — 키 오류·쿼터·네트워크 등. 아래 폴백으로 연동 유지
+            logger.warning("ElevenLabs 실패 → 다음 폴백(OpenAI/gTTS)", exc_info=True)
+
     if settings.openai_api_key:
         from openai import AsyncOpenAI
 
