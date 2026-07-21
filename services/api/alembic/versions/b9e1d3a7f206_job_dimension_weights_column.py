@@ -18,6 +18,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # 멱등: jobs.dimension_weights 가 이미 있으면(로컬에서 먼저 추가된 경우 등) 다시 추가하지 않는다
+    # — 비멱등 add_column 이 DuplicateColumn 으로 배포를 깨뜨리던 문제 방지.
+    cols = {c['name'] for c in sa.inspect(op.get_bind()).get_columns('jobs')}
+    if 'dimension_weights' in cols:
+        return
     op.add_column(
         'jobs',
         sa.Column(
@@ -30,4 +35,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    cols = {c['name'] for c in sa.inspect(op.get_bind()).get_columns('jobs')}
+    if 'dimension_weights' not in cols:
+        return
     op.drop_column('jobs', 'dimension_weights')

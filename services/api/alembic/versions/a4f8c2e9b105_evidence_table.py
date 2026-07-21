@@ -18,6 +18,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # 멱등: 공유 DB에 evidence 가 이미 있으면(로컬에서 먼저 생성된 경우 등) 재생성하지 않는다
+    # — 비멱등 create_table 이 DuplicateTable 로 배포를 깨뜨리던 문제 방지.
+    if 'evidence' in sa.inspect(op.get_bind()).get_table_names():
+        return
     op.create_table(
         'evidence',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -42,6 +46,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    if 'evidence' not in sa.inspect(op.get_bind()).get_table_names():
+        return
     op.drop_index(op.f('ix_evidence_dimension_code'), table_name='evidence')
     op.drop_index(op.f('ix_evidence_simulation_id'), table_name='evidence')
     op.drop_index(op.f('ix_evidence_consultation_id'), table_name='evidence')
