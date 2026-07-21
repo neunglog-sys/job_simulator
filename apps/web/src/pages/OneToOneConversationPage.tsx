@@ -646,13 +646,13 @@ export function OneToOneConversationPage() {
     let reply = "";
     let museTalkSentenceBuffer = "";
     let museTalkStartedFromStream = false;
-
+    // 백엔드(#131) 상세요청 응답 → skip_tts=true. 긴 텍스트를 아바타가 읽으면 지연만 커지므로 발화 생략.
+    let skipTts = false;
     const flushMuseTalkSentences = (force = false) => {
       if (avatarProvider !== "musetalk" || !MUSE_TALK_STREAM_SENTENCE_FLUSH) return;
       const result = takeCompletedMuseTalkSentences(museTalkSentenceBuffer, force);
       museTalkSentenceBuffer = result.rest;
       if (result.chunks.length === 0) return;
-
       museTalkStartedFromStream = true;
       console.info("[MuseTalk]", "llm_sentence_flush", result.chunks);
       for (const sentence of result.chunks) enqueueMuseTalkChunk(sentence);
@@ -692,6 +692,7 @@ export function OneToOneConversationPage() {
         },
         {
           onDone: (metrics) => {
+            skipTts = Boolean(metrics.skip_tts);
             const trace = perfTraceRef.current;
             if (!trace) return;
             trace.llm_done_at = window.performance.now();
@@ -747,16 +748,24 @@ export function OneToOneConversationPage() {
     }
 
     if (avatarProvider === "musetalk") {
-      const avatarSpeech = toAvatarSpeechText(reply);
-      if (perfTraceRef.current) {
-        perfTraceRef.current.avatar_speech_chars = avatarSpeech.length;
+      if (skipTts) {
+        // 상세요청 응답 — 긴 텍스트라 음성 합성 생략, 텍스트만 노출 (지연 방지).
+        // 문장 flush로 첫 문장이 이미 발사됐을 수 있으니(skip_tts는 done에서야 알 수 있음) 중단시킨다.
+        console.info("[MuseTalk]", "skip_tts", { reason: "detail_requested", source_chars: reply.length });
+        resetAvatarSpeech();
+        setAvatarStatus("idle");
+      } else {
+        const avatarSpeech = toAvatarSpeechText(reply);
+        if (perfTraceRef.current) {
+          perfTraceRef.current.avatar_speech_chars = avatarSpeech.length;
+        }
+        console.info("[MuseTalk]", "avatar_speech_text", {
+          source_chars: reply.length,
+          speech_chars: avatarSpeech.length,
+          text: avatarSpeech,
+        });
+        if (!museTalkStartedFromStream) enqueueMuseTalkSpeech(avatarSpeech);
       }
-      console.info("[MuseTalk]", "avatar_speech_text", {
-        source_chars: reply.length,
-        speech_chars: avatarSpeech.length,
-        text: avatarSpeech,
-      });
-      if (!museTalkStartedFromStream) enqueueMuseTalkSpeech(avatarSpeech);
     } else if (avatarProvider) {
       try {
         await streamAvatarSpeakChunks(reply, (chunk) => enqueueAvatarSpeech(chunk.hls_url));

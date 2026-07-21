@@ -156,6 +156,8 @@ export type ConsultationStreamDoneMetrics = {
   server_total_ms?: number;
   server_output_chars?: number;
   server_output_chars_per_s?: number;
+  // 백엔드(#131)가 상세요청(길이제한 해제) 응답에 true로 실어보냄 → 아바타 음성 합성 생략(텍스트만).
+  skip_tts?: boolean;
 };
 
 export async function streamConsultationReply(
