@@ -1,6 +1,7 @@
 import { UserCircle } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { LogoutConfirmDialog } from "../components/LogoutConfirmDialog";
+import { SpaceLoadingScreen } from "../components/SpaceLoadingScreen";
 import { AiCoachPanel } from "../components/scenario/AiCoachPanel";
 import { BriefingPanel } from "../components/scenario/BriefingPanel";
 import { DashboardHeader } from "../components/scenario/DashboardHeader";
@@ -871,6 +872,15 @@ export function ScenarioGamePage() {
     "--scenario-stage-scale": stageScale,
     "--scenario-ui-text-scale": Math.min(1.5, Math.max(1, 1 / stageScale)),
   };
+
+  if (connStatus === "creating") {
+    return (
+      <SpaceLoadingScreen
+        message="가상 회사로 이동하고 있어요."
+        detail="시나리오와 게임 환경을 준비하는 중이에요."
+      />
+    );
+  }
 
   return (
     <main className={styles.gameScreen} style={screenStyle}>
