@@ -118,7 +118,7 @@
 {{ safety_notes }}
 {% endif %}
 
-{% if reply_char_limit %}
+{% if reply_char_limit|default(None) %}
 ## 이번 응답 길이 (반드시 준수)
 - 이번 응답은 자연스러운 대화체로 **{{ reply_char_limit }}자 이내**로 쓰세요. 라벨이나 목록으로
   줄이지 말고, 하려던 말을 문장 단위로 마친 뒤 멈추세요 — 문장 중간에 끊기지 않게 하세요.
