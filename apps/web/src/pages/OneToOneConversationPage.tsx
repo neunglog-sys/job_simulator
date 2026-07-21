@@ -11,6 +11,7 @@ import { PanelIndexTabs } from "../components/conversation/PanelIndexTabs";
 import { RecommendedJobsModal } from "../components/conversation/RecommendedJobsModal";
 import { SurveyDrawer } from "../components/conversation/SurveyDrawer";
 import { YouthPolicyCard } from "../components/conversation/YouthPolicyCard";
+import { YouthPolicyModal } from "../components/conversation/YouthPolicyModal";
 import { FRONTEND_ENDPOINTS } from "../config/endpoints";
 import { initialConversationMessages } from "../data/conversationMockData";
 import {
@@ -53,7 +54,7 @@ import type { SurveyAnswers, SurveyQuestionData } from "../types/survey";
 // 진행 중이던 상담 id를 기억해 이어받는다 — 새로고침마다 새 상담을 만들면 대화 이력이 날아간다.
 const CONSULTATION_RESUME_KEY = "consultation:current";
 
-type ActiveConversationModal = "history" | "recommendations" | null;
+type ActiveConversationModal = "history" | "recommendations" | "youthPolicy" | null;
 
 type ConversationPerfTrace = {
   id: string;
@@ -1431,7 +1432,9 @@ export function OneToOneConversationPage() {
             onMuseTalkMetrics={handleMuseTalkMetrics}
           />
 
-          {activePanel === "chat" ? <YouthPolicyCard /> : null}
+          {activePanel === "chat" ? (
+            <YouthPolicyCard onLearnMore={() => setActiveModal("youthPolicy")} />
+          ) : null}
 
           <ConversationPanel
             messages={messages}
@@ -1511,6 +1514,9 @@ export function OneToOneConversationPage() {
               }}
               onClose={() => setActiveModal(null)}
             />
+          ) : null}
+          {activeModal === "youthPolicy" ? (
+            <YouthPolicyModal key="youth-policy" onClose={() => setActiveModal(null)} />
           ) : null}
         </AnimatePresence>
       </div>

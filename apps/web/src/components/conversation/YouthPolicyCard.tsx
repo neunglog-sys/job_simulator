@@ -1,7 +1,11 @@
 import { ArrowRight, LightbulbFilament } from "@phosphor-icons/react";
 import styles from "../../styles/oneToOneConversation.module.css";
 
-export function YouthPolicyCard() {
+type YouthPolicyCardProps = {
+  onLearnMore: () => void;
+};
+
+export function YouthPolicyCard({ onLearnMore }: YouthPolicyCardProps) {
   return (
     <article className={styles.youthPolicyCard}>
       <header className={styles.youthPolicyHeader}>
@@ -18,11 +22,7 @@ export function YouthPolicyCard() {
         것이 좋습니다. 자신에게 맞는 제도를 적극적으로 활용하면 취업 준비에 필요한 시간과 비용
         부담을 줄일 수 있습니다.
       </p>
-      <button
-        className={styles.youthPolicyLink}
-        type="button"
-        onClick={() => window.dispatchEvent(new CustomEvent("jobiverse:open-youth-policy"))}
-      >
+      <button className={styles.youthPolicyLink} type="button" onClick={onLearnMore}>
         더 알아보기
         <ArrowRight aria-hidden="true" />
       </button>
