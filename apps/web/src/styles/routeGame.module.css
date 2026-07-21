@@ -729,3 +729,43 @@
 .submitButton,
 .dpadButton { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 8px 18px rgb(0 0 0 / 0.2); }
 .submitButton { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.24), 0 10px 24px var(--scenario-accent-soft); }
+
+/* Cartoon surface pass: route map and vehicle sprites remain unchanged. */
+.canvas,
+.driveScene {
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 18px;
+  background: #334363;
+  box-shadow: 0 5px 0 var(--cartoon-ink), inset 0 2px 0 rgb(255 255 255 / 0.12);
+}
+.notices,
+.weatherBanner,
+.driveHud,
+.logChip,
+.badge,
+.slowBanner {
+  border: 2px solid var(--cartoon-ink);
+  background: #fff2d6;
+  color: var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+.node {
+  border: 3px solid var(--cartoon-ink);
+  background: #fff2d6;
+  color: var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+.node[data-visited="true"],
+.node[data-arrival="true"] { background: #9ce5c2; }
+.line { filter: drop-shadow(2px 3px 0 var(--cartoon-ink)); }
+.road { border-inline: 3px solid var(--cartoon-ink); background: linear-gradient(90deg, #1d2540, #414d69 48%, #1d2540); box-shadow: none; }
+.truck,
+.obstacle { filter: drop-shadow(3px 5px 0 var(--cartoon-ink)); }
+.controlButton,
+.actionButton,
+.submitButton,
+.dpadButton { border: 2px solid var(--cartoon-ink); box-shadow: 0 4px 0 var(--cartoon-ink); }
+.controlButton:active,
+.actionButton:active,
+.submitButton:active,
+.dpadButton:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--cartoon-ink); }
