@@ -295,7 +295,7 @@ export function GaugeGame({ game, onComplete }: EngineProps) {
   const abnormalTotal = scoringOf(game, "abnormal_count", failGauges.length);
 
   return (
-    <div className={base.shell}>
+    <div className={`${base.shell} ${styles.gaugeShell}`}>
       <GameHud
         label={tapMode ? "이상 계기" : "계기 판정"}
         count={tapMode ? hitCount : judgedCount}
@@ -322,24 +322,26 @@ export function GaugeGame({ game, onComplete }: EngineProps) {
               role="group"
               aria-label={`${name} 게이지`}
             >
-              {/* gauge 항목에 sprite가 있으면 다이얼 옆 장비 도트 아트(ys-04 공기호흡기_본체 등).
-                  스프라이트가 있을 때만 spriteWell(장비 거치칸)이 생기고, 없으면 다이얼이 카드
-                  전폭을 쓴다(ys-07·ys-08). 아트 파일 자체가 없으면 PixelSprite가 기존 라벨 칩으로
-                  폴백한다(ys-06 임시배선 등) — 이때 well은 :has(img) 미충족으로 민무늬가 된다. */}
+              {/* 다이얼은 카드 전폭을 써서 6~9개가 좁은 칸에 들어가도 바늘·눈금이 크게 읽힌다.
+                  장비 스프라이트(ys-04 공기호흡기_본체 등, 표시 전용·판정 단서 아님)는 라벨 줄로
+                  내려 작은 배지로 붙인다. 아트 파일이 없으면 PixelSprite가 라벨 칩으로 폴백한다
+                  (ys-06 임시배선 등) — 이때 well은 :has(img) 미충족으로 민무늬가 된다. */}
               <div className={styles.dialRow}>
+                <Dial value={Number(g.value)} zone={zone} />
+              </div>
+              <div className={styles.labelRow}>
                 {g.sprite ? (
-                  <div className={styles.spriteWell}>
+                  <span className={styles.spriteWell}>
                     <PixelSprite
                       id={g.sprite}
                       label={pretty(g.sprite)}
-                      size={44}
+                      size={26}
                       fallbackClassName={styles.cardSprite}
                     />
-                  </div>
+                  </span>
                 ) : null}
-                <Dial value={Number(g.value)} zone={zone} />
+                <span className={styles.cardLabel}>{name}</span>
               </div>
-              <span className={styles.cardLabel}>{name}</span>
 
               {tapMode ? (
                 marked ? (

@@ -1,4 +1,5 @@
 import { GameController } from "@phosphor-icons/react";
+import { useEffect, useState } from "react";
 import type * as React from "react";
 import styles from "../../styles/scenarioGame.module.css";
 import { GaugeGame } from "./minigames/GaugeGame";
@@ -43,10 +44,57 @@ const ENGINE_COMPONENTS: Partial<Record<Engine, React.ComponentType<EngineProps>
   typing: TypingGame,
 };
 
+/**
+ * 여러 시도의 반영 점수 — 첫 시도 가중이 가장 크고 재도전은 점점 적게 반영한다.
+ * 가중치 wᵢ = 0.5^(i-1) (첫 시도 1, 2회차 0.5, 3회차 0.25 …) 의 가중평균.
+ * 예: [60, 90] → (60·1 + 90·0.5)/1.5 = 70. accuracy 만 가중평균하고,
+ * time_seconds·mistakes 는 서술용이라 첫 시도값을 대표로 남긴다.
+ */
+function reflectedResult(attempts: MinigameResult[]): MinigameResult {
+  if (attempts.length === 0) return { accuracy: 0, time_seconds: 0, mistakes: 0 };
+  let weightSum = 0;
+  let accSum = 0;
+  attempts.forEach((r, i) => {
+    const w = 0.5 ** i;
+    weightSum += w;
+    accSum += w * r.accuracy;
+  });
+  return {
+    accuracy: Math.round(accSum / weightSum),
+    time_seconds: attempts.reduce((s, r) => s + (r.time_seconds ?? 0), 0),
+    mistakes: attempts[0].mistakes ?? 0,
+  };
+}
+
 export function MiniGamePanel({ missionTitle, game, onClear }: MiniGamePanelProps) {
   const heading = game?.title || missionTitle;
   const EngineComponent = game ? ENGINE_COMPONENTS[game.engine] : undefined;
-  const complete = (result: MinigameResult) => onClear({ ...result, engine: game!.engine });
+
+  // 다시하기 — 완료를 가로채 시도를 누적하고, 재도전 시 엔진을 remount(key)로 리셋한다.
+  // 엔진은 손대지 않으므로 전 게임에 공통 적용된다. '완료'를 눌러야 반영 점수로 확정된다.
+  const [attempts, setAttempts] = useState<MinigameResult[]>([]);
+  const [attemptKey, setAttemptKey] = useState(0);
+  const [lastResult, setLastResult] = useState<MinigameResult | null>(null);
+
+  // 게임이 바뀌면 시도 기록 초기화.
+  useEffect(() => {
+    setAttempts([]);
+    setAttemptKey(0);
+    setLastResult(null);
+  }, [game]);
+
+  const handleAttempt = (result: MinigameResult) => {
+    setAttempts((prev) => [...prev, result]);
+    setLastResult(result);
+  };
+  const retry = () => {
+    setLastResult(null);
+    setAttemptKey((k) => k + 1);
+  };
+  const finishAll = () => {
+    onClear({ ...reflectedResult(attempts), engine: game!.engine });
+  };
+  const reflected = reflectedResult(attempts);
 
   return (
     <div className={styles.missionOverlay} role="dialog" aria-modal="true" aria-label="실무 미니게임">
@@ -65,8 +113,30 @@ export function MiniGamePanel({ missionTitle, game, onClear }: MiniGamePanelProp
                 모달·뷰포트 밖으로 넘치지 않는다. match 선 좌표는 보드 기준 상대값이라
                 보드가 한 덩어리로 스크롤돼도 선이 어긋나지 않는다. */}
             <div className={styles.missionGameScroll}>
-              <EngineComponent game={game} onComplete={complete} />
+              <EngineComponent key={attemptKey} game={game} onComplete={handleAttempt} />
             </div>
+            {/* 다시하기 바 — 게임 종료 후 나타난다. 재도전은 첫 시도보다 적게 반영된다. */}
+            {lastResult ? (
+              <div className={styles.missionRetryBar} role="status">
+                <span className={styles.missionRetryScore}>
+                  이번 <b>{lastResult.accuracy}점</b>
+                  {attempts.length > 1 ? (
+                    <>
+                      {" · "}반영 <b>{reflected.accuracy}점</b>
+                      <span className={styles.missionRetryCount}>{attempts.length}회</span>
+                    </>
+                  ) : null}
+                </span>
+                <span className={styles.missionRetryActions}>
+                  <button className={styles.missionRetryBtn} type="button" onClick={retry}>
+                    다시하기
+                  </button>
+                  <button className={styles.missionSubmit} type="button" onClick={finishAll}>
+                    완료하고 계속 →
+                  </button>
+                </span>
+              </div>
+            ) : null}
           </>
         ) : (
           <>

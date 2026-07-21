@@ -585,7 +585,12 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
   };
 
   return (
-    <div className={base.shell}>
+    // flexShrink 0 — 공용 셸(base.shell)은 overflow:hidden 이라, 맵 보드(원사이즈 씬)+트레이가
+    // 모달 높이를 넘으면 셸이 스스로 찌그러지며 하단 트레이·제출 버튼을 잘라 버린다.
+    // 셸이 콘텐츠 높이를 지키게 두면 넘치는 세로는 모달의 전역 스크롤(.missionGameScroll)이
+    // 받는다 — 씬을 크게 두고도(가로 100%·aspect 유지) 트레이·버튼이 안 잘린다.
+    // place 전용 오버라이드(공용 minigame.module.css 는 건드리지 않는다).
+    <div className={base.shell} style={{ flexShrink: 0 }}>
       <GameHud
         label="배치 진행"
         count={filledCount + resolvedCount}

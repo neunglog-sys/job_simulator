@@ -1,64 +1,7 @@
-// 미니게임 미리보기 데이터 — data/minigames/*.yaml 에서 자동 변환 (도트 아트 검수용).
-// 재생성: 이 파일을 만든 스크립트를 다시 돌리면 됨. 실게임은 백엔드가 내려주는 정의를 쓴다.
+// 미니게임 미리보기 데이터.
 import type { MinigameDef } from "./components/scenario/minigames/types";
 
 export const PREVIEW_GAMES = {
-  "backend-dev-day1": {
-    "engine": "typing",
-    "title": "알림 발송 예외 처리",
-    "intro": "막아야 할 예외 조건이 위에서 내려옵니다. 정확히 입력해 걸러내세요. 스펙에 없는 줄은 입력하면 안 됩니다.",
-    "time_limit": 90,
-    "pass_score": 70,
-    "data": {
-      "fall_seconds": 14,
-      "presentation": "dev_desk",
-      "lines": [
-        {
-          "id": "dup",
-          "text": "if already_sent(user, notice): skip()",
-          "label": "같은 사용자에게 중복 발송 차단"
-        },
-        {
-          "id": "optout",
-          "text": "if user.opted_out: skip()",
-          "label": "수신거부 사용자 제외"
-        },
-        {
-          "id": "night",
-          "text": "if is_night(now): hold_until_morning()",
-          "label": "야간 시간대 발송 보류"
-        },
-        {
-          "id": "log",
-          "text": "log_skipped(user, reason)",
-          "label": "걸러진 건을 사유와 함께 기록"
-        }
-      ],
-      "distractors": [
-        {
-          "id": "force",
-          "text": "send_all(users)",
-          "reason": "조건 확인 없이 전체 발송부터 시도"
-        },
-        {
-          "id": "retry",
-          "text": "cancel_after_send()",
-          "reason": "일단 보내고 문제 생기면 취소하는 방식"
-        }
-      ]
-    },
-    "scoring": {
-      "line_count": 4,
-      "critical_lines": [
-        "dup",
-        "optout",
-        "night"
-      ],
-      "missed_critical_penalty": 40,
-      "distractor_penalty": 40,
-      "count_speed": false
-    }
-  },
   "cln-01": {
     "engine": "place",
     "title": "805호 정비 상태 검수·보완",
@@ -3202,6 +3145,10 @@ export const PREVIEW_GAMES = {
     "data": {
       "scene": "카드뉴스_5장_검수보드",
       "mark": "tag",
+      "reference": {
+        "sprite": "견본_표준_카드뉴스",
+        "label": "브랜드 기준에 맞는 표준 카드뉴스 예시 (견본)"
+      },
       "targets": [
         {
           "id": "카드3_로고부",
@@ -3925,6 +3872,10 @@ export const PREVIEW_GAMES = {
     "data": {
       "scene": "배너시안_3종_검수대",
       "mark": "x",
+      "reference": {
+        "sprite": "견본_표준_배너",
+        "label": "브리프·검수표 기준에 맞는 표준 배너 시안 예시 (견본)"
+      },
       "targets": [
         {
           "id": "A_상단색면",
@@ -4137,61 +4088,59 @@ export const PREVIEW_GAMES = {
     }
   },
   "yg-03": {
-    "engine": "place",
-    "title": "회원가입 화면 PR 대조 검수",
-    "intro": "동료가 올린 회원가입 화면 PR의 변경 블록을 디자인 시안·API 명세 실루엣과 대조하세요. 명세와 일치하는 블록만 검수 화면의 제자리에 놓고, 스펙에 없거나 잘못된 응답 필드에 연결된 블록은 제외하세요.",
-    "time_limit": 70,
+    "engine": "typing",
+    "title": "배포 전 안전 점검",
+    "intro": "릴리스 배포 전 마지막 점검입니다. 치명 위험을 막는 점검 코드를 정확히 입력하세요. 위험을 발견하면 혼자 고치지 말고 배포를 중단·보고해야 합니다. 스펙에 없는 줄은 입력하면 안 됩니다.",
+    "time_limit": 90,
     "pass_score": 70,
     "data": {
-      "slots": [
+      "fall_seconds": 14,
+      "presentation": "dev_desk",
+      "lines": [
         {
-          "id": "상단_로고",
-          "accepts": "로고_이미지",
-          "label": "상단 로고 자리"
+          "id": "pii",
+          "text": "if has_plaintext_pii(logs): block_release()",
+          "label": "로그의 개인정보 평문 노출 탐지 → 배포 중단"
         },
         {
-          "id": "입력_이메일",
-          "accepts": "이메일_입력필드",
-          "label": "이메일 입력 필드"
+          "id": "secret",
+          "text": "if api_key_in_source(config): block_release()",
+          "label": "소스에 하드코딩된 API 키 탐지 → 배포 중단"
         },
         {
-          "id": "입력_비번",
-          "accepts": "비밀번호_입력필드",
-          "label": "비밀번호 입력 필드"
+          "id": "backup",
+          "text": "if migration_lacks_backup(): block_release()",
+          "label": "백업 없는 마이그레이션 탐지 → 배포 중단"
         },
         {
-          "id": "약관_동의",
-          "accepts": "약관동의_체크박스",
-          "label": "약관 동의 체크박스"
-        },
-        {
-          "id": "하단_버튼",
-          "accepts": "가입_버튼",
-          "label": "가입 버튼"
+          "id": "report",
+          "text": "if release_blocked: report_to_lead()",
+          "label": "중단 시 선임에게 보고 (혼자 처리 금지)"
         }
       ],
-      "pieces": [
-        "로고_이미지",
-        "이메일_입력필드",
-        "비밀번호_입력필드",
-        "약관동의_체크박스",
-        "가입_버튼",
-        "이벤트_배너",
-        "잘못된필드_가입버튼"
-      ],
-      "visual_cues": {
-        "가입_버튼": "시안실루엣일치_라운드정합_단자색일치",
-        "잘못된필드_가입버튼": "라운드어긋남_경고점선테두리_단자색불일치",
-        "이벤트_배너": "시안실루엣에_대응자리없음_과장광고틀"
-      },
-      "extras": [
-        "이벤트_배너",
-        "잘못된필드_가입버튼"
+      "distractors": [
+        {
+          "id": "force",
+          "text": "deploy_anyway(ignore_warnings=True)",
+          "reason": "일정 압박에 밀려 경고를 무시하고 배포 강행"
+        },
+        {
+          "id": "selffix",
+          "text": "patch_secret_and_deploy()",
+          "reason": "위험을 발견하고도 혼자 스크립트를 수정·실행"
+        }
       ]
     },
     "scoring": {
-      "slot_count": 5,
-      "extra_penalty": 12
+      "line_count": 4,
+      "critical_lines": [
+        "pii",
+        "secret",
+        "backup"
+      ],
+      "missed_critical_penalty": 40,
+      "distractor_penalty": 40,
+      "count_speed": false
     }
   },
   "yg-04": {
