@@ -4088,61 +4088,59 @@ export const PREVIEW_GAMES = {
     }
   },
   "yg-03": {
-    "engine": "place",
-    "title": "회원가입 화면 PR 대조 검수",
-    "intro": "동료가 올린 회원가입 화면 PR의 변경 블록을 디자인 시안·API 명세 실루엣과 대조하세요. 명세와 일치하는 블록만 검수 화면의 제자리에 놓고, 스펙에 없거나 잘못된 응답 필드에 연결된 블록은 제외하세요.",
-    "time_limit": 70,
+    "engine": "typing",
+    "title": "배포 전 안전 점검",
+    "intro": "릴리스 배포 전 마지막 점검입니다. 치명 위험을 막는 점검 코드를 정확히 입력하세요. 위험을 발견하면 혼자 고치지 말고 배포를 중단·보고해야 합니다. 스펙에 없는 줄은 입력하면 안 됩니다.",
+    "time_limit": 90,
     "pass_score": 70,
     "data": {
-      "slots": [
+      "fall_seconds": 14,
+      "presentation": "dev_desk",
+      "lines": [
         {
-          "id": "상단_로고",
-          "accepts": "로고_이미지",
-          "label": "상단 로고 자리"
+          "id": "pii",
+          "text": "if has_plaintext_pii(logs): block_release()",
+          "label": "로그의 개인정보 평문 노출 탐지 → 배포 중단"
         },
         {
-          "id": "입력_이메일",
-          "accepts": "이메일_입력필드",
-          "label": "이메일 입력 필드"
+          "id": "secret",
+          "text": "if api_key_in_source(config): block_release()",
+          "label": "소스에 하드코딩된 API 키 탐지 → 배포 중단"
         },
         {
-          "id": "입력_비번",
-          "accepts": "비밀번호_입력필드",
-          "label": "비밀번호 입력 필드"
+          "id": "backup",
+          "text": "if migration_lacks_backup(): block_release()",
+          "label": "백업 없는 마이그레이션 탐지 → 배포 중단"
         },
         {
-          "id": "약관_동의",
-          "accepts": "약관동의_체크박스",
-          "label": "약관 동의 체크박스"
-        },
-        {
-          "id": "하단_버튼",
-          "accepts": "가입_버튼",
-          "label": "가입 버튼"
+          "id": "report",
+          "text": "if release_blocked: report_to_lead()",
+          "label": "중단 시 선임에게 보고 (혼자 처리 금지)"
         }
       ],
-      "pieces": [
-        "로고_이미지",
-        "이메일_입력필드",
-        "비밀번호_입력필드",
-        "약관동의_체크박스",
-        "가입_버튼",
-        "이벤트_배너",
-        "잘못된필드_가입버튼"
-      ],
-      "visual_cues": {
-        "가입_버튼": "시안실루엣일치_라운드정합_단자색일치",
-        "잘못된필드_가입버튼": "라운드어긋남_경고점선테두리_단자색불일치",
-        "이벤트_배너": "시안실루엣에_대응자리없음_과장광고틀"
-      },
-      "extras": [
-        "이벤트_배너",
-        "잘못된필드_가입버튼"
+      "distractors": [
+        {
+          "id": "force",
+          "text": "deploy_anyway(ignore_warnings=True)",
+          "reason": "일정 압박에 밀려 경고를 무시하고 배포 강행"
+        },
+        {
+          "id": "selffix",
+          "text": "patch_secret_and_deploy()",
+          "reason": "위험을 발견하고도 혼자 스크립트를 수정·실행"
+        }
       ]
     },
     "scoring": {
-      "slot_count": 5,
-      "extra_penalty": 12
+      "line_count": 4,
+      "critical_lines": [
+        "pii",
+        "secret",
+        "backup"
+      ],
+      "missed_critical_penalty": 40,
+      "distractor_penalty": 40,
+      "count_speed": false
     }
   },
   "yg-04": {
