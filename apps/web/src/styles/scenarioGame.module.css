@@ -2692,8 +2692,12 @@ button.headerOrb:active {
   }
 }
 
-/* Keep the mini-game cartoon frame last so later scenario-theme rules cannot override it. */
-.missionOverlay {
+/* Cartoon frame — scoped to the mini-game modal only (MiniGamePanel).
+   Quiz(MissionPanel)·briefing·reflection modals share .missionModal/.missionOverlay,
+   so the cartoon rules are gated behind .miniGameModal/.miniGameOverlay to keep those
+   three on the plain scenario styling. Keep this block last so later scenario-theme
+   rules cannot override the mini-game frame. */
+.miniGameOverlay {
   background:
     radial-gradient(circle at 16% 12%, rgb(91 215 208 / 0.18), transparent 31%),
     radial-gradient(circle at 84% 88%, rgb(155 123 234 / 0.2), transparent 34%),
@@ -2701,7 +2705,7 @@ button.headerOrb:active {
   -webkit-backdrop-filter: blur(10px) saturate(1.05);
   backdrop-filter: blur(10px) saturate(1.05);
 }
-.missionModal {
+.missionModal.miniGameModal {
   border: 4px solid #17182a;
   border-radius: 28px;
   background:
@@ -2709,36 +2713,36 @@ button.headerOrb:active {
     linear-gradient(160deg, #344467 0 56%, #293455 56% 100%);
   box-shadow: inset 0 2px 0 rgb(255 255 255 / 0.14), 0 8px 0 #17182a, 0 34px 80px rgb(4 7 18 / 0.48);
 }
-.missionKindBadge {
+.miniGameModal .missionKindBadge {
   border: 2px solid #17182a;
   color: #17182a;
   background: #5bd7d0;
   box-shadow: 0 3px 0 #17182a;
   text-shadow: none;
 }
-.missionHeader h2 { color: #fff2d6; text-shadow: 0 3px 0 #17182a; }
-.miniGameBody { color: #e6d8bd; }
-.missionRetryBar {
+.miniGameModal .missionHeader h2 { color: #fff2d6; text-shadow: 0 3px 0 #17182a; }
+.miniGameModal .miniGameBody { color: #e6d8bd; }
+.miniGameModal .missionRetryBar {
   border: 2px solid #17182a;
   background: #fff2d6;
   box-shadow: 0 4px 0 #17182a;
 }
-.missionRetryScore,
-.missionRetryScore b { color: #17182a; }
-.missionRetryCount { border: 2px solid #17182a; color: #17182a; background: #d7c6ff; }
-.missionRetryBtn,
-.missionSubmit {
+.miniGameModal .missionRetryScore,
+.miniGameModal .missionRetryScore b { color: #17182a; }
+.miniGameModal .missionRetryCount { border: 2px solid #17182a; color: #17182a; background: #d7c6ff; }
+.miniGameModal .missionRetryBtn,
+.miniGameModal .missionSubmit {
   border: 2px solid #17182a;
   color: #17182a;
   box-shadow: 0 4px 0 #17182a;
   text-shadow: none;
 }
-.missionRetryBtn { background: #fff2d6; }
-.missionSubmit { background: #f5c84c; }
-.missionRetryBtn:hover,
-.missionSubmit:hover { transform: translateY(-1px); box-shadow: 0 5px 0 #17182a; }
-.missionRetryBtn:active,
-.missionSubmit:active { transform: translateY(2px); box-shadow: 0 2px 0 #17182a; }
+.miniGameModal .missionRetryBtn { background: #fff2d6; }
+.miniGameModal .missionSubmit { background: #f5c84c; }
+.miniGameModal .missionRetryBtn:hover,
+.miniGameModal .missionSubmit:hover { transform: translateY(-1px); box-shadow: 0 5px 0 #17182a; }
+.miniGameModal .missionRetryBtn:active,
+.miniGameModal .missionSubmit:active { transform: translateY(2px); box-shadow: 0 2px 0 #17182a; }
 
 /* ── 시나리오 HUD 리디자인: 3가지 우주 테마 + 로켓 항로 + 대화 플로우 ── */
 .designStage {
