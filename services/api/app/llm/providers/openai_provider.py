@@ -29,6 +29,7 @@ class OpenAIProvider:
         system: str | None = None,
         json_schema: dict | None = None,
         temperature: float = 0.7,
+        max_tokens: int | None = None,
     ) -> str:
         kwargs: dict = {}
         if json_schema:
@@ -36,6 +37,8 @@ class OpenAIProvider:
                 "type": "json_schema",
                 "json_schema": {"name": "output", "schema": json_schema, "strict": True},
             }
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
         try:
             res = await self._client.chat.completions.create(
                 model=self._model,
@@ -54,13 +57,18 @@ class OpenAIProvider:
         system: str | None = None,
         temperature: float = 0.7,
         thinking_budget: int | None = None,
+        max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
+        kwargs: dict = {}
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
         try:
             stream = await self._client.chat.completions.create(
                 model=self._model,
                 messages=self._build_messages(messages, system),
                 temperature=temperature,
                 stream=True,
+                **kwargs,
             )
             async for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta.content:
