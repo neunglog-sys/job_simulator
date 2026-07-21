@@ -3213,3 +3213,10 @@
     transition: none;
   }
 }
+
+/* [아바타 이식] idle 루프와 발화 스트림을 같은 자리에 겹쳐 opacity로 크로스페이드 — AiAvatarStage에서 사용. */
+.avatarVideo {
+  position: absolute;
+  inset: 0;
+  transition: opacity 220ms ease-in-out;
+}

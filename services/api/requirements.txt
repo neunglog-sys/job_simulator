@@ -12,6 +12,8 @@ pgvector
 sse-starlette
 openai
 google-genai
+gradio-client
+gTTS  # 임시 한국어 TTS — ElevenLabs 키 확보 전까지의 폴백
 pyjwt
 email-validator
 reportlab

@@ -57,11 +57,23 @@ export const API_ENDPOINTS = {
   },
   tts: apiUrl("/api/tts"),
   avatar: {
+    // 아바타 사용 가능 여부. Colab 세션이 안 떠 있으면 enabled=false → idle 루프만 재생.
+    status: apiUrl("/api/avatar/status"),
+    // 발화 텍스트 → 백엔드가 재봉합한 연속 fragmented MP4 스트림 URL.
+    // 첫 URL까지 약 7초 — 그동안 프론트는 thinking 상태 유지.
+    speak: apiUrl("/api/avatar/speak"),
+    // 긴 답변을 문장 단위로 나눠 각 MP4 스트림 URL을 SSE로 순차 전달.
+    speakChunks: apiUrl("/api/avatar/speak-chunks"),
+    ws: (token?: string | null) =>
+      `${WS_BASE_URL}/api/avatar/ws${token ? `?token=${encodeURIComponent(token)}` : ""}`,
     // 아바타 모델 콜드스타트 완화용 워밍업 트리거 — 백엔드 준비 전까지는 404/네트워크 실패를
     // 조용히 무시한다 (warmupAvatar 참고). 실제 스펙 확정되면 경로만 맞추면 됨.
     warmup: apiUrl("/api/avatar/warmup"),
   },
 } as const;
+
+// idle 루프 영상 — MuseTalk 발화 영상과 같은 720p 기준으로 맞춘 driving/idle/idle_02.mp4 변환본.
+export const AVATAR_IDLE_SRC = "/avatar-idle-720p.mp4";
 
 // 게임 WebSocket URL — 로그인 토큰이 있으면 쿼리로 실어 보낸다 (없으면 데모 사용자).
 export const wsSimulation = (id: number, token?: string | null) =>

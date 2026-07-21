@@ -169,10 +169,20 @@ export function fetchConsultationMessages(
 
 /** 아바타 응답 SSE 스트리밍(event: token → done). fetch+ReadableStream 직접 파싱 —
  * EventSource는 GET 전용이라 본문이 필요한 이 POST 스트림엔 못 쓴다. */
+export type ConsultationStreamDoneMetrics = {
+  server_first_token_ms?: number;
+  server_total_ms?: number;
+  server_output_chars?: number;
+  server_output_chars_per_s?: number;
+  // 백엔드(#131)가 상세요청(길이제한 해제) 응답에 true로 실어보냄 → 아바타 음성 합성 생략(텍스트만).
+  skip_tts?: boolean;
+};
+
 export async function streamConsultationReply(
   consultationId: number,
   content: string,
   onToken: (text: string) => void,
+  options: { onDone?: (metrics: ConsultationStreamDoneMetrics) => void } = {},
 ): Promise<void> {
   const headers = new Headers({ "Content-Type": "application/json" });
   if (token) headers.set("Authorization", `Bearer ${token}`);
@@ -202,7 +212,7 @@ export async function streamConsultationReply(
   const consumeEvent = (rawEvent: string) => {
     let eventName = "message";
     const dataLines: string[] = [];
-    for (const line of rawEvent.split("\n")) {
+    for (const line of rawEvent.split(/\r?\n/)) {
       if (line.startsWith("event:")) eventName = line.slice(6).trim();
       else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
     }
@@ -211,6 +221,8 @@ export async function streamConsultationReply(
     const data = safeJson(dataLines.join("\n")) as { text?: string; detail?: string } | null;
     if (eventName === "token" && data?.text) {
       onToken(data.text);
+    } else if (eventName === "done") {
+      options.onDone?.((data ?? {}) as ConsultationStreamDoneMetrics);
     } else if (eventName === "error") {
       throw new ApiError(500, data?.detail, data?.detail ?? "응답 생성에 실패했어요.");
     }
@@ -221,12 +233,12 @@ export async function streamConsultationReply(
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
 
-    let separatorIndex: number;
-    while ((separatorIndex = buffer.indexOf("\n\n")) !== -1) {
-      consumeEvent(buffer.slice(0, separatorIndex));
-      buffer = buffer.slice(separatorIndex + 2);
-    }
+    // sse_starlette는 이벤트를 `\r\n\r\n`로 구분한다 → 리터럴 "\n\n"으로는 못 잘림.
+    const blocks = buffer.split(/\r?\n\r?\n/);
+    buffer = blocks.pop() ?? "";
+    for (const block of blocks) consumeEvent(block);
   }
+  if (buffer.trim()) consumeEvent(buffer);
 }
 
 // --- 사전 설문 — 백엔드 survey.py 문항(정답지인 dimension_scores는 노출 안 됨) ---
@@ -424,4 +436,196 @@ export type SimulationScore = {
 
 export function fetchSimulationScore(id: number): Promise<SimulationScore> {
   return request(API_ENDPOINTS.simulations.score(id));
+}
+
+// --- 아바타 (SoulX-FlashHead stream) — feature/JMS 이식 ---
+export type AvatarProvider = "musetalk" | "fastapi" | "gradio";
+export type AvatarStatusOut = {
+  enabled: boolean;
+  model_type: string;
+  provider?: AvatarProvider;
+};
+/** hls_url = 백엔드가 재봉합한 연속 fragmented MP4 스트림 URL. */
+export type AvatarSpeakOut = { hls_url: string; model_type: string };
+export type AvatarChunkPlan = { total: number; chunks: string[] };
+export type AvatarChunkOut = AvatarSpeakOut & {
+  index: number;
+  total: number;
+  text: string;
+  elapsed_ms: number;
+};
+
+export function fetchAvatarStatus(): Promise<AvatarStatusOut> {
+  return request(API_ENDPOINTS.avatar.status, { method: "GET" });
+}
+
+export type MuseTalkSpeakRequest = {
+  text: string;
+  voice?: string | null;
+  speaker_id?: string;
+  gesture_index?: number;
+};
+
+export type MuseTalkBlobOut = {
+  blob: Blob;
+  bytes: number;
+  elapsed_ms: number;
+  statuses: unknown[];
+};
+
+export function createAvatarWebSocket(): WebSocket {
+  return new WebSocket(API_ENDPOINTS.avatar.ws(token));
+}
+
+export function generateMuseTalkBlob(
+  request: MuseTalkSpeakRequest,
+): Promise<MuseTalkBlobOut> {
+  return new Promise((resolve, reject) => {
+    const socket = createAvatarWebSocket();
+    const startedAt = window.performance.now();
+    const chunks: ArrayBuffer[] = [];
+    const statuses: unknown[] = [];
+    let settled = false;
+    let bytes = 0;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve({
+        blob: new Blob(chunks, { type: "video/mp4" }),
+        bytes,
+        elapsed_ms: Math.round(window.performance.now() - startedAt),
+        statuses,
+      });
+    };
+
+    const fail = (message: string) => {
+      if (settled) return;
+      settled = true;
+      reject(new ApiError(500, message, message));
+    };
+
+    socket.binaryType = "arraybuffer";
+    socket.onopen = () => {
+      console.info("[MuseTalk]", "prefetch_ws_open", request);
+      socket.send(JSON.stringify({ speaker_id: "coach", emotion: "neutral", ...request }));
+    };
+    socket.onmessage = (event) => {
+      if (typeof event.data === "string") {
+        const payload = safeJson(event.data);
+        statuses.push(payload);
+        const signal = (payload as { type?: string; status?: string; stage?: string } | null)?.type;
+        if (signal === "error") fail("MuseTalk 백그라운드 청크 생성에 실패했어요.");
+        if (signal === "done") {
+          try {
+            socket.close(1000);
+          } catch {
+            // 이미 닫힌 경우 무시한다.
+          }
+          finish();
+        }
+        return;
+      }
+
+      const push = (chunk: ArrayBuffer) => {
+        chunks.push(chunk);
+        bytes += chunk.byteLength;
+      };
+      if (event.data instanceof Blob) void event.data.arrayBuffer().then(push);
+      else if (event.data instanceof ArrayBuffer) push(event.data);
+    };
+    socket.onerror = (event) => {
+      console.error("[MuseTalk]", "prefetch_ws_error", event);
+      fail("MuseTalk 백그라운드 WebSocket 연결에 실패했어요.");
+    };
+    socket.onclose = (event) => {
+      console.info("[MuseTalk]", "prefetch_ws_close", {
+        code: event.code,
+        reason: event.reason,
+        bytes,
+        settled,
+      });
+      if (settled) return;
+      if (chunks.length > 0 && event.code === 1000) finish();
+      else fail("MuseTalk 백그라운드 WebSocket이 조기 종료됐어요.");
+    };
+  });
+}
+
+/**
+ * 발화 텍스트 → 아바타 연속 MP4 스트림 URL.
+ * ⚠️ 첫 URL까지 약 7초(Gradio 큐/SSE 오버헤드). 호출부는 그동안 avatarStatus를 "thinking" 유지.
+ * 아바타 미설정(Colab 세션 없음)이면 503 → idle 유지로 폴백.
+ */
+export function speakAvatar(text: string, voice?: string): Promise<AvatarSpeakOut> {
+  return request(API_ENDPOINTS.avatar.speak, {
+    method: "POST",
+    body: JSON.stringify(voice ? { text, voice } : { text }),
+  });
+}
+
+export async function streamAvatarSpeakChunks(
+  text: string,
+  onChunk: (chunk: AvatarChunkOut) => void,
+  options: {
+    voice?: string;
+    onPlan?: (plan: AvatarChunkPlan) => void;
+  } = {},
+): Promise<void> {
+  const headers = new Headers({ "Content-Type": "application/json" });
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  let res: Response;
+  try {
+    res = await fetch(API_ENDPOINTS.avatar.speakChunks, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(options.voice ? { text, voice: options.voice } : { text }),
+    });
+  } catch {
+    throw new ApiError(0, null, "서버에 연결할 수 없어요. 백엔드가 켜져 있는지 확인해주세요.");
+  }
+
+  if (!res.ok || !res.body) {
+    const raw = await res.text().catch(() => "");
+    const data = raw ? safeJson(raw) : null;
+    const detail = (data as { detail?: unknown } | null)?.detail;
+    throw new ApiError(res.status, detail, messageFromDetail(detail, res.status));
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  const consumeEvent = (rawEvent: string) => {
+    let eventName = "message";
+    const dataLines: string[] = [];
+    for (const line of rawEvent.split(/\r?\n/)) {
+      if (line.startsWith("event:")) eventName = line.slice(6).trim();
+      else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+    }
+    if (dataLines.length === 0) return;
+
+    const data = safeJson(dataLines.join("\n"));
+    if (eventName === "plan") {
+      options.onPlan?.(data as AvatarChunkPlan);
+    } else if (eventName === "chunk") {
+      onChunk(data as AvatarChunkOut);
+    } else if (eventName === "error") {
+      const detail = (data as { detail?: unknown } | null)?.detail;
+      throw new ApiError(500, detail, typeof detail === "string" ? detail : "아바타 청크 생성에 실패했어요.");
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const blocks = buffer.split(/\r?\n\r?\n/);
+    buffer = blocks.pop() ?? "";
+    for (const block of blocks) consumeEvent(block);
+  }
+
+  if (buffer.trim()) consumeEvent(buffer);
 }

@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     # LLM 견고성 — 무응답·일시장애 방지
     llm_timeout_ms: int = 60_000  # Gemini 호출 타임아웃(ms). 무응답 시 실패 처리 → 요청 무한대기 차단
     llm_max_retries: int = 2  # 일시오류(429·5xx·타임아웃) 지수백오프 재시도 횟수
+    # (출력 길이 제어는 dev PR #131이 소유 — service.py char_limit→max_tokens per-call 방식.
+    #  상세요청 시 char_limit=None(무제한)+skip_tts=True. 전역 config 캡은 그 설계와 충돌하므로 두지 않음.)
 
     # 임베딩 (RAG) — Gemini로 통일. output_dimensionality로 doc_chunks 차원(1536) 유지
     # (마이그레이션 없이 기존 Vector(1536) 컬럼 재사용). 재임베딩 필요.
@@ -36,6 +38,50 @@ class Settings(BaseSettings):
     # TTS — OPENAI_API_KEY 없으면 mock(비프음 WAV)으로 폴백
     tts_model: str = "tts-1"
     tts_voice: str = "nova"
+    # ElevenLabs — 팀 확정 TTS. 키 있으면 gTTS/OpenAI보다 **우선** 사용.
+    # 🔒 sk_… 키는 **비밀** → .env로만(커밋 금지). eleven_flash_v2_5 = 저지연 다국어(한국어 O).
+    elevenlabs_api_key: str = ""
+    elevenlabs_voice_id: str = "21m00Tcm4TlvDq8ikWAM"  # 기본(Rachel); 한국어는 multilingual로 재생
+    elevenlabs_model: str = "eleven_flash_v2_5"  # 실시간용 저지연. 품질 우선이면 eleven_multilingual_v2
+
+    # ── 아바타 (SoulX-FlashHead) ──────────────────────────────────────────
+    # Colab에서 `gradio_app_streaming.py`를 share=True로 띄운 공개 URL.
+    # ⚠️ URL은 **Colab 세션 재시작마다 바뀜** → .env 갱신 + 백엔드 재시작 필요.
+    #    (gradio.live 링크 수명은 1주일이지만, 실제로는 Colab 세션이 먼저 끊겨서 그때 죽음)
+    # 🔒 share 링크는 **공개**다 — URL을 아는 누구나 우리 GPU로 추론을 돌릴 수 있음.
+    #    유출 주의. 프로덕션에선 인증 있는 자체 GPU로 교체할 것.
+    # 비어 있으면 아바타 API가 503(미설정)으로 응답 → 프론트는 idle 영상으로 폴백.
+    avatar_gradio_url: str = ""
+    # POC용 직접 FastAPI provider. Colab 런타임에서 SoulX를 FastAPI로 감싸고
+    # ngrok/Cloudflare Tunnel로 노출한 base URL. 설정되면 Gradio 경로보다 우선 사용한다.
+    avatar_fastapi_url: str = ""
+    # MuseTalk provider (WebSocket). 코랩 MuseTalk FastAPI 서버의 WS 엔드포인트.
+    # 예: wss://depth-styling-resonant.ngrok-free.dev/ws
+    # 설정되면 프론트가 /api/avatar/ws로 붙고, 백엔드가 이 URL로 **투명 양방향 릴레이**한다.
+    # (ngrok interstitial 회피용 skip 헤더는 서버 사이드 핸드셰이크에서 붙는다.)
+    # 프론트는 텍스트 JSON(발화 요청)을 올리고, 코랩은 status(JSON) + fMP4 프레임(바이너리)을 내린다.
+    avatar_musetalk_ws_url: str = ""
+    # 응답은 mp4가 아니라 **HLS 재생목록(.m3u8) URL**. 프론트에서 hls.js로 재생.
+    # (gradio_client 기본 다운로드는 /gradio_api/file= 경로라 403 → download_files=False 필수)
+    avatar_api_name: str = "/run_inference_streaming"
+    avatar_ckpt_dir: str = "models/SoulX-FlashHead-1_3B"  # Colab 서버 기준 경로
+    avatar_wav2vec_dir: str = "models/wav2vec2-base-960h"  # Colab 서버 기준 경로
+    # lite | pro — pro는 단일 A100 실시간 불가 (실측: 간격 4.54s > 분량 3.36s = 끊김).
+    # idle은 미리 만드니 pro도 되지만, 발화(lite)와 화질이 달라 전환 때 티남 → 둘 다 lite.
+    avatar_model_type: str = "lite"
+    # 소스가 정확히 512×512 → SoulX 출력과 같아서 리사이즈·크롭이 전혀 없음.
+    avatar_image_path: str = "assets/ai_avatar_6_2.png"  # 백엔드 로컬 (매 호출 업로드)
+    # 소스가 이미 512라 크롭 불필요. 크롭하면 idle 영상과 구도가 어긋나 전환 때 튐.
+    avatar_use_face_crop: bool = False
+    # idle 시드 스윕에서 채택 — 발화도 같은 시드를 써야 모션 성격이 일치한다.
+    avatar_seed: int = 123
+    avatar_timeout_ms: int = 60_000  # 첫 HLS URL 수신 대기 상한 (실측 첫 세그먼트 ≈ 1.8~2.0초)
+    # 연속 서빙: Colab의 조각난 HLS(세그먼트마다 DISCONTINUITY)를 ffmpeg로 하나의 연속 타임라인
+    # HLS로 재인코딩해 우리가 서빙한다 → 브라우저가 끊김 없이 재생. 아래는 브라우저가 그 스트림을
+    # 받아갈 백엔드 공개 주소(브라우저 기준) + 출력 저장 루트.
+    avatar_public_base: str = "http://localhost:8000"
+    avatar_stream_root: str = "/app/avatar_streams"
+    avatar_transcode_timeout_ms: int = 30_000  # 연속 스트림 첫 세그먼트 대기 상한
 
     # CORS — 프론트 개발 서버 주소 (콤마 구분)
     cors_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost"
