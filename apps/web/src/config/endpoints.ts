@@ -56,6 +56,11 @@ export const API_ENDPOINTS = {
     pdf: (id: number) => apiUrl(`/api/reports/${id}/pdf`),
   },
   tts: apiUrl("/api/tts"),
+  avatar: {
+    // 아바타 모델 콜드스타트 완화용 워밍업 트리거 — 백엔드 준비 전까지는 404/네트워크 실패를
+    // 조용히 무시한다 (warmupAvatar 참고). 실제 스펙 확정되면 경로만 맞추면 됨.
+    warmup: apiUrl("/api/avatar/warmup"),
+  },
 } as const;
 
 // 게임 WebSocket URL — 로그인 토큰이 있으면 쿼리로 실어 보낸다 (없으면 데모 사용자).
