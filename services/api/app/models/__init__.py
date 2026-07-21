@@ -103,6 +103,9 @@ class Job(Base):
     competencies: Mapped[dict] = mapped_column(JSONB, default=dict)  # 역량 매트릭스
     # RIASEC 흥미유형 중요도(1~5) — 사전 설문(Consultation.survey.profile)과의 매칭용, 없으면 역량 점수만 사용
     interest_profile: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # 8모듈 43축 가중치(data/counseling/module_mapping.json에서 이식, 개별 직무 조사 아님) —
+    # competencies가 비어있는 시나리오 카테고리 직무(kts-01 등)의 추천 스코어링용 보조 신호
+    dimension_weights: Mapped[dict] = mapped_column(JSONB, default=dict)
     # 아래 4개는 배치1 조사 필드(선택) — docs/jobs/batch1_mapping_candidates.md 참고.
     # 미조사 직무는 전부 NULL/빈 리스트.
     education_requirement: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -226,6 +229,29 @@ class Report(TimestampMixin, Base):
     improvements: Mapped[list] = mapped_column(JSONB, default=list)
     advice: Mapped[str | None] = mapped_column(Text)
     pdf_path: Mapped[str | None] = mapped_column(String(255))
+
+
+class Evidence(TimestampMixin, Base):
+    """상담·체험 중 수집된 43축 판단 근거 (공통 저장 형식).
+
+    아직 라이브 writer 없음 — LLM 추출 연결 전까지는 그릇만 준비된 상태.
+    dimension_code/source_type은 DB FK가 아니라 각각 dimension_definitions.json/
+    evidence_rules.json의 키를 참조하는 문자열(데이터팩이 코드보다 자주 바뀌므로).
+    """
+
+    __tablename__ = "evidence"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    consultation_id: Mapped[int] = mapped_column(ForeignKey("consultations.id"), index=True)
+    simulation_id: Mapped[int | None] = mapped_column(ForeignKey("simulations.id"), index=True)
+    stage: Mapped[str] = mapped_column(String(20))  # counseling | experience
+    dimension_code: Mapped[str] = mapped_column(String(50), index=True)
+    source_type: Mapped[str] = mapped_column(String(30))
+    evidence_text: Mapped[str] = mapped_column(Text)
+    value: Mapped[str] = mapped_column(String(100))
+    confidence: Mapped[int] = mapped_column(Integer)
+    confirmed_by_user: Mapped[bool] = mapped_column(Boolean, default=False)
+    conflict: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 # ─────────────────────────────────────────────────────────────

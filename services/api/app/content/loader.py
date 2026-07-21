@@ -77,6 +77,7 @@ def load_jobs() -> list[dict]:
         if missing:
             raise ValueError(f"data/jobs/{filename}: 필수 키 누락 {missing}")
         doc.setdefault("interest_profile", {})  # 선택 필드 — 없으면 역량 점수만으로 추천
+        doc.setdefault("dimension_weights", {})  # 선택 필드 — 8모듈 43축 가중치(카테고리 직무만)
         _validate_job_research_fields(doc, filename)
         jobs.append(doc)
     return jobs
