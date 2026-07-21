@@ -65,6 +65,7 @@ class Consultation(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    title: Mapped[str | None] = mapped_column(EncryptedText)
     status: Mapped[str] = mapped_column(String(20), default="active")  # active|completed
     summary: Mapped[str | None] = mapped_column(EncryptedText)  # Conversation Memory 요약 (암호화)
     survey: Mapped[dict | None] = mapped_column(JSONB)  # 사전 설문 {answers, profile} — 자유대화 전 성향 베이스라인

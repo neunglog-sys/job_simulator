@@ -87,10 +87,7 @@ export function ConversationModalShell({
           <span className={styles.conversationModalIcon} aria-hidden="true">
             <IconComponent weight="duotone" />
           </span>
-          <div>
-            <h2 id={titleId}>{title}</h2>
-            <p id={descriptionId}>{description}</p>
-          </div>
+          <h2 id={titleId}>{title}</h2>
           <button
             className={styles.conversationModalClose}
             type="button"
@@ -99,6 +96,7 @@ export function ConversationModalShell({
           >
             <X aria-hidden="true" />
           </button>
+          <p id={descriptionId}>{description}</p>
         </header>
         <div className={styles.conversationModalBody}>{children}</div>
       </motion.div>
