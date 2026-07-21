@@ -63,7 +63,7 @@ export const PREVIEW_GAMES = {
     "engine": "place",
     "title": "805호 정비 상태 검수·보완",
     "intro": "정비가 끝난 805호를 체크리스트와 대조하세요. 승인된 비품 누락과 가벼운 얼룩만 바로 보완하고, 고객 소지품처럼 임의로 만지면 안 되는 항목과 직접 처리할 수 없는 특이사항은 보고하세요.",
-    "time_limit": 90,
+    "time_limit": 110,
     "pass_score": 70,
     "data": {
       "scene": "객실_805호_침실_욕실",
@@ -89,7 +89,14 @@ export const PREVIEW_GAMES = {
       ],
       "visual_cues": {
         "시트_음료얼룩": "넓게_배어든_갈색얼룩",
-        "시트_이물질": "표면에_얹힌_부스러기"
+        "시트_이물질": "표면에_얹힌_부스러기",
+        "컵_정상": "테두리_매끈",
+        "컵_미세균열": "테두리_실금",
+        "새_메모지": "깨끗한_새_메모지",
+        "낙서된_메모지": "펜자국_남은_메모지",
+        "세제통": "화학세제_통",
+        "투숙객_소지품": "고객_개인_소지품",
+        "새_시트": "교체용_새_시트"
       },
       "slots": [
         {
@@ -266,6 +273,7 @@ export const PREVIEW_GAMES = {
     "pass_score": 70,
     "data": {
       "presentation": "conveyor",
+      "shuffle": true,
       "bins": [
         {
           "id": "합격_팔레트",
@@ -687,6 +695,7 @@ export const PREVIEW_GAMES = {
     "pass_score": 70,
     "data": {
       "mode": "rhythm",
+      "fall_speed": 1.1,
       "track": "102노선_주행뷰",
       "judge_marker": "판정선_열차",
       "beats": [
@@ -833,7 +842,7 @@ export const PREVIEW_GAMES = {
   "jm-03": {
     "engine": "spot",
     "title": "출발 전 외부점검(워크어라운드)",
-    "intro": "주기된 기체를 시계방향으로 돌며 외부점검 이상을 찾아 표시하세요. 정상인 곳을 표시하면 감점입니다.",
+    "intro": "주기된 기체를 둘러보며 외부점검 이상을 찾아 표시하세요. 정상인 곳을 표시하면 감점입니다.",
     "time_limit": 70,
     "pass_score": 70,
     "data": {
@@ -947,30 +956,42 @@ export const PREVIEW_GAMES = {
           "sprite": "변침점_부표"
         },
         {
+          "id": "우회_변침점_C",
+          "sprite": "변침점_부표"
+        },
+        {
           "id": "도착_정박지",
           "sprite": "정박지_부두"
         }
       ],
       "decoy_waypoints": [
         {
-          "id": "초안_직선_변침점",
+          "id": "초안_직선_변침점_1",
           "sprite": "변침점_부표",
           "note": "잇기 쉬워 보이지만 신설_침선 구역을 관통"
+        },
+        {
+          "id": "초안_직선_변침점_2",
+          "sprite": "변침점_부표",
+          "note": "직선 회랑 위 — 준설공사구역을 관통"
         }
       ],
       "submit_as": "항로_수정안_보고",
       "avoid": [
         {
           "zone": "신설_침선",
-          "penalty": 40
+          "penalty": 40,
+          "radius": 80
         },
         {
           "zone": "준설공사구역",
-          "penalty": 25
+          "penalty": 25,
+          "radius": 72
         },
         {
           "zone": "등부표_구위치_주의구역",
-          "penalty": 20
+          "penalty": 20,
+          "radius": 66
         }
       ],
       "budget": {
@@ -1100,7 +1121,7 @@ export const PREVIEW_GAMES = {
       "sudden": {
         "id": "환자_임현서_항의",
         "sprite": "환자_접수대막음_고성",
-        "appears_at": 25,
+        "appears_after_seconds": 5,
         "label": "비급여 고지 누락 항의 — 접수대를 막고 고성",
         "freeze_queue": true,
         "must_resolve_sudden": true,
@@ -1702,7 +1723,7 @@ export const PREVIEW_GAMES = {
       "sudden": {
         "id": "손님_조선우_새치기",
         "sprite": "손님_새치기_고성",
-        "appears_at": 25,
+        "appears_after_seconds": 5,
         "label": "순서 무시 새치기 · 폭언",
         "freeze_queue": true,
         "must_resolve_sudden": true,
@@ -2515,7 +2536,7 @@ export const PREVIEW_GAMES = {
     "engine": "spot",
     "title": "불량 골라내기",
     "intro": "컨베이어를 지나는 제품 중 균열·변색·찌그러진 것과 품질 도장이 없는 로트를 집어 격리함으로 보내세요. 정상 제품을 집으면 감점입니다.",
-    "time_limit": 60,
+    "time_limit": 45,
     "pass_score": 70,
     "data": {
       "scene": "생산라인_컨베이어벨트",
@@ -2618,6 +2639,24 @@ export const PREVIEW_GAMES = {
             200
           ],
           "size": 64
+        },
+        {
+          "id": "제품_반사2",
+          "sprite": "제품_정상_조명반사",
+          "at": [
+            90,
+            130
+          ],
+          "size": 64
+        },
+        {
+          "id": "제품_물방울2",
+          "sprite": "제품_정상_물기",
+          "at": [
+            860,
+            380
+          ],
+          "size": 64
         }
       ]
     },
@@ -2681,7 +2720,8 @@ export const PREVIEW_GAMES = {
     "data": {
       "mode": "rhythm",
       "bpm": 100,
-      "hit_window": 0.12,
+      "hit_window": 0.15,
+      "hit_offset": 0.04,
       "judge_marker": "판정선_칼날",
       "lanes": [
         {
@@ -2923,7 +2963,7 @@ export const PREVIEW_GAMES = {
     "pass_score": 70,
     "data": {
       "guide": "사람_커트_가이드라인",
-      "tolerance": 7,
+      "tolerance": 12,
       "start_gate": {
         "action": "패치테스트_확인카드_탭",
         "reason": "염모제 패치테스트 미확인 — 확인 전엔 시작 금지 (2스텝 warning)",
@@ -2934,19 +2974,19 @@ export const PREVIEW_GAMES = {
         {
           "at": 0.22,
           "reason": "고객이 움찔함 — 잠깐 멈추기",
-          "hold": 0.6,
+          "hold": 0.4,
           "sprite": "움찔_모션_아이콘"
         },
         {
           "at": 0.48,
           "reason": "두피에 작은 상처·염증 관찰됨 — 피해서 멈추기",
-          "hold": 0.8,
+          "hold": 0.5,
           "sprite": "두피_상처_아이콘"
         },
         {
           "at": 0.71,
           "reason": "고객이 자세를 고쳐 앉음 — 멈추기",
-          "hold": 0.6,
+          "hold": 0.4,
           "sprite": "자세고침_아이콘"
         }
       ],
@@ -3994,11 +4034,12 @@ export const PREVIEW_GAMES = {
   "yg-02": {
     "engine": "sort",
     "title": "세공품 검수대",
-    "intro": "확대 인스펙션 뷰로 세공품을 도안과 대조하세요. 결함이 보이면 보류함, 도안과 일치하면 합격 트레이로. 판정이 애매하면 실장을 호출하세요.",
-    "time_limit": 75,
+    "intro": "확대 인스펙션 뷰로 세공품을 도안과 대조하세요. 결함이 보이면 보류함, 도안과 일치하면 합격 트레이로. 판정이 애매하면 실장을 호출하세요. 검수대는 쉬지 않고 돌아갑니다 — 시간 안에 처리하세요.",
+    "time_limit": 45,
     "pass_score": 70,
     "data": {
       "presentation": "conveyor",
+      "shuffle": true,
       "legend": [
         {
           "symptom": "도안 일치",
@@ -4858,8 +4899,8 @@ export const PREVIEW_GAMES = {
       "mode": "balance",
       "target": 0.0,
       "tolerance": 2.0,
-      "drift": 0.35,
-      "hold_seconds": 4,
+      "drift": 0.45,
+      "hold_seconds": 5,
       "scene": "정비고_수평지그_씬",
       "axes": [
         {
@@ -4877,17 +4918,31 @@ export const PREVIEW_GAMES = {
       ],
       "disturbances": [
         {
-          "at": 0.35,
+          "at": 0.2,
           "axis": "피치",
-          "push": 2.2,
+          "push": 2.4,
           "reason": "지그 재조정으로 기체가 흔들림",
           "sprite": "교란_지그_재조정"
         },
         {
-          "at": 0.7,
+          "at": 0.38,
           "axis": "롤",
-          "push": -2.0,
+          "push": -2.3,
           "reason": "케이블 정리 중 기체가 밀림",
+          "sprite": "교란_케이블_당김"
+        },
+        {
+          "at": 0.56,
+          "axis": "피치",
+          "push": -2.6,
+          "reason": "지그 고정쇠 재체결 반동",
+          "sprite": "교란_지그_재조정"
+        },
+        {
+          "at": 0.74,
+          "axis": "롤",
+          "push": 2.5,
+          "reason": "정비이력 확인 중 기체가 밀림",
           "sprite": "교란_케이블_당김"
         }
       ],

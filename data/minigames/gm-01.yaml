@@ -25,6 +25,12 @@ data:
   # 채점·데이터 계약은 대기열 UI와 동일하다(엔진 sort 의 presentation 필드).
   presentation: conveyor
 
+  # 표시 순서 셔플(엔진 sort 의 shuffle 필드) — 박스 '등장 순서'를 마운트 시 1회 랜덤화한다.
+  # 아래 items 는 정상 4개가 앞줄이라 처음 네 개 정답이 순차로 나와 싱거웠다(디자이너 피드백).
+  # 셔플은 표시 순서만 바꾸고 매칭·채점(equivalent 수량·forbidden_bin·order_sheet 체크)은
+  # 전부 id·bin·수량 기준이라 정답성은 불변이다.
+  shuffle: true
+
   bins:
     - { id: 합격_팔레트, label: 합격 · 입고 등록, sprite: 팔레트_초록 }
     - { id: 격리존,      label: 격리 · 보류 식별표, sprite: 팔레트_빨강_보류 }

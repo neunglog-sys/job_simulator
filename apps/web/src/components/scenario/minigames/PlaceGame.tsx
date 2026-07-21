@@ -123,11 +123,19 @@ export function PlaceGame({ game, onComplete }: EngineProps) {
   const stains = useMemo(() => data.stains ?? [], [data.stains]);
   const cues = data.visual_cues ?? {};
 
-  // 같은 id가 여러 번 있으면 조각이 그만큼 있다는 뜻(cln-01 타월 2장 등) — 인스턴스 키로 구분
-  const pieces = useMemo(
-    () => (data.pieces ?? []).map((id, i) => ({ key: `${id}#${i}`, id })),
-    [data.pieces],
-  );
+  // 같은 id가 여러 번 있으면 조각이 그만큼 있다는 뜻(cln-01 타월 2장 등) — 인스턴스 키로 구분.
+  // 표시 순서는 마운트(게임 로드) 시 1회 Fisher–Yates 로 무작위화한다 — 정답 조각이 트레이·
+  // 카트에 선언 순서대로(예측 가능하게) 오지 않게 한다(stn-05·yg-03 피드백). 키는 원본 인덱스로
+  // 고정되고 배치 판정은 slot.accepts·id 기준이라, 셔플은 '표시 순서'만 바꾸고 정답성은 불변이다
+  // (_SCHEMA.md 셔플 원칙). data.pieces 가 바뀔 때만(=다른 게임 로드) 다시 섞인다.
+  const pieces = useMemo(() => {
+    const built = (data.pieces ?? []).map((id, i) => ({ key: `${id}#${i}`, id }));
+    for (let i = built.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [built[i], built[j]] = [built[j], built[i]];
+    }
+    return built;
+  }, [data.pieces]);
   const pieceIdByKey = useMemo(() => new Map(pieces.map((p) => [p.key, p.id])), [pieces]);
 
   const extraIds = useMemo(() => {

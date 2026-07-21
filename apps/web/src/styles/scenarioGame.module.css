@@ -2035,6 +2035,24 @@ button.headerOrb:active {
   color: #2c2350;
   background: linear-gradient(160deg, #f7f4ff 0%, #efe9fb 100%);
   box-shadow: 0 30px 80px rgb(38 24 101 / 0.45);
+  /* 게임 콘텐츠가 모달 높이를 넘어도 밖으로 흘러넘치지 않게 클립 — 실제 스크롤은
+     아래 .missionGameScroll 이 담당한다(둥근 모서리 밖으로 카드가 튀어나오던 문제 방지). */
+  overflow: hidden;
+}
+
+/* 게임 영역 스크롤 컨테이너 — 헤더·인트로 아래 남은 높이를 채우고, 내용이 넘치면
+   여기서 세로 스크롤한다. 카드/아이템이 많은 match·sort·gauge·place 가 뷰포트 밖으로
+   넘치던 것을 모달 안에 가둔다. */
+.missionGameScroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  /* 스크롤바와 콘텐츠 사이 여백 + 마지막 카드가 모서리에 붙지 않게 */
+  padding-right: 4px;
+  margin-right: -4px;
 }
 
 .missionHeader {
