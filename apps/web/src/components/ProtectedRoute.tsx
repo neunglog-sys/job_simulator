@@ -2,6 +2,7 @@ import { House, LockKey, SignIn } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { useAuth } from "../lib/auth";
 import styles from "../styles/protectedRoute.module.css";
+import { SpaceLoadingScreen } from "./SpaceLoadingScreen";
 
 type ProtectedRouteProps = {
   children: ReactNode;
@@ -9,20 +10,20 @@ type ProtectedRouteProps = {
   returnTo: string;
 };
 
+function ProtectedRouteLoading() {
+  return (
+    <SpaceLoadingScreen
+      message="로그인 상태를 확인하고 있어요."
+      detail="안전한 접속 경로를 확인하는 중이에요."
+    />
+  );
+}
+
 export function ProtectedRoute({ children, destinationName, returnTo }: ProtectedRouteProps) {
   const auth = useAuth();
 
   if (auth.status === "loading") {
-    return (
-      <main className={styles.screen} aria-label="로그인 상태 확인 중">
-        <div className={styles.loadingCard} role="status">
-          <span />
-          <span />
-          <span />
-          <p>로그인 상태를 확인하고 있어요.</p>
-        </div>
-      </main>
-    );
+    return <ProtectedRouteLoading />;
   }
 
   if (auth.status === "authed") return children;
