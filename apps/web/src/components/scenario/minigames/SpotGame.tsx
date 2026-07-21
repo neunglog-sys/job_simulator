@@ -44,12 +44,22 @@ type SpotHotspot = {
   size?: number;
 };
 
+/** 견본(참조) 패널 — 표시 전용. '정상 기준'의 일반 예시를 보여줄 뿐 특정 정답을
+ *  지목하지 않는다(규칙 1·8). 있으면 '견본 보기' 토글이 뜨고, 없으면 미표시(폴백). */
+type SpotReference = {
+  /** public/assets/minigames/<sprite>.svg — 표준(정상 기준) 예시 이미지 id */
+  sprite: string;
+  label?: string;
+};
+
 /** YAML data 블록 — types.ts 를 건드리지 않으려 로컬로 정의한다. */
 type SpotData = {
   scene?: string;
   mark?: "x" | "tag" | "shutter";
   targets?: SpotHotspot[];
   decoys?: SpotHotspot[];
+  /** 표시 전용(신규) — 있으면 '견본 보기' 오버레이가 켜진다. 채점과 무관. */
+  reference?: SpotReference;
 };
 
 const pretty = (raw: string) => raw.replace(/_/g, " ");
@@ -64,6 +74,11 @@ export function SpotGame({ game, onComplete }: EngineProps) {
   const markMode: "x" | "tag" | "shutter" =
     data.mark === "tag" ? "tag" : data.mark === "shutter" ? "shutter" : "x";
   const decoyPenalty = scoringOf(game, "decoy_penalty", 10);
+
+  // 견본(참조) 패널 — sprite 가 있을 때만 토글을 노출한다. 없으면 회귀 없이 폴백.
+  const reference = data.reference ?? null;
+  const hasReference = Boolean(reference?.sprite);
+  const [showRef, setShowRef] = useState(false);
 
   const [picked, setPicked] = useState<Picked[]>([]);
   const [flash, setFlash] = useState(false);
@@ -188,6 +203,25 @@ export function SpotGame({ game, onComplete }: EngineProps) {
         timeLimit={game.time_limit}
       />
 
+      {/* 견본(참조) 토글 — reference 가 있는 게임에서만 뜬다(sns-01·yg-01). */}
+      {hasReference ? (
+        <div className={styles.refBar}>
+          <button
+            type="button"
+            className={styles.refToggle}
+            onClick={() => setShowRef((open) => !open)}
+            aria-expanded={showRef}
+            aria-controls="spot-reference-panel"
+            data-open={showRef}
+          >
+            <span className={styles.refToggleIcon} aria-hidden="true">
+              {showRef ? "✕" : "▤"}
+            </span>
+            {showRef ? "견본 닫기" : "견본 보기"}
+          </button>
+        </div>
+      ) : null}
+
       <div ref={stageRef} className={styles.stage} role="group" aria-label="현장 점검 화면">
         {data.scene ? (
           // 도트 배경 장면 — 파일이 없으면 조용히 빠지고 그라데이션 배경만 남는다
@@ -205,6 +239,45 @@ export function SpotGame({ game, onComplete }: EngineProps) {
         {decoys.map((decoy, i) => renderSpot(decoy, "miss", targets.length + i))}
 
         <span className={styles.shutter} data-flash={flash} aria-hidden="true" />
+
+        {/* 견본 오버레이 — '정상 기준'의 일반 예시. 스크림이 스테이지를 덮어 핫스팟
+            오조작을 막는다. 닫기는 ✕ 버튼 또는 상단 '견본 닫기' 토글로 한다(키보드 접근).
+            특정 정답을 지목하지 않는다(규칙 1·8). */}
+        {hasReference && showRef ? (
+          <div className={styles.refOverlay} aria-hidden="false">
+            <div
+              id="spot-reference-panel"
+              className={styles.refCard}
+              role="dialog"
+              aria-label="정상 기준 견본"
+            >
+              <div className={styles.refHead}>
+                <span className={styles.refTitle}>
+                  {reference?.label ?? "정상 기준 견본"}
+                </span>
+                <button
+                  type="button"
+                  className={styles.refClose}
+                  onClick={() => setShowRef(false)}
+                  aria-label="견본 닫기"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className={styles.refFigure}>
+                <PixelSprite
+                  id={reference!.sprite}
+                  label={reference?.label ?? "정상 기준 견본"}
+                  size={220}
+                  fallbackClassName={styles.chip}
+                />
+              </div>
+              <p className={styles.refNote}>
+                정상 기준의 예시입니다. 각 항목을 견본과 견주어 스스로 판단하세요.
+              </p>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {done ? (

@@ -3,9 +3,11 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  /* 좁은 칸(≈150px) → 넓은 모달에서 5열까지 채워, 게이지 6~9개가 2줄 안에 잘림 없이 들어온다.
+     좁아지면 자동으로 열이 줄고, 그래도 넘치면 .gaugeShell 이 모달 스크롤을 태운다. */
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 10px;
-  padding: 14px;
+  padding: 12px;
   border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.2));
   border-radius: 14px;
   background:
@@ -19,8 +21,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 12px 10px 11px;
+  gap: 6px;
+  padding: 9px 8px 10px;
   border: 1px solid rgb(255 255 255 / 0.22);
   border-radius: 12px;
   background: linear-gradient(180deg, rgb(64 72 100 / 0.5), rgb(28 32 50 / 0.85));
@@ -45,27 +47,29 @@
   background: linear-gradient(180deg, rgb(180 55 85 / 0.34), rgb(92 26 42 / 0.5));
 }
 
-/* ── 눈금판 — 경계 판별이 되게 크게 ── */
-/* 장비 스프라이트 + 다이얼 줄 — gauge 항목에 sprite가 있는 게임(ys-04 등)만 옆칸이 생긴다 */
+/* ── 눈금판 — 경계 판별이 되게 크게. 스프라이트를 라벨 줄로 내려 다이얼이 카드 전폭을
+   쓰므로, 칸이 좁아져도(5열) 바늘·눈금이 예전보다 오히려 크게 읽힌다. ── */
 .dialRow {
   display: flex;
-  align-items: center;
   justify-content: center;
-  gap: 8px;
   width: 100%;
-}
-
-.dialRow > .dial {
-  flex: 1 1 auto;
-  min-width: 0;
 }
 
 .dial {
   width: 100%;
-  max-width: 172px;
+  max-width: 140px;
 }
 
-/* 장비 거치칸 — 도트 아트가 실제로 로드됐을 때만 어두운 인셋 슬롯이 된다.
+/* 라벨 줄 — 다이얼 아래. 장비 배지(작은 도트 아트) + 명판을 나란히 둔다. */
+.labelRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+}
+
+/* 장비 배지 — 도트 아트가 실제로 로드됐을 때만 작은 어두운 슬롯이 된다.
    아트 파일이 없어 라벨 칩으로 폴백하면(:has(img) 미충족 — ys-06) 민무늬 래퍼로 남는다. */
 .spriteWell {
   flex: 0 0 auto;
@@ -74,11 +78,11 @@
 }
 
 .spriteWell:has(img) {
-  padding: 6px 5px;
+  padding: 3px;
   border: 1px solid rgb(255 255 255 / 0.16);
-  border-radius: 10px;
+  border-radius: 7px;
   background: linear-gradient(180deg, rgb(10 13 24 / 0.85), rgb(22 26 44 / 0.9));
-  box-shadow: inset 0 2px 6px rgb(0 0 0 / 0.5);
+  box-shadow: inset 0 1px 4px rgb(0 0 0 / 0.5);
 }
 
 /* 다이얼 페이스 — 어두운 계기판 원판 + 베젤 링(장비 패널 느낌) */
@@ -171,10 +175,12 @@
   background: rgb(255 215 110 / 0.1);
 }
 
-/* ── 판정 버튼 ── */
+/* ── 판정 버튼 — 좁은 카드에서도 라벨이 안 잘리게 세로로 쌓고 전폭을 쓴다 ── */
 .judgeRow {
   display: flex;
+  flex-direction: column;
   gap: 6px;
+  width: 100%;
 }
 
 .judgeButton {
@@ -182,8 +188,9 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  min-height: 32px;
-  padding: 0 12px;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 10px;
   border-radius: 9px;
   font-size: 11px;
   font-weight: 800;
@@ -216,7 +223,8 @@
 }
 
 .tapButton {
-  min-height: 32px;
+  width: 100%;
+  min-height: 30px;
   padding: 0 14px;
   border: 1px solid rgb(255 130 150 / 0.55);
   border-radius: 9px;
@@ -399,4 +407,43 @@
   .escalateButton {
     transition: none;
   }
+}
+
+/* ── 2026 visual pass: 정밀 계측 패널 ── */
+.grid {
+  gap: 10px;
+}
+.card {
+  border-radius: 18px;
+  border-color: color-mix(in srgb, var(--scenario-accent) 28%, rgb(255 255 255 / 0.2));
+  background:
+    radial-gradient(circle at 50% 0%, var(--scenario-accent-soft), transparent 42%),
+    linear-gradient(155deg, rgb(22 24 52 / 0.96), rgb(10 12 30 / 0.98));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1), 0 14px 30px rgb(0 0 0 / 0.24);
+}
+.spriteWell:has(img) { border-color: rgb(255 255 255 / 0.13); background: linear-gradient(145deg, rgb(255 255 255 / 0.08), rgb(5 7 22 / 0.55)); box-shadow: inset 0 0 8px rgb(0 0 0 / 0.24); }
+.dialBezel {
+  border-color: color-mix(in srgb, var(--scenario-accent-2) 44%, rgb(255 255 255 / 0.28));
+  background: radial-gradient(circle, #26324c 0 55%, #0c1020 57% 72%, #49536a 74% 77%, #111524 79%);
+  box-shadow: inset 0 2px 4px rgb(255 255 255 / 0.18), inset 0 -8px 18px rgb(0 0 0 / 0.54), 0 12px 26px rgb(0 0 0 / 0.34), 0 0 22px var(--scenario-accent-soft);
+}
+.dialFace { background: radial-gradient(circle at 50% 55%, #171e32 0 58%, #0b0f1d 78%); }
+.needle { filter: drop-shadow(0 0 5px var(--scenario-progress-glow)); }
+.needleCap,
+.needleHub { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.28), 0 0 12px var(--scenario-progress-glow); }
+.tool,
+.footer { border-color: rgb(255 255 255 / 0.15); background: linear-gradient(120deg, rgb(255 255 255 / 0.09), rgb(8 10 28 / 0.5)); }
+.judgeButton,
+.tapButton,
+.submitButton,
+.escalateButton { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 9px 22px var(--scenario-accent-soft); }
+
+/* ── 게이지가 6~9개일 때 마지막 카드가 잘리던 문제 해결 ──
+   공용 셸(.shell)은 min-height:0 + overflow:hidden 이라, 모달의 스크롤 컨테이너
+   (.missionGameScroll, flex column) 안에서 flex-shrink 로 줄어들며 내용을 스크롤이 아니라
+   '클리핑'해 버린다(마지막 게이지가 잘림). 게이지 셸만 flex:none 으로 자연 높이를 유지시켜,
+   내용이 넘치면 셸이 줄지 않고 모달 스크롤 영역이 스크롤하도록 한다.
+   (공용 .shell 규칙은 건드리지 않고 게이지 엔진에만 국한 — 다른 엔진 회귀 없음) */
+.gaugeShell {
+  flex: none;
 }

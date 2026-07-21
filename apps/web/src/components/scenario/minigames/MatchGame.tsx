@@ -628,6 +628,13 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const verdictOf = (id: string) => (done && outcome ? outcome.cardVerdicts[id] : undefined);
   const resolvedCount = Math.min(denominator, lines.length + Object.keys(marks).length + caughtCount);
 
+  // ── 카드 밀도 — 가장 긴 열의 카드 수로 정한다. 카드가 많은 판(kts-02 8·kts-03 7·kts-05 6·
+  //    ms-02 15)은 세로 패딩·행 간격·라벨·스프라이트를 조여 한 화면에 더 담고, 남으면 스크롤과
+  //    병행한다(스크롤은 전역 처리). 표시 밀도만 바꿀 뿐 셔플·선긋기·판정·채점 계약은 전부 불변. ──
+  const tallestColumn = Math.max(left.length, right.length);
+  const density = tallestColumn >= 12 ? "dense" : tallestColumn >= 6 ? "compact" : "normal";
+  const cardSpriteSize = density === "dense" ? 34 : density === "compact" ? 38 : 46;
+
   const cardAria = (card: MatchCard, side: Side) => {
     const mark = marks[card.id];
     const state =
@@ -665,7 +672,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
           disabled={done || mark === "escalated"}
           onClick={() => toggleCard(side, card.id)}
         >
-          <PixelSprite id={card.sprite} label={card.sprite} size={48} fallbackClassName={styles.cardSprite} />
+          <PixelSprite id={card.sprite} label={card.sprite} size={cardSpriteSize} fallbackClassName={styles.cardSprite} />
           {card.label ? <span className={styles.cardLabel}>{card.label}</span> : null}
           {cue ? <span className={styles.cardCue}>{pretty(cue)}</span> : null}
           {card.detector ? <span className={styles.lamp} aria-hidden="true" /> : null}
@@ -730,6 +737,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
 
       <div
         className={styles.board}
+        data-density={density}
         ref={boardRef}
         role="group"
         aria-label={`매칭 보드 — ${leftHead} 카드와 ${rightHead} 카드를 이으세요`}

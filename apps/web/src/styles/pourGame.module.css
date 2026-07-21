@@ -324,3 +324,25 @@
     transition: none;
   }
 }
+
+/* ── 2026 visual pass: 정량 투입 작업대 ── */
+.barn {
+  border-radius: 18px;
+  border-color: color-mix(in srgb, var(--scenario-accent) 30%, rgb(255 255 255 / 0.2));
+  background:
+    radial-gradient(circle at 50% 0%, var(--scenario-accent-soft), transparent 40%),
+    linear-gradient(155deg, #12172d, #181225);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), inset 0 -44px 78px rgb(0 0 0 / 0.24), 0 16px 34px rgb(0 0 0 / 0.24);
+}
+.stall {
+  border-color: rgb(255 255 255 / 0.18);
+  background: linear-gradient(150deg, rgb(255 255 255 / 0.1), rgb(7 9 26 / 0.52));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), 0 10px 24px rgb(0 0 0 / 0.18);
+}
+.trough { box-shadow: inset 0 8px 16px rgb(0 0 0 / 0.34), 0 12px 22px rgb(0 0 0 / 0.28); }
+.troughFrame { filter: drop-shadow(0 8px 10px rgb(0 0 0 / 0.32)); }
+.fill { box-shadow: inset 0 8px 16px rgb(255 255 255 / 0.12), 0 0 16px rgb(196 162 96 / 0.2); }
+.targetLine { box-shadow: 0 0 10px #ffd76e, 0 0 22px rgb(255 215 110 / 0.44); }
+.pourStream { filter: drop-shadow(0 0 7px rgb(255 215 110 / 0.4)); }
+.footer { border-color: rgb(255 255 255 / 0.15); background: linear-gradient(120deg, rgb(255 255 255 / 0.09), rgb(8 10 28 / 0.48)); }
+.stallPour { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 10px 24px var(--scenario-accent-soft); }
