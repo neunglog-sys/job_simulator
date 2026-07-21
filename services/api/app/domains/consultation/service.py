@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import re
 import time
 from typing import AsyncIterator
 
@@ -32,7 +33,11 @@ RAG_MIN_QUERY_CHARS = 8    # "네", "고마워요" 같은 짧은 발화 — 직�
 # 요청하면 길이 제한을 풀고 대신 음성(TTS)은 생략한다 — 긴 글을 그대로 읽게 하면 지연만 커진다.
 GREETING_REPLY_CHAR_LIMIT = 100
 DEFAULT_REPLY_CHAR_LIMIT = 300
-DETAIL_REQUEST_KEYWORDS = ("자세히", "자세하게", "상세히", "상세하게", "구체적으로", "길게 설명")
+# 강조 부사만 보면 "자세히 모르겠어요"(불확실성 표현)를 상세 설명 요청으로 오탐한다.
+# 부사 바로 뒤(공백만 허용, 조사 등 다른 글자 개입 시 불일치)에 설명 요청 동사가 와야만 매칭.
+DETAIL_REQUEST_PATTERN = re.compile(
+    r"(?:자세|상세|구체적|길게)(?:히|하게|으로)?\s*(?:좀\s*)?(?:더\s*)?(?:설명|알려|말해|얘기|풀어)"
+)
 # 프롬프트의 글자수 지시는 소프트 가이드일 뿐이라 넘길 수 있음 — 토큰 상한은 그 경우의 안전망.
 # 한글은 토큰당 여러 글자를 담는 경우가 많아, 목표 글자수보다 넉넉히 잡아 문장이 중간에 끊기지
 # 않게 한다. 실제 글자수 컷은 스트리밍 중 total_chars 체크(아래)가 담당한다.
@@ -237,7 +242,7 @@ async def stream_reply(
 
     # 응답 길이 산정 — 첫 응답은 워밍업으로 더 짧게, 상세 설명 요청은 제한 해제 + TTS 생략
     is_first_reply = not any(m.role == "assistant" for m in history)
-    detail_requested = any(kw in user_text for kw in DETAIL_REQUEST_KEYWORDS)
+    detail_requested = bool(DETAIL_REQUEST_PATTERN.search(user_text))
     if detail_requested:
         char_limit = None
     elif is_first_reply:
