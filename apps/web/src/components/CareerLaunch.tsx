@@ -757,7 +757,9 @@ export function CareerLaunch() {
           <div className="account-actions" aria-label="회원 메뉴">
             {auth.status === "authed" ? (
               <>
-                <span className="nav-account-greeting">{auth.me.name}님</span>
+                <a className="nav-account-greeting" href={FRONTEND_ENDPOINTS.myPage}>
+                  {auth.me.name}님
+                </a>
                 <span className="nav-divider" aria-hidden="true" />
                 <button
                   className="nav-account-button"

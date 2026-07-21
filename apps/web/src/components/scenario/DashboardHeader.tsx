@@ -14,8 +14,10 @@ import {
   StarFour,
   SunHorizon,
   Target,
+  UserCircle,
 } from "@phosphor-icons/react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { FRONTEND_ENDPOINTS } from "../../config/endpoints";
 import styles from "../../styles/scenarioGame.module.css";
 
 export type ScenarioTheme = "nebula" | "deep-space" | "aurora";
@@ -195,6 +197,17 @@ export function DashboardHeader({
               );
             })}
             <div className={styles.utilityMenuDivider} />
+            <button
+              className={styles.utilityMenuAction}
+              type="button"
+              onClick={() => window.location.assign(FRONTEND_ENDPOINTS.myPage)}
+            >
+              <UserCircle weight="duotone" aria-hidden="true" />
+              <span>
+                <strong>내 정보</strong>
+                <small>프로필과 커리어 문서를 관리해요</small>
+              </span>
+            </button>
             <button
               className={styles.utilityMenuAction}
               type="button"

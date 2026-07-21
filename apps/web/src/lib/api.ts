@@ -59,7 +59,7 @@ function messageFromDetail(detail: unknown, status: number): string {
 
 async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
-  if (options.body != null && !headers.has("Content-Type")) {
+  if (options.body != null && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
   if (token) headers.set("Authorization", `Bearer ${token}`);
@@ -95,6 +95,16 @@ export type ConsultationSummary = {
   updated_at: string;
 };
 
+export type UserDocumentKind = "resume" | "portfolio" | "other";
+export type UserDocument = {
+  id: number;
+  kind: UserDocumentKind;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
+};
+
 export function signup(body: {
   email: string;
   password: string;
@@ -111,6 +121,44 @@ export function login(body: { email: string; password: string }): Promise<TokenO
 
 export function fetchMe(): Promise<Me> {
   return request(API_ENDPOINTS.auth.me, { method: "GET" });
+}
+
+export function fetchProfileDocuments(): Promise<UserDocument[]> {
+  return request(API_ENDPOINTS.profile.documents, { method: "GET" });
+}
+
+export function uploadProfileDocument(
+  kind: UserDocumentKind,
+  file: File,
+): Promise<UserDocument> {
+  const form = new FormData();
+  form.append("kind", kind);
+  form.append("file", file);
+  return request(API_ENDPOINTS.profile.documents, { method: "POST", body: form });
+}
+
+export function deleteProfileDocument(documentId: number): Promise<void> {
+  return request(API_ENDPOINTS.profile.document(documentId), { method: "DELETE" });
+}
+
+export async function downloadProfileDocument(documentId: number): Promise<Blob> {
+  const headers = new Headers();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  let response: Response;
+  try {
+    response = await fetch(API_ENDPOINTS.profile.download(documentId), { headers });
+  } catch {
+    throw new ApiError(0, null, "문서 서버에 연결할 수 없어요.");
+  }
+
+  if (!response.ok) {
+    const raw = await response.text();
+    const data = raw ? safeJson(raw) : null;
+    const detail = (data as { detail?: unknown } | null)?.detail;
+    throw new ApiError(response.status, detail, messageFromDetail(detail, response.status));
+  }
+  return response.blob();
 }
 
 // --- 아바타 워밍업 — 콜드스타트(최초 발화 시 UNet forward + ffmpeg 첫 실행, ~23초) 완화용.

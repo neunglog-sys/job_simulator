@@ -1,4 +1,4 @@
-import { ArrowLeft, GameController, GearSix, House, SignOut } from "@phosphor-icons/react";
+import { ArrowLeft, GameController, House, SignOut, UserCircle } from "@phosphor-icons/react";
 import { useState } from "react";
 import { FRONTEND_ENDPOINTS } from "../../config/endpoints";
 import { logout } from "../../lib/auth";
@@ -54,9 +54,9 @@ export function ConversationHeader() {
           onClick={goToScenario}
         />
         <GlassIconButton
-          icon={GearSix}
-          label="설정 열기"
-          onClick={() => window.dispatchEvent(new CustomEvent("jobiverse:open-settings"))}
+          icon={UserCircle}
+          label="내 정보 열기"
+          onClick={() => window.location.assign(FRONTEND_ENDPOINTS.myPage)}
         />
       </div>
     </header>
