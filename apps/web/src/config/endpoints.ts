@@ -12,6 +12,7 @@ export const FRONTEND_ENDPOINTS = {
   home: "/",
   conversation: "/conversation", // AI 상담 화면
   scenario: "/scenario", // 시나리오 게임 화면
+  myPage: "/mypage", // 내 정보·개인 문서 보관함
 } as const;
 
 export const API_ENDPOINTS = {
@@ -26,6 +27,11 @@ export const API_ENDPOINTS = {
       kakao: apiUrl("/api/auth/oauth/kakao"),
       naver: apiUrl("/api/auth/oauth/naver"),
     },
+  },
+  profile: {
+    documents: apiUrl("/api/profile/documents"),
+    document: (id: number) => apiUrl(`/api/profile/documents/${id}`),
+    download: (id: number) => apiUrl(`/api/profile/documents/${id}/download`),
   },
   consultations: {
     list: apiUrl("/api/consultations"),

@@ -42,6 +42,24 @@ class User(TimestampMixin, Base):
     privacy_version: Mapped[str | None] = mapped_column(String(20))
 
 
+class UserDocument(TimestampMixin, Base):
+    """마이페이지에 보관하는 사용자 소유 PDF 문서.
+
+    원본 파일은 공개 정적 경로가 아닌 STORAGE_DIR 아래에 두고, API에서 소유권을
+    확인한 뒤에만 내려준다. 파일명도 개인정보가 포함될 수 있어 암호화한다.
+    """
+
+    __tablename__ = "user_documents"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(20), index=True)  # resume | portfolio | other
+    original_name: Mapped[str] = mapped_column(EncryptedText)
+    storage_key: Mapped[str] = mapped_column(String(255), unique=True)
+    mime_type: Mapped[str] = mapped_column(String(100), default="application/pdf")
+    size_bytes: Mapped[int] = mapped_column(Integer)
+
+
 class OAuthAccount(Base):
     """소셜 로그인 연결 — (provider, provider_user_id)로 사용자를 식별.
 

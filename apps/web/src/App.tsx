@@ -1,9 +1,18 @@
 import { CareerLaunch } from "./components/CareerLaunch";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { OneToOneConversationPage } from "./pages/OneToOneConversationPage";
+import { MyPage } from "./pages/MyPage";
 import { ScenarioGamePage } from "./pages/ScenarioGamePage";
 
 export default function App() {
+  if (window.location.pathname.startsWith("/mypage")) {
+    return (
+      <ProtectedRoute destinationName="내 정보" returnTo="/mypage">
+        <MyPage />
+      </ProtectedRoute>
+    );
+  }
+
   if (window.location.pathname.startsWith("/conversation")) {
     return (
       <ProtectedRoute destinationName="1:1 직무 상담" returnTo="/conversation">

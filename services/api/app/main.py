@@ -18,6 +18,7 @@ from app.domains.avatar import service as avatar_service
 from app.domains.avatar.router import router as avatar_router
 from app.domains.consultation.router import router as consultation_router
 from app.domains.jobs.router import router as jobs_router
+from app.domains.profile.router import router as profile_router
 from app.domains.recommendation.router import router as recommendation_router
 from app.domains.reporting.router import router as reporting_router
 from app.domains.simulation.router import router as simulation_router
@@ -71,6 +72,7 @@ app.include_router(auth_router)
 app.include_router(consultation_router)
 app.include_router(recommendation_router)
 app.include_router(jobs_router)
+app.include_router(profile_router)
 app.include_router(reporting_router)
 app.include_router(simulation_router)
 app.include_router(tts_router)

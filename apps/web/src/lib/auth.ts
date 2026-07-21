@@ -13,7 +13,9 @@ const OAUTH_RETURN_TO_KEY = "jobiverse:oauth-return-to";
 function isAllowedReturnTo(destination: string | null): destination is string {
   return Boolean(
     destination &&
-      (destination.startsWith("/conversation") || destination.startsWith("/scenario")),
+      (destination.startsWith("/conversation") ||
+        destination.startsWith("/scenario") ||
+        destination.startsWith("/mypage")),
   );
 }
 

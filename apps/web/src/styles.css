@@ -3674,9 +3674,17 @@ a:focus-visible {
 }
 
 .nav-account-greeting {
+  color: inherit;
   font-size: 14px;
   font-weight: 800;
+  text-decoration: none;
   white-space: nowrap;
+  transition: opacity 160ms ease, transform 160ms var(--ease-out-quint);
+}
+
+.nav-account-greeting:hover {
+  opacity: 0.72;
+  transform: translateY(-1px);
 }
 
 @keyframes auth-fade {
