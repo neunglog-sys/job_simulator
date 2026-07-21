@@ -101,5 +101,5 @@ npcs:
   - 우선순위 기준은요?
   responsibilities: []
   appearance:
-    location: teamjang
+    location: npc4
     available_steps: []

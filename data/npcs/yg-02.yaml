@@ -101,7 +101,7 @@ npcs:
   - 권리 위험 보고 메모
   - 미확인 샘플 목록이 표시된 검수표(권리 확인서 보완 요청 포함)
   appearance:
-    location: teamjang
+    location: npc4
     available_steps:
     - m3
     - m4
@@ -124,5 +124,5 @@ npcs:
   - 빨리 좀 처리해줘요.
   responsibilities: []
   appearance:
-    location: sasu
+    location: npc5
     available_steps: []

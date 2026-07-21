@@ -75,7 +75,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: teamjang
+    location: npc4
     available_steps: []
 - npc_id: npc_yg-03_04
   name: 정하늘
@@ -96,7 +96,7 @@ npcs:
   - 우선순위 기준은요?
   responsibilities: []
   appearance:
-    location: sasu
+    location: npc5
     available_steps: []
 - npc_id: npc_yg-03_05
   name: 한지민
