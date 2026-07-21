@@ -71,9 +71,11 @@ class GeminiProvider:
         system: str | None = None,
         json_schema: dict | None = None,
         temperature: float = 0.7,
+        max_tokens: int | None = None,
     ) -> str:
         config = types.GenerateContentConfig(
-            system_instruction=system, temperature=temperature
+            system_instruction=system, temperature=temperature,
+            max_output_tokens=max_tokens,
         )
         if json_schema:
             config.response_mime_type = "application/json"
@@ -99,8 +101,11 @@ class GeminiProvider:
         system: str | None = None,
         temperature: float = 0.7,
         thinking_budget: int | None = None,
+        max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
         config_kwargs: dict = {"system_instruction": system, "temperature": temperature}
+        if max_tokens is not None:
+            config_kwargs["max_output_tokens"] = max_tokens
         if thinking_budget is not None:
             # Gemini는 thinking(사고 토큰)이 기본 활성 — 대화형 스트리밍에선 이 '보이지 않는
             # 사고'가 첫 토큰을 수 초 지연시킨다 (상담 실측: 첫토큰 6.7s → 0이면 1.2s).

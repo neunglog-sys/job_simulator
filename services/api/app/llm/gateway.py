@@ -96,11 +96,13 @@ class LLMGateway:
         system: str | None = None,
         json_schema: dict | None = None,
         temperature: float = 0.7,
+        max_tokens: int | None = None,
     ) -> str:
         started = time.time()
         try:
             out = await self.provider.chat(
-                messages, system=system, json_schema=json_schema, temperature=temperature
+                messages, system=system, json_schema=json_schema, temperature=temperature,
+                max_tokens=max_tokens,
             )
         except Exception as e:
             self._log("chat", started, ok=False, chars=0, error=str(e))
@@ -139,13 +141,14 @@ class LLMGateway:
         system: str | None = None,
         temperature: float = 0.7,
         thinking_budget: int | None = None,
+        max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
         started = time.time()
         chars = 0
         try:
             async for chunk in self.provider.chat_stream(
                 messages, system=system, temperature=temperature,
-                thinking_budget=thinking_budget,
+                thinking_budget=thinking_budget, max_tokens=max_tokens,
             ):
                 chars += len(chunk)
                 yield chunk
