@@ -1,5 +1,4 @@
-// 미니게임 미리보기 데이터 — data/minigames/*.yaml 에서 자동 변환 (도트 아트 검수용).
-// 재생성: 이 파일을 만든 스크립트를 다시 돌리면 됨. 실게임은 백엔드가 내려주는 정의를 쓴다.
+// 미니게임 미리보기 데이터 — data/minigames/*.yaml 에서 자동 변환.
 import type { MinigameDef } from "./components/scenario/minigames/types";
 
 export const PREVIEW_GAMES = {
@@ -3202,6 +3201,10 @@ export const PREVIEW_GAMES = {
     "data": {
       "scene": "카드뉴스_5장_검수보드",
       "mark": "tag",
+      "reference": {
+        "sprite": "견본_표준_카드뉴스",
+        "label": "브랜드 기준에 맞는 표준 카드뉴스 예시 (견본)"
+      },
       "targets": [
         {
           "id": "카드3_로고부",
@@ -3925,6 +3928,10 @@ export const PREVIEW_GAMES = {
     "data": {
       "scene": "배너시안_3종_검수대",
       "mark": "x",
+      "reference": {
+        "sprite": "견본_표준_배너",
+        "label": "브리프·검수표 기준에 맞는 표준 배너 시안 예시 (견본)"
+      },
       "targets": [
         {
           "id": "A_상단색면",

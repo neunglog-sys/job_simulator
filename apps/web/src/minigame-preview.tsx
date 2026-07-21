@@ -7,6 +7,7 @@ import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { MiniGamePanel } from "./components/scenario/MiniGamePanel";
 import { PREVIEW_GAMES } from "./previewGames";
+import scenarioStyles from "./styles/scenarioGame.module.css";
 import "./styles.css";
 
 // 라벨은 게임 정의에서 파생 — 목록이 늘어도 하드코딩 불필요.
@@ -44,7 +45,20 @@ function Preview() {
   }
 
   return (
-    <div className="designStage" data-scenario-theme="aurora" style={{ minHeight: "100vh", background: "#181430" }}>
+    <div
+      className={scenarioStyles.designStage}
+      data-scenario-theme="aurora"
+      style={{
+        position: "relative",
+        inset: "auto",
+        width: "100%",
+        height: "100vh",
+        minHeight: "100vh",
+        overflow: "hidden",
+        background: "#181430",
+        transform: "none",
+      }}
+    >
       <a
         href="minigame-preview.html"
         style={{ position: "absolute", top: 10, left: 12, zIndex: 120, color: "#9ce0ff", fontSize: 13 }}
@@ -71,8 +85,14 @@ function Preview() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(
+const previewRoot = createRoot(document.getElementById("root")!);
+
+previewRoot.render(
   <StrictMode>
     <Preview />
   </StrictMode>,
 );
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => previewRoot.unmount());
+}
