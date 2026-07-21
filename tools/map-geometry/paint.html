@@ -1,0 +1,799 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<title>맵 칠하기 — walkable/collision 격자 · overhead 그리기 → ZIP(TMX+마스크)</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #14141a; color: #eee;
+    font-family: "Malgun Gothic", system-ui, sans-serif; overflow: hidden; }
+  #wrap { display: flex; height: 100%; }
+  #side { width: 250px; flex: 0 0 250px; background: #1c1c26; border-right: 1px solid #333;
+    padding: 14px; overflow-y: auto; }
+  #stagewrap { flex: 1; position: relative; overflow: auto; background: #0d0d12; }
+  #stage { position: relative; margin: 12px; }
+  canvas { display: block; image-rendering: pixelated; cursor: crosshair;
+    box-shadow: 0 4px 24px rgba(0,0,0,.5); }
+  h3 { margin: 4px 0 10px; font-size: 15px; color: #c9b6ff; }
+  h4 { margin: 16px 0 6px; font-size: 12px; color: #8f88b5; text-transform: uppercase;
+    letter-spacing: .5px; }
+  .layer { display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 6px;
+    padding: 9px 11px; background: #24242f; border: 2px solid transparent; border-radius: 9px;
+    color: #ddd; cursor: pointer; font-size: 14px; text-align: left; }
+  .layer:hover { background: #2b2b38; }
+  .layer.on { border-color: #8f74ff; background: #322c4d; }
+  .sw { width: 15px; height: 15px; border-radius: 4px; flex: 0 0 15px; border: 1px solid rgba(255,255,255,.3); }
+  button { background: #2b2740; color: #ddd; border: 1px solid #554d80; border-radius: 8px;
+    padding: 7px 11px; cursor: pointer; font-size: 13px; }
+  button:hover { background: #37324f; }
+  button.on { background: #6c4fd6; color: #fff; border-color: #8f74ff; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; align-items: center; }
+  .hint { color: #8f88b5; line-height: 1.7; font-size: 12px; margin-top: 6px; }
+  .big { width: 100%; padding: 11px; font-size: 14px; font-weight: 700; margin-top: 6px; }
+  .go { background: #2e9e5b; border-color: #43c47c; color: #fff; }
+  .go:hover { background: #34b568; }
+  #stats { font-size: 12px; color: #9a93c0; margin-top: 8px; line-height: 1.7; }
+  b { color: #ffd479; }
+  input[type=file] { display: none; }
+  label.file { display: block; width: 100%; text-align: center; padding: 11px;
+    background: #2b2740; border: 1px dashed #6c4fd6; border-radius: 8px; cursor: pointer;
+    font-size: 13px; margin-bottom: 6px; }
+  #brushval { color: #ffd479; min-width: 20px; text-align: center; }
+  #penstate { display: block; margin: 0 0 10px; padding: 8px 12px; border-radius: 9px;
+    font-size: 12px; font-weight: 700; text-align: center; background: #3a3550; color: #bbb;
+    border: 1px solid #554d80; }
+  #penstate.down { background: #7a1f1f; color: #fff; border-color: #ff5b5b; }
+  #modenote { font-size: 12px; color: #9ad; margin: 2px 0 8px; }
+</style>
+
+<div id="wrap">
+  <div id="side">
+    <h3>맵 칠하기 🖌️</h3>
+    <div id="penstate">펜 올림 — 이동만 (Space로 펜 내리기)</div>
+    <label class="file" for="imgfile">① 맵 PNG 열기</label>
+    <input type="file" id="imgfile" accept="image/png,image/*">
+    <div class="hint" id="loadedname">아직 안 열림</div>
+    <label class="file" for="tmxfile" style="border-style:solid;border-color:#43c47c">↳ 기존 맵 폴더 불러오기 (gm-01 폴더 통째로)</label>
+    <input type="file" id="tmxfile" webkitdirectory>
+    <div class="hint" id="tmxname"></div>
+
+    <h4>② 칠할 레이어</h4>
+    <button class="layer on" data-layer="walkable"><span class="sw" style="background:#2ecc71"></span>걸을 수 있음 (격자)</button>
+    <button class="layer" data-layer="collision"><span class="sw" style="background:#e74c3c"></span>막힘·가구/벽 (격자)</button>
+    <button class="layer" data-layer="overhead"><span class="sw" style="background:#9b59b6"></span>가림·가구상단 (그리기)</button>
+    <button class="layer" data-layer="spawn"><span class="sw" style="background:#e67e22"></span>자리 (클릭/Enter)</button>
+    <div class="row" id="overtools" style="display:none">
+      <button id="mode-magic" class="on">자동누끼(클릭)</button>
+      <button id="mode-poly">다각형</button>
+      <button id="mode-draw">자유곡선</button>
+    </div>
+    <div id="modenote"></div>
+    <div class="row" style="margin-top:2px; font-size:12px; color:#8f88b5">보기:
+      <button id="vis-walkable" class="on">초록</button>
+      <button id="vis-collision" class="on">빨강</button>
+      <button id="vis-overhead" class="on">보라</button>
+    </div>
+
+    <div id="spawnpick" style="display:none">
+      <h4>자리 이름</h4>
+      <div class="row">
+        <button class="spn on" data-name="player">player</button>
+        <button class="spn" data-name="teamjang">teamjang</button>
+        <button class="spn" data-name="sasu">sasu</button>
+        <button class="spn" data-name="bujang">bujang</button>
+      </div>
+      <div class="row">
+        <button class="spn" data-name="npc4">npc4</button>
+        <button class="spn" data-name="npc5">npc5</button>
+      </div>
+    </div>
+
+    <h4>③ 브러시</h4>
+    <div class="row">
+      <button id="bminus">−</button><span id="brushval">2</span><button id="bplus">+</button>
+    </div>
+    <div class="row">
+      <button id="char" class="on">캐릭터 미리보기</button>
+    </div>
+    <div class="row">
+      <button id="erase">지우개 (우클릭)</button>
+      <button id="undo">되돌리기 (Ctrl+Z)</button>
+    </div>
+    <div class="row">
+      <button id="grid" class="on">그리드</button>
+      <button id="clearlayer">이 레이어 비우기</button>
+    </div>
+
+    <h4>④ 내보내기</h4>
+    <button class="big go" id="exp">ZIP 내보내기 (TMX+마스크)</button>
+    <div class="hint">받은 <b>&lt;slug&gt;.zip</b>을 풀어 <b>maps/&lt;slug&gt;/</b>에 넣고<br>
+      <b>tiled-to-geometry.py</b> 돌리면 끝.</div>
+
+    <div id="stats"></div>
+    <div class="hint" style="margin-top:12px">
+      <b>방향키/WASD</b> 커서 · <b>Space</b> 펜 · <b>Enter</b> 콕/자리<br>
+      마우스 드래그로도 그리기 · 우클릭=지우기<br>
+      레이어 <b>1</b>walk <b>2</b>coll <b>3</b>over <b>4</b>spawn<br>
+      브러시 <b>[ ]</b> · 지우개 <b>E</b> · 되돌리기 <b>Ctrl+Z</b>
+    </div>
+  </div>
+
+  <div id="stagewrap">
+    <div id="stage"><canvas id="cv" width="1920" height="1080"></canvas></div>
+  </div>
+</div>
+
+<script>
+const MAPW = 1920, MAPH = 1080, CELL = 8;
+const COLS = MAPW / CELL, ROWS = MAPH / CELL;   // 240 × 135 (8px 격자 — 자유롭게 칠하기)
+const CELL_LAYERS = ["walkable", "collision"];  // overhead는 픽셀 그리기(별도 캔버스)
+const COLOR = { walkable: "rgba(46,204,113,0.42)", collision: "rgba(231,76,60,0.45)" };
+const grid = {};
+for (const L of CELL_LAYERS) grid[L] = new Uint8Array(COLS * ROWS);
+let spawns = [];
+
+// overhead: 픽셀 자유곡선 캔버스 (가구 윤곽을 그대로 그린다 → 그 모양이 오클루더 마스크)
+const overCanvas = document.createElement("canvas");
+overCanvas.width = MAPW; overCanvas.height = MAPH;
+const overCtx = overCanvas.getContext("2d");
+const OVER_RGB = "155,89,182";
+
+const cv = document.getElementById("cv");
+const ctx = cv.getContext("2d");
+let img = null;
+let layer = "walkable";
+let brush = 6;                     // 8px 격자에서 6칸 ≈ 48px(캐릭터 발판)
+let erasingToggle = false;
+let showGrid = true;
+let showChar = true;
+const vis = { walkable: true, collision: true, overhead: true };   // 레이어별 보기
+let spawnName = "player";
+let painting = false;
+const history = [];
+let cur = { cx: COLS >> 1, cy: ROWS >> 1 };
+let penDown = false;
+let overMode = "magic";    // overhead 입력: magic(자동누끼) | poly(모서리 클릭) | draw(자유곡선)
+let polyPts = [];          // 진행 중인 다각형 꼭짓점 (맵 좌표)
+let srcData = null;        // 배경 픽셀 (자동누끼 색 비교용)
+const magicTol = () => brush * 30;   // 허용치 (브러시값 → 30~240, 픽셀아트 노이즈 감안 넉넉히)
+
+const isOver = () => layer === "overhead";
+const overRadius = () => Math.max(3, brush * 6);   // overhead 브러시 반경(px)
+
+// ── 표시 크기 ──
+function fit() {
+  const availW = window.innerWidth - 250 - 48;
+  const availH = window.innerHeight - 48;
+  const s = Math.min(availW / MAPW, availH / MAPH, 1);
+  cv.style.width = (MAPW * s) + "px";
+  cv.style.height = (MAPH * s) + "px";
+}
+window.addEventListener("resize", fit);
+
+// ── 그리기 ──
+function draw() {
+  ctx.clearRect(0, 0, MAPW, MAPH);
+  if (img) ctx.drawImage(img, 0, 0, MAPW, MAPH);
+  else { ctx.fillStyle = "#222"; ctx.fillRect(0, 0, MAPW, MAPH);
+    ctx.fillStyle = "#666"; ctx.font = "40px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("맵 PNG를 열어주세요", MAPW/2, MAPH/2); }
+
+  for (const L of CELL_LAYERS) {
+    if (!vis[L]) continue;
+    ctx.fillStyle = COLOR[L];
+    const g = grid[L];
+    for (let i = 0; i < g.length; i++) {
+      if (!g[i]) continue;
+      ctx.fillRect((i % COLS) * CELL, ((i / COLS) | 0) * CELL, CELL, CELL);
+    }
+  }
+  if (vis.overhead) {
+    ctx.globalAlpha = 0.5;
+    ctx.drawImage(overCanvas, 0, 0);   // overhead 자유곡선
+    ctx.globalAlpha = 1;
+  }
+
+  if (showGrid) {
+    const step = 48;                 // 시각 격자선 간격 (8px 셀은 너무 촘촘 → 48px마다만)
+    ctx.strokeStyle = "rgba(255,255,255,0.07)"; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 0; x <= MAPW; x += step) { ctx.moveTo(x, 0); ctx.lineTo(x, MAPH); }
+    for (let y = 0; y <= MAPH; y += step) { ctx.moveTo(0, y); ctx.lineTo(MAPW, y); }
+    ctx.stroke();
+  }
+  for (const s of spawns) {
+    ctx.fillStyle = "#e67e22";
+    ctx.beginPath(); ctx.arc(s.x, s.y, 13, 0, 7); ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = "#fff"; ctx.stroke();
+    ctx.fillStyle = "#fff"; ctx.font = "bold 22px sans-serif"; ctx.textAlign = "center";
+    ctx.strokeStyle = "rgba(0,0,0,.7)"; ctx.lineWidth = 4;
+    ctx.strokeText(s.name, s.x, s.y - 20); ctx.fillText(s.name, s.x, s.y - 20);
+  }
+  // 진행 중인 다각형
+  if (isOver() && overMode === "poly" && polyPts.length) {
+    ctx.save();
+    ctx.strokeStyle = "#ffe14d"; ctx.lineWidth = 2;
+    ctx.fillStyle = "rgba(155,89,182,0.35)";
+    ctx.beginPath(); ctx.moveTo(polyPts[0][0], polyPts[0][1]);
+    for (let i = 1; i < polyPts.length; i++) ctx.lineTo(polyPts[i][0], polyPts[i][1]);
+    if (polyPts.length > 2) { ctx.closePath(); ctx.fill(); }
+    ctx.stroke();
+    for (const [x, y] of polyPts) { ctx.beginPath(); ctx.arc(x, y, 5, 0, 7); ctx.fillStyle = "#ffe14d"; ctx.fill(); }
+    ctx.beginPath(); ctx.arc(polyPts[0][0], polyPts[0][1], 9, 0, 7);   // 시작점 강조(여기 클릭하면 닫힘)
+    ctx.strokeStyle = "#ff3b3b"; ctx.lineWidth = 3; ctx.stroke();
+    ctx.restore();
+  }
+  // 방향키 커서
+  if (img) {
+    const col = penDown ? "#ff3b3b" : "#ffe14d";
+    ctx.lineWidth = 3; ctx.strokeStyle = col;
+    if (isOver()) {
+      const cx = cur.cx * CELL + CELL/2, cy = cur.cy * CELL + CELL/2;
+      ctx.beginPath(); ctx.arc(cx, cy, overRadius(), 0, 7); ctx.stroke();
+    } else {
+      const half = Math.floor(brush / 2);
+      const bx = (cur.cx - half) * CELL, by = (cur.cy - half) * CELL, bs = brush * CELL;
+      ctx.strokeRect(bx + 1.5, by + 1.5, bs - 3, bs - 3);
+      ctx.fillStyle = penDown ? "rgba(255,59,59,0.18)" : "rgba(255,225,77,0.12)";
+      ctx.fillRect(bx, by, bs, bs);
+      if (showChar) drawCharGhost(bx + bs/2, by + bs/2, bs);
+    }
+  }
+  updateStats();
+}
+
+function drawCharGhost(cx, footY, fw) {
+  ctx.save();
+  ctx.globalAlpha = 0.75;
+  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  ctx.beginPath(); ctx.ellipse(cx, footY, fw * 0.48, fw * 0.16, 0, 0, 7); ctx.fill();
+  const bw = fw * 0.62, bh = fw * 1.5, top = footY - bh, r = bw / 2;
+  ctx.fillStyle = "rgba(108,79,214,0.85)";
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(cx - bw/2, footY - r); ctx.lineTo(cx - bw/2, top + r);
+  ctx.arc(cx, top + r, r, Math.PI, 0);
+  ctx.lineTo(cx + bw/2, footY - r); ctx.arc(cx, footY - r, r, 0, Math.PI);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
+const LAYER_LABEL = { walkable: "걸을 수 있음(초록)", collision: "막힘(빨강)", overhead: "가림(보라)", spawn: "자리" };
+function updatePenState() {
+  const el = document.getElementById("penstate");
+  if (erasingToggle && layer !== "spawn") {   // 지우개 켜졌을 때 어느 레이어를 지우는지 명확히
+    el.classList.add("down");
+    el.textContent = `🧽 지우개 켜짐 — 지금 '${LAYER_LABEL[layer]}'만 지웁니다`;
+    return;
+  }
+  el.classList.toggle("down", penDown);
+  el.textContent = layer === "spawn"
+    ? "자리 놓기 — Enter로 현재 위치에 놓기"
+    : penDown ? "✏️ 펜 내림 — 움직이면 그려짐 (Space로 올리기)"
+              : "펜 올림 — 이동만 (Space로 펜 내리기)";
+}
+function updateStats() {
+  updatePenState();
+  const cnt = L => { let n = 0; const g = grid[L]; for (let i=0;i<g.length;i++) n += g[i]; return n; };
+  document.getElementById("stats").innerHTML =
+    `walkable <b>${cnt("walkable")}</b>칸 · collision <b>${cnt("collision")}</b>칸<br>` +
+    `overhead 그려짐 · spawn <b>${spawns.length}</b>개`;
+}
+
+// ── 좌표 ──
+function cellAt(e) {
+  const r = cv.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width * MAPW;
+  const y = (e.clientY - r.top) / r.height * MAPH;
+  return { cx: Math.floor(x / CELL), cy: Math.floor(y / CELL), px: x, py: y };
+}
+function paintCell(cx, cy, on) {
+  const half = Math.floor(brush / 2);
+  const g = grid[layer];
+  for (let dy = -half; dy <= brush - 1 - half; dy++)
+    for (let dx = -half; dx <= brush - 1 - half; dx++) {
+      const x = cx + dx, y = cy + dy;
+      if (x < 0 || y < 0 || x >= COLS || y >= ROWS) continue;
+      g[y * COLS + x] = on ? 1 : 0;
+    }
+}
+let overLast = null;
+function paintOver(mx, my, erase) {
+  const r = overRadius();
+  overCtx.globalCompositeOperation = erase ? "destination-out" : "source-over";
+  overCtx.fillStyle = `rgba(${OVER_RGB},1)`;
+  overCtx.strokeStyle = `rgba(${OVER_RGB},1)`;
+  overCtx.beginPath(); overCtx.arc(mx, my, r, 0, 7); overCtx.fill();
+  if (overLast) {                 // 이전 점과 이어 빠른 드래그에도 안 끊기게
+    overCtx.lineWidth = r * 2; overCtx.lineCap = "round";
+    overCtx.beginPath(); overCtx.moveTo(overLast[0], overLast[1]); overCtx.lineTo(mx, my); overCtx.stroke();
+  }
+  overLast = [mx, my];
+  overCtx.globalCompositeOperation = "source-over";
+}
+
+function snapshot() {
+  const snap = { spawns: JSON.parse(JSON.stringify(spawns)),
+                 over: overCtx.getImageData(0, 0, MAPW, MAPH) };
+  for (const L of CELL_LAYERS) snap[L] = grid[L].slice();
+  history.push(snap);
+  if (history.length > 10) history.shift();
+}
+function undo() {
+  const snap = history.pop();
+  if (!snap) return;
+  spawns = snap.spawns;
+  for (const L of CELL_LAYERS) grid[L] = snap[L];
+  overCtx.putImageData(snap.over, 0, 0);
+  draw();
+}
+
+// ── 다각형(클릭) 모드 ──
+function polyClick(px, py, button) {
+  if (button === 2) { polyPts.pop(); draw(); return; }   // 우클릭 = 마지막 점 취소
+  if (polyPts.length >= 3) {
+    const d = Math.hypot(px - polyPts[0][0], py - polyPts[0][1]);
+    if (d < 24) { closePoly(); return; }                 // 시작점 근처 클릭 = 닫기
+  }
+  polyPts.push([px, py]); draw();
+}
+function closePoly() {
+  if (polyPts.length < 3) { polyPts = []; draw(); return; }
+  snapshot();
+  overCtx.globalCompositeOperation = erasingToggle ? "destination-out" : "source-over";
+  overCtx.fillStyle = `rgba(${OVER_RGB},1)`;
+  overCtx.beginPath(); overCtx.moveTo(polyPts[0][0], polyPts[0][1]);
+  for (let i = 1; i < polyPts.length; i++) overCtx.lineTo(polyPts[i][0], polyPts[i][1]);
+  overCtx.closePath(); overCtx.fill();
+  overCtx.globalCompositeOperation = "source-over";
+  polyPts = []; draw();
+}
+
+// ── 자동누끼 (마술봉: 클릭한 색과 이어진 부분 채우기) ──
+function magicFill(sx, sy, erase) {
+  if (!srcData) return;
+  sx = Math.max(0, Math.min(MAPW - 1, sx | 0));
+  sy = Math.max(0, Math.min(MAPH - 1, sy | 0));
+  const si = sy * MAPW + sx;
+  const sr = srcData[si*4], sg = srcData[si*4+1], sb = srcData[si*4+2];
+  const t2 = magicTol() * magicTol();
+  const seen = new Uint8Array(MAPW * MAPH);
+  const stack = [si]; seen[si] = 1; const hits = [];
+  while (stack.length) {
+    const p = stack.pop(); hits.push(p);
+    if (hits.length > 600000) break;          // 폭주 방지
+    const px = p % MAPW, py = (p / MAPW) | 0;
+    const nb = [];
+    if (px > 0) nb.push(p - 1); if (px < MAPW-1) nb.push(p + 1);
+    if (py > 0) nb.push(p - MAPW); if (py < MAPH-1) nb.push(p + MAPW);
+    for (const ni of nb) {
+      if (seen[ni]) continue;
+      const o = ni*4, dr = srcData[o]-sr, dg = srcData[o+1]-sg, db = srcData[o+2]-sb;
+      if (dr*dr + dg*dg + db*db < t2) { seen[ni] = 1; stack.push(ni); }
+    }
+  }
+  // 내부 구멍 메우기 — 선택 영역 안에 갇힌(바깥과 안 이어진) 빈 픽셀을 채운다.
+  // 상자 사이 틈·프레임 그늘까지 한 번에 잡혀 오클루전이 안 뚫린다.
+  if (!erase && hits.length > 20) {
+    let minx = MAPW, miny = MAPH, maxx = 0, maxy = 0;
+    for (const p of hits) { const px = p % MAPW, py = (p / MAPW) | 0;
+      if (px < minx) minx = px; if (px > maxx) maxx = px; if (py < miny) miny = py; if (py > maxy) maxy = py; }
+    const bw = maxx - minx + 1, bh = maxy - miny + 1;
+    const sel = new Uint8Array(bw * bh);
+    for (const p of hits) sel[((p / MAPW | 0) - miny) * bw + (p % MAPW - minx)] = 1;
+    const outside = new Uint8Array(bw * bh), st = [];
+    const push = i => { if (!sel[i] && !outside[i]) { outside[i] = 1; st.push(i); } };
+    for (let x = 0; x < bw; x++) { push(x); push((bh - 1) * bw + x); }
+    for (let y = 0; y < bh; y++) { push(y * bw); push(y * bw + bw - 1); }
+    while (st.length) { const q = st.pop(), qx = q % bw, qy = (q / bw) | 0;
+      if (qx > 0) push(q - 1); if (qx < bw-1) push(q + 1);
+      if (qy > 0) push(q - bw); if (qy < bh-1) push(q + bw); }
+    for (let i = 0; i < bw * bh; i++)
+      if (!sel[i] && !outside[i]) hits.push((miny + (i / bw | 0)) * MAPW + (minx + i % bw));
+  }
+  const od = overCtx.getImageData(0, 0, MAPW, MAPH);
+  for (const p of hits) { const o = p*4;
+    if (erase) od.data[o+3] = 0;
+    else { od.data[o] = 155; od.data[o+1] = 89; od.data[o+2] = 182; od.data[o+3] = 255; }
+  }
+  overCtx.putImageData(od, 0, 0);
+}
+
+// ── 마우스 ──
+cv.addEventListener("contextmenu", e => e.preventDefault());
+cv.addEventListener("pointerdown", e => {
+  if (!img) return;
+  const c = cellAt(e);
+  if (layer === "spawn") {
+    snapshot();
+    spawns = spawns.filter(s => s.name !== spawnName);
+    spawns.push({ name: spawnName, x: Math.round(c.px), y: Math.round(c.py) });
+    draw(); return;
+  }
+  if (isOver() && overMode === "poly") { polyClick(c.px, c.py, e.button); return; }
+  if (isOver() && overMode === "magic") {
+    snapshot(); magicFill(c.px, c.py, (e.button === 2) || erasingToggle); draw(); return;
+  }
+  snapshot();
+  painting = true;
+  const erase = (e.button === 2) || erasingToggle;
+  cv._erase = erase;
+  overLast = null;                 // 새 획 시작
+  if (isOver()) paintOver(c.px, c.py, erase); else paintCell(c.cx, c.cy, !erase);
+  draw();
+  cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener("pointermove", e => {
+  if (!painting || layer === "spawn") return;
+  const c = cellAt(e);
+  if (isOver()) paintOver(c.px, c.py, cv._erase); else paintCell(c.cx, c.cy, !cv._erase);
+  draw();
+});
+cv.addEventListener("pointerup", () => { painting = false; overLast = null; });
+cv.addEventListener("dblclick", () => { if (isOver() && overMode === "poly") closePoly(); });
+
+// ── 방향키 ──
+const MOVE = { arrowup:[0,-1], w:[0,-1], arrowdown:[0,1], s:[0,1],
+               arrowleft:[-1,0], a:[-1,0], arrowright:[1,0], d:[1,0] };
+let penDidSnapshot = false;
+function moveCursor(dx, dy) {
+  cur.cx = Math.max(0, Math.min(COLS - 1, cur.cx + dx));
+  cur.cy = Math.max(0, Math.min(ROWS - 1, cur.cy + dy));
+  if (penDown && layer !== "spawn") {
+    if (isOver()) paintOver(cur.cx*CELL + CELL/2, cur.cy*CELL + CELL/2, erasingToggle);
+    else paintCell(cur.cx, cur.cy, !erasingToggle);
+  }
+  draw();
+}
+function togglePen() {
+  if (layer === "spawn") return;
+  penDown = !penDown;
+  if (penDown) {
+    snapshot(); penDidSnapshot = true; overLast = null;   // 펜 내리는 순간부터 새 획
+    if (isOver()) paintOver(cur.cx*CELL + CELL/2, cur.cy*CELL + CELL/2, erasingToggle);
+    else paintCell(cur.cx, cur.cy, !erasingToggle);
+  } else { penDidSnapshot = false; overLast = null; }
+  draw();
+}
+window.addEventListener("keydown", e => {
+  const k = e.key.toLowerCase();
+  if (e.ctrlKey && k === "z") { e.preventDefault(); penDown = false; undo(); return; }
+  if (MOVE[k] && img) {
+    e.preventDefault();
+    if (penDown && !penDidSnapshot) { snapshot(); penDidSnapshot = true; }
+    moveCursor(MOVE[k][0], MOVE[k][1]);
+    return;
+  }
+  if (k === "escape") { if (polyPts.length) { polyPts = []; draw(); } return; }
+  if (k === " ") { e.preventDefault(); togglePen(); return; }
+  if (k === "enter") {
+    e.preventDefault();
+    if (!img) return;
+    if (isOver() && overMode === "poly") { closePoly(); return; }   // 다각형 닫기
+    snapshot();
+    if (layer === "spawn") {
+      spawns = spawns.filter(s => s.name !== spawnName);
+      spawns.push({ name: spawnName, x: cur.cx*CELL + CELL/2 | 0, y: cur.cy*CELL + CELL/2 | 0 });
+    } else if (isOver()) { overLast = null; paintOver(cur.cx*CELL + CELL/2, cur.cy*CELL + CELL/2, erasingToggle); }
+    else paintCell(cur.cx, cur.cy, !erasingToggle);
+    draw();
+    return;
+  }
+  if (k === "1") clickLayer("walkable");
+  else if (k === "2") clickLayer("collision");
+  else if (k === "3") clickLayer("overhead");
+  else if (k === "4") clickLayer("spawn");
+  else if (k === "[") setBrush(brush - 1);
+  else if (k === "]") setBrush(brush + 1);
+  else if (k === "e") document.getElementById("erase").click();
+});
+window.addEventListener("keyup", () => {});
+
+// ── UI ──
+document.querySelectorAll(".layer").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".layer").forEach(x => x.classList.remove("on"));
+  b.classList.add("on");
+  layer = b.dataset.layer;
+  penDown = false;
+  polyPts = [];
+  document.getElementById("spawnpick").style.display = layer === "spawn" ? "block" : "none";
+  document.getElementById("overtools").style.display = isOver() ? "flex" : "none";
+  updateModeNote();
+  setBrush(brush);
+});
+function updateModeNote() {
+  const notes = {
+    magic: "🪄 자동누끼: 가구를 클릭하면 비슷한 색이 자동 선택됨. 여러 색이면 여러 번 클릭. 우클릭=지우기. 허용치 [ ] 로 조절",
+    poly: "🔷 다각형: 가구 모서리를 콕콕 클릭 → 시작점 다시 클릭(또는 Enter/더블클릭)으로 닫기. 우클릭=점 취소",
+    draw: "✏️ 자유곡선: 드래그로 가구 윤곽 그리기",
+  };
+  document.getElementById("modenote").textContent = isOver() ? notes[overMode] : "";
+}
+function setMode(m) {
+  overMode = m; polyPts = [];
+  for (const x of ["magic", "poly", "draw"])
+    document.getElementById("mode-" + x).classList.toggle("on", x === m);
+  updateModeNote(); setBrush(brush); draw();
+}
+document.getElementById("mode-magic").onclick = () => setMode("magic");
+document.getElementById("mode-poly").onclick = () => setMode("poly");
+document.getElementById("mode-draw").onclick = () => setMode("draw");
+function clickLayer(name) { document.querySelector(`.layer[data-layer="${name}"]`).click(); }
+document.querySelectorAll(".spn").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".spn").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); spawnName = b.dataset.name;
+});
+const setBrush = v => {
+  brush = Math.max(1, Math.min(16, v));   // 8px 격자: 1칸(8px)~16칸(128px, 큰 면적 빠르게)
+  document.getElementById("brushval").textContent =
+    isOver() && overMode === "magic" ? `허용치 ${magicTol()}`
+    : isOver() ? `반경 ${overRadius()}px`
+    : `${brush}칸 (${brush*CELL}px)`;
+  draw();
+};
+document.getElementById("bplus").onclick = () => setBrush(brush + 1);
+document.getElementById("bminus").onclick = () => setBrush(brush - 1);
+document.getElementById("char").onclick = e => { showChar = !showChar; e.target.classList.toggle("on", showChar); draw(); };
+document.getElementById("erase").onclick = e => {
+  erasingToggle = !erasingToggle;
+  e.target.classList.toggle("on", erasingToggle);
+  e.target.textContent = erasingToggle ? "🧽 지우개 켜짐" : "지우개 (우클릭)";
+  draw();
+};
+document.getElementById("grid").onclick = e => { showGrid = !showGrid; e.target.classList.toggle("on", showGrid); draw(); };
+document.getElementById("clearlayer").onclick = () => {
+  snapshot();
+  if (layer === "spawn") spawns = [];
+  else if (isOver()) overCtx.clearRect(0, 0, MAPW, MAPH);
+  else grid[layer].fill(0);
+  draw();
+};
+document.getElementById("undo").onclick = undo;
+for (const L of ["walkable", "collision", "overhead"]) {
+  document.getElementById("vis-" + L).onclick = e => {
+    vis[L] = !vis[L]; e.target.classList.toggle("on", vis[L]); draw();
+  };
+}
+
+// ── 이미지 로드 ──
+let slug = "map";
+function loadImageFile(f) {
+  slug = f.name.replace(/\.[^.]+$/, "");
+  document.getElementById("loadedname").innerHTML = "열림: <b>" + f.name + "</b> → slug <b>" + slug + "</b>";
+  return new Promise(res => {
+    const url = URL.createObjectURL(f);
+    img = new Image();
+    img.onload = () => { buildSrc(); fit(); draw(); URL.revokeObjectURL(url); res(); };
+    img.onerror = () => { URL.revokeObjectURL(url); res(); };
+    img.src = url;
+  });
+}
+document.getElementById("imgfile").onchange = e => { const f = e.target.files[0]; if (f) loadImageFile(f); };
+function buildSrc() {                 // 자동누끼용 배경 픽셀 캐시
+  const sc = document.createElement("canvas"); sc.width = MAPW; sc.height = MAPH;
+  const sx = sc.getContext("2d"); sx.drawImage(img, 0, 0, MAPW, MAPH);
+  srcData = sx.getImageData(0, 0, MAPW, MAPH).data;
+}
+
+// ── 기존 작업 불러오기 (walkable/collision/spawn + overhead 마스크까지 복원) ──
+document.getElementById("tmxfile").onchange = async e => {
+  const files = [...e.target.files];
+  const tmxFile = files.find(f => /\.(tmx|xml)$/i.test(f.name));
+  if (!tmxFile) { alert("이 폴더에 .tmx가 없습니다. 맵 폴더(gm-01 등)를 고르세요."); return; }
+  const bgFile = files.find(f => /\.png$/i.test(f.name) && !/^mask_/i.test(f.name));
+  if (bgFile) await loadImageFile(bgFile);      // 배경도 폴더에서 자동 로드
+  const maskFiles = {};
+  for (const f of files) if (/^mask_.*\.png$/i.test(f.name)) maskFiles[f.name] = f;
+  const text = await tmxFile.text();
+  const n = await loadTmx(text, maskFiles);
+  const overNote = n.overTotal === 0 ? '<span style="color:#ffab6b">overhead 없음 — 새로 그리세요</span>'
+    : n.over === n.overTotal ? `overhead ${n.over}개 복원됨 ✅`
+    : `<span style="color:#ffab6b">overhead ${n.over}/${n.overTotal}개만 복원 (mask 파일 일부 누락 — 전부 선택하세요)</span>`;
+  document.getElementById("tmxname").innerHTML =
+    `불러옴: <b>${tmxFile.name}</b> · walkable ${n.walk}·collision ${n.coll}·spawn ${n.spawn}<br>${overNote}`;
+};
+
+function loadMaskTinted(file, x, y) {   // 흰 알파 마스크 → 보라로 물들여 overCanvas에 얹기
+  return new Promise(res => {
+    const url = URL.createObjectURL(file);
+    const im = new Image();
+    im.onload = () => {
+      const t = document.createElement("canvas"); t.width = im.width; t.height = im.height;
+      const tc = t.getContext("2d");
+      tc.drawImage(im, 0, 0);
+      tc.globalCompositeOperation = "source-in";
+      tc.fillStyle = `rgba(${OVER_RGB},1)`;
+      tc.fillRect(0, 0, im.width, im.height);
+      overCtx.drawImage(t, x, y);
+      URL.revokeObjectURL(url); res();
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); res(); };
+    im.src = url;
+  });
+}
+
+async function loadTmx(text, maskFiles = {}) {
+  const doc = new DOMParser().parseFromString(text, "application/xml");
+  const imgEl = doc.querySelector("imagelayer image");
+  if (imgEl) { const s = (imgEl.getAttribute("source") || "").replace(/\.[^.]+$/, ""); if (s) slug = s; }
+  for (const L of CELL_LAYERS) grid[L].fill(0);
+  overCtx.clearRect(0, 0, MAPW, MAPH);
+  spawns = [];
+  const cnt = { walk: 0, coll: 0, spawn: 0, over: 0, overTotal: 0 };
+  const maskTasks = [];
+  for (const og of doc.querySelectorAll("objectgroup")) {
+    const name = (og.getAttribute("name") || "").toLowerCase();
+    const key = name === "walkable" ? "walkable" : (name === "collision" || name === "collisions") ? "collision" : null;
+    for (const o of og.querySelectorAll("object")) {
+      const x = +o.getAttribute("x") || 0, y = +o.getAttribute("y") || 0;
+      const w = +o.getAttribute("width") || 0, h = +o.getAttribute("height") || 0;
+      if (key) {
+        if (w <= 0 || h <= 0) continue;
+        const g = grid[key];
+        const cx0 = Math.round(x / CELL), cy0 = Math.round(y / CELL);
+        const cx1 = Math.round((x + w) / CELL), cy1 = Math.round((y + h) / CELL);
+        for (let cy = cy0; cy < cy1; cy++) for (let cx = cx0; cx < cx1; cx++)
+          if (cx >= 0 && cy >= 0 && cx < COLS && cy < ROWS) g[cy * COLS + cx] = 1;
+        cnt[key === "walkable" ? "walk" : "coll"]++;
+      } else if (name === "spawn" || name === "spawns") {
+        spawns.push({ name: o.getAttribute("name") || "player", x: Math.round(x), y: Math.round(y) });
+        cnt.spawn++;
+      } else if (name === "overhead" || name === "occluder" || name === "occluders" || name === "foreground") {
+        cnt.overTotal++;
+        const mname = o.querySelector('property[name="mask"]')?.getAttribute("value");
+        if (mname && maskFiles[mname]) { cnt.over++; maskTasks.push(loadMaskTinted(maskFiles[mname], x, y)); }
+      }
+    }
+  }
+  await Promise.all(maskTasks);
+  history.length = 0;
+  document.getElementById("loadedname").innerHTML ||= "slug <b>" + slug + "</b> (배경 PNG도 열어주세요)";
+  draw();
+  return cnt;
+}
+
+// ── 격자 셀 → 최소 사각형 ──
+function mergeRects(g) {
+  const used = new Uint8Array(g.length), rects = [];
+  const at = (x, y) => g[y*COLS + x] && !used[y*COLS + x];
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+    if (!at(x, y)) continue;
+    let w = 1; while (x + w < COLS && at(x + w, y)) w++;
+    let h = 1;
+    outer: while (y + h < ROWS) { for (let k = 0; k < w; k++) if (!at(x + k, y + h)) break outer; h++; }
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) used[(y + dy)*COLS + (x + dx)] = 1;
+    rects.push({ x: x*CELL, y: y*CELL, w: w*CELL, h: h*CELL });
+  }
+  return rects;
+}
+
+// ── overhead 자유곡선 → 연결된 덩어리별 마스크 PNG ──
+function overheadComponents() {
+  const data = overCtx.getImageData(0, 0, MAPW, MAPH).data;
+  const drawn = new Uint8Array(MAPW * MAPH);
+  for (let i = 0; i < MAPW * MAPH; i++) if (data[i*4 + 3] > 16) drawn[i] = 1;
+  const label = new Int32Array(MAPW * MAPH).fill(-1);
+  const comps = [];
+  const stack = [];
+  for (let sy = 0; sy < MAPH; sy++) for (let sx = 0; sx < MAPW; sx++) {
+    const si = sy*MAPW + sx;
+    if (!drawn[si] || label[si] !== -1) continue;
+    const id = comps.length;
+    let minx = sx, miny = sy, maxx = sx, maxy = sy, area = 0;
+    stack.length = 0; stack.push(si); label[si] = id;
+    while (stack.length) {
+      const p = stack.pop(); const px = p % MAPW, py = (p / MAPW) | 0; area++;
+      if (px < minx) minx = px; if (px > maxx) maxx = px;
+      if (py < miny) miny = py; if (py > maxy) maxy = py;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const nx = px + dx, ny = py + dy;
+        if (nx < 0 || ny < 0 || nx >= MAPW || ny >= MAPH) continue;
+        const ni = ny*MAPW + nx;
+        if (drawn[ni] && label[ni] === -1) { label[ni] = id; stack.push(ni); }
+      }
+    }
+    comps.push({ id, minx, miny, maxx, maxy, area });
+  }
+  // 덩어리별 마스크 캔버스 생성 (너무 작은 건 버림)
+  const out = [];
+  for (const c of comps) {
+    if (c.area < 80) continue;
+    const w = c.maxx - c.minx + 1, h = c.maxy - c.miny + 1;
+    const mc = document.createElement("canvas"); mc.width = w; mc.height = h;
+    const mctx = mc.getContext("2d");
+    const idata = mctx.createImageData(w, h);
+    for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) {
+      if (label[(c.miny + yy)*MAPW + (c.minx + xx)] === c.id) {
+        const o = (yy*w + xx)*4;
+        idata.data[o] = 255; idata.data[o+1] = 255; idata.data[o+2] = 255; idata.data[o+3] = 255;
+      }
+    }
+    mctx.putImageData(idata, 0, 0);
+    out.push({ x: c.minx, y: c.miny, w, h, canvas: mc });
+  }
+  return out;
+}
+
+// ── 최소 ZIP(store) 작성 ──
+const CRC = (() => { const t = []; for (let n = 0; n < 256; n++) { let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(bytes) { let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0; }
+function makeZip(files) {
+  const enc = new TextEncoder(); const chunks = []; const central = []; let offset = 0;
+  const u16 = v => [v & 255, (v >> 8) & 255];
+  const u32 = v => [v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >> 24) & 255];
+  for (const f of files) {
+    const name = enc.encode(f.name); const crc = crc32(f.bytes); const sz = f.bytes.length;
+    const local = [0x50,0x4b,0x03,0x04, ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+      ...u32(crc), ...u32(sz), ...u32(sz), ...u16(name.length), ...u16(0)];
+    chunks.push(new Uint8Array(local), name, f.bytes);
+    central.push([0x50,0x4b,0x01,0x02, ...u16(20), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+      ...u32(crc), ...u32(sz), ...u32(sz), ...u16(name.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+      ...u32(0), ...u32(offset)]);
+    central.push(name);
+    offset += local.length + name.length + sz;
+  }
+  let cdSize = 0; const cdChunks = [];
+  for (let i = 0; i < central.length; i += 2) {
+    const h = new Uint8Array(central[i]); cdChunks.push(h, central[i+1]);
+    cdSize += h.length + central[i+1].length;
+  }
+  const nf = files.length;
+  const eocd = new Uint8Array([0x50,0x4b,0x05,0x06, ...u16(0), ...u16(0), ...u16(nf), ...u16(nf),
+    ...u32(cdSize), ...u32(offset), ...u16(0)]);
+  return new Blob([...chunks, ...cdChunks, eocd], { type: "application/zip" });
+}
+function pngBytes(canvas) {
+  const b64 = canvas.toDataURL("image/png").split(",")[1];
+  const bin = atob(b64); const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
+}
+
+// ── 내보내기 ──
+document.getElementById("exp").onclick = () => {
+  if (!img) { alert("맵 PNG를 먼저 열어주세요."); return; }
+  let oid = 1;
+  const rectObjs = layerName => mergeRects(grid[layerName]).map(r =>
+    `  <object id="${oid++}" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}"/>`).join("\n");
+  const walk = rectObjs("walkable");
+  const coll = rectObjs("collision");
+
+  const comps = overheadComponents();
+  const files = [];
+  const overObjs = comps.map((c, i) => {
+    const name = `mask_${String(i).padStart(3, "0")}.png`;
+    files.push({ name, bytes: pngBytes(c.canvas) });
+    return `  <object id="${oid++}" x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}">` +
+           `<properties><property name="mask" value="${name}"/></properties></object>`;
+  }).join("\n");
+
+  const spwn = spawns.map(s =>
+    `  <object id="${oid++}" name="${s.name}" x="${s.x}" y="${s.y}"><point/></object>`).join("\n");
+  const grp = (n, body) => body ? ` <objectgroup id="${oid++}" name="${n}">\n${body}\n </objectgroup>\n` : "";
+
+  const tmx =
+`<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="${COLS}" height="${ROWS}" tilewidth="${CELL}" tileheight="${CELL}" infinite="0" nextlayerid="99" nextobjectid="${oid + 1}">
+ <imagelayer id="90" name="background">
+  <image source="${slug}.png" width="${MAPW}" height="${MAPH}"/>
+ </imagelayer>
+${grp("walkable", walk)}${grp("collision", coll)}${grp("overhead", overObjs)}${grp("spawn", spwn)}</map>
+`;
+  files.unshift({ name: `${slug}.tmx`, bytes: new TextEncoder().encode(tmx) });
+
+  const blob = makeZip(files);
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${slug}.zip`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  alert(`ZIP 저장: ${slug}.zip\n- ${slug}.tmx\n- 마스크 ${comps.length}개\n풀어서 maps/${slug}/ 에 넣으세요.`);
+};
+
+document.querySelectorAll("button").forEach(b => b.addEventListener("click", () => b.blur()));
+fit(); setBrush(brush); draw();
+</script>

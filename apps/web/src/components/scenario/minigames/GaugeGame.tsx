@@ -57,6 +57,16 @@ type Summary = {
 
 const pretty = (raw: string) => raw.replace(/_/g, " ");
 
+/** Fisher–Yates 셔플 — 프론트 런타임이므로 Math.random 사용(마운트 시 1회). */
+function shuffle<T>(items: T[]): T[] {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 /* ── 다이얼 기하 — 150°에서 시작해 시계방향 240° 스윕(경계 판별이 되게 크게) ── */
 const SWEEP_START = 150;
 const SWEEP = 240;
@@ -144,7 +154,9 @@ function Dial({ value, zone }: { value: number; zone: [number, number] }) {
 
 export function GaugeGame({ game, onComplete }: EngineProps) {
   const data = game.data as GaugeData;
-  const gauges = useMemo(() => data.gauges ?? [], [data.gauges]);
+  // 표시 순서만 마운트 시 1회 셔플 — 합격/미달이 예측 순서로 오지 않게.
+  // 판정·채점은 전부 id·verdict 기준(아래 filter/find/decisions[id])이라 순서와 무관, 정답성 불변.
+  const gauges = useMemo(() => shuffle(data.gauges ?? []), [data.gauges]);
   const zone = useMemo<[number, number]>(
     () =>
       Array.isArray(data.ok_zone) && data.ok_zone.length === 2

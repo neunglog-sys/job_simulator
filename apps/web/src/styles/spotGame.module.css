@@ -40,6 +40,7 @@
 /* ── 핫스팟 — 좌표 위 도트 스프라이트(또는 폴백 칩)를 감싸는 투명 버튼 ── */
 .hotspot {
   position: absolute;
+  z-index: 1;                 /* 배경 장면(sceneLayer) 위 기본 층 */
   transform: translate(-50%, -50%);
   display: grid;
   place-items: center;
@@ -57,6 +58,15 @@
 
 .hotspot:disabled {
   cursor: default;
+}
+
+/* 발견·조작 중인 지점은 스택 위로 올린다 — 라벨(caption)·판정 표시(cross/tag)가 이웃
+   스프라이트나 배경 구조물 뒤로 가려지지 않고 항상 읽히게 한다.
+   (ys-05 도트 장면에서 캡션·표시가 인접 캐릭터/구조물 뒤로 숨던 문제 대응) */
+.hotspot:hover:enabled,
+.hotspot:focus-visible,
+.hotspot[data-state] {
+  z-index: 4;
 }
 
 .hotspot img {
@@ -214,6 +224,7 @@
   background: #fff;
   opacity: 0;
   pointer-events: none;
+  z-index: 6;                 /* 셔터 플래시는 올라온 핫스팟 위까지 덮는다(카메라 연출) */
 }
 
 .shutter[data-flash="true"] {

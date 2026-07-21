@@ -84,10 +84,13 @@ data:
   sudden:
     id: 손님_조선우_새치기
     sprite: 손님_새치기_고성
-    appears_at: 25
+    # 게임 시작 후 5초(벽시계 경과) 시점 발동 — 초반에 돌발을 마주하게 한다(요구 반영).
+    # appears_after_seconds 는 엔진이 '초'로 확정 해석한다(appears_at 의 크기 휴리스틱과 달리
+    # 아이템 수 이하인 5도 처리 수가 아니라 초로 발동).
+    appears_after_seconds: 5
     label: 순서 무시 새치기 · 폭언
     freeze_queue: true
-    must_resolve_sudden: true   # 25초 전에 5팀 배정을 끝내도 조선우 처리 전에는 게임 종료 불가
+    must_resolve_sudden: true   # 5초 전에 5팀 배정을 끝내도 조선우 처리 전에는 게임 종료 불가
     bin: 순서안내석            # 정답 — 대기 순서 원칙 안내 후 용건·소요시간 확인
     # 여기에 넣으면 금지행동(forbidden_penalty 40) — 소란을 멈추려 순서를 바꿔 먼저 처리.
     forbidden_bins:

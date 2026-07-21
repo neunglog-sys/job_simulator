@@ -81,6 +81,9 @@ type SuddenDef = {
   sprite?: string;
   /** 아이템 수 이하면 '처리한 아이템 수', 넘으면 '초'로 해석한다(kts 25는 초). */
   appears_at?: number;
+  /** 명시적 벽시계 초 — 이 값이 있으면 appears_at 의 크기 휴리스틱을 무시하고
+   * 게임 시작 후 이 초가 경과하면 발동한다(kts-01·kts-04 5초 발동). */
+  appears_after_seconds?: number;
   label?: string;
   freeze_queue?: boolean;
   /** 미해결이어도 제출은 가능 — 대신 ignore_sudden_penalty 가 붙는다. */
@@ -117,6 +120,9 @@ type SortData = {
   escalate?: EscalateDef;
   /** "conveyor" 면 대기열 대신 컨베이어 연출 — 연출만 바뀌고 채점은 동일(gm-01) */
   presentation?: string;
+  /** true면 아이템 '표시 순서'를 마운트 시 1회 셔플한다 — 채점은 전부 id·bin·수량
+   * 기준이라 순서와 무관(정답성 불변). gm-01(예측 가능한 첫 4개 방지)·yg-02. */
+  shuffle?: boolean;
   order_sheet?: OrderSheetDef;
 };
 
@@ -166,7 +172,23 @@ function spriteSize(base: number, item: SortItem): number {
 export function SortGame({ game, onComplete }: EngineProps) {
   const data = useMemo<SortData>(() => (game.data ?? {}) as SortData, [game.data]);
   const bins = useMemo<SortBin[]>(() => (Array.isArray(data.bins) ? data.bins : []), [data.bins]);
-  const items = useMemo<SortItem[]>(() => (Array.isArray(data.items) ? data.items : []), [data.items]);
+  // 표시 순서 셔플(data.shuffle: true) — 마운트 시 1회 뽑은 순열을 ref 에 고정해 재셔플을
+  // 막는다. keyOf(item, index)·handled·채점은 전부 이 셔플된 배열을 그대로 쓰므로 키가
+  // 일관되고, 판정은 id·bin·수량 기준이라 순서와 무관하다(정답성 불변).
+  const shuffleOrder = useRef<number[] | null>(null);
+  const items = useMemo<SortItem[]>(() => {
+    const base = Array.isArray(data.items) ? data.items : [];
+    if (data.shuffle !== true || base.length <= 1) return base;
+    if (!shuffleOrder.current || shuffleOrder.current.length !== base.length) {
+      const order = base.map((_, index) => index);
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+      shuffleOrder.current = order;
+    }
+    return shuffleOrder.current.map((index) => base[index]);
+  }, [data.items, data.shuffle]);
   const legend = useMemo<LegendRow[]>(() => (Array.isArray(data.legend) ? data.legend : []), [data.legend]);
   const suddenDef = data.sudden;
   const esc = data.escalate;
@@ -394,35 +416,47 @@ export function SortGame({ game, onComplete }: EngineProps) {
     setFeedback({ kind: "warn", text: `돌발 상황 — ${suddenDef?.label ?? "예상 밖의 상대가 나타났습니다"}` });
   }, [suddenDef]);
 
-  // 초 기준 등장 — appears_at 이 아이템 수보다 크면 초로 해석한다(kts 25초).
+  // 초 기준 등장 — appears_after_seconds 가 있으면 그 값(벽시계 초)으로 발동하고,
+  // 없으면 appears_at 이 아이템 수보다 클 때만 초로 해석한다(kts 25초 기존 규약).
+  // appears_after_seconds 는 크기 휴리스틱을 우회하므로 5(아이템 수 이하)도 초로 발동한다(kts 5초).
+  const suddenSeconds = typeof suddenDef?.appears_after_seconds === "number" ? suddenDef.appears_after_seconds : null;
   useEffect(() => {
     if (!suddenDef || sudden.phase !== "hidden" || done) return;
     const appearsAt = suddenDef.appears_at ?? 0;
-    if (appearsAt > 0 && appearsAt <= items.length) return; // 처리 수 기준은 아래 효과가 담당
+    // 명시 초가 없고 appears_at 이 아이템 수 이하면 '처리 수 기준'이라 아래 효과가 담당한다.
+    if (suddenSeconds === null && appearsAt > 0 && appearsAt <= items.length) return;
+    const seconds = suddenSeconds ?? appearsAt;
     const tick = () => {
-      if ((Date.now() - startedAt.current) / 1000 >= appearsAt) triggerSudden();
+      if ((Date.now() - startedAt.current) / 1000 >= seconds) triggerSudden();
     };
     tick();
     const timer = window.setInterval(tick, 500);
     return () => window.clearInterval(timer);
-  }, [suddenDef, sudden.phase, done, items.length, startedAt, triggerSudden]);
+  }, [suddenDef, suddenSeconds, sudden.phase, done, items.length, startedAt, triggerSudden]);
 
   // 처리 수 기준 등장 + 전 항목을 먼저 끝냈으면 기다리게 하지 않고 바로 등장시킨다.
   useEffect(() => {
     if (!suddenDef || sudden.phase !== "hidden" || done) return;
     const appearsAt = suddenDef.appears_at ?? 0;
-    const byCount = appearsAt > 0 && appearsAt <= items.length && handledCount >= appearsAt;
+    // 명시 초(appears_after_seconds) 기준이면 처리 수 발동은 끈다 — 위 초 효과가 담당한다.
+    const byCount =
+      suddenSeconds === null && appearsAt > 0 && appearsAt <= items.length && handledCount >= appearsAt;
     if (byCount || (items.length > 0 && handledCount >= items.length)) triggerSudden();
-  }, [suddenDef, sudden.phase, done, items.length, handledCount, triggerSudden]);
+  }, [suddenDef, suddenSeconds, sudden.phase, done, items.length, handledCount, triggerSudden]);
 
   // ── 자동 종료 — 전 아이템 + 돌발 + 병행 절차가 모두 마무리되면 ──
+  // 단, 직전 행동이 '오답'(feedback bad)이면 자동 종료하지 않는다. 컨베이어+대체(wh-01·yg-02)는
+  // 호출 대상이 마지막 아이템이라, 이를 통에 잘못 넣으면(금지행동) 그 오답이 곧바로
+  // 자동 종료→화면 전환(onComplete)을 부르는 버그가 있었다. 이제 오답은 감점만 남기고
+  // 게임을 유지하며, 플레이어가 '마감(제출)' 버튼으로 마무리한다(채점 결과는 동일).
   useEffect(() => {
     if (done) return;
     const allHandled = items.length > 0 && items.every((item, index) => Boolean(handled[keyOf(item, index)]));
     const suddenSettled = !suddenDef || sudden.phase === "resolved";
     const parallelSettled = escalateKind !== "parallel" || procedureDone;
-    if (allHandled && suddenSettled && parallelSettled) finish();
-  }, [done, items, handled, suddenDef, sudden.phase, escalateKind, procedureDone, finish]);
+    const lastActionWasMistake = feedback?.kind === "bad";
+    if (allHandled && suddenSettled && parallelSettled && !lastActionWasMistake) finish();
+  }, [done, items, handled, suddenDef, sudden.phase, escalateKind, procedureDone, feedback, finish]);
 
   // ── 오분류 감점 판정 — 사건당 가장 구체적인 키 하나만 적용한다 ──
   const misbinPenalty = useCallback(
