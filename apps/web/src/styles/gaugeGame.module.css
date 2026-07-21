@@ -447,3 +447,40 @@
 .gaugeShell {
   flex: none;
 }
+
+/* Cartoon surface pass: meters remain the same assets and values. */
+.card {
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 18px;
+  background: #415273;
+  box-shadow: 0 5px 0 var(--cartoon-ink), inset 0 2px 0 rgb(255 255 255 / 0.13);
+}
+.spriteWell:has(img),
+.tool,
+.footer {
+  border: 2px solid var(--cartoon-ink);
+  background: #fff2d6;
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+.dialBezel {
+  border: 4px solid var(--cartoon-ink);
+  background: #8793a9;
+  box-shadow: 0 5px 0 var(--cartoon-ink), inset 0 4px 0 rgb(255 255 255 / 0.22);
+}
+.dialFace { background: #26314f; }
+.needle { filter: drop-shadow(2px 3px 0 var(--cartoon-ink)); }
+.needleCap,
+.needleHub { box-shadow: 0 0 0 3px var(--cartoon-ink); }
+.judgeButton,
+.tapButton,
+.toolButton,
+.submitButton,
+.escalateButton {
+  border: 2px solid var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+.judgeButton:active,
+.tapButton:active,
+.toolButton:active,
+.submitButton:active,
+.escalateButton:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--cartoon-ink); }
