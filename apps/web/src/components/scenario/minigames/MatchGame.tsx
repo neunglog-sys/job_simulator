@@ -151,6 +151,36 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const right = useMemo(() => data.right ?? [], [data.right]);
   const pairs = useMemo(() => data.pairs ?? [], [data.pairs]);
   const unmatchedList = useMemo(() => data.unmatched ?? [], [data.unmatched]);
+
+  // 카드 표시 순서 셔플 — 나열 순서 그대로면 정답이 같은 행에 나란히 놓여 선긋기가 무의미해진다
+  // (디자이너: 전 match 게임 공통). 좌/우를 각각 독립으로 섞고, 짝의 좌·우가 같은 행에 겹치면
+  // 우측만 다시 섞어 어긋나게 한다. 표시 순서만 바꿀 뿐 매칭 판정은 카드 id·pairs 기준이라
+  // 정답성·채점은 불변이다(선 anchor 는 셔플 후 마운트 시점에 measure). left/right 배열 자체는
+  // 채점·색배정·완료판정에 그대로 쓰이고, 아래 두 배열은 렌더 순서 전용이다.
+  // useMemo 는 [left,right,pairs] 가 data 파생 안정 참조라 마운트당 1회만 섞는다(리렌더 재섞음 없음).
+  const [displayLeft, displayRight] = useMemo(() => {
+    const shuffle = (arr: MatchCard[]): MatchCard[] => {
+      const out = arr.slice();
+      for (let i = out.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [out[i], out[j]] = [out[j], out[i]];
+      }
+      return out;
+    };
+    const dl = shuffle(left);
+    const leftRow = new Map(dl.map((card, i) => [card.id, i] as const));
+    // 우측 순서에서 '정답이 같은 행에 겹친' 짝의 수 — 0 이 되도록 재셔플한다.
+    const alignedCount = (order: MatchCard[]) =>
+      pairs.reduce((n, [pl, pr]) => {
+        const li = leftRow.get(pl);
+        if (li === undefined) return n;
+        return order.findIndex((card) => card.id === pr) === li ? n + 1 : n;
+      }, 0);
+    let dr = shuffle(right);
+    // 회피 불가능한 극단 배치(예: 카드 1장)에서 무한루프 방지 — 최대 30회 후 그대로 둔다.
+    for (let tries = 0; tries < 30 && alignedCount(dr) > 0; tries += 1) dr = shuffle(right);
+    return [dl, dr] as const;
+  }, [left, right, pairs]);
   const discardItems = useMemo(() => data.discard?.items ?? [], [data.discard]);
   const keyDefs = useMemo(() => data.keys ?? [], [data.keys]);
   const outliers = useMemo(() => data.stream?.outliers ?? [], [data.stream]);
@@ -741,14 +771,14 @@ export function MatchGame({ game, onComplete }: EngineProps) {
             <span>{leftHead}</span>
             <span className={styles.columnCount}>{left.length}장</span>
           </div>
-          <div className={styles.column}>{left.map((card) => renderCard(card, "left"))}</div>
+          <div className={styles.column}>{displayLeft.map((card) => renderCard(card, "left"))}</div>
         </section>
         <section className={styles.columnWrap} data-side="right" aria-label={`${rightHead} 카드 열`}>
           <div className={styles.columnHead}>
             <span>{rightHead}</span>
             <span className={styles.columnCount}>{right.length}장</span>
           </div>
-          <div className={styles.column}>{right.map((card) => renderCard(card, "right"))}</div>
+          <div className={styles.column}>{displayRight.map((card) => renderCard(card, "right"))}</div>
         </section>
       </div>
 

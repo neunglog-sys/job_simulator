@@ -87,10 +87,13 @@ data:
   sudden:
     id: 환자_임현서_항의
     sprite: 환자_접수대막음_고성
-    appears_at: 25
+    # 게임 시작 후 5초(벽시계 경과) 시점 발동 — 초반에 돌발을 마주하게 한다(요구 반영).
+    # appears_after_seconds 는 엔진이 '초'로 확정 해석한다(appears_at 의 크기 휴리스틱과 달리
+    # 아이템 수 이하인 5도 처리 수가 아니라 초로 발동).
+    appears_after_seconds: 5
     label: 비급여 고지 누락 항의 — 접수대를 막고 고성
     freeze_queue: true
-    must_resolve_sudden: true   # 25초 전에 6명 분류를 끝내도 임현서 처리 전에는 게임 종료 불가
+    must_resolve_sudden: true   # 5초 전에 6명 분류를 끝내도 임현서 처리 전에는 게임 종료 불가
     bin: 별도상담실        # 정답 1순위 — 다른 환자와 분리(사생활 보호 + 대기열 회복)
     # 여기에 넣으면 금지행동(forbidden_penalty 40). 목소리가 크다고 응급이 아니고,
     # 세워둔 채 응대해도 안 된다.

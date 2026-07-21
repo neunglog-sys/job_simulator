@@ -367,6 +367,13 @@ data:
     escalate(사진) 버튼이 벨트 중앙 박스가 `escalate.when` 대상일 때마다 재활성화된다(박스별 촬영
     연출 — 셔터+'촬영됨' 태그). 채점은 기존대로 '게임 중 1회 이상 눌렀는가'만 보며 추가 촬영은
     감점·가점 없음. conveyor 아닌 병행필수는 기존 1회 절차 동작 유지.
+  - sort·place·gauge·match 표시 순서 셔플(2026-07-20 디자이너 "카드/아이템 순서 섞어라"):
+    엔진이 아이템·조각·계기·카드의 **표시 순서를 마운트 1회 랜덤 셔플**한다(정답이 예측 순서로
+    안 오게). 판정·채점은 전부 id·논리 기준이라 셔플과 무관하게 정답성 불변. match·gauge·place 는
+    항상 셔플, sort 는 `data.shuffle: true` 인 게임만(gm-01·yg-02). (kts-04 는 '나열=접수순' 함정이
+    순서 의존이라 셔플 제외.)
+  - sort `sudden.appears_after_seconds`(number): 돌발 퀘스트를 크기 휴리스틱(appears_at) 대신
+    **벽시계 경과 초**로 발동(kts-01·kts-04 = 5초). 채점 계약 불변.
   - match: `discard` 블록(휴지통 — stn-01), `keys`+`wrong_key_penalty`(kts-05 객실 키),
     `one_line_per_left`·forbidden_pairs 의 right **리스트** 허용(kts-02),
     `unmatched_action`+`missed_unmatched_penalty`(stn-04), `matched_unmatched_penalty`, `pair_count`/`unmatched_count`
@@ -384,6 +391,10 @@ data:
   - place: `fit: any`(비게이트 — 어디든 꽂히되 틀리면 시각 피드백)·`accepts: null`(정상 구간 — stn-05),
     forbidden 항목 `{ id, slots?, reason }`(hr-01)
   - physics rhythm: `stray_input_penalty`(창 밖 연타)·`beat_count`(jm-02)
+  - physics rhythm 조작·타이밍(2026-07-20 디자이너 피드백): `data.fall_speed`(낙하 시각 배율,
+    기본 1 — jm-02=1.1로 10% 빠르게, 판정은 beat.at±window 기준이라 정확도 상한 불변),
+    `data.hit_offset`(입력 지연 보정 초, 기본 0 — ms-07 타이밍 튜닝). jm-02 는 `report` beat 를
+    **스페이스바**로 입력(기존 R/Enter 는 하위호환 폴백), space 를 정타로 쓰는 게임(ms-07)엔 미적용.
   - typing: `critical_lines`+`missed_critical_penalty`(핵심 예외 줄 누락 = 금지행동 40 — backend)
   - typing: `data.presentation: dev_desk`(표시 전용 — backend-dev-day1, 2026-07-20) — 낙하
     스테이지를 도트 모니터 프레임(`모니터_터미널`)으로 감싸고 코드 줄을 알림 봉투(`알림_봉투`)

@@ -74,6 +74,10 @@ type Beat = {
 
 type RhythmData = {
   hit_window?: number;
+  /** ms-07: 입력 지연 보정(초) — 판정 창 중심을 시각 비트보다 살짝 뒤로 민다. 없으면 0. */
+  hit_offset?: number;
+  /** jm-02: 노트 낙하 속도 배율(예 1.1 = 10% 빠르게) — 시각 낙하만 빨라진다. 없으면 1(등속). */
+  fall_speed?: number;
   /** 스테이지 배경 도트 씬(jm-02 102노선_주행뷰) — 파일 로드 성공 시에만 깔린다.
    *  track 미지정(ms-07)·파일 부재 시 기존 그라데이션 스테이지 그대로. 표시 전용. */
   track?: string;
@@ -109,7 +113,7 @@ const KEY_HINT: Record<string, string> = {
   shift: "SHIFT",
   brake: "↓",
   accel: "↑",
-  report: "R",
+  report: "SPACE", // jm-02: 방호·보고를 R→스페이스로 이관(방향키 사이 R 이질감 해소). 실제 매핑은 spaceAsReport.
 };
 
 const KEY_LABEL: Record<string, string> = {
@@ -117,7 +121,7 @@ const KEY_LABEL: Record<string, string> = {
   shift: "칼·도마 교체 (Shift)",
   brake: "제동 (↓ 또는 S)",
   accel: "가속 (↑ 또는 W)",
-  report: "방호·보고 (R)",
+  report: "방호·보고 (스페이스)",
 };
 
 function bindOf(event: KeyboardEvent): string | null {
@@ -148,7 +152,20 @@ type Judged = "hit" | "miss" | "spoiled";
 
 export function RhythmGame({ game, onComplete }: EngineProps) {
   const data = game.data as RhythmData;
+  // jm-02: 낙하 속도 ×fall_speed(예 1.1) — '시각' 낙하만 빨라진다. 판정은 beat.at·window
+  // 기준이라 정확도 상한 불변(fall_speed 없으면 기존 FALL_SECONDS 그대로, 다른 게임 무영향).
+  const fallSeconds = FALL_SECONDS / (typeof data.fall_speed === "number" && data.fall_speed > 0 ? data.fall_speed : 1);
+  // ms-07: 입력 지연 보정(초). 판정 시각을 now()-hit_offset 로 당겨 창 중심을 시각 비트보다
+  // 살짝 뒤에 둔다(체감 타이밍 보정). 창 폭·wall-clock 규약·만점 상한 불변(기본 0, 타 게임 무영향).
+  const hitOffset = typeof data.hit_offset === "number" ? data.hit_offset : 0;
   const beats = useMemo(() => (data.beats ?? []).filter((b) => typeof b.at === "number"), [data.beats]);
+  // jm-02: 방향키 사이에 튀어나오던 R 조작을 스페이스로 흡수한다 — report beat 는 그대로 두되
+  // (approvalGate·안전 필수 실패 판정이 key==="report" 에 걸려 있어 채점 계약 보존) 스페이스
+  // 입력을 report 로 매핑한다. space 를 정타로 쓰는 게임(ms-07)에는 적용하지 않아 충돌이 없다.
+  const spaceAsReport = useMemo(
+    () => beats.some((b) => b.key === "report") && !beats.some((b) => (b.key ?? "space") === "space"),
+    [beats],
+  );
   const decoys = useMemo(() => data.decoy_beats ?? [], [data.decoy_beats]);
   const lanes = useMemo(
     () => (data.lanes && data.lanes.length > 0 ? data.lanes : [{ id: "_main", label: "" }]),
@@ -300,7 +317,7 @@ export function RhythmGame({ game, onComplete }: EngineProps) {
   const handleInput = useCallback(
     (bind: string) => {
       if (doneRef.current) return;
-      const t = now();
+      const t = now() - hitOffset; // 판정 시각(입력 지연 보정) — 시각 렌더는 raw now() 사용
       sweep(t);
       if (doneRef.current) return;
 
@@ -366,21 +383,22 @@ export function RhythmGame({ game, onComplete }: EngineProps) {
       countsRef.current.strays += 1;
       pulse("bad");
     },
-    [now, sweep, approvalGate, fails, beats, decoys, windowOf, pulse, fail, finish, startedAt],
+    [now, hitOffset, sweep, approvalGate, fails, beats, decoys, windowOf, pulse, fail, finish, startedAt],
   );
 
   // 키보드 입력
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (doneRef.current || event.repeat) return;
-      const bind = bindOf(event);
+      let bind = bindOf(event);
       if (!bind) return;
+      if (bind === "space" && spaceAsReport) bind = "report"; // jm-02: 스페이스 = 방호·보고
       event.preventDefault();
       handleInput(bind);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [handleInput]);
+  }, [handleInput, spaceAsReport]);
 
   // rAF 는 그리기(+ 지나간 노트 정리)만. 백그라운드 보험으로 500ms interval 병행.
   useEffect(() => {
@@ -388,17 +406,17 @@ export function RhythmGame({ game, onComplete }: EngineProps) {
     let raf = 0;
     const step = () => {
       const t = now();
-      setNowSec(t);
-      sweep(t);
+      setNowSec(t); // 시각 렌더는 raw 시각(노트가 beat.at 에 판정선 도달)
+      sweep(t - hitOffset); // 지나간 노트 정리는 판정 시각(입력 지연 보정)으로
       raf = window.requestAnimationFrame(step);
     };
     raf = window.requestAnimationFrame(step);
-    const timer = window.setInterval(() => sweep(now()), 500);
+    const timer = window.setInterval(() => sweep(now() - hitOffset), 500);
     return () => {
       window.cancelAnimationFrame(raf);
       window.clearInterval(timer);
     };
-  }, [done, now, sweep]);
+  }, [done, now, sweep, hitOffset]);
 
   useEffect(() => () => {
     if (flashTimer.current) window.clearTimeout(flashTimer.current);
@@ -466,7 +484,7 @@ export function RhythmGame({ game, onComplete }: EngineProps) {
                   </span>
                   {beat.key ? <span className={styles.noteKey}>{KEY_HINT[beat.key] ?? beat.key}</span> : null}
                   <span className={styles.promptBarTrack} aria-hidden="true">
-                    <span className={styles.promptBarValue} style={{ width: `${Math.max(0, 100 - (left / FALL_SECONDS) * 100)}%` }} />
+                    <span className={styles.promptBarValue} style={{ width: `${Math.max(0, 100 - (left / fallSeconds) * 100)}%` }} />
                   </span>
                 </div>
               );
@@ -490,7 +508,7 @@ export function RhythmGame({ game, onComplete }: EngineProps) {
             ...beats.map((beat, i) => ({ beat, i, kind: beat.type ?? "beat", judged: judgedRef.current.get(i) })),
             ...decoys.map((beat, i) => ({ beat, i: beats.length + i, kind: "decoy", judged: decoyHitRef.current.has(i) ? ("spoiled" as Judged) : undefined })),
           ].map(({ beat, i, kind, judged }) => {
-            const progress = (nowSec - (beat.at - FALL_SECONDS)) / FALL_SECONDS;
+            const progress = (nowSec - (beat.at - fallSeconds)) / fallSeconds;
             if (progress < -0.05 || progress > 1.18) return null;
             const laneIdx = laneIndexOf(beat);
             const left = laneIdx >= 0 ? `${((laneIdx + 0.5) / lanes.length) * 100}%` : "50%";
