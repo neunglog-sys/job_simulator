@@ -65,10 +65,7 @@ export function SurveyDrawer({
       />
 
       {error ? (
-        <p
-          role="alert"
-          style={{ margin: "8px 4px 0", color: "#b3435f", fontSize: 13, lineHeight: "19px" }}
-        >
+        <p className={styles.surveyError} role="alert">
           {error}
         </p>
       ) : null}
