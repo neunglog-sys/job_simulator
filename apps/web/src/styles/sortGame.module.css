@@ -826,3 +826,41 @@
 .bin:hover { border-color: var(--scenario-accent-2); background: linear-gradient(160deg, var(--scenario-accent-soft), rgb(9 10 30 / 0.7)); }
 .submitBtn,
 .escalateBtn { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 10px 24px var(--scenario-accent-soft); }
+
+/* Cartoon surface pass: item and bin sprites remain the existing assets. */
+.legend,
+.sudden,
+.orderSheet,
+.doneStrip {
+  border: 2px solid var(--cartoon-ink);
+  background: #fff2d6;
+  color: var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+.queue,
+.conveyor {
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 18px;
+  background: #334363;
+  box-shadow: 0 5px 0 var(--cartoon-ink), inset 0 2px 0 rgb(255 255 255 / 0.12);
+}
+.belt { border: 3px solid var(--cartoon-ink); background: repeating-linear-gradient(90deg, #606a7d 0 28px, #465168 28px 56px); box-shadow: inset 0 5px 0 rgb(255 255 255 / 0.1); }
+.card,
+.bin,
+.suddenCard,
+.stageBtn,
+.orderCell {
+  border: 2px solid var(--cartoon-ink);
+  background: #fff2d6;
+  color: var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+.card:hover,
+.bin:hover,
+.suddenCard:hover,
+.stageBtn:hover { border-color: var(--cartoon-ink); background: #ffffff; box-shadow: 0 6px 0 var(--cartoon-ink); }
+.card[data-state="selected"] { background: #d7c6ff; box-shadow: 0 4px 0 var(--cartoon-ink), 0 0 0 3px var(--cartoon-purple); }
+.submitBtn,
+.escalateBtn { border: 2px solid var(--cartoon-ink); box-shadow: 0 4px 0 var(--cartoon-ink); }
+.submitBtn:active,
+.escalateBtn:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--cartoon-ink); }

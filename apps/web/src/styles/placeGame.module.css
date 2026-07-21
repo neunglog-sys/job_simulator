@@ -781,3 +781,40 @@
 .occupant { filter: drop-shadow(0 8px 14px rgb(0 0 0 / 0.28)); }
 .submitButton,
 .escalateButton { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 10px 24px var(--scenario-accent-soft); }
+
+/* Cartoon surface pass: map art, people, and draggable item art stay unchanged. */
+.board,
+.mapBoard {
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 18px;
+  background: #334363;
+  box-shadow: 0 5px 0 var(--cartoon-ink), inset 0 2px 0 rgb(255 255 255 / 0.12);
+}
+.mapSceneArt { filter: none; }
+.cart,
+.tray,
+.footer,
+.stain {
+  border: 2px solid var(--cartoon-ink);
+  background: #fff2d6;
+  color: var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+.piece,
+.trayPiece,
+.dockPiece,
+.personPiece {
+  border: 2px solid var(--cartoon-ink);
+  background: #fff2d6;
+  color: var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+.piece:hover,
+.trayPiece:hover,
+.dockPiece:hover { border-color: var(--cartoon-ink); background: #ffffff; box-shadow: 0 6px 0 var(--cartoon-ink); }
+.slot,
+.mapSlot { border: 3px dashed var(--cartoon-aqua); background: rgb(91 215 208 / 0.16); box-shadow: inset 0 0 0 2px var(--cartoon-ink); }
+.placedPiece,
+.occupant { filter: none; }
+.submitButton,
+.escalateButton { border: 2px solid var(--cartoon-ink); box-shadow: 0 4px 0 var(--cartoon-ink); }

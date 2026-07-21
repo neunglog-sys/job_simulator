@@ -407,3 +407,30 @@
     animation: none;
   }
 }
+
+/* Cartoon UI pass: code text, envelopes, and gameplay timing remain unchanged. */
+.stage {
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 18px;
+  background-color: #334363;
+  box-shadow: 0 5px 0 var(--cartoon-ink), inset 0 2px 0 rgb(255 255 255 / 0.12);
+}
+.card,
+.staticCard,
+.feedback,
+.deskKeyboard {
+  border: 2px solid var(--cartoon-ink);
+  background: #fff2d6;
+  color: var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+.code { color: var(--cartoon-ink); }
+.input {
+  border: 3px solid var(--cartoon-ink);
+  background: #fff9e9;
+  color: var(--cartoon-ink);
+  box-shadow: inset 0 3px 0 rgb(23 24 42 / 0.12);
+}
+.input::placeholder { color: #716b67; }
+.submit { border: 2px solid var(--cartoon-ink); box-shadow: 0 4px 0 var(--cartoon-ink); }
+.submit:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--cartoon-ink); }

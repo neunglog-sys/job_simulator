@@ -441,3 +441,22 @@
   .refOverlay { animation: none; }
   .refToggle { transition: none; }
 }
+
+/* Cartoon frame only: scene, characters, and clickable element art are unchanged. */
+.stage {
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 18px;
+  background-color: #334363;
+  box-shadow: 0 5px 0 var(--cartoon-ink), inset 0 2px 0 rgb(255 255 255 / 0.12);
+}
+.stage::after { opacity: 0.09; background-size: 5px 5px; }
+.hotspot { filter: drop-shadow(2px 3px 0 var(--cartoon-ink)); }
+.caption,
+.refCard {
+  border: 2px solid var(--cartoon-ink);
+  background: #fff2d6;
+  color: var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+.refToggle,
+.refClose { border: 2px solid var(--cartoon-ink); box-shadow: 0 4px 0 var(--cartoon-ink); }

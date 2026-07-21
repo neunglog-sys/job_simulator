@@ -822,3 +822,44 @@
     animation: none;
   }
 }
+
+/* Cartoon surface pass: cards and wiring get inked UI framing only. */
+.board {
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 18px;
+  background: #334363;
+  box-shadow: 0 5px 0 var(--cartoon-ink), inset 0 2px 0 rgb(255 255 255 / 0.12);
+}
+.board::before {
+  opacity: 0.18;
+  background-image: radial-gradient(rgb(255 242 214 / 0.52) 1.2px, transparent 1.4px);
+  background-size: 17px 17px;
+}
+.columnHead,
+.streamWrap,
+.sudden,
+.forbiddenAlert {
+  border: 2px solid var(--cartoon-ink);
+  background: #fff2d6;
+  color: var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+.card {
+  border: 2px solid var(--cartoon-ink);
+  border-radius: 13px;
+  background: #fff2d6;
+  color: var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+.card:hover { border-color: var(--cartoon-ink); box-shadow: 0 6px 0 var(--cartoon-ink); transform: translateY(-2px); }
+.card[data-state="selected"] { background: #d7c6ff; box-shadow: 0 4px 0 var(--cartoon-ink), 0 0 0 3px var(--cartoon-purple); }
+.wire { filter: drop-shadow(2px 3px 0 var(--cartoon-ink)); }
+.stageBtn,
+.submitBtn,
+.actionBtn {
+  border: 2px solid var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+.stageBtn:active,
+.submitBtn:active,
+.actionBtn:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--cartoon-ink); }
