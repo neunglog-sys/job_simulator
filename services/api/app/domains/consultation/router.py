@@ -143,14 +143,19 @@ async def send_message(
     session: AsyncSession = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
-    """아바타 응답을 SSE로 스트리밍. 이벤트: token(조각) → done."""
+    """아바타 응답을 SSE로 스트리밍. 이벤트: token(조각) → done.
+
+    done의 skip_tts: true는 사용자가 상세 설명을 요청해 길이 제한을 풀어준 응답이라는 뜻 —
+    프론트/아바타 파이프라인은 이 경우 음성 합성을 생략하고 텍스트만 보여줘야 한다.
+    """
     consultation = await service.get_owned_consultation(session, consultation_id, user)
 
     async def event_stream():
+        meta: dict = {}
         try:
-            async for chunk in service.stream_reply(session, consultation, body.content):
+            async for chunk in service.stream_reply(session, consultation, body.content, meta=meta):
                 yield {"event": "token", "data": json.dumps({"text": chunk}, ensure_ascii=False)}
-            yield {"event": "done", "data": "{}"}
+            yield {"event": "done", "data": json.dumps(meta, ensure_ascii=False)}
         except Exception:  # noqa: BLE001 — 스트림 중간 오류는 이벤트로 전달
             yield {"event": "error", "data": json.dumps({"detail": "응답 생성 실패"})}
             raise

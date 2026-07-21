@@ -27,6 +27,17 @@ RAG_MAX_DISTANCE = 0.4  # Gemini 임베딩 거리대(관련 ~0.2·무관 ~0.28)�
 RAG_EMBED_TIMEOUT_S = 2.0  # 초과 시 지식 없이 진행 (짧은 지연 > 지식 주입 이득)
 RAG_MIN_QUERY_CHARS = 8    # "네", "고마워요" 같은 짧은 발화 — 직무 지식이 나올 질의가 아님
 
+# 응답 길이 정책 — 긴 응답일수록 아바타 발화 생성이 오래 걸려 사용자가 기다리는 지연이 커진다.
+# 첫 응답은 더 짧게 "워밍업"하고, 이후에도 평소엔 짧게 유지하되 사용자가 명시적으로 자세한 설명을
+# 요청하면 길이 제한을 풀고 대신 음성(TTS)은 생략한다 — 긴 글을 그대로 읽게 하면 지연만 커진다.
+GREETING_REPLY_CHAR_LIMIT = 100
+DEFAULT_REPLY_CHAR_LIMIT = 300
+DETAIL_REQUEST_KEYWORDS = ("자세히", "자세하게", "상세히", "상세하게", "구체적으로", "길게 설명")
+# 프롬프트의 글자수 지시는 소프트 가이드일 뿐이라 넘길 수 있음 — 토큰 상한은 그 경우의 안전망.
+# 한글은 토큰당 여러 글자를 담는 경우가 많아, 목표 글자수보다 넉넉히 잡아 문장이 중간에 끊기지
+# 않게 한다. 실제 글자수 컷은 스트리밍 중 total_chars 체크(아래)가 담당한다.
+REPLY_MAX_TOKENS_HEADROOM = 120
+
 
 async def _fetch_knowledge(session: AsyncSession, user_text: str) -> str | None:
     """발화 관련 직무 지식 검색 — 짧은 발화는 생략, 임베딩 지연 스파이크는 타임아웃.
@@ -207,9 +218,14 @@ async def list_messages(session: AsyncSession, consultation_id: int) -> list[Mes
 
 
 async def stream_reply(
-    session: AsyncSession, consultation: Consultation, user_text: str
+    session: AsyncSession, consultation: Consultation, user_text: str,
+    *, meta: dict | None = None,
 ) -> AsyncIterator[str]:
-    """사용자 발화 저장 → 최근 대화 + 아바타 프롬프트로 LLM 스트리밍 → 응답 저장."""
+    """사용자 발화 저장 → 최근 대화 + 아바타 프롬프트로 LLM 스트리밍 → 응답 저장.
+
+    meta: 넘기면 호출부(라우터)가 SSE done 이벤트 등에 실어 보낼 부가 정보(skip_tts 등)를
+    이 dict에 채워 넣는다. 스트림 자체(yield하는 텍스트)의 계약은 바꾸지 않는다.
+    """
     t0 = time.perf_counter()
     session.add(Message(consultation_id=consultation.id, role="user", content=user_text))
     await session.commit()
@@ -218,6 +234,19 @@ async def stream_reply(
     context = [
         ChatMessage(role=m.role, content=m.content) for m in history[-MEMORY_TURNS:]
     ]
+
+    # 응답 길이 산정 — 첫 응답은 워밍업으로 더 짧게, 상세 설명 요청은 제한 해제 + TTS 생략
+    is_first_reply = not any(m.role == "assistant" for m in history)
+    detail_requested = any(kw in user_text for kw in DETAIL_REQUEST_KEYWORDS)
+    if detail_requested:
+        char_limit = None
+    elif is_first_reply:
+        char_limit = GREETING_REPLY_CHAR_LIMIT
+    else:
+        char_limit = DEFAULT_REPLY_CHAR_LIMIT
+    max_tokens = None if char_limit is None else char_limit + REPLY_MAX_TOKENS_HEADROOM
+    if meta is not None:
+        meta["skip_tts"] = detail_requested
 
     # RAG: 발화와 관련된 직무 지식이 있으면 아바타 프롬프트에 주입
     rag_start = time.perf_counter()
@@ -236,32 +265,43 @@ async def stream_reply(
         resume=resume_mod.load_analysis(consultation),  # 이력 분석 있으면 상담사가 방향 확인에 활용
         knowledge=knowledge,
         safety_notes=safety_notes,
+        reply_char_limit=char_limit,
     )
 
     full: list[str] = []
     first_token_ms: float | None = None
+    total_chars = 0
+    reply_stream = get_llm().chat_stream(
+        context,
+        system=system,
+        temperature=0.4,
+        # 상담은 즉답형 대화 — 사고 토큰을 끄면 첫 토큰이 수 초 빨라진다 (6.7s→1.2s 실측).
+        # 채점 등 품질 우선 호출은 기본값(None=모델 기본)을 유지한다.
+        thinking_budget=0,
+        max_tokens=max_tokens,
+    )
     try:
-        async for chunk in get_llm().chat_stream(
-            context,
-            system=system,
-            temperature=0.4,
-            # 상담은 즉답형 대화 — 사고 토큰을 끄면 첫 토큰이 수 초 빨라진다 (6.7s→1.2s 실측).
-            # 채점 등 품질 우선 호출은 기본값(None=모델 기본)을 유지한다.
-            thinking_budget=0,
-        ):
+        async for chunk in reply_stream:
             if first_token_ms is None:
                 first_token_ms = (time.perf_counter() - t0) * 1000
             full.append(chunk)
+            total_chars += len(chunk)
             yield chunk
+            if char_limit is not None and total_chars >= char_limit:
+                # 목표 글자수 도달 — 나머지 생성은 기다리지 않고 스트림을 바로 닫는다
+                # (지연 절감 본래 목적과 직결되는 부분).
+                await reply_stream.aclose()
+                break
     finally:
         # 구간별 지연 분해 — 첫 발화 지연 최적화의 근거 데이터 (프리필 vs 출력 판정용)
         reply = "".join(full)
         logger.info(
-            "상담 응답 구간: rag %.0fms · 첫토큰 %.0fms · 전체 %.0fms · 응답 %d자 · system %.1fKB · 지식 %s",
+            "상담 응답 구간: rag %.0fms · 첫토큰 %.0fms · 전체 %.0fms · 응답 %d자(제한 %s) · system %.1fKB · 지식 %s",
             rag_ms,
             first_token_ms if first_token_ms is not None else -1,
             (time.perf_counter() - t0) * 1000,
             len(reply),
+            char_limit if char_limit is not None else "없음",
             len(system.encode()) / 1024,
             "유" if knowledge else "무",
         )

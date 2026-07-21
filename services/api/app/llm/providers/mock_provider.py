@@ -49,14 +49,16 @@ class MockProvider:
         system: str | None = None,
         json_schema: dict | None = None,
         temperature: float = 0.7,
+        max_tokens: int | None = None,
     ) -> str:
         if json_schema:
             return json.dumps(_fake_json(json_schema), ensure_ascii=False)
         last = messages[-1].content if messages else ""
-        return (
+        text = (
             f"[mock 응답] '{last[:40]}' 잘 들었어요. "
             "혹시 평소에 어떤 일을 할 때 가장 몰입하게 되나요?"
         )
+        return text if max_tokens is None else text[: max_tokens * 4]
 
     async def chat_stream(
         self,
@@ -65,8 +67,9 @@ class MockProvider:
         system: str | None = None,
         temperature: float = 0.7,
         thinking_budget: int | None = None,
+        max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
-        text = await self.chat(messages, system=system, temperature=temperature)
+        text = await self.chat(messages, system=system, temperature=temperature, max_tokens=max_tokens)
         for i in range(0, len(text), 8):
             await asyncio.sleep(0.02)  # 실제 스트리밍처럼 보이게
             yield text[i : i + 8]
