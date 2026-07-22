@@ -71,7 +71,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: teamjang
+    location: npc5
     available_steps: []
 - npc_id: npc_ys-05_04
   name: 송은채
@@ -114,7 +114,7 @@ npcs:
   responsibilities:
   - 작업중지 판단 보고(측정값 + 근거 조항 + 재개 조건)
   appearance:
-    location: sasu
+    location: npc4
     available_steps:
     - quest
     conditions:

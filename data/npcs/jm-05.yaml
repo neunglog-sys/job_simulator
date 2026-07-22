@@ -57,7 +57,7 @@ npcs:
     available_steps:
     - m2
 - npc_id: npc_jm-05_03
-  name: 오세만
+  name: 강태수
   role: 현장 안전관리소장
   rank: 소장
   personality:
@@ -75,7 +75,7 @@ npcs:
   - 우선순위 기준은요?
   responsibilities: []
   appearance:
-    location: teamjang
+    location: npc5
     available_steps: []
 - npc_id: npc_jm-05_04
   name: 정미래
@@ -123,6 +123,6 @@ npcs:
   - 우선순위 배열표(5건)
   - 작업 중지 건의문(법 조항 근거 포함)
   appearance:
-    location: sasu
+    location: npc4
     available_steps:
     - m3

@@ -99,7 +99,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: teamjang
+    location: npc5
     available_steps: []
 - npc_id: npc_ys-10_05
   name: 윤예린
@@ -122,6 +122,6 @@ npcs:
   - 교대 인수인계 일지
   - 브리핑 요약
   appearance:
-    location: sasu
+    location: npc4
     available_steps:
     - m4

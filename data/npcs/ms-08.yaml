@@ -96,7 +96,7 @@ npcs:
   - 상담·동의서
   - 서비스 계획
   appearance:
-    location: teamjang
+    location: npc4
     available_steps:
     - m1
 - npc_id: npc_ms-08_05
@@ -120,6 +120,6 @@ npcs:
   - 사전상태 기록
   - 고객동의
   appearance:
-    location: sasu
+    location: npc5
     available_steps:
     - m2

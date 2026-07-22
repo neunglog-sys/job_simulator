@@ -72,7 +72,7 @@ npcs:
     location: teamjang
     available_steps: []
 - npc_id: npc_ms-04_04
-  name: 고객사
+  name: 김상훈
   role: 고객사
   rank: null
   personality:

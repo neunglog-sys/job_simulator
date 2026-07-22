@@ -96,7 +96,7 @@ npcs:
   - 민원 대응 기록
   - 인계 보고
   appearance:
-    location: teamjang
+    location: npc4
     available_steps:
     - quest
     conditions:

@@ -95,7 +95,7 @@ npcs:
   - 이물사고 기록
   - 폐기·재제조 결정표
   appearance:
-    location: teamjang
+    location: npc4
     available_steps:
     - quest
     conditions:
@@ -120,6 +120,6 @@ npcs:
   responsibilities:
   - 주방인계표
   appearance:
-    location: sasu
+    location: npc5
     available_steps:
     - m4
