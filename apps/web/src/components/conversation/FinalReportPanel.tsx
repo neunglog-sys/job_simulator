@@ -1,5 +1,6 @@
-import { Briefcase, ChartLineUp, CheckCircle } from "@phosphor-icons/react";
-import { useRef } from "react";
+import { Briefcase, ChartLineUp, CheckCircle, DownloadSimple, ListChecks } from "@phosphor-icons/react";
+import { useRef, useState } from "react";
+import { ApiError, fetchReportPdfBlob } from "../../lib/api";
 import styles from "../../styles/oneToOneConversation.module.css";
 import type { ReportState } from "../../types/conversation";
 import { GlassScrollbar } from "./GlassScrollbar";
@@ -23,9 +24,31 @@ const retryButtonStyle = {
 export function FinalReportPanel({ reportState, onRetry }: FinalReportPanelProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const { phase, recommendation, report, message, followupQuestions } = reportState;
+  const [pdfStatus, setPdfStatus] = useState<"idle" | "loading" | "error">("idle");
 
   const topJob = recommendation?.results[0] ?? null;
   const otherJobs = recommendation?.results.slice(1, 4) ?? [];
+
+  const handleDownloadPdf = async () => {
+    if (!report || pdfStatus === "loading") return;
+    setPdfStatus("loading");
+    try {
+      const blob = await fetchReportPdfBlob(report.id);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `진로리포트_${report.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setPdfStatus("idle");
+    } catch (error) {
+      setPdfStatus("error");
+      // eslint-disable-next-line no-console
+      console.error("PDF 다운로드 실패", error instanceof ApiError ? error.message : error);
+    }
+  };
 
   return (
     <section className={styles.finalReportPanel} aria-label="최종 직무 추천 리포트">
@@ -83,7 +106,10 @@ export function FinalReportPanel({ reportState, onRetry }: FinalReportPanelProps
                 <Briefcase weight="duotone" />
               </span>
               <div>
-                <small>가장 잘 맞는 추천 직무 · 적합도 {topJob.score}%</small>
+                <small>
+                  {report?.kind_label ?? "상담 결과 리포트"} · 가장 잘 맞는 추천 직무 · 적합도{" "}
+                  {topJob.score}%
+                </small>
                 <h3>{topJob.job_title}</h3>
                 <p>{topJob.reason}</p>
               </div>
@@ -98,12 +124,39 @@ export function FinalReportPanel({ reportState, onRetry }: FinalReportPanelProps
                 ))}
               </ul>
             </article>
+            {(report?.improvements?.length ?? 0) > 0 ? (
+              <article className={styles.reportSection}>
+                <h3>
+                  <ListChecks weight="fill" aria-hidden="true" /> 보완하면 좋은 점
+                </h3>
+                <ul>
+                  {(report?.improvements ?? []).map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </article>
+            ) : null}
             <article className={styles.reportSection}>
               <h3>
                 <ChartLineUp weight="fill" aria-hidden="true" /> 추천 성장 방향
               </h3>
               <p>{report?.advice}</p>
             </article>
+            {report ? (
+              <button
+                type="button"
+                onClick={handleDownloadPdf}
+                disabled={pdfStatus === "loading"}
+                style={retryButtonStyle}
+              >
+                <DownloadSimple weight="bold" aria-hidden="true" />{" "}
+                {pdfStatus === "loading"
+                  ? "PDF 준비 중..."
+                  : pdfStatus === "error"
+                    ? "다운로드 실패 · 다시 시도"
+                    : "PDF로 저장"}
+              </button>
+            ) : null}
             {otherJobs.length > 0 ? (
               <article className={styles.reportSection}>
                 <h3>

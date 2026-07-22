@@ -399,6 +399,10 @@ export type Report = {
   status: "pending" | "done" | "failed";
   consultation_id: number | null;
   simulation_id: number | null;
+  // 상담만 반영된 결과(consult)인지, 상담+체험 수행이 합쳐진 최종 리포트(experience)인지 —
+  // 백엔드가 simulation_id 유무로 판단해 내려준다 (services/api/app/domains/reporting/schemas.py).
+  kind: "consult" | "experience";
+  kind_label: string;
   fit_score: number | null;
   strengths: string[];
   improvements: string[];
@@ -410,16 +414,35 @@ export function fetchReports(): Promise<Report[]> {
   return request(API_ENDPOINTS.reports.list, { method: "GET" });
 }
 
-/** 리포트 생성은 백엔드에서 비동기 처리 — status가 done/failed 될 때까지 fetchReport로 폴링. */
-export function createReport(consultationId: number): Promise<Report> {
+/** 리포트 생성은 백엔드에서 비동기 처리 — status가 done/failed 될 때까지 fetchReport로 폴링.
+ * simulationId를 주면 완주한 체험이 최종 적합도에 50% 반영된다(팀 확정 공식). */
+export function createReport(consultationId: number, simulationId?: number): Promise<Report> {
   return request(API_ENDPOINTS.reports.create, {
     method: "POST",
-    body: JSON.stringify({ consultation_id: consultationId }),
+    body: JSON.stringify({ consultation_id: consultationId, simulation_id: simulationId ?? null }),
   });
 }
 
 export function fetchReport(reportId: number): Promise<Report> {
   return request(API_ENDPOINTS.reports.detail(reportId));
+}
+
+/** PDF는 바이너리라 request()의 JSON 파싱을 못 타므로 별도 처리 — 인증 헤더는 동일하게 싣는다. */
+export async function fetchReportPdfBlob(reportId: number): Promise<Blob> {
+  const headers = new Headers();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  let res: Response;
+  try {
+    res = await fetch(API_ENDPOINTS.reports.pdf(reportId), { headers });
+  } catch {
+    throw new ApiError(0, null, "서버에 연결할 수 없어요. 백엔드가 켜져 있는지 확인해주세요.");
+  }
+  if (!res.ok) {
+    const detail = safeJson(await res.text()) as { detail?: unknown } | null;
+    throw new ApiError(res.status, detail?.detail, messageFromDetail(detail?.detail, res.status));
+  }
+  return res.blob();
 }
 
 // --- 시뮬레이션(게임) 타입 — 백엔드 SimulationOut 스키마와 1:1 ---
