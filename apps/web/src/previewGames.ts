@@ -331,7 +331,7 @@ export const PREVIEW_GAMES = {
     "time_limit": 80,
     "pass_score": 70,
     "data": {
-      "scene": "면접실_배치도_대기실_복도",
+      "scene": "hr-01-background-cartoon-day-v3.webp",
       "slots": [
         {
           "id": "면접관석A_평가표",
@@ -394,7 +394,7 @@ export const PREVIEW_GAMES = {
             520,
             180
           ],
-          "label": "발표대 · 노트북"
+          "label": "AV 카트 상단 · 노트북"
         },
         {
           "id": "기기_빔프로젝터",
@@ -403,7 +403,7 @@ export const PREVIEW_GAMES = {
             520,
             260
           ],
-          "label": "천장 · 빔프로젝터"
+          "label": "AV 카트 하단 · 빔프로젝터"
         },
         {
           "id": "대기실_안내",
