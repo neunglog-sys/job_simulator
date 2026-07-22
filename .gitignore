@@ -59,6 +59,8 @@ maps/**/debug-overlay.html
 maps/**/playtest.html
 maps/**/*.mp4
 maps/**/*.webm
+# paint 툴 내보내기 원본 — 압축 풀어 tmx/mask만 커밋하므로 zip 자체는 제외
+maps/**/*.zip
 
 # Playwright MCP 검증 산출물 (스냅샷·콘솔 로그)
 .playwright-mcp/
