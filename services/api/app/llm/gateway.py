@@ -177,3 +177,20 @@ class LLMGateway:
 @lru_cache
 def get_llm() -> LLMGateway:
     return LLMGateway(_select_provider(), _select_embedding_provider())
+
+
+async def warmup_llm() -> None:
+    """chat_stream 첫 호출 콜드스타트(실측 ~2~3초)를 기동 시 선지불.
+
+    ingest_knowledge가 부팅 시 embed는 이미 한 번 호출해 그 경로는 예열되지만, 상담·시뮬레이션이
+    쓰는 chat_stream 경로는 아무도 건드리지 않아 실사용자의 첫 발화가 그 비용을 대신 낸다.
+    avatar_service.warmup()과 동일한 선지불 패턴 — 실패해도 부팅을 막지 않는다.
+    """
+    try:
+        async for _ in get_llm().chat_stream(
+            [ChatMessage(role="user", content="ping")],
+            temperature=0, thinking_budget=0, max_tokens=16,
+        ):
+            pass
+    except Exception:
+        logger.warning("LLM 워밍업 실패 — 실사용자가 콜드스타트 비용을 대신 지불하게 됨", exc_info=True)
