@@ -504,6 +504,7 @@ export type GameMapData = {
 };
 export type Simulation = {
   id: number;
+  consultation_id: number | null; // 이 체험을 시작한 상담 — 재개 시 리포트 연동 복원용
   scenario_slug: string;
   scenario_title: string;
   module: string | null;
@@ -517,10 +518,18 @@ export type Simulation = {
   created_at: string;
 };
 
-export function createSimulation(scenarioSlug: string): Promise<Simulation> {
+export function createSimulation(
+  scenarioSlug: string,
+  consultationId?: number | null,
+): Promise<Simulation> {
+  // consultationId를 실어보내면 서버가 DB에 박아둔다 → 이어하기로 재개해도 리포트 연동 유지.
   return request(API_ENDPOINTS.simulations.create, {
     method: "POST",
-    body: JSON.stringify({ scenario_slug: scenarioSlug }),
+    body: JSON.stringify(
+      consultationId != null
+        ? { scenario_slug: scenarioSlug, consultation_id: consultationId }
+        : { scenario_slug: scenarioSlug },
+    ),
   });
 }
 

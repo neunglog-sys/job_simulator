@@ -165,7 +165,8 @@ async function resumeOrCreate(slug: string): Promise<Simulation> {
     }
     sessionStorage.removeItem(RESUME_KEY);
   }
-  const sim = await createSimulation(slug);
+  // 최초 생성 시 상담 id를 실어 서버 DB에 박아둔다 → 이후 재개(위 fetchSimulation)로 복원된다.
+  const sim = await createSimulation(slug, CONSULTATION_ID);
   sessionStorage.setItem(RESUME_KEY, String(sim.id));
   return sim;
 }
@@ -262,6 +263,8 @@ export function ScenarioGamePage() {
   const pendingMemoRef = useRef<string | null>(null);
   const socketRef = useRef<SimulationSocket | null>(null);
   const simIdRef = useRef<number | null>(null);
+  // 이 체험이 붙은 상담 id — 서버가 sim에 실어주면 그걸 쓰고(재개해도 유지), 없으면 URL 값 폴백.
+  const consultationIdRef = useRef<number | null>(CONSULTATION_ID);
   // 완주 시 리포트 반영은 1회만 — 서버가 state_updated를 재전송해도 중복 생성하지 않는다.
   const reportSyncStartedRef = useRef(false);
   const [reportSyncStatus, setReportSyncStatus] = useState<"idle" | "pending" | "done" | "error">("idle");
@@ -488,6 +491,8 @@ export function ScenarioGamePage() {
 
     const applySim = (sim: Simulation) => {
       simIdRef.current = sim.id;
+      // 서버가 저장해둔 상담 연결을 우선 사용 — 이어하기로 URL 파라미터가 없어도 복원된다.
+      if (sim.consultation_id != null) consultationIdRef.current = sim.consultation_id;
       setActiveStep(sim.step);
       setNpcs(sim.npcs);
       // 1단계 진행도 복원 — 새로고침해도 인사한 동료·투어 완료는 기억된다(서버 state).
@@ -662,12 +667,12 @@ export function ScenarioGamePage() {
               // 5단계 소감문 저장 완료 → 완주 화면 (점수는 게임에서 공개하지 않는다)
               setReflectionSending(false);
               setPhase("completed");
-              if (!reportSyncStartedRef.current && CONSULTATION_ID && simIdRef.current) {
+              if (!reportSyncStartedRef.current && consultationIdRef.current && simIdRef.current) {
                 reportSyncStartedRef.current = true;
                 setReportSyncStatus("pending");
                 (async () => {
                   try {
-                    let report = await createReport(CONSULTATION_ID, simIdRef.current!);
+                    let report = await createReport(consultationIdRef.current!, simIdRef.current!);
                     while (!cancelled && report.status === "pending") {
                       await new Promise((resolve) => window.setTimeout(resolve, 1500));
                       if (cancelled) return;

@@ -30,7 +30,7 @@ from app.domains.simulation import state_machine as sm
 from app.llm import get_llm
 from app.llm.base import ChatMessage
 from app.llm.prompts import render_prompt
-from app.models import Message, Npc, NpcPlacement, Scenario, Simulation, User
+from app.models import Consultation, Message, Npc, NpcPlacement, Scenario, Simulation, User
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +121,8 @@ def _clean_npc(text: str) -> str:
 
 
 async def create_simulation(
-    session: AsyncSession, user: User, scenario_slug: str
+    session: AsyncSession, user: User, scenario_slug: str,
+    consultation_id: int | None = None,
 ) -> tuple[Simulation, Scenario]:
     # _disabled로 뺀 시나리오는 DB에 남아있어도 새 플레이를 못 열게 막는다
     # (목록에서만 숨기면 slug 직접 지정으로 우회 가능하므로 진입점도 차단).
@@ -140,7 +141,19 @@ async def create_simulation(
         "quest": {"status": "pending" if scenario.sudden_quest else "none", "attempts": 0},
         "coach_streak": 0,  # 진전(제출) 없이 이어진 미션 대화 턴 수 → 정체 감지용
     }
-    simulation = Simulation(user_id=user.id, scenario_id=scenario.id, state=state)
+    # 상담에서 진입했으면 그 상담 id를 박아둔다 — 재개(이어하기)로 URL 파라미터가 유실돼도
+    # 완주 리포트가 상담을 붙일 수 있게. 남의 상담 id는 무시(도용 방지·게임은 계속 진행).
+    linked_consultation_id = None
+    if consultation_id is not None:
+        consultation = await session.get(Consultation, consultation_id)
+        if consultation is not None and consultation.user_id == user.id:
+            linked_consultation_id = consultation_id
+    simulation = Simulation(
+        user_id=user.id,
+        scenario_id=scenario.id,
+        consultation_id=linked_consultation_id,
+        state=state,
+    )
     session.add(simulation)
     await session.commit()
     await session.refresh(simulation)
@@ -238,6 +251,7 @@ async def to_out(session: AsyncSession, simulation: Simulation, scenario: Scenar
     slots = game_map.npc_slots_in(map_info["geometry"]) if map_info else game_map.NPC_SLOTS
     return {
         "id": simulation.id,
+        "consultation_id": simulation.consultation_id,  # 재개 시 리포트 연동 복원용 (없으면 null)
         "scenario_slug": scenario.slug,
         "scenario_title": scenario.title,
         "module": scenario.module,  # 프론트 배경 8세트 선택용
