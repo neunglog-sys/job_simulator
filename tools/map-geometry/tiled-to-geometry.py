@@ -155,9 +155,18 @@ def _occluder(obj: dict) -> dict:
     else:
         out = _rect(obj)
         out["baseline"] = out["y"] + out["h"]
+    props = obj.get("properties") or {}
+    # 수동 baseline(기준선) 우선 — 갠트리·아치처럼 밑으로 지나가는 큰 구조물은 조각마다 제 밑변을
+    # 쓰면 윗보가 붕 떠서 안 가려진다. paint 툴에서 다리 바닥선을 그으면 그 y가 여기로 넘어와,
+    # 그 선 위의 조각 전체가 같은 밑변을 공유해 일관되게 캐릭터를 가린다.
+    if props.get("baseline") is not None:
+        try:
+            out["baseline"] = int(round(float(props["baseline"])))
+        except (TypeError, ValueError):
+            pass
     # Tiled 커스텀 속성 mask=파일명 → 픽셀 알파 마스크 누끼 (케이블·틈새까지 픽셀 단위,
     # 폴리곤 한 줄 경계로 못 따는 가구용). 파일은 맵 폴더에 bbox 크기로 둔다.
-    mask = (obj.get("properties") or {}).get("mask")
+    mask = props.get("mask")
     if mask:
         out["mask"] = mask
     return out
