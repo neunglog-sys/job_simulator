@@ -408,6 +408,15 @@
   }
 }
 
+:global([data-cartoon-background="true"]) .stage {
+  background-image:
+    linear-gradient(rgb(8 12 26 / 0.12), rgb(8 12 26 / 0.2)),
+    var(--minigame-background-image);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
 /* Cartoon UI pass: code text, envelopes, and gameplay timing remain unchanged. */
 .stage {
   border: 3px solid var(--cartoon-ink);

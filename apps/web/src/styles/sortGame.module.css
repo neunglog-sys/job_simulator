@@ -837,6 +837,17 @@
   color: var(--cartoon-ink);
   box-shadow: 0 4px 0 var(--cartoon-ink);
 }
+
+:global([data-cartoon-background="true"]) .conveyorRow,
+:global([data-cartoon-background="true"]) .queue {
+  background-image:
+    linear-gradient(rgb(8 12 26 / 0.12), rgb(8 12 26 / 0.2)),
+    var(--minigame-background-image);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  border-radius: 14px;
+}
 .queue,
 .conveyor {
   border: 3px solid var(--cartoon-ink);
