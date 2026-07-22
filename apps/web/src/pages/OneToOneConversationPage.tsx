@@ -1508,9 +1508,11 @@ export function OneToOneConversationPage() {
                 setActivePanel("chat");
               }}
               onEnterScenario={(slug) => {
-                window.location.assign(
-                  `${FRONTEND_ENDPOINTS.scenario}?slug=${encodeURIComponent(slug)}`,
-                );
+                const params = new URLSearchParams({ slug });
+                // 체험 완료 시 이 상담의 리포트에 반영하려면 consultationId가 필요하다
+                // (없으면 ScenarioGamePage가 리포트 생성을 건너뜀).
+                if (consultationId) params.set("consultationId", String(consultationId));
+                window.location.assign(`${FRONTEND_ENDPOINTS.scenario}?${params.toString()}`);
               }}
               onClose={() => setActiveModal(null)}
             />
