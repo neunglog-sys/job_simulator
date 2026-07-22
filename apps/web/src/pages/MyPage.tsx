@@ -39,6 +39,7 @@ import {
   downloadProfileDocument,
   fetchConsultations,
   fetchProfileDocuments,
+  fetchReportPdfBlob,
   fetchReports,
   fetchSimulationSummaries,
   updateProfileAccount,
@@ -92,6 +93,7 @@ type ActivityItem = {
   status: string;
   consultation?: ConsultationSummary;
   simulation?: SimulationSummary;
+  report?: Report;
 };
 
 function formatFileSize(bytes: number): string {
@@ -352,6 +354,21 @@ export function MyPage() {
     }
   };
 
+  const handleDownloadReport = async (report: Report) => {
+    setError(null);
+    try {
+      const blob = await fetchReportPdfBlob(report.id);
+      const url = URL.createObjectURL(blob);
+      const anchor = window.document.createElement("a");
+      anchor.href = url;
+      anchor.download = `진로리포트_${report.id}.pdf`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (downloadError) {
+      setError(errorMessage(downloadError));
+    }
+  };
+
   const handleDelete = async (documentId: number) => {
     setDeletingId(documentId);
     setError(null);
@@ -443,15 +460,16 @@ export function MyPage() {
     const reportItems: ActivityItem[] = reports.map((report) => ({
       id: `report-${report.id}`,
       kind: "report",
-      title: `최종 진로 리포트 #${report.id}`,
+      title: report.kind_label,
       description:
         report.status === "done"
-          ? "상담과 체험 결과를 바탕으로 만든 리포트"
+          ? "탭하면 PDF로 다운로드해요."
           : report.status === "failed"
             ? "리포트 생성에 실패했어요."
             : "리포트를 생성하고 있어요.",
       createdAt: report.created_at,
       status: report.status === "done" ? "완료" : report.status === "failed" ? "실패" : "생성 중",
+      report,
     }));
 
     return [...consultationItems, ...simulationItems, ...reportItems]
@@ -470,6 +488,18 @@ export function MyPage() {
       window.location.assign(
         `${FRONTEND_ENDPOINTS.scenario}?slug=${encodeURIComponent(item.simulation.scenario_slug)}`,
       );
+      return;
+    }
+    if (item.kind === "report" && item.report) {
+      if (item.report.status !== "done") {
+        setNotice(
+          item.report.status === "failed"
+            ? "리포트 생성에 실패했어요."
+            : "리포트를 생성하고 있어요. 잠시 후 다시 시도해주세요.",
+        );
+        return;
+      }
+      void handleDownloadReport(item.report);
       return;
     }
     window.location.assign(FRONTEND_ENDPOINTS.conversation);
