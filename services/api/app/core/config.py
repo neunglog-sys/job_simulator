@@ -99,9 +99,10 @@ class Settings(BaseSettings):
     # Auth — 시연/배포 전 .env에서 jwt_secret 교체 필수 (HS256 권장 최소 32바이트)
     jwt_secret: str = "dev-only-secret-change-me-before-demo-0123456789"
     # 개발 편의 인증(X-User-Id 헤더로 임의 사용자 지정 · 토큰 없으면 데모 사용자 폴백)을
-    # 허용할지. 기본 True(로컬 개발). **배포/시연 .env에서 반드시 false** — true면 누구든
-    # X-User-Id 헤더만으로 타인 계정을 사칭하고, 익명 요청이 한 데모 계정에 뒤섞인다.
-    allow_dev_auth: bool = True
+    # 허용할지. **기본 False (secure-by-default)** — 배포가 .env를 깜빡해도 익명 요청이 한
+    # 데모 계정에 뒤섞이거나 X-User-Id 사칭이 되지 않는다(2026-07-22 익명→데모 유출사고 재발 방지).
+    # 로컬 개발은 .env에 ALLOW_DEV_AUTH=true 를 명시한다(테스트는 conftest의 client fixture가 자체 활성화).
+    allow_dev_auth: bool = False
 
     # 과제 정답 노출 — 기본 차단. true면 /api/simulations 응답의 task에 answer·answer_guide가
     # 실린다(프론트 '확인하기'·개발 편의용). 정답이 보이면 대화로 정보를 얻을 이유가 사라져
