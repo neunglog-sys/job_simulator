@@ -66,6 +66,7 @@
       <button id="mode-magic" class="on">자동누끼(클릭)</button>
       <button id="mode-poly">다각형</button>
       <button id="mode-draw">자유곡선</button>
+      <button id="mode-baseline">기준선</button>
     </div>
     <div id="modenote"></div>
     <div class="row" style="margin-top:2px; font-size:12px; color:#8f88b5">보기:
@@ -160,8 +161,10 @@ let painting = false;
 const history = [];
 let cur = { cx: COLS >> 1, cy: ROWS >> 1 };
 let penDown = false;
-let overMode = "magic";    // overhead 입력: magic(자동누끼) | poly(모서리 클릭) | draw(자유곡선)
+let overMode = "magic";    // overhead 입력: magic(자동누끼) | poly(모서리 클릭) | draw(자유곡선) | baseline(기준선)
 let polyPts = [];          // 진행 중인 다각형 꼭짓점 (맵 좌표)
+let baselines = [];        // overhead 기준선 — {x1,x2,y}. 이 선의 x범위 위에 있는 오클루더는 이 y를 baseline(밑변)으로 씀
+let baseDrag = null;       // 기준선 드래그 중 임시 {x1,x2,y}
 let srcData = null;        // 배경 픽셀 (자동누끼 색 비교용)
 const magicTol = () => brush * 30;   // 허용치 (브러시값 → 30~240, 픽셀아트 노이즈 감안 넉넉히)
 
@@ -257,11 +260,31 @@ function draw() {
     ctx.strokeStyle = "#ff3b3b"; ctx.lineWidth = 3; ctx.stroke();
     ctx.restore();
   }
+  // overhead 기준선 (바닥선) — 이 선의 x범위 위에 있는 오클루더가 이 y를 밑변으로 사용
+  if (isOver()) {
+    const drawBase = (b, active) => {
+      const bx1 = Math.min(b.x1, b.x2), bx2 = Math.max(b.x1, b.x2);
+      ctx.save();
+      ctx.strokeStyle = active ? "#ff8c1a" : "#ffb64d"; ctx.lineWidth = active ? 4 : 3;
+      ctx.setLineDash([12, 6]);
+      ctx.beginPath(); ctx.moveTo(bx1, b.y); ctx.lineTo(bx2, b.y); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = ctx.strokeStyle;
+      for (const x of [bx1, bx2]) { ctx.beginPath(); ctx.arc(x, b.y, 5, 0, 7); ctx.fill(); }
+      const label = `baseline y=${Math.round(b.y)}`;
+      ctx.font = "bold 20px sans-serif"; ctx.textAlign = "left";
+      ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,.7)";
+      ctx.strokeText(label, bx1 + 6, b.y - 8); ctx.fillText(label, bx1 + 6, b.y - 8);
+      ctx.restore();
+    };
+    for (const b of baselines) drawBase(b, false);
+    if (baseDrag) drawBase(baseDrag, true);
+  }
   // 방향키 커서
   if (img) {
     const col = penDown ? "#ff3b3b" : "#ffe14d";
     ctx.lineWidth = 3; ctx.strokeStyle = col;
-    if (isOver()) {
+    if (isOver() && overMode !== "baseline") {
       const cx = cur.cx * CELL + CELL/2, cy = cur.cy * CELL + CELL/2;
       ctx.beginPath(); ctx.arc(cx, cy, overRadius(), 0, 7); ctx.stroke();
     } else {
@@ -311,7 +334,7 @@ function updateStats() {
   const cnt = L => { let n = 0; const g = grid[L]; for (let i=0;i<g.length;i++) n += g[i]; return n; };
   document.getElementById("stats").innerHTML =
     `walkable <b>${cnt("walkable")}</b>칸 · collision <b>${cnt("collision")}</b>칸<br>` +
-    `overhead 그려짐 · spawn <b>${spawns.length}</b>개`;
+    `overhead 그려짐 · 기준선 <b>${baselines.length}</b> · spawn <b>${spawns.length}</b>개`;
   scheduleSave();   // 변경 있을 때마다 디바운스 자동저장
 }
 
@@ -350,12 +373,14 @@ function paintOver(mx, my, erase) {
 const redoStack = [];
 function captureState() {
   const s = { spawns: JSON.parse(JSON.stringify(spawns)),
+              baselines: JSON.parse(JSON.stringify(baselines)),
               over: overCtx.getImageData(0, 0, MAPW, MAPH) };
   for (const L of CELL_LAYERS) s[L] = grid[L].slice();
   return s;
 }
 function applyState(s) {   // 스냅샷은 원본 보존 — 복사해서 적용
   spawns = JSON.parse(JSON.stringify(s.spawns));
+  baselines = JSON.parse(JSON.stringify(s.baselines || []));
   for (const L of CELL_LAYERS) grid[L] = s[L].slice();
   overCtx.putImageData(s.over, 0, 0);
 }
@@ -461,6 +486,17 @@ cv.addEventListener("pointerdown", e => {
     spawns.push({ name: spawnName, x: Math.round(c.px), y: Math.round(c.py) });
     draw(); return;
   }
+  if (isOver() && overMode === "baseline") {
+    if (e.button === 2) {   // 우클릭: 근처 기준선 삭제
+      const hit = baselines.findIndex(b => Math.abs(b.y - c.py) < 10 &&
+        c.px >= Math.min(b.x1, b.x2) - 10 && c.px <= Math.max(b.x1, b.x2) + 10);
+      if (hit >= 0) { snapshot(); baselines.splice(hit, 1); draw(); }
+      return;
+    }
+    baseDrag = { x1: c.px, x2: c.px, y: c.py };
+    painting = true; cv.setPointerCapture(e.pointerId); draw();
+    return;
+  }
   if (isOver() && overMode === "poly") { polyClick(c.px, c.py, e.button); return; }
   if (isOver() && overMode === "magic") {
     snapshot(); magicFill(c.px, c.py, (e.button === 2) || erasingToggle); draw(); return;
@@ -477,10 +513,21 @@ cv.addEventListener("pointerdown", e => {
 cv.addEventListener("pointermove", e => {
   if (!painting || layer === "spawn") return;
   const c = cellAt(e);
+  if (isOver() && overMode === "baseline") { if (baseDrag) { baseDrag.x2 = c.px; draw(); } return; }
   if (isOver()) paintOver(c.px, c.py, cv._erase); else paintCell(c.cx, c.cy, !cv._erase);
   draw();
 });
-cv.addEventListener("pointerup", () => { painting = false; overLast = null; });
+cv.addEventListener("pointerup", () => {
+  if (baseDrag) {   // 드래그로 그은 수평 기준선 확정 (너무 짧으면 버림)
+    if (Math.abs(baseDrag.x2 - baseDrag.x1) >= 12) {
+      snapshot();
+      baselines.push({ x1: Math.min(baseDrag.x1, baseDrag.x2),
+                       x2: Math.max(baseDrag.x1, baseDrag.x2), y: Math.round(baseDrag.y) });
+    }
+    baseDrag = null; draw();
+  }
+  painting = false; overLast = null;
+});
 cv.addEventListener("dblclick", () => { if (isOver() && overMode === "poly") closePoly(); });
 
 // ── 방향키 ──
@@ -554,7 +601,7 @@ document.querySelectorAll(".layer").forEach(b => b.onclick = () => {
   b.classList.add("on");
   layer = b.dataset.layer;
   penDown = false;
-  polyPts = [];
+  polyPts = []; baseDrag = null;
   document.getElementById("spawnpick").style.display = layer === "spawn" ? "block" : "none";
   document.getElementById("overtools").style.display = isOver() ? "flex" : "none";
   updateModeNote();
@@ -565,18 +612,20 @@ function updateModeNote() {
     magic: "🪄 자동누끼: 가구를 클릭하면 비슷한 색이 자동 선택됨. 여러 색이면 여러 번 클릭. 우클릭=지우기. 허용치 [ ] 로 조절",
     poly: "🔷 다각형: 가구 모서리를 콕콕 클릭 → 시작점 다시 클릭(또는 Enter/더블클릭)으로 닫기. 우클릭=점 취소",
     draw: "✏️ 자유곡선: 드래그로 가구 윤곽 그리기",
+    baseline: "📏 기준선: 구조물 다리가 바닥에 닿는 높이에 수평선을 드래그. 그 선의 좌우 범위 위에 있는 가림 조각들이 이 선을 밑변으로 써서, 갠트리·아치처럼 밑으로 지나가는 큰 구조물이 일관되게 가려집니다. 우클릭=선 삭제",
   };
   document.getElementById("modenote").textContent = isOver() ? notes[overMode] : "";
 }
 function setMode(m) {
-  overMode = m; polyPts = [];
-  for (const x of ["magic", "poly", "draw"])
+  overMode = m; polyPts = []; baseDrag = null;
+  for (const x of ["magic", "poly", "draw", "baseline"])
     document.getElementById("mode-" + x).classList.toggle("on", x === m);
   updateModeNote(); setBrush(brush); draw();
 }
 document.getElementById("mode-magic").onclick = () => setMode("magic");
 document.getElementById("mode-poly").onclick = () => setMode("poly");
 document.getElementById("mode-draw").onclick = () => setMode("draw");
+document.getElementById("mode-baseline").onclick = () => setMode("baseline");
 function clickLayer(name) { document.querySelector(`.layer[data-layer="${name}"]`).click(); }
 document.querySelectorAll(".spn").forEach(b => b.onclick = () => {
   document.querySelectorAll(".spn").forEach(x => x.classList.remove("on"));
@@ -586,6 +635,7 @@ const setBrush = v => {
   brush = Math.max(1, Math.min(16, v));   // 8px 격자: 1칸(8px)~16칸(128px, 큰 면적 빠르게)
   document.getElementById("brushval").textContent =
     isOver() && overMode === "magic" ? `허용치 ${magicTol()}`
+    : isOver() && overMode === "baseline" ? "기준선 모드"
     : isOver() ? `반경 ${overRadius()}px`
     : `${brush}칸 (${brush*CELL}px)`;
   draw();
@@ -603,7 +653,7 @@ document.getElementById("grid").onclick = e => { showGrid = !showGrid; e.target.
 document.getElementById("clearlayer").onclick = () => {
   snapshot();
   if (layer === "spawn") spawns = [];
-  else if (isOver()) overCtx.clearRect(0, 0, MAPW, MAPH);
+  else if (isOver()) { overCtx.clearRect(0, 0, MAPW, MAPH); baselines = []; }
   else grid[layer].fill(0);
   draw();
 };
@@ -643,7 +693,7 @@ function scheduleSave() { if (!img) return; clearTimeout(saveTimer); saveTimer =
 function saveLocal() {
   try {
     localStorage.setItem("paintmap:" + slug, JSON.stringify({
-      slug, ts: Date.now(), spawns,
+      slug, ts: Date.now(), spawns, baselines,
       walkable: gridToB64(grid.walkable), collision: gridToB64(grid.collision),
       over: overCanvas.toDataURL("image/png"),
     }));
@@ -654,6 +704,7 @@ function saveLocal() {
 function restoreLocal(d) {
   grid.walkable = b64ToGrid(d.walkable); grid.collision = b64ToGrid(d.collision);
   spawns = d.spawns || [];
+  baselines = d.baselines || [];
   overCtx.clearRect(0, 0, MAPW, MAPH);
   const im = new Image();
   im.onload = () => { overCtx.drawImage(im, 0, 0); history.length = 0; redoStack.length = 0; draw(); };
@@ -712,6 +763,7 @@ async function loadTmx(text, maskFiles = {}) {
   for (const L of CELL_LAYERS) grid[L].fill(0);
   overCtx.clearRect(0, 0, MAPW, MAPH);
   spawns = [];
+  baselines = [];
   const cnt = { walk: 0, coll: 0, spawn: 0, over: 0, overTotal: 0 };
   const maskTasks = [];
   for (const og of doc.querySelectorAll("objectgroup")) {
@@ -735,6 +787,10 @@ async function loadTmx(text, maskFiles = {}) {
         cnt.overTotal++;
         const mname = o.querySelector('property[name="mask"]')?.getAttribute("value");
         if (mname && maskFiles[mname]) { cnt.over++; maskTasks.push(loadMaskTinted(maskFiles[mname], x, y)); }
+      } else if (name === "baseline") {
+        const pl = o.querySelector("polyline");
+        const pts = (pl?.getAttribute("points") || "").trim().split(/\s+/).map(s => s.split(",").map(Number));
+        if (pts.length >= 2) baselines.push({ x1: x + pts[0][0], x2: x + pts[1][0], y: y + pts[0][1] });
       }
     }
   }
@@ -857,15 +913,36 @@ document.getElementById("exp").onclick = () => {
 
   const comps = overheadComponents();
   const files = [];
+  // 조각의 x범위와 겹치고 조각 top 아래(y이상)에 있는 기준선 중 가장 낮은(y최대) 것 → 그 조각의 baseline.
+  // 갠트리 다리 바닥에 선 하나 그으면 빔·다리 조각 전부 그 y를 공통 밑변으로 쓴다. 없으면 변환기 자동값.
+  const baselineFor = c => {
+    let best = null;
+    for (const b of baselines) {
+      const bx1 = Math.min(b.x1, b.x2), bx2 = Math.max(b.x1, b.x2);
+      if (bx2 < c.x || bx1 > c.x + c.w) continue;   // x범위 안 겹침
+      if (b.y < c.y) continue;                        // 선이 조각 top보다 위면 미적용
+      if (best === null || b.y > best) best = b.y;
+    }
+    return best;
+  };
   const overObjs = comps.map((c, i) => {
     const name = `mask_${String(i).padStart(3, "0")}.png`;
     files.push({ name, bytes: pngBytes(c.canvas) });
+    const base = baselineFor(c);
+    const props = `<property name="mask" value="${name}"/>` +
+      (base !== null ? `<property name="baseline" value="${base}"/>` : "");
     return `  <object id="${oid++}" x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}">` +
-           `<properties><property name="mask" value="${name}"/></properties></object>`;
+           `<properties>${props}</properties></object>`;
   }).join("\n");
 
   const spwn = spawns.map(s =>
     `  <object id="${oid++}" name="${s.name}" x="${s.x}" y="${s.y}"><point/></object>`).join("\n");
+  // 기준선 자체도 폴리라인으로 남겨 재편집(폴더 불러오기) 때 복원. 변환기는 이 그룹을 무시.
+  const baseObjs = baselines.map(b => {
+    const bx1 = Math.min(b.x1, b.x2), bx2 = Math.max(b.x1, b.x2);
+    return `  <object id="${oid++}" x="${Math.round(bx1)}" y="${Math.round(b.y)}">` +
+           `<polyline points="0,0 ${Math.round(bx2 - bx1)},0"/></object>`;
+  }).join("\n");
   const grp = (n, body) => body ? ` <objectgroup id="${oid++}" name="${n}">\n${body}\n </objectgroup>\n` : "";
 
   const tmx =
@@ -874,7 +951,7 @@ document.getElementById("exp").onclick = () => {
  <imagelayer id="90" name="background">
   <image source="${slug}.png" width="${MAPW}" height="${MAPH}"/>
  </imagelayer>
-${grp("walkable", walk)}${grp("collision", coll)}${grp("overhead", overObjs)}${grp("spawn", spwn)}</map>
+${grp("walkable", walk)}${grp("collision", coll)}${grp("overhead", overObjs)}${grp("baseline", baseObjs)}${grp("spawn", spwn)}</map>
 `;
   files.unshift({ name: `${slug}.tmx`, bytes: new TextEncoder().encode(tmx) });
 
