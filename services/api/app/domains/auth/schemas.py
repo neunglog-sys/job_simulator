@@ -29,5 +29,6 @@ class MeOut(BaseModel):
     id: int
     email: str | None
     name: str
+    has_password: bool
 
     model_config = {"from_attributes": True}

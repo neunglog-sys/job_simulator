@@ -45,6 +45,10 @@ async function refresh(): Promise<void> {
   }
 }
 
+export async function refreshAuth(): Promise<void> {
+  await refresh();
+}
+
 /** 로그인/회원가입 실행 → 토큰 저장 → 내 정보 로드. 실패 시 ApiError를 그대로 던진다. */
 export async function authenticate(
   mode: "signIn" | "signUp",

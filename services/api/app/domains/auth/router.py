@@ -60,7 +60,12 @@ async def login(body: LoginIn, session: AsyncSession = Depends(get_session)):
 
 @router.get("/me", response_model=MeOut)
 async def me(user: User = Depends(get_current_user)):
-    return user
+    return MeOut(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        has_password=bool(user.pw_hash),
+    )
 
 
 @router.get("/oauth/{provider}")

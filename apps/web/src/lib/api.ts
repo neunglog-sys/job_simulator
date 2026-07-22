@@ -83,7 +83,7 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
 
 // --- 백엔드 응답 타입 (스키마와 1:1) ---
 export type TokenOut = { access_token: string; token_type: string };
-export type Me = { id: number; email: string | null; name: string };
+export type Me = { id: number; email: string | null; name: string; has_password: boolean };
 export type Consultation = { id: number; status: string; created_at: string };
 export type ConsultationSummary = {
   id: number;
@@ -105,6 +105,17 @@ export type UserDocument = {
   created_at: string;
 };
 
+export type SimulationSummary = {
+  id: number;
+  scenario_slug: string;
+  scenario_title: string;
+  module: string | null;
+  status: "active" | "completed" | "aborted";
+  current_step: string | null;
+  total: number | null;
+  created_at: string;
+};
+
 export function signup(body: {
   email: string;
   password: string;
@@ -121,6 +132,23 @@ export function login(body: { email: string; password: string }): Promise<TokenO
 
 export function fetchMe(): Promise<Me> {
   return request(API_ENDPOINTS.auth.me, { method: "GET" });
+}
+
+export function updateProfileAccount(name: string): Promise<Me> {
+  return request(API_ENDPOINTS.profile.account, {
+    method: "PATCH",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function changeProfilePassword(currentPassword: string, newPassword: string): Promise<void> {
+  return request(API_ENDPOINTS.profile.password, {
+    method: "PUT",
+    body: JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
+  });
 }
 
 export function fetchProfileDocuments(): Promise<UserDocument[]> {
@@ -185,6 +213,10 @@ export function createConsultation(): Promise<Consultation> {
 
 export function fetchConsultations(): Promise<ConsultationSummary[]> {
   return request(API_ENDPOINTS.consultations.list, { method: "GET" });
+}
+
+export function fetchSimulationSummaries(): Promise<SimulationSummary[]> {
+  return request(API_ENDPOINTS.simulations.list, { method: "GET" });
 }
 
 export function updateConsultationTitle(
@@ -373,6 +405,10 @@ export type Report = {
   advice: string | null;
   created_at: string;
 };
+
+export function fetchReports(): Promise<Report[]> {
+  return request(API_ENDPOINTS.reports.list, { method: "GET" });
+}
 
 /** 리포트 생성은 백엔드에서 비동기 처리 — status가 done/failed 될 때까지 fetchReport로 폴링. */
 export function createReport(consultationId: number): Promise<Report> {

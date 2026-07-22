@@ -11,13 +11,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.deps import get_current_user
-from app.domains.profile.schemas import DocumentKind, UserDocumentOut
+from app.core.security import hash_password, verify_password
+from app.domains.profile.schemas import (
+    DocumentKind,
+    PasswordChangeIn,
+    ProfileAccountOut,
+    ProfileUpdateIn,
+    UserDocumentOut,
+)
 from app.models import User, UserDocument
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 logger = logging.getLogger(__name__)
 
 MAX_PDF_BYTES = 8 * 1024 * 1024
+
+
+def _account_out(user: User) -> ProfileAccountOut:
+    return ProfileAccountOut(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        has_password=bool(user.pw_hash),
+    )
 
 
 def _document_root(user_id: int) -> Path:
@@ -46,6 +62,38 @@ async def _get_owned_document(
     if document is None:
         raise HTTPException(status_code=404, detail="문서를 찾을 수 없어요.")
     return document
+
+
+@router.patch("/account", response_model=ProfileAccountOut)
+async def update_account(
+    body: ProfileUpdateIn,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """로그인한 사용자의 화면 표시 이름을 수정한다."""
+    user.name = body.name
+    await session.commit()
+    await session.refresh(user)
+    return _account_out(user)
+
+
+@router.put("/password", status_code=204)
+async def change_password(
+    body: PasswordChangeIn,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """이메일·비밀번호 계정의 비밀번호를 현재 비밀번호 확인 후 변경한다."""
+    if not user.pw_hash:
+        raise HTTPException(status_code=409, detail="소셜 로그인 계정은 연결된 서비스에서 비밀번호를 관리해주세요.")
+    if not verify_password(body.current_password, user.pw_hash):
+        raise HTTPException(status_code=400, detail="현재 비밀번호가 올바르지 않아요.")
+    if verify_password(body.new_password, user.pw_hash):
+        raise HTTPException(status_code=400, detail="새 비밀번호는 현재 비밀번호와 다르게 입력해주세요.")
+
+    user.pw_hash = hash_password(body.new_password)
+    await session.commit()
+    return Response(status_code=204)
 
 
 @router.get("/documents", response_model=list[UserDocumentOut])
