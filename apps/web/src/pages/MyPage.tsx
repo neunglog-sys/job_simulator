@@ -53,18 +53,12 @@ import { logout, refreshAuth, useAuth } from "../lib/auth";
 import styles from "../styles/myPage.module.css";
 
 const MAX_FILE_SIZE = 8 * 1024 * 1024;
+const MY_PAGE_DESIGN_WIDTH = 1920;
+const MY_PAGE_DESIGN_HEIGHT = 900;
 
-const UPLOAD_PLANET_STYLE = {
-  "--index": 0,
-  "--release-order": 0,
-  "--responsive-planet-scale": 1.58,
-  "--planet-a": "#7561cf",
-  "--planet-b": "#78a1e6",
-  "--ring-angle": "-13deg",
-  "--ring-secondary-angle": "19deg",
-  "--ring-secondary-opacity": 0.32,
-  "--surface-opacity": 0.8,
-} as CSSProperties;
+type MyPageStageStyle = CSSProperties & {
+  "--my-page-scale": number;
+};
 
 const DOCUMENT_META: Record<
   UserDocumentKind,
@@ -152,29 +146,23 @@ function UploadZone({ kind, busy, prominent = false, onSelect }: UploadZoneProps
     >
       {prominent && (
         <>
-          <div
-            className={`${styles.uploadPlanet} is-orbit`}
-            style={UPLOAD_PLANET_STYLE}
-            aria-hidden="true"
-          >
-            <span className="planet-float">
-              <span className="planet-shell">
-                <span className="planet-ring planet-ring-primary planet-ring-back" />
-                <span className="planet-ring planet-ring-secondary planet-ring-back" />
-                <span className="planet-surface" />
-                <span className="planet-gloss">
-                  <span className="planet-shine" />
-                </span>
-                <span className="planet-ring planet-ring-primary planet-ring-front" />
-                <span className="planet-ring planet-ring-secondary planet-ring-front" />
-                <span className="planet-orbit-sparkles">
-                  <i />
-                  <i />
-                  <i />
-                  <i />
-                </span>
-              </span>
+          <div className={styles.uploadPlanet} aria-hidden="true">
+            <span className={styles.planetAura} />
+            <span className={styles.planetOuterOrbit}>
+              <i />
+              <i />
+              <i />
             </span>
+            <span className={`${styles.planetStar} ${styles.planetStarLarge}`} />
+            <span className={`${styles.planetStar} ${styles.planetStarSmall}`} />
+            <span className={`${styles.planetDot} ${styles.planetDotTop}`} />
+            <span className={`${styles.planetDot} ${styles.planetDotBottom}`} />
+            <span className={`${styles.planetTiltRing} ${styles.planetTiltRingBack}`} />
+            <span className={styles.planetBody}>
+              <span className={styles.planetBands} />
+              <span className={styles.planetLight} />
+            </span>
+            <span className={`${styles.planetTiltRing} ${styles.planetTiltRingFront}`} />
           </div>
           <div className={styles.uploadDocumentOrbit} aria-hidden="true">
             <span className={styles.orbitDocumentIcon}>
@@ -227,6 +215,14 @@ function UploadZone({ kind, busy, prominent = false, onSelect }: UploadZoneProps
 
 export function MyPage() {
   const auth = useAuth();
+  const [stageScale, setStageScale] = useState(() => {
+    if (typeof window === "undefined") return 1;
+    return Math.min(
+      1,
+      window.innerWidth / MY_PAGE_DESIGN_WIDTH,
+      window.innerHeight / MY_PAGE_DESIGN_HEIGHT,
+    );
+  });
   const [activeSection, setActiveSection] = useState<MyPageSection>("documents");
   const [documents, setDocuments] = useState<UserDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -290,6 +286,22 @@ export function MyPage() {
   useEffect(() => {
     void loadDocuments();
   }, [loadDocuments]);
+
+  useEffect(() => {
+    const updateScale = () => {
+      setStageScale(
+        Math.min(
+          1,
+          window.innerWidth / MY_PAGE_DESIGN_WIDTH,
+          window.innerHeight / MY_PAGE_DESIGN_HEIGHT,
+        ),
+      );
+    };
+
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
+  }, []);
 
   useEffect(() => {
     if (me) setProfileName(me.name);
@@ -470,29 +482,33 @@ export function MyPage() {
   return (
     <main className={styles.page}>
       <div className={styles.background} aria-hidden="true" />
-      <header className={styles.topBar}>
-        <div className={styles.topBarLeft}>
-          <button type="button" onClick={() => window.history.back()} aria-label="이전 화면으로 이동">
-            <ArrowLeft weight="bold" />
-          </button>
-          <a href={FRONTEND_ENDPOINTS.home} aria-label="JOBIVERSE 홈으로 이동">
-            <span className={styles.brandMark} aria-hidden="true"><span /></span>
-            <strong>JOBIVERSE</strong>
-          </a>
-        </div>
-        <nav className={styles.topBarActions} aria-label="마이페이지 메뉴">
-          <a href={FRONTEND_ENDPOINTS.home}>
-            <House weight="duotone" />
-            홈
-          </a>
-          <button type="button" onClick={() => setIsLogoutConfirmOpen(true)}>
-            <SignOut weight="duotone" />
-            로그아웃
-          </button>
-        </nav>
-      </header>
+      <div
+        className={styles.stage}
+        style={{ "--my-page-scale": stageScale } as MyPageStageStyle}
+      >
+        <header className={styles.topBar}>
+          <div className={styles.topBarLeft}>
+            <button type="button" onClick={() => window.history.back()} aria-label="이전 화면으로 이동">
+              <ArrowLeft weight="bold" />
+            </button>
+            <a href={FRONTEND_ENDPOINTS.home} aria-label="JOBIVERSE 홈으로 이동">
+              <span className={styles.brandMark} aria-hidden="true"><span /></span>
+              <strong>JOBIVERSE</strong>
+            </a>
+          </div>
+          <nav className={styles.topBarActions} aria-label="마이페이지 메뉴">
+            <a href={FRONTEND_ENDPOINTS.home}>
+              <House weight="duotone" />
+              홈
+            </a>
+            <button type="button" onClick={() => setIsLogoutConfirmOpen(true)}>
+              <SignOut weight="duotone" />
+              로그아웃
+            </button>
+          </nav>
+        </header>
 
-      <div className={styles.layout}>
+        <div className={styles.layout}>
         <aside className={styles.profileRail}>
           <section className={styles.profileCard}>
             <div className={styles.profileMain}>
@@ -826,6 +842,7 @@ export function MyPage() {
             </section>
           )}
         </section>
+        </div>
       </div>
       <LogoutConfirmDialog
         open={isLogoutConfirmOpen}
