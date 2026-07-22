@@ -122,7 +122,9 @@ async def create_simulation(
     session: AsyncSession = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
-    simulation, scenario = await service.create_simulation(session, user, body.scenario_slug)
+    simulation, scenario = await service.create_simulation(
+        session, user, body.scenario_slug, consultation_id=body.consultation_id
+    )
     return await service.to_out(session, simulation, scenario)
 
 

@@ -215,6 +215,12 @@ class Simulation(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     scenario_id: Mapped[int] = mapped_column(ForeignKey("scenarios.id"))
+    # 이 체험이 어느 상담(1:1 코치)에서 시작됐는지 — 완주 리포트가 상담을 붙이려면 필요하다.
+    # 예전엔 URL 파라미터로만 전달돼, 마이페이지 '이어하기'로 재개하면 유실됐다. 컬럼으로
+    # 보관해 재개해도 DB에서 복원되게 한다. 상담 없이 들어온 체험은 NULL.
+    consultation_id: Mapped[int | None] = mapped_column(
+        ForeignKey("consultations.id"), index=True
+    )
     status: Mapped[str] = mapped_column(String(20), default="active")  # active|completed|aborted
     # {step, trust, schedule_stability, requirement_clarity, ...} 스냅샷
     state: Mapped[dict] = mapped_column(JSONB, default=dict)

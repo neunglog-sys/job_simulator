@@ -5,6 +5,9 @@ from pydantic import BaseModel
 
 class SimulationCreate(BaseModel):
     scenario_slug: str
+    # 1:1 상담에서 '체험하기'로 진입할 때 실어보낸다 — 완주 리포트를 그 상담에 붙이기 위함.
+    # 서버가 소유권을 검증해 저장하므로, 재개해도 DB에서 복원된다. 상담 없이 들어오면 생략.
+    consultation_id: int | None = None
 
 
 class TaskOut(BaseModel):
@@ -48,6 +51,7 @@ class StepOut(BaseModel):
 
 class SimulationOut(BaseModel):
     id: int
+    consultation_id: int | None = None  # 이 체험을 시작한 상담 — 재개 시 리포트 연동 복원용
     scenario_slug: str
     scenario_title: str
     module: str | None = None
