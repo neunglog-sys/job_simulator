@@ -75,10 +75,7 @@ npcs:
   - 보고서
   appearance:
     location: bujang
-    available_steps:
-    - quest
-    conditions:
-    - quest_started
+    available_steps: []
 - npc_id: npc_kts-04_04
   name: 조선우
   role: 급한 민원 고객
@@ -103,3 +100,6 @@ npcs:
     location: npc4
     available_steps:
     - m2
+    - quest
+    conditions:
+    - quest_started
