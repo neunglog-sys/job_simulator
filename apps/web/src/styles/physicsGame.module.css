@@ -548,6 +548,21 @@
   background: #334363;
   box-shadow: 0 5px 0 var(--cartoon-ink), inset 0 2px 0 rgb(255 255 255 / 0.12);
 }
+
+:global([data-cartoon-background="true"]) .rhythmStage,
+:global([data-cartoon-background="true"]) .balanceStage,
+:global([data-cartoon-background="true"]) .craneStage {
+  background-image:
+    linear-gradient(rgb(8 12 26 / 0.08), rgb(8 12 26 / 0.16)),
+    var(--minigame-background-image);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+:global([data-cartoon-background="true"]) .sceneLayer {
+  display: none;
+}
 .lane,
 .promptCard,
 .toast,

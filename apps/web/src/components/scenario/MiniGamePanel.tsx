@@ -69,6 +69,13 @@ function reflectedResult(attempts: MinigameResult[]): MinigameResult {
 export function MiniGamePanel({ missionTitle, game, onClear }: MiniGamePanelProps) {
   const heading = game?.title || missionTitle;
   const EngineComponent = game ? ENGINE_COMPONENTS[game.engine] : undefined;
+  const gameId = game?.id?.trim();
+  const backgroundUrl = gameId
+    ? `${import.meta.env.BASE_URL}assets/minigames/backgrounds/cartoon-day-v3/${encodeURIComponent(`${gameId}-background-cartoon-day-v3.webp`)}`
+    : null;
+  const backgroundStyle = backgroundUrl
+    ? ({ "--minigame-background-image": `url("${backgroundUrl}")` } as React.CSSProperties)
+    : undefined;
 
   // 다시하기 — 완료를 가로채 시도를 누적하고, 재도전 시 엔진을 remount(key)로 리셋한다.
   // 엔진은 손대지 않으므로 전 게임에 공통 적용된다. '완료'를 눌러야 반영 점수로 확정된다.
@@ -118,7 +125,14 @@ export function MiniGamePanel({ missionTitle, game, onClear }: MiniGamePanelProp
                 모달·뷰포트 밖으로 넘치지 않는다. match 선 좌표는 보드 기준 상대값이라
                 보드가 한 덩어리로 스크롤돼도 선이 어긋나지 않는다. */}
             <div className={styles.missionGameScroll}>
-              <EngineComponent key={attemptKey} game={game} onComplete={handleAttempt} />
+              <div
+                className={styles.miniGameRuntime}
+                data-cartoon-background={backgroundUrl ? "true" : undefined}
+                data-minigame-id={gameId}
+                style={backgroundStyle}
+              >
+                <EngineComponent key={attemptKey} game={game} onComplete={handleAttempt} />
+              </div>
             </div>
             {/* 다시하기 바 — 게임 종료 후 나타난다. 재도전은 첫 시도보다 적게 반영된다. */}
             {lastResult ? (

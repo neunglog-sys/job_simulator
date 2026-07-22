@@ -3,7 +3,7 @@
  * dev 전용 진입점(minigame-preview.html) — 프로덕션 번들(index.html)에는 포함되지 않는다.
  * 사용: /minigame-preview.html?game=gm-01  (파라미터 없으면 선택 화면)
  */
-import { StrictMode, useState } from "react";
+import { StrictMode, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { MiniGamePanel } from "./components/scenario/MiniGamePanel";
 import { PREVIEW_GAMES } from "./previewGames";
@@ -19,6 +19,7 @@ const labelOf = (key: string): string => {
 function Preview() {
   const slug = new URLSearchParams(window.location.search).get("game") ?? "";
   const game = PREVIEW_GAMES[slug];
+  const gameWithId = useMemo(() => (game ? { ...game, id: slug } : null), [game, slug]);
   const [sent, setSent] = useState<Record<string, unknown> | null>(null);
 
   if (!game) {
@@ -67,7 +68,7 @@ function Preview() {
       </a>
       <MiniGamePanel
         missionTitle="미리보기"
-        game={game}
+        game={gameWithId}
         onClear={(result) => setSent(result ?? { engine: "stub" })}
       />
       {sent ? (

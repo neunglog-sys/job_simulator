@@ -2101,6 +2101,14 @@ button.headerOrb:active {
   scrollbar-color: color-mix(in srgb, var(--scenario-accent, #8a63ee) 72%, #ffffff) rgb(255 255 255 / 0.08);
 }
 
+/* 게임 ID별 1920×880 카툰 배경 URL을 모든 엔진에 CSS 변수로 전달하는 경계.
+   실제 좌표 캔버스에 까는 규칙은 각 엔진 모듈이 맡으며, 이 래퍼는 크기·레이어만 보장한다. */
+.miniGameRuntime {
+  width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
 /* 다시하기 바 — 스크롤 영역 밖(모달 하단 고정). 게임 종료 후 나타난다.
    재도전은 첫 시도보다 적게 반영된다(가중치 0.5^n). */
 .missionRetryBar {

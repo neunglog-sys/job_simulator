@@ -738,6 +738,20 @@
   background: #334363;
   box-shadow: 0 5px 0 var(--cartoon-ink), inset 0 2px 0 rgb(255 255 255 / 0.12);
 }
+
+:global([data-cartoon-background="true"]) .canvas,
+:global([data-cartoon-background="true"]) .driveScene {
+  background-image:
+    linear-gradient(rgb(8 12 26 / 0.08), rgb(8 12 26 / 0.14)),
+    var(--minigame-background-image);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+:global([data-cartoon-background="true"]) .mapLayer {
+  display: none;
+}
 .notices,
 .weatherBanner,
 .driveHud,

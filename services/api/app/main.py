@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -24,6 +25,7 @@ from app.domains.recommendation.router import router as recommendation_router
 from app.domains.reporting.router import router as reporting_router
 from app.domains.simulation.router import router as simulation_router
 from app.domains.tts.router import router as tts_router
+from app.llm.gateway import warmup_llm
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -43,9 +45,10 @@ async def lifespan(app: FastAPI):
             logger.exception(
                 "지식 적재 실패 — RAG 없이 기동 계속 (다음 재기동 시 해시 가드로 자동 재적재)"
             )
-    # 아바타 Gradio 클라이언트 핸드셰이크(≈2.4초)를 기동 시 선지불 → 첫 사용자가 안 기다림.
-    # 내부에서 예외를 삼키므로(아바타 미설정/Colab 미기동) 부팅을 막지 않는다.
-    await avatar_service.warmup()
+    # 아바타 Gradio 핸드셰이크(≈2.4초)·LLM chat_stream 콜드스타트(≈2~3초)를 기동 시 선지불
+    # → 첫 사용자가 안 기다림. 서로 독립적이라 동시에 돌려 부팅 지연을 겹쳐서 흡수한다.
+    # 둘 다 내부에서 예외를 삼키므로(미설정 등) 부팅을 막지 않는다.
+    await asyncio.gather(avatar_service.warmup(), warmup_llm())
     yield
     await redis_client.aclose()
     await engine.dispose()

@@ -19,6 +19,22 @@ from app.domains.simulation.service import _minigame_result
 _DECLARED = {"engine": "spot", "pass_score": 70.0}
 
 
+def test_sanitized_minigame_exposes_scenario_id_for_visual_assets():
+    from app.content.minigame import _sanitize
+
+    game = _sanitize(
+        {
+            "scenario_id": "ys-05",
+            "engine": "spot",
+            "title": "안전 순회점검",
+            "data": {},
+        },
+        "ys-05.yaml",
+    )
+    assert game is not None
+    assert game["id"] == "ys-05"
+
+
 @pytest.mark.parametrize(
     "payload",
     [

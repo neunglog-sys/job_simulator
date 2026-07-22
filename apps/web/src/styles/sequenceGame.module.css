@@ -551,6 +551,21 @@ button.mapSpot:not(:disabled):hover {
   background: #334363;
   box-shadow: 0 5px 0 var(--cartoon-ink), inset 0 2px 0 rgb(255 255 255 / 0.12);
 }
+
+:global([data-cartoon-background="true"]) .board,
+:global([data-cartoon-background="true"]) .mapBoard {
+  background-image:
+    linear-gradient(rgb(8 12 26 / 0.1), rgb(8 12 26 / 0.18)),
+    var(--minigame-background-image);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+/* 트렌치 진행 상태 SVG는 판정 단서이므로 제거하지 않고 배경 위 보조선으로 남긴다. */
+:global([data-cartoon-background="true"]) .mapScene {
+  opacity: 0.34;
+}
 .card,
 .tray,
 .footer {

@@ -66,6 +66,8 @@ export type MinigameResult = {
 
 /** 시뮬레이션 응답의 minigame 필드 (없으면 null → '준비 중' 빈 창으로 폴백). */
 export type MinigameDef = {
+  /** data/minigames/<id>.yaml의 시나리오 ID — 게임별 배경·자산 선택에 사용한다. */
+  id?: string;
   engine: Engine;
   title: string;
   intro: string;

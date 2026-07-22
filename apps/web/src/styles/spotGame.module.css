@@ -442,6 +442,19 @@
   .refToggle { transition: none; }
 }
 
+:global([data-cartoon-background="true"]) .stage {
+  background-image:
+    linear-gradient(rgb(8 12 26 / 0.08), rgb(8 12 26 / 0.14)),
+    var(--minigame-background-image);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+:global([data-cartoon-background="true"]) .sceneLayer {
+  display: none;
+}
+
 /* Cartoon frame only: scene, characters, and clickable element art are unchanged. */
 .stage {
   border: 3px solid var(--cartoon-ink);

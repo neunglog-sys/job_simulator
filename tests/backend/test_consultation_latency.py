@@ -85,6 +85,7 @@ def test_knowledge_joined_with_sources(monkeypatch):
     class _Chunk:
         source = "job.md"
         content = "직무 지식 내용"
+        job_code = "backend-developer"  # scope_chunks가 .job_code로 지배 직무 판정
 
     async def fake_search(*args, **kwargs):
         return [_Chunk(), _Chunk()]
