@@ -37,7 +37,8 @@ logger = logging.getLogger(__name__)
 MEMORY_TURNS = 20
 SCORING_TURNS = 40  # 채점 대화록 상한 — 하루 종일 대화해도 채점 프롬프트가 무한 성장하지 않게
 RAG_TOP_K = 3
-RAG_MAX_DISTANCE = 0.4  # Gemini 임베딩은 거리대가 좁음(관련 ~0.2, 무관 ~0.28) — eval로 재튜닝 대상
+RAG_MAX_DISTANCE = 0.35  # 실측(0722): 정답매칭 ~0.22~0.33 · 오프토픽 ~0.37~0.46 — 그 사이로 낮춤.
+# 여긴 job_code 스코프(kb_jobs_for)라 타직무 교차오염은 해당 없음(consultation과 차이).
 COACH_RAG_TOP_K = 6  # 코치는 가르치는 입장 — NPC(3)보다 넓게 그 직무 전체 그림을 그라운딩
 
 
