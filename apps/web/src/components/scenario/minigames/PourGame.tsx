@@ -92,9 +92,15 @@ export function PourGame({ game, onComplete }: EngineProps) {
   const [summary, setSummary] = useState<Summary | null>(null);
   // 구유 프레임 아트 — 파일이 없으면 전 칸 공통으로 사각 게이지 폴백(현행 규약 유지)
   const [troughArt, setTroughArt] = useState(true);
+  const [troughExtension, setTroughExtension] = useState<"webp" | "svg">("webp");
   const finished = useRef(false);
   const raf = useRef<number | null>(null);
   const pourStartedAt = useRef(0);
+
+  useEffect(() => {
+    setTroughArt(true);
+    setTroughExtension("webp");
+  }, [troughSprite]);
 
   const finish = useCallback(
     (final: PourOutcome[]) => {
@@ -264,11 +270,14 @@ export function PourGame({ game, onComplete }: EngineProps) {
                     // 파일이 없으면 onError 로 사각 게이지 폴백(PixelSprite 폴백 규약과 일관).
                     <img
                       className={styles.troughFrame}
-                      src={`${import.meta.env.BASE_URL}assets/minigames/${encodeURIComponent(troughSprite)}.svg`}
+                      src={`${import.meta.env.BASE_URL}assets/minigames/${encodeURIComponent(troughSprite)}.${troughExtension}`}
                       alt=""
                       aria-hidden="true"
                       draggable={false}
-                      onError={() => setTroughArt(false)}
+                      onError={() => {
+                        if (troughExtension === "webp") setTroughExtension("svg");
+                        else setTroughArt(false);
+                      }}
                     />
                   ) : null}
                 </div>

@@ -823,6 +823,15 @@
   }
 }
 
+:global([data-cartoon-background="true"]) .board {
+  background-image:
+    linear-gradient(rgb(8 12 26 / 0.14), rgb(8 12 26 / 0.22)),
+    var(--minigame-background-image);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
 /* Cartoon surface pass: cards and wiring get inked UI framing only. */
 .board {
   border: 3px solid var(--cartoon-ink);

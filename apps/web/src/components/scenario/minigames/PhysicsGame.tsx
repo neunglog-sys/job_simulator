@@ -34,23 +34,38 @@ export function PhysicsGame({ game, onComplete }: EngineProps) {
  *  이 게이트를 통과해야 하며, 파일이 없으면 false 로 남아 종전 렌더 그대로다.
  *  표시 전용 — 판정·채점 코드는 이 값을 읽지 않는다. */
 function useSpriteArt(id?: string): boolean {
-  const url = id
-    ? `${import.meta.env.BASE_URL}assets/minigames/${encodeURIComponent(id)}.svg`
-    : null;
+  const urls = useMemo(
+    () =>
+      id
+        ? (["webp", "svg"] as const).map(
+            (extension) =>
+              `${import.meta.env.BASE_URL}assets/minigames/${encodeURIComponent(id)}.${extension}`,
+          )
+        : [],
+    [id],
+  );
   const [ok, setOk] = useState(false);
   useEffect(() => {
     setOk(false);
-    if (!url) return;
+    if (urls.length === 0) return;
     let alive = true;
-    const probe = new Image();
-    probe.onload = () => {
-      if (alive) setOk(true);
+    let index = 0;
+    const probe = () => {
+      const image = new Image();
+      image.onload = () => {
+        if (alive) setOk(true);
+      };
+      image.onerror = () => {
+        index += 1;
+        if (alive && index < urls.length) probe();
+      };
+      image.src = urls[index];
     };
-    probe.src = url;
+    probe();
     return () => {
       alive = false;
     };
-  }, [url]);
+  }, [urls]);
   return ok;
 }
 

@@ -343,6 +343,21 @@
   user-select: none;
 }
 
+:global([data-cartoon-background="true"]) .board,
+:global([data-cartoon-background="true"]) .mapBoard {
+  background-image:
+    linear-gradient(rgb(8 12 26 / 0.06), rgb(8 12 26 / 0.12)),
+    var(--minigame-background-image);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+:global([data-cartoon-background="true"]) .mapSceneArt,
+:global([data-cartoon-background="true"]) .mapScene {
+  display: none;
+}
+
 /* 생성형 카툰 배경은 픽셀 확대를 적용하지 않는다. 기존 확장자 없는 SVG 씬은 종전대로
    pixelated 렌더링을 유지한다. */
 .mapSceneArt[data-smooth="true"] {

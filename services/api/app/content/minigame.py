@@ -82,6 +82,7 @@ def _sanitize(doc: object, filename: str) -> dict | None:
         return None
 
     return {
+        "id": str(doc.get("scenario_id") or Path(filename).stem),
         "engine": engine,
         "title": doc.get("title") or "실무 미니게임",
         "intro": doc.get("intro") or "",

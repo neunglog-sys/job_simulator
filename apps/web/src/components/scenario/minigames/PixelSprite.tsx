@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * 도트 스프라이트 — public/assets/minigames/<sprite-id>.svg 를 그리고,
@@ -24,18 +24,26 @@ type PixelSpriteProps = {
 };
 
 export function PixelSprite({ id, label, size = 56, fallbackClassName, smooth = false }: PixelSpriteProps) {
+  const [extension, setExtension] = useState<"webp" | "svg">("webp");
   const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setExtension("webp");
+    setFailed(false);
+  }, [id]);
   if (!id || failed) {
     return <span className={fallbackClassName}>{label ?? id}</span>;
   }
   return (
     <img
-      src={`${import.meta.env.BASE_URL}assets/minigames/${encodeURIComponent(id)}.svg`}
+      src={`${import.meta.env.BASE_URL}assets/minigames/${encodeURIComponent(id)}.${extension}`}
       alt={label ?? id}
       width={size}
-      style={{ imageRendering: smooth ? "auto" : "pixelated", height: "auto", display: "block" }}
+      style={{ imageRendering: smooth || extension === "webp" ? "auto" : "pixelated", height: "auto", display: "block" }}
       draggable={false}
-      onError={() => setFailed(true)}
+      onError={() => {
+        if (extension === "webp") setExtension("svg");
+        else setFailed(true);
+      }}
     />
   );
 }
