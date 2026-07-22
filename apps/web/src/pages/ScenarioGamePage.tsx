@@ -28,7 +28,9 @@ import { API_BASE_URL } from "../config/endpoints";
 import type { MissionView } from "../components/scenario/MissionPanel";
 import {
   ApiError,
+  createReport,
   createSimulation,
+  fetchReport,
   fetchSimulation,
   type GameNpc,
   type GameStep,
@@ -130,6 +132,13 @@ const DEFAULT_SCENARIO_SLUG =
   new URLSearchParams(window.location.search).get("slug") ||
   import.meta.env.VITE_SCENARIO_SLUG?.trim() ||
   "ms-06";
+
+// 1:1 상담에서 "체험하기"로 진입할 때만 실려온다 — 있어야 체험 완주를 그 상담의 최종
+// 리포트에 반영할 수 있다(없으면 상담 없이 들어온 것이므로 리포트 생성을 건너뜀).
+const CONSULTATION_ID_PARAM = new URLSearchParams(window.location.search).get("consultationId");
+const CONSULTATION_ID = CONSULTATION_ID_PARAM && /^\d+$/.test(CONSULTATION_ID_PARAM)
+  ? Number(CONSULTATION_ID_PARAM)
+  : null;
 
 // 로컬 개발에서는 항상, Docker 프로덕션 빌드에서는 ?reflectionTest=1일 때만 노출한다.
 // 실제 사용자 화면에 테스트 제어가 보이지 않으면서 배포 이미지에서도 검수할 수 있다.
@@ -252,6 +261,10 @@ export function ScenarioGamePage() {
   const [memoSaveStatus, setMemoSaveStatus] = useState<MemoSaveStatus>("idle");
   const pendingMemoRef = useRef<string | null>(null);
   const socketRef = useRef<SimulationSocket | null>(null);
+  const simIdRef = useRef<number | null>(null);
+  // 완주 시 리포트 반영은 1회만 — 서버가 state_updated를 재전송해도 중복 생성하지 않는다.
+  const reportSyncStartedRef = useRef(false);
+  const [reportSyncStatus, setReportSyncStatus] = useState<"idle" | "pending" | "done" | "error">("idle");
 
   const appendDialogue = useCallback(
     (speaker: string, role: DialogueHistoryEntry["role"], rawText: string) => {
@@ -474,6 +487,7 @@ export function ScenarioGamePage() {
     let socket: SimulationSocket | null = null;
 
     const applySim = (sim: Simulation) => {
+      simIdRef.current = sim.id;
       setActiveStep(sim.step);
       setNpcs(sim.npcs);
       // 1단계 진행도 복원 — 새로고침해도 인사한 동료·투어 완료는 기억된다(서버 state).
@@ -648,6 +662,23 @@ export function ScenarioGamePage() {
               // 5단계 소감문 저장 완료 → 완주 화면 (점수는 게임에서 공개하지 않는다)
               setReflectionSending(false);
               setPhase("completed");
+              if (!reportSyncStartedRef.current && CONSULTATION_ID && simIdRef.current) {
+                reportSyncStartedRef.current = true;
+                setReportSyncStatus("pending");
+                (async () => {
+                  try {
+                    let report = await createReport(CONSULTATION_ID, simIdRef.current!);
+                    while (!cancelled && report.status === "pending") {
+                      await new Promise((resolve) => window.setTimeout(resolve, 1500));
+                      if (cancelled) return;
+                      report = await fetchReport(report.id);
+                    }
+                    if (!cancelled) setReportSyncStatus(report.status === "done" ? "done" : "error");
+                  } catch {
+                    if (!cancelled) setReportSyncStatus("error");
+                  }
+                })();
+              }
             }
           },
           onCoachCards: (frame) => {
@@ -1155,7 +1186,13 @@ export function ScenarioGamePage() {
             {/* 점수·역량·화법은 게임에서 보여주지 않는다(팀 결정) — 상담 + 체험을 합쳐
                 최종 진로 리포트에서만 공개한다. 점수 쫓기가 아니라 체험이 되도록. */}
             <p className={styles.completionNote}>
-              오늘 체험한 내용은 상담 결과와 함께 최종 진로 리포트에 반영됩니다.
+              {reportSyncStatus === "done"
+                ? "오늘 체험한 내용이 상담 결과와 함께 최종 진로 리포트에 반영됐어요."
+                : reportSyncStatus === "error"
+                  ? "리포트 반영에 실패했어요. 마이페이지에서 리포트를 다시 만들어주세요."
+                  : reportSyncStatus === "pending"
+                    ? "오늘 체험한 내용을 상담 결과와 함께 최종 진로 리포트에 반영하는 중..."
+                    : "오늘 체험한 내용은 상담 결과와 함께 최종 진로 리포트에 반영됩니다."}
             </p>
             <div className={styles.completionActions}>
               <button

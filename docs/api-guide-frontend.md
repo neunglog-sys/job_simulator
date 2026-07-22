@@ -248,10 +248,16 @@ GET /api/simulations/{id}/score
 ```
 POST /api/reports  {consultation_id, simulation_id?}   → 202 {id, status:"pending"}
 GET  /api/reports/{id}          → status 폴링 (pending → done/failed, 1초 간격 권장)
-GET  /api/reports/{id}/pdf      → PDF 다운로드
+GET  /api/reports/{id}/pdf      → PDF 다운로드 (완성된 파일 그대로, status!=done이면 409)
+GET  /api/reports               → 내 리포트 목록 (최신순, 마이페이지 활동 내역)
 ```
 - `simulation_id`(완주한 것)를 주면 **최종 적합도 = 상담 50% + 수행 50%** + 역량 표 + 백분위가 리포트에 포함.
-- 미완주 시뮬레이션이면 400.
+  미완주 시뮬레이션이면 400.
+- **`GET /api/reports`, `/{id}` 응답(ReportOut)**: `{id, status, consultation_id, simulation_id, kind, kind_label, fit_score, strengths[], improvements[], advice, created_at}`
+  - `kind`("consult"|"experience") / `kind_label`(사람이 읽는 라벨, 예: "상담 결과 리포트" / "직무 체험 최종 리포트") — `simulation_id` 유무로 백엔드가 자동 판별해 내려줌. 화면 배지·타이틀에 그대로 씀.
+  - `improvements`는 `strengths`/`advice`와 별개 배열 — 화면에서 누락하기 쉬우니 셋 다 렌더링할 것.
+  - **주의**: `performance`(역량 점수)·`percentile`(백분위)은 이 JSON 응답엔 안 들어있음. 리포트 생성 시점에 PDF 파일 안에만 렌더링됨(§6 점수 API로 화면 표시, PDF는 다운로드해야 확인 가능) — 화면에 백분위를 띄우려면 `GET /api/simulations/{id}/score`를 별도로 호출해야 함.
+- **프론트 배선 현황(0722 완료)**: 1:1 상담 → "체험하기" 진입 시 `consultationId`를 쿼리로 시나리오 화면에 넘기고, 체험 완주 시 그 `consultationId` + 방금 끝낸 `simulation_id`로 `POST /api/reports`를 자동 호출 → 완료 화면 문구가 반영 상태(대기중/완료/실패)를 실시간으로 보여줌. 마이페이지 활동 목록의 리포트 항목을 누르면 `status==="done"`일 때 PDF를 바로 다운로드함(진행 중/실패면 안내만).
 
 ## 8. 기타
 
