@@ -18,6 +18,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.db import engine, get_session
 from app.main import app
 
@@ -42,7 +43,12 @@ async def client(db_session):
         yield db_session
 
     app.dependency_overrides[get_session] = _override_get_session
+    # 테스트는 X-User-Id 개발 스텁으로 인증한다 → dev auth 명시적 활성화.
+    # allow_dev_auth 기본값이 secure-by-default로 False라, 여기서 안 켜면 X-User-Id가 401.
+    _prev_dev_auth = settings.allow_dev_auth
+    settings.allow_dev_auth = True
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+    settings.allow_dev_auth = _prev_dev_auth
     app.dependency_overrides.pop(get_session, None)
