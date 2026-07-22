@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     # (마이그레이션 없이 기존 Vector(1536) 컬럼 재사용). 재임베딩 필요.
     embedding_model: str = "gemini-embedding-001"
     embedding_dim: int = 1536
+    # RAG 선택적 스킵 — 잡담/인사 턴에서 지식검색 생략. False면 기존 동작(len>=8만).
+    rag_selective_skip: bool = True
 
     # TTS — OPENAI_API_KEY 없으면 mock(비프음 WAV)으로 폴백
     tts_model: str = "tts-1"

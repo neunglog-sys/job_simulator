@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.content.counseling import build_safety_notes
 from app.content.knowledge import search_knowledge
 from app.core.db import SessionFactory
+from app.domains.consultation import rag_gate
 from app.domains.consultation import resume as resume_mod
 from app.llm import get_llm
 from app.llm.base import ChatMessage
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 MEMORY_TURNS = 20  # 컨텍스트에 넣는 최근 메시지 수
 RAG_TOP_K = 3
+RAG_SCOPE_CANDIDATES = 6  # 스코프 판단용으로 넓게 뽑는 후보 수(직무 분포 보고 RAG_TOP_K로 좁힘)
 RAG_MAX_DISTANCE = 0.35  # 실측(0722, doc_chunks 25건): 정답매칭 ~0.22~0.33 · 오프토픽 커리어질문/잡담 ~0.37~0.46.
 # 0.4는 오프토픽 8개 중 4개가 통과하는 오탐이 있어 그 사이로 낮춤. 단 이 상담 흐름은 job_code
 # 스코프 없이 전역검색이라 동일계열 타직무 오염(예 ys-01 질문에 ys-02 지식, dist 0.31)은
@@ -30,7 +32,6 @@ RAG_MAX_DISTANCE = 0.35  # 실측(0722, doc_chunks 25건): 정답매칭 ~0.22~0.
 # RAG는 스트리밍 시작 전 직렬 구간 — 실측 ~1.2s를 사용자가 빈 화면으로 기다린다.
 # 지연 스파이크에 상담이 볼모잡히지 않게 가드하고, 지식 검색이 무의미한 발화는 왕복을 생략한다.
 RAG_EMBED_TIMEOUT_S = 2.0  # 초과 시 지식 없이 진행 (짧은 지연 > 지식 주입 이득)
-RAG_MIN_QUERY_CHARS = 8    # "네", "고마워요" 같은 짧은 발화 — 직무 지식이 나올 질의가 아님
 
 # 응답 길이 정책 — 긴 응답일수록 아바타 발화 생성이 오래 걸려 사용자가 기다리는 지연이 커진다.
 # 첫 응답은 더 짧게 "워밍업"하고, 이후에도 평소엔 짧게 유지하되 사용자가 명시적으로 자세한 설명을
@@ -64,20 +65,23 @@ REPLY_MAX_TOKENS_HEADROOM = 120
 
 
 async def _fetch_knowledge(session: AsyncSession, user_text: str) -> str | None:
-    """발화 관련 직무 지식 검색 — 짧은 발화는 생략, 임베딩 지연 스파이크는 타임아웃.
+    """발화 관련 직무 지식 검색 — 게이트 통과분만, 계열 교차오염은 스코프로 좁힘.
 
-    실패·타임아웃 시 None: 상담은 지식 없이도 기존 품질로 계속되어야 한다.
+    실패·타임아웃·스킵·범용판정 시 None: 상담은 지식 없이도 기존 품질로 계속되어야 한다.
     """
-    if len(user_text.strip()) < RAG_MIN_QUERY_CHARS:
+    if not rag_gate.should_run_rag(user_text):
         return None
     try:
-        chunks = await search_knowledge(
-            session, user_text, top_k=RAG_TOP_K, max_distance=RAG_MAX_DISTANCE,
+        candidates = await search_knowledge(
+            session, user_text, top_k=RAG_SCOPE_CANDIDATES, max_distance=RAG_MAX_DISTANCE,
             embed_timeout=RAG_EMBED_TIMEOUT_S,
         )
     except asyncio.TimeoutError:
         logger.warning("RAG 임베딩 %.1fs 초과 — 지식 없이 진행", RAG_EMBED_TIMEOUT_S)
         return None
+    chunks = rag_gate.scope_chunks(candidates, top_k=RAG_TOP_K)
+    if candidates and not chunks:
+        logger.info("RAG 스코프: 여러 직무 흩어짐 → 주입 생략(범용) (후보 %d)", len(candidates))
     return "\n\n".join(f"[{c.source}]\n{c.content}" for c in chunks) if chunks else None
 
 
@@ -88,7 +92,7 @@ async def _fetch_knowledge_isolated(user_text: str) -> str | None:
     임베딩 왕복(~1.2s)이 첫 토큰 앞 직렬 구간에서 빠지도록 태스크로 띄워 쓴다.
     짧은 발화는 연결 체크아웃 없이 즉시 생략하고, 어떤 실패든 None으로 흘려보낸다.
     """
-    if len(user_text.strip()) < RAG_MIN_QUERY_CHARS:
+    if not rag_gate.should_run_rag(user_text):
         return None
     try:
         async with SessionFactory() as rag_session:
@@ -270,7 +274,14 @@ async def stream_reply(
     t0 = time.perf_counter()
     # RAG(임베딩+검색 ~1.2s)를 별도 세션 태스크로 먼저 띄운다 — 발화 저장·이력 조회와
     # 병렬로 진행돼, 첫 토큰 앞 직렬 구간에서 준비 작업 시간만큼 겹쳐 사라진다.
-    knowledge_task = asyncio.create_task(_fetch_knowledge_isolated(user_text))
+    try:
+        rag_run, rag_reason = rag_gate.rag_decision(user_text)
+    except Exception:  # 게이트 판정 실패해도 상담 턴은 안 죽고 RAG 진행(fail-open, 기존 계약 유지)
+        logger.warning("RAG 게이트 판정 실패 — 지식 검색 진행", exc_info=True)
+        rag_run, rag_reason = True, "run"
+    knowledge_task = (
+        asyncio.create_task(_fetch_knowledge_isolated(user_text)) if rag_run else None
+    )
     try:
         session.add(Message(consultation_id=consultation.id, role="user", content=user_text))
         await session.commit()
@@ -296,13 +307,13 @@ async def stream_reply(
         # RAG 합류 — 위에서 먼저 띄워 이미 진행 중이라, 준비 작업과 못 겹친 잔여분만 대기.
         # rag_ms는 이제 "RAG가 첫 토큰을 실제로 지연시킨 순수 시간"을 뜻한다(겹친 만큼 줄어듦).
         rag_start = time.perf_counter()
-        knowledge = await knowledge_task
+        knowledge = await knowledge_task if knowledge_task is not None else None
         rag_ms = (time.perf_counter() - rag_start) * 1000
     finally:
         # 조인 전(commit·list_messages 등)에서 예외가 나면 여기까지 못 와 태스크가 고아로 남아
         # 별도 세션 커넥션을 ~2초(임베딩 타임아웃)간 붙잡는다 — 정상 조인이면 done()이라 no-op,
         # 아니면 취소해 커넥션을 즉시 회수한다.
-        if not knowledge_task.done():
+        if knowledge_task is not None and not knowledge_task.done():
             knowledge_task.cancel()
 
     try:
@@ -348,8 +359,9 @@ async def stream_reply(
         # 구간별 지연 분해 — 첫 발화 지연 최적화의 근거 데이터 (프리필 vs 출력 판정용)
         reply = "".join(full)
         logger.info(
-            "상담 응답 구간: rag %.0fms · 첫토큰 %.0fms · 전체 %.0fms · 응답 %d자(제한 %s) · system %.1fKB · 지식 %s",
+            "상담 응답 구간: rag %.0fms(%s) · 첫토큰 %.0fms · 전체 %.0fms · 응답 %d자(제한 %s) · system %.1fKB · 지식 %s",
             rag_ms,
+            rag_reason,
             first_token_ms if first_token_ms is not None else -1,
             (time.perf_counter() - t0) * 1000,
             len(reply),
