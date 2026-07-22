@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.content.counseling import build_safety_notes
 from app.content.knowledge import search_knowledge
+from app.core.db import SessionFactory
 from app.domains.consultation import resume as resume_mod
 from app.llm import get_llm
 from app.llm.base import ChatMessage
@@ -75,6 +76,23 @@ async def _fetch_knowledge(session: AsyncSession, user_text: str) -> str | None:
         logger.warning("RAG 임베딩 %.1fs 초과 — 지식 없이 진행", RAG_EMBED_TIMEOUT_S)
         return None
     return "\n\n".join(f"[{c.source}]\n{c.content}" for c in chunks) if chunks else None
+
+
+async def _fetch_knowledge_isolated(user_text: str) -> str | None:
+    """RAG를 메인 세션과 분리된 세션에서 실행 — 발화 저장·이력 조회와 동시에 돌리기 위함.
+
+    async 세션은 한 세션에서 쿼리를 동시에 못 돌리니 별도 세션이 필요하다.
+    임베딩 왕복(~1.2s)이 첫 토큰 앞 직렬 구간에서 빠지도록 태스크로 띄워 쓴다.
+    짧은 발화는 연결 체크아웃 없이 즉시 생략하고, 어떤 실패든 None으로 흘려보낸다.
+    """
+    if len(user_text.strip()) < RAG_MIN_QUERY_CHARS:
+        return None
+    try:
+        async with SessionFactory() as rag_session:
+            return await _fetch_knowledge(rag_session, user_text)
+    except Exception:
+        logger.warning("RAG 조회 실패 — 지식 없이 진행", exc_info=True)
+        return None
 
 
 GREETING_CLIP = "greeting.mp4"  # storage/avatar-clips/ 아래 — 아바타 담당이 배치
@@ -247,31 +265,42 @@ async def stream_reply(
     이 dict에 채워 넣는다. 스트림 자체(yield하는 텍스트)의 계약은 바꾸지 않는다.
     """
     t0 = time.perf_counter()
-    session.add(Message(consultation_id=consultation.id, role="user", content=user_text))
-    await session.commit()
+    # RAG(임베딩+검색 ~1.2s)를 별도 세션 태스크로 먼저 띄운다 — 발화 저장·이력 조회와
+    # 병렬로 진행돼, 첫 토큰 앞 직렬 구간에서 준비 작업 시간만큼 겹쳐 사라진다.
+    knowledge_task = asyncio.create_task(_fetch_knowledge_isolated(user_text))
+    try:
+        session.add(Message(consultation_id=consultation.id, role="user", content=user_text))
+        await session.commit()
 
-    history = await list_messages(session, consultation.id)
-    context = [
-        ChatMessage(role=m.role, content=m.content) for m in history[-MEMORY_TURNS:]
-    ]
+        history = await list_messages(session, consultation.id)
+        context = [
+            ChatMessage(role=m.role, content=m.content) for m in history[-MEMORY_TURNS:]
+        ]
 
-    # 응답 길이 산정 — 첫 응답은 워밍업으로 더 짧게, 상세 설명 요청은 제한 해제 + TTS 생략
-    is_first_reply = not any(m.role == "assistant" for m in history)
-    detail_requested = _is_detail_request(user_text)
-    if detail_requested:
-        char_limit = None
-    elif is_first_reply:
-        char_limit = GREETING_REPLY_CHAR_LIMIT
-    else:
-        char_limit = DEFAULT_REPLY_CHAR_LIMIT
-    max_tokens = None if char_limit is None else char_limit + REPLY_MAX_TOKENS_HEADROOM
-    if meta is not None:
-        meta["skip_tts"] = detail_requested
+        # 응답 길이 산정 — 첫 응답은 워밍업으로 더 짧게, 상세 설명 요청은 제한 해제 + TTS 생략
+        is_first_reply = not any(m.role == "assistant" for m in history)
+        detail_requested = _is_detail_request(user_text)
+        if detail_requested:
+            char_limit = None
+        elif is_first_reply:
+            char_limit = GREETING_REPLY_CHAR_LIMIT
+        else:
+            char_limit = DEFAULT_REPLY_CHAR_LIMIT
+        max_tokens = None if char_limit is None else char_limit + REPLY_MAX_TOKENS_HEADROOM
+        if meta is not None:
+            meta["skip_tts"] = detail_requested
 
-    # RAG: 발화와 관련된 직무 지식이 있으면 아바타 프롬프트에 주입
-    rag_start = time.perf_counter()
-    knowledge = await _fetch_knowledge(session, user_text)
-    rag_ms = (time.perf_counter() - rag_start) * 1000
+        # RAG 합류 — 위에서 먼저 띄워 이미 진행 중이라, 준비 작업과 못 겹친 잔여분만 대기.
+        # rag_ms는 이제 "RAG가 첫 토큰을 실제로 지연시킨 순수 시간"을 뜻한다(겹친 만큼 줄어듦).
+        rag_start = time.perf_counter()
+        knowledge = await knowledge_task
+        rag_ms = (time.perf_counter() - rag_start) * 1000
+    finally:
+        # 조인 전(commit·list_messages 등)에서 예외가 나면 여기까지 못 와 태스크가 고아로 남아
+        # 별도 세션 커넥션을 ~2초(임베딩 타임아웃)간 붙잡는다 — 정상 조인이면 done()이라 no-op,
+        # 아니면 취소해 커넥션을 즉시 회수한다.
+        if not knowledge_task.done():
+            knowledge_task.cancel()
 
     try:
         safety_notes = build_safety_notes()
