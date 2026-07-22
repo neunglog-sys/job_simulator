@@ -22,7 +22,7 @@ time_limit: 80
 pass_score: 70
 
 data:
-  scene: 면접실_배치도_대기실_복도
+  scene: hr-01-background-cartoon-day-v3.webp
 
   slots:
     # 면접관 좌석 3석 — 각 자리에 평가표(빈 양식)·이력서 묶음 (원문 m1 보기 b)
@@ -33,8 +33,8 @@ data:
     - { id: 면접관석C_평가표, accepts: 평가표,     at: [200, 350], label: 면접관 C석 · 평가표 }
     - { id: 면접관석C_이력서, accepts: 이력서묶음, at: [250, 350], label: 면접관 C석 · 이력서 }
     # 기기 — 노트북·빔프로젝터 작동 위치 (원문 m1 보기 a)
-    - { id: 기기_노트북,      accepts: 노트북,       at: [520, 180], label: 발표대 · 노트북 }
-    - { id: 기기_빔프로젝터,  accepts: 빔프로젝터,   at: [520, 260], label: 천장 · 빔프로젝터 }
+    - { id: 기기_노트북,      accepts: 노트북,       at: [520, 180], label: AV 카트 상단 · 노트북 }
+    - { id: 기기_빔프로젝터,  accepts: 빔프로젝터,   at: [520, 260], label: AV 카트 하단 · 빔프로젝터 }
     # 동선 안내 — 대기실과 복도에 표지판 (원문 m1 보기 c)
     - { id: 대기실_안내,      accepts: 안내표지판,   at: [760, 160], label: 대기실 · 안내 표지판 }
     - { id: 복도_안내,        accepts: 안내표지판,   at: [760, 320], label: 복도 · 면접장 방향 표지판 }
