@@ -90,7 +90,7 @@ async def generate_cards(vars_: dict) -> dict | None:
         Draft202012Validator(_response_schema()).validate(response)
         return response
     except Exception:  # noqa: BLE001 — 코치 실패가 게임을 막으면 안 됨 (mock 환경 포함)
-        logger.info("코치 카드 생성 생략 (simulation=%s)", vars_.get("run_id"))
+        logger.warning("코치 카드 생성 생략 (simulation=%s)", vars_.get("run_id"), exc_info=True)
         return None
 
 
@@ -121,21 +121,26 @@ def _clean_tip(text: str) -> str:
         if end and m.end() > _TIP_SOFT_CAP:
             break  # 330자 내외 초과 → 직전 문장까지만
         end = m.end()
-    return text[:end].strip() or text[:_TIP_SOFT_CAP].strip()
+    # 주의: 첫 문장부터 비한글이면 end=0 그대로 "" 반환 — 원문으로 폴백하면 안 됨
+    # (그 폴백이 바로 이 함수가 막으려는 '영어 이물'을 되살리는 구멍이 된다)
+    return text[:end].strip()
 
 
 async def generate_tip(
     *, mission: str, criteria: list, user_text: str, npc_reply: str,
-    knowledge: str | None = None,
+    knowledge: str | None = None, trigger: str = "keyword",
 ) -> str | None:
-    """대화 중 실시간 코치 TIP — 사수가 정답요구를 거부하거나 짜증낼 때 문장형 조언. 실패 시 None(비차단).
+    """대화 중 실시간 코치 TIP — 문장형 조언. 실패 시 None(비차단).
 
+    trigger: "keyword"(정답요구·짜증 감지) 또는 "stagnant"(진전 없이 대화만 여러 턴 이어짐,
+    simulation/service.py의 STAGNANT_TURNS) — 프롬프트 톤 분기용.
     knowledge: 그 직무 스코프 RAG 지식(NPC와 동일 청크 재사용). 있으면 그 사실 범위로 그라운딩.
     """
     try:
         system = render_prompt(
             "coach/tip.md", mission=mission, criteria=criteria or [],
             user_text=user_text, npc_reply=npc_reply, knowledge=knowledge,
+            trigger=trigger,
         )
         reply = await get_llm().chat(
             [ChatMessage(role="user", content="위 상황에 맞는 코치 TIP을 330자 이내로 출력하세요.")],
@@ -143,7 +148,10 @@ async def generate_tip(
             temperature=0.4,
         )
         tip = _clean_tip(reply)
-        return tip or None
+        if not tip:
+            logger.warning("코치 TIP 정리 후 빈 문자열 (trigger=%s) raw=%r", trigger, reply)
+            return None
+        return tip
     except Exception:  # noqa: BLE001 — 코치 TIP 실패가 대화를 막으면 안 됨
-        logger.info("코치 TIP 생성 생략")
+        logger.warning("코치 TIP 생성 생략 (trigger=%s)", trigger, exc_info=True)
         return None

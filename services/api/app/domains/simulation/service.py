@@ -138,6 +138,7 @@ async def create_simulation(
         "step": scenario.steps[0]["id"],
         "attempts": {},  # 스텝별 과제 제출 횟수 → 힌트 단계·리포트 재료
         "quest": {"status": "pending" if scenario.sudden_quest else "none", "attempts": 0},
+        "coach_streak": 0,  # 진전(제출) 없이 이어진 미션 대화 턴 수 → 정체 감지용
     }
     simulation = Simulation(user_id=user.id, scenario_id=scenario.id, state=state)
     session.add(simulation)
@@ -294,6 +295,23 @@ def _should_coach_tip(user_text: str, npc_reply: str) -> bool:
     return bool(_TIP_USER.search(user_text) or _TIP_NPC.search(npc_reply))
 
 
+# 정체 감지 — 키워드 트리거 없이도, 미션에 실질적 영향이 없는 대화(아래 두 신호)만 이어지면
+# 코치가 먼저 끼어든다. 매 턴 반응하면 참견처럼 느껴지고 너무 뜸하면 방치처럼 느껴져
+# 3턴으로 절충 (팀 조정 가능).
+STAGNANT_TURNS = 3
+REPEAT_SIMILARITY = 0.6  # 이 이상이면 "같은 말 되풀이"로 간주 (문자 2-gram 자카드)
+
+
+def _text_similarity(a: str, b: str) -> float:
+    """공백 제거 후 문자 2-gram 자카드 유사도 — 형태소 분석 없이 반복 발화를 싸게 감지."""
+    def bigrams(s: str) -> set[str]:
+        s = re.sub(r"\s+", "", s)
+        return {s[i:i + 2] for i in range(len(s) - 1)} if len(s) > 1 else {s}
+
+    A, B = bigrams(a), bigrams(b)
+    return len(A & B) / len(A | B) if A and B else 0.0
+
+
 async def stream_npc_chat(
     session: AsyncSession,
     simulation: Simulation,
@@ -444,9 +462,33 @@ async def stream_npc_chat(
             await session.rollback()
             logger.exception("발언 영향 평가 실패 (simulation=%d) — 대화 유지, 전이 생략", simulation.id)
 
-    # AI 코치 실시간 TIP — 사수가 정답요구를 거부하거나 신입이 답답해할 때 문장형 조언
+    # AI 코치 실시간 TIP — ①정답요구/짜증(키워드) ②미션에 실질적 영향 없는 대화가 STAGNANT_TURNS턴
+    # 이어짐(정체) 중 하나면 개입. ②는 두 신호 중 하나로 판정 — 턴수를 맹목적으로 세지 않는다:
+    #   - deltas 전부 0: 방금 evaluate_chat이 "이 발화는 미션에 영향 없음"이라 판정한 것 그대로 재사용
+    #     (+든 -든 값이 붙으면 사수·업무와 관련된 유의미한 발화였다는 뜻이라 리셋)
+    #   - is_repeat: 직전 발화와 문자 유사도가 높음 → 같은 말을 표현만 바꿔 되풀이(제자리걸음)
     # (항목별 힌트카드는 과제 오답 제출 때, 이 TIP은 대화 중에. 실패해도 대화 비차단)
-    if mission_active and _should_coach_tip(user_text, npc_reply):
+    prior_user_msgs = [m.content for m in history[:-1] if m.role == "user"]
+    is_repeat = bool(prior_user_msgs) and _text_similarity(user_text, prior_user_msgs[-1]) >= REPEAT_SIMILARITY
+
+    tip_trigger = None
+    if mission_active:
+        if _should_coach_tip(user_text, npc_reply):
+            tip_trigger = "keyword"
+            new_state["coach_streak"] = 0
+        elif not is_repeat and any(deltas.values()):
+            new_state["coach_streak"] = 0  # 유의미한 발화 — 정체 아님
+        else:
+            streak = int(new_state.get("coach_streak", 0)) + 1
+            if streak >= STAGNANT_TURNS:
+                tip_trigger = "stagnant"
+                streak = 0
+            new_state["coach_streak"] = streak
+        simulation.state = new_state
+        flag_modified(simulation, "state")
+        await session.commit()
+
+    if tip_trigger:
         tip = await coach.generate_tip(
             mission=step["mission"],
             criteria=(step.get("task") or {}).get("criteria", []),
@@ -454,6 +496,7 @@ async def stream_npc_chat(
             npc_reply=npc_reply,
             # NPC와 동일 스코프로 이미 검색한 청크 재사용 (추가 임베딩 호출 없음)
             knowledge=("\n\n".join(c.content for c in chunks) if chunks else None),
+            trigger=tip_trigger,
         )
         if tip:
             yield ("coach_tip", {"text": tip})
@@ -936,6 +979,7 @@ async def submit_task(
 
     state["attempts"] = attempts
     state["quest"] = quest
+    state["coach_streak"] = 0  # 제출 자체가 진전 신호 — 통과/미달 무관하게 정체 카운터 리셋
     simulation.state = state
     flag_modified(simulation, "state")
 
@@ -1014,6 +1058,7 @@ async def _submit_quest(
         advice = hints.advice_card(qtask, quest["attempts"], result["scores"], result["feedback"])
 
     state["quest"] = quest
+    state["coach_streak"] = 0  # 제출 자체가 진전 신호 — 통과/미달 무관하게 정체 카운터 리셋
     simulation.state = state
     flag_modified(simulation, "state")
 
