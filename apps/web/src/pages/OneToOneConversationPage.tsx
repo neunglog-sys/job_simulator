@@ -1341,7 +1341,14 @@ export function OneToOneConversationPage() {
     }
 
     if (id === "virtual-company") {
-      window.location.assign(FRONTEND_ENDPOINTS.scenario);
+      const topSlug = recommendation?.results[0]?.scenario_slug;
+      const params = new URLSearchParams();
+      if (topSlug) params.set("slug", topSlug);
+      // 추천 목록 팝업의 "체험하기"와 동일하게 consultationId를 실어야 완주 시 이 상담의
+      // 최종 리포트에 반영된다 (없으면 ScenarioGamePage가 리포트 생성을 건너뜀).
+      if (consultationId) params.set("consultationId", String(consultationId));
+      const query = params.toString();
+      window.location.assign(query ? `${FRONTEND_ENDPOINTS.scenario}?${query}` : FRONTEND_ENDPOINTS.scenario);
       return;
     }
 
@@ -1385,7 +1392,14 @@ export function OneToOneConversationPage() {
     }
 
     window.dispatchEvent(new CustomEvent(`jobiverse:${id}`));
-  }, [finishVoiceSession, loadConsultationHistory, loadRecommendedJobs, resetAvatarSpeech]);
+  }, [
+    consultationId,
+    finishVoiceSession,
+    loadConsultationHistory,
+    loadRecommendedJobs,
+    recommendation,
+    resetAvatarSpeech,
+  ]);
 
   const handlePanelChange = useCallback((panel: ActiveConversationPanel) => {
     setActivePanel(panel);
