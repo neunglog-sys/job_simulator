@@ -143,7 +143,7 @@ npcs:
     location: sasu
     available_steps: []
 - npc_id: npc_jm-03_06
-  name: 김유진
+  name: 박지훈
   role: 관제사
   rank: 관제사
   personality:

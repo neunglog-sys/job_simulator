@@ -77,7 +77,7 @@ npcs:
   - 인수인계 서명
   - 장비 반납 대장 기재
   appearance:
-    location: teamjang
+    location: npc4
     available_steps:
     - m4
 - npc_id: npc_ys-02_04
@@ -99,7 +99,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: sasu
+    location: npc5
     available_steps: []
 - npc_id: npc_ys-02_05
   name: 손서연

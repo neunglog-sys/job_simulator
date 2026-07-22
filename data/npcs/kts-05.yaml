@@ -98,7 +98,7 @@ npcs:
   - 대응 단계 기록
   - 상황 보고서
   appearance:
-    location: teamjang
+    location: npc4
     available_steps:
     - quest
     conditions:

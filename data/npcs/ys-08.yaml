@@ -95,7 +95,7 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: teamjang
+    location: npc4
     available_steps: []
 - npc_id: npc_ys-08_05
   name: 서연우
@@ -116,5 +116,5 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: sasu
+    location: npc5
     available_steps: []

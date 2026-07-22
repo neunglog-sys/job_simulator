@@ -98,10 +98,10 @@ npcs:
   - 그건 제 담당은 아닌데, 확인해볼게요.
   responsibilities: []
   appearance:
-    location: teamjang
+    location: npc5
     available_steps: []
 - npc_id: npc_ys-01_05
-  name: 김민석
+  name: 박현수
   role: 경위) · 형사팀 담당형사(AI 질의
   rank: 팀장
   personality:
@@ -121,6 +121,6 @@ npcs:
   - 6하원칙 발생보고서 초안
   - 형사팀 인계 확인서
   appearance:
-    location: sasu
+    location: npc4
     available_steps:
     - m4

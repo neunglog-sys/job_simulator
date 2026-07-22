@@ -112,5 +112,5 @@ npcs:
   - 제가 차를 잘 몰라서 그러는데, 교체해야 하는 부품이 정확히 어디에 들어가는 건지 보여주실 수 있을까요?
   responsibilities: []
   appearance:
-    location: teamjang
+    location: npc4
     available_steps: []

@@ -101,5 +101,5 @@ npcs:
   - 빨리 좀 처리해줘요.
   responsibilities: []
   appearance:
-    location: teamjang
+    location: npc4
     available_steps: []

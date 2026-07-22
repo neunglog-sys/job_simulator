@@ -100,6 +100,6 @@ npcs:
   - 상담카드(3줄 요약)
   - 처리 경로 메모
   appearance:
-    location: teamjang
+    location: npc4
     available_steps:
     - m2

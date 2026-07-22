@@ -99,5 +99,5 @@ npcs:
   - 핵심부터 봅시다.
   responsibilities: []
   appearance:
-    location: teamjang
+    location: npc4
     available_steps: []

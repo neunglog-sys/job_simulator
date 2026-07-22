@@ -122,7 +122,7 @@ npcs:
     available_steps:
     - m3
 - npc_id: npc_jm-01_06
-  name: 정미래
+  name: 서지훈
   role: 안전관리자·야간 근무 기사
   rank: null
   personality:
