@@ -31,6 +31,48 @@ def test_short_utterance_skips_rag(monkeypatch):
     assert called is True
 
 
+def test_rag_task_cancelled_when_prep_fails(monkeypatch):
+    """조인 전(commit 등) 예외 시, 먼저 띄운 RAG 태스크가 고아로 남지 않고 취소돼야 한다.
+
+    회귀 방지: 병렬화하며 knowledge_task를 만들어놓고 await 전에 예외가 나면
+    별도 세션 커넥션을 붙잡은 채 남는 누수가 있었다(finally 취소 누락).
+    """
+    cancelled = asyncio.Event()
+
+    async def slow_rag(_user_text):
+        try:
+            await asyncio.sleep(5)  # await knowledge_task 전에 실패가 나면 취소돼야 함
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+        return None
+
+    monkeypatch.setattr(service, "_fetch_knowledge_isolated", slow_rag)
+
+    class _FailingSession:
+        def add(self, _obj):
+            pass
+
+        async def commit(self):
+            # 먼저 한 번 양보해 RAG 태스크가 실제로 떠서 세션을 열게 한 뒤 실패시킨다 —
+            # 태스크가 시작도 안 한 상태면 애초에 열린 커넥션이 없어 누수 케이스가 아니다.
+            await asyncio.sleep(0)
+            raise RuntimeError("commit 실패 — 조인 전 예외 재현")
+
+    class _Consultation:
+        id = 1
+
+    async def run():
+        gen = service.stream_reply(_FailingSession(), _Consultation(), "충분히 긴 상담 발화입니다")
+        with pytest.raises(RuntimeError):
+            await gen.__anext__()
+        # cancel()은 다음 루프 사이클에 전달 — 취소가 태스크에 도달할 때까지 대기
+        await asyncio.wait_for(cancelled.wait(), timeout=1.0)
+
+    asyncio.run(run())
+    assert cancelled.is_set()
+
+
 def test_embed_timeout_falls_back_to_no_knowledge(monkeypatch):
     async def timing_out(*args, **kwargs):
         raise asyncio.TimeoutError
