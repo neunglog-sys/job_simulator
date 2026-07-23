@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   Briefcase,
+  Camera,
   CaretRight,
   ChatCircleDots,
   CheckCircle,
@@ -13,6 +14,7 @@ import {
   IdentificationCard,
   Key,
   LockKey,
+  List,
   ShieldCheck,
   SignOut,
   SpinnerGap,
@@ -38,11 +40,13 @@ import {
   deleteProfileDocument,
   downloadProfileDocument,
   fetchConsultations,
+  fetchProfileAvatar,
   fetchProfileDocuments,
   fetchReportPdfBlob,
   fetchReports,
   fetchSimulationSummaries,
   updateProfileAccount,
+  uploadProfileAvatar,
   uploadProfileDocument,
   type ConsultationSummary,
   type Report,
@@ -54,6 +58,7 @@ import { logout, refreshAuth, useAuth } from "../lib/auth";
 import styles from "../styles/myPage.module.css";
 
 const MAX_FILE_SIZE = 8 * 1024 * 1024;
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
 const MY_PAGE_DESIGN_WIDTH = 1920;
 const MY_PAGE_DESIGN_HEIGHT = 900;
 
@@ -234,6 +239,13 @@ export function MyPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+  const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
+  const headerMenuRef = useRef<HTMLDivElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const avatarObjectUrlRef = useRef<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarMessage, setAvatarMessage] = useState<string | null>(null);
 
   const [profileName, setProfileName] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -252,6 +264,13 @@ export function MyPage() {
   const [activityError, setActivityError] = useState<string | null>(null);
 
   const me = auth.status === "authed" ? auth.me : null;
+
+  const showAvatar = useCallback((blob: Blob) => {
+    if (avatarObjectUrlRef.current) URL.revokeObjectURL(avatarObjectUrlRef.current);
+    const nextUrl = URL.createObjectURL(blob);
+    avatarObjectUrlRef.current = nextUrl;
+    setAvatarUrl(nextUrl);
+  }, []);
 
   const loadDocuments = useCallback(async () => {
     setLoading(true);
@@ -310,6 +329,41 @@ export function MyPage() {
   }, [me]);
 
   useEffect(() => {
+    if (!me) return;
+    let active = true;
+    void fetchProfileAvatar()
+      .then((blob) => {
+        if (active && blob) showAvatar(blob);
+      })
+      .catch(() => {
+        if (active) setAvatarMessage("프로필 이미지를 불러오지 못했어요.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [me, showAvatar]);
+
+  useEffect(() => () => {
+    if (avatarObjectUrlRef.current) URL.revokeObjectURL(avatarObjectUrlRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (!isHeaderMenuOpen) return;
+    const closeMenu = (event: PointerEvent) => {
+      if (!headerMenuRef.current?.contains(event.target as Node)) setIsHeaderMenuOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsHeaderMenuOpen(false);
+    };
+    window.document.addEventListener("pointerdown", closeMenu);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.document.removeEventListener("pointerdown", closeMenu);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isHeaderMenuOpen]);
+
+  useEffect(() => {
     if (activeSection === "activity" && !activityLoaded && !activityLoading) {
       void loadActivity();
     }
@@ -336,6 +390,29 @@ export function MyPage() {
       setError(errorMessage(uploadError));
     } finally {
       setUploadingKind(null);
+    }
+  };
+
+  const handleAvatarUpload = async (file: File) => {
+    setAvatarMessage(null);
+    if (!(["image/jpeg", "image/png", "image/webp"] as string[]).includes(file.type)) {
+      setAvatarMessage("JPG, PNG, WEBP 이미지만 등록할 수 있어요.");
+      return;
+    }
+    if (file.size > MAX_AVATAR_SIZE) {
+      setAvatarMessage("프로필 이미지는 최대 5MB까지 등록할 수 있어요.");
+      return;
+    }
+
+    setAvatarBusy(true);
+    try {
+      await uploadProfileAvatar(file);
+      showAvatar(file);
+      setAvatarMessage("프로필 이미지가 저장됐어요.");
+    } catch (uploadError) {
+      setAvatarMessage(errorMessage(uploadError));
+    } finally {
+      setAvatarBusy(false);
     }
   };
 
@@ -518,23 +595,47 @@ export function MyPage() {
       >
         <header className={styles.topBar}>
           <div className={styles.topBarLeft}>
-            <button type="button" onClick={() => window.history.back()} aria-label="이전 화면으로 이동">
+            <button className={styles.headerIconButton} type="button" onClick={() => window.history.back()} aria-label="이전 화면으로 이동" data-tooltip="뒤로가기">
               <ArrowLeft weight="bold" />
             </button>
+            <a className={styles.headerIconButton} href={FRONTEND_ENDPOINTS.home} aria-label="홈으로 이동" data-tooltip="홈">
+              <House weight="regular" />
+            </a>
             <a href={FRONTEND_ENDPOINTS.home} aria-label="JOBIVERSE 홈으로 이동">
               <span className={styles.brandMark} aria-hidden="true"><span /></span>
               <strong>JOBIVERSE</strong>
             </a>
           </div>
+          <div className={styles.headerPrivacy}>
+            <LockKey weight="duotone" aria-hidden="true" />
+            <div>
+              <strong>내 자료는 나만 볼 수 있어요</strong>
+              <span>로그인한 계정에서만 열고 내려받을 수 있습니다.</span>
+            </div>
+          </div>
           <nav className={styles.topBarActions} aria-label="마이페이지 메뉴">
-            <a href={FRONTEND_ENDPOINTS.home}>
-              <House weight="duotone" />
-              홈
-            </a>
-            <button type="button" onClick={() => setIsLogoutConfirmOpen(true)}>
-              <SignOut weight="duotone" />
-              로그아웃
+            <button className={styles.headerIconButton} type="button" onClick={() => setIsLogoutConfirmOpen(true)} aria-label="로그아웃" data-tooltip="로그아웃">
+              <SignOut weight="regular" />
             </button>
+            <div className={styles.headerMenu} ref={headerMenuRef}>
+              <button
+                className={styles.headerIconButton}
+                type="button"
+                aria-label="내 정보 메뉴 열기"
+                aria-expanded={isHeaderMenuOpen}
+                data-tooltip="메뉴"
+                onClick={() => setIsHeaderMenuOpen((open) => !open)}
+              >
+                <List weight="bold" />
+              </button>
+              {isHeaderMenuOpen && (
+                <div className={styles.headerMenuPopover} role="menu">
+                  <button type="button" role="menuitem" onClick={() => { setActiveSection("documents"); setIsHeaderMenuOpen(false); }}><Files weight="duotone" />문서 보관함</button>
+                  <button type="button" role="menuitem" onClick={() => { setActiveSection("account"); setIsHeaderMenuOpen(false); }}><IdentificationCard weight="duotone" />회원 정보</button>
+                  <button type="button" role="menuitem" onClick={() => { setActiveSection("activity"); setIsHeaderMenuOpen(false); }}><GameController weight="duotone" />활동 기록</button>
+                </div>
+              )}
+            </div>
           </nav>
         </header>
 
@@ -542,21 +643,49 @@ export function MyPage() {
         <aside className={styles.profileRail}>
           <section className={styles.profileCard}>
             <div className={styles.profileMain}>
-              <span className={styles.avatar} aria-hidden="true">{initial}</span>
+              <div className={styles.avatarOrbit}>
+                <div className={styles.orbitDecoration} aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <button
+                  className={styles.avatarButton}
+                  type="button"
+                  aria-label="프로필 이미지 등록"
+                  data-tooltip="프로필 이미지 변경"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={avatarBusy}
+                >
+                  <span className={styles.avatar} aria-hidden="true">
+                    {avatarUrl ? <img src={avatarUrl} alt="" /> : initial}
+                  </span>
+                  <span className={styles.avatarEditBadge} aria-hidden="true">
+                    {avatarBusy ? <SpinnerGap className={styles.spinner} /> : <Camera weight="fill" />}
+                  </span>
+                </button>
+                <input
+                  ref={avatarInputRef}
+                  className={styles.fileInput}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.item(0);
+                    if (file) void handleAvatarUpload(file);
+                    event.currentTarget.value = "";
+                  }}
+                />
+              </div>
               <div className={styles.identity}>
                 <span>내 커리어 보관함</span>
                 <h1>{me?.name ?? "내 프로필"}</h1>
                 <p>{me?.email ?? "로그인 계정"}</p>
+                {avatarMessage && <small className={styles.avatarMessage} aria-live="polite">{avatarMessage}</small>}
               </div>
             </div>
             <div className={styles.profileStats} aria-label="보관 문서 현황">
               <div><span>보관 문서</span><strong>{documents.length}</strong></div>
               <div><span>이력서</span><strong>{resumeCount}</strong></div>
-            </div>
-            <div className={styles.orbitDecoration} aria-hidden="true">
-              <span />
-              <span />
-              <span />
             </div>
           </section>
 
@@ -590,13 +719,6 @@ export function MyPage() {
             </button>
           </nav>
 
-          <section className={styles.privacyNote}>
-            <span aria-hidden="true"><LockKey weight="duotone" /></span>
-            <div>
-              <h2>내 자료는 나만 볼 수 있어요</h2>
-              <p>로그인한 계정에서만 열고 내려받을 수 있습니다.</p>
-            </div>
-          </section>
         </aside>
 
         <section className={`${styles.workspace} ${activeSection !== "documents" ? styles.workspaceSingle : ""}`}>
@@ -808,7 +930,7 @@ export function MyPage() {
                     </form>
                   ) : (
                     <div className={styles.socialAccountNote}>
-                      <ShieldCheck weight="duotone" />
+                      <span className={styles.socialAccountIcon}><ShieldCheck weight="duotone" /></span>
                       <div><strong>비밀번호 입력이 필요하지 않아요</strong><p>Google·Kakao·Naver 계정의 보안 설정은 해당 서비스에서 변경해주세요.</p></div>
                     </div>
                   )}

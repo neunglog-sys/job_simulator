@@ -31,6 +31,7 @@ export const API_ENDPOINTS = {
   profile: {
     account: apiUrl("/api/profile/account"),
     password: apiUrl("/api/profile/password"),
+    avatar: apiUrl("/api/profile/avatar"),
     documents: apiUrl("/api/profile/documents"),
     document: (id: number) => apiUrl(`/api/profile/documents/${id}`),
     download: (id: number) => apiUrl(`/api/profile/documents/${id}/download`),
