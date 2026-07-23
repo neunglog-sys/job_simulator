@@ -498,9 +498,9 @@
   background-image:
     linear-gradient(rgb(8 12 26 / 0.08), rgb(8 12 26 / 0.16)),
     var(--minigame-background-image);
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
+  background-position: center, center;
+  background-size: 100% 100%, contain;
+  background-repeat: no-repeat, no-repeat;
 }
 
 :global([data-cartoon-background="true"]) .bgLayer {
@@ -524,3 +524,20 @@
 .headCursor { filter: drop-shadow(2px 3px 0 var(--cartoon-ink)); }
 .actionButton { border: 2px solid var(--cartoon-ink); box-shadow: 0 4px 0 var(--cartoon-ink); }
 .actionButton:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--cartoon-ink); }
+
+/* Cartoon contrast pass: start gate and guidance cards use cream paper. */
+.gateText,
+.gateHint,
+.hintText {
+  color: var(--cartoon-ink);
+}
+.actionButton {
+  background: var(--cartoon-gold);
+  color: var(--cartoon-ink);
+}
+.actionButton[data-variant="alert"],
+.actionButton[data-variant="emergency"] {
+  border-color: var(--cartoon-ink);
+  background: #8f233d;
+  color: #ffffff;
+}

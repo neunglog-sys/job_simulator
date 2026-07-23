@@ -359,9 +359,10 @@
   background-image:
     linear-gradient(rgb(8 12 26 / 0.08), rgb(8 12 26 / 0.14)),
     var(--minigame-background-image);
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
+  aspect-ratio: 24 / 11;
+  background-position: center, center;
+  background-size: 100% 100%, contain;
+  background-repeat: no-repeat, no-repeat;
 }
 .stall,
 .footer {
@@ -377,3 +378,14 @@
 .pourStream { filter: drop-shadow(2px 2px 0 var(--cartoon-ink)); }
 .stallPour { border: 2px solid var(--cartoon-ink); box-shadow: 0 4px 0 var(--cartoon-ink); }
 .stallPour:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--cartoon-ink); }
+
+/* Cartoon contrast pass: labels are rendered on the cream stall/footer cards. */
+.stallLabel,
+.hint {
+  color: var(--cartoon-ink);
+  text-shadow: none;
+}
+.stallPour {
+  background: var(--cartoon-gold);
+  color: var(--cartoon-ink);
+}

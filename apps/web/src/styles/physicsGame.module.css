@@ -555,9 +555,11 @@
   background-image:
     linear-gradient(rgb(8 12 26 / 0.08), rgb(8 12 26 / 0.16)),
     var(--minigame-background-image);
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
+  height: auto;
+  aspect-ratio: 24 / 11;
+  background-position: center, center;
+  background-size: 100% 100%, contain;
+  background-repeat: no-repeat, no-repeat;
 }
 
 :global([data-cartoon-background="true"]) .sceneLayer {
@@ -591,3 +593,19 @@
 }
 .controlButton:hover { border-color: var(--cartoon-ink); background: #ffffff; box-shadow: 0 5px 0 var(--cartoon-ink); }
 .controlButton:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--cartoon-ink); }
+
+/* Cartoon contrast pass: paper overlays use ink; action variants keep semantic color. */
+.laneLabel,
+.gateText {
+  color: var(--cartoon-ink);
+}
+.controlButton[data-variant="primary"] {
+  border-color: var(--cartoon-ink);
+  background: var(--cartoon-gold);
+  color: var(--cartoon-ink);
+}
+.controlButton[data-variant="danger"] {
+  border-color: var(--cartoon-ink);
+  background: #8f233d;
+  color: #ffffff;
+}

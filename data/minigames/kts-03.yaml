@@ -17,6 +17,9 @@ time_limit: 75
 pass_score: 70
 
 data:
+  # 표시 전용 — 1920×880 매장 원본 위에 손님·상품을 배치하고, 돌발 손님 클릭 시
+  # 6개 대응 버튼을 같은 장면 안에 띄운다. 판정·채점 데이터는 아래 기존 필드를 그대로 사용.
+  presentation: customer_floor
   # 표시 전용 — 컬럼 헤더(엔진 left_label/right_label 규약, 채점 무관. 도트 아트 2026-07-20).
   # 가격표 개수는 visual_cues 텍스트에 의존하지 않도록 스프라이트 하단에 같은 개수의
   # 가격표(2×2 도트, 색=가격대)로 직접 그려 넣었다 — 니즈 카드와 와인 병이 같은 글리프.
@@ -25,11 +28,11 @@ data:
 
   # 왼쪽 = 손님 니즈. 상황은 아이콘, 예산대는 색 + 같은 개수의 가격표 아이콘(visual_cues)으로만.
   left:
-    - { id: 니즈_승진축하, sprite: 니즈_승진_레드선호,   budget: yellow, occasion: 승진, label: 승진 축하 · 중간 예산 · 레드 선호 }
-    - { id: 니즈_집들이,   sprite: 니즈_집들이_화이트,   budget: green,  occasion: 집들이, label: 집들이 · 낮은 예산 · 화이트 }
-    - { id: 니즈_부모님,   sprite: 니즈_부모님_레드,     budget: red,    occasion: 부모님, label: 부모님 선물 · 높은 예산 · 레드 }
-    - { id: 니즈_와인초보, sprite: 니즈_초보_스위트,     budget: green,  occasion: 입문, label: 와인 초보 · 낮은 예산 · 달달한 맛 }
-    - { id: 니즈_기념일,   sprite: 니즈_기념일_스파클링, budget: yellow, occasion: 기념일, label: 기념일 · 중간 예산 · 스파클링 }
+    - { id: 니즈_승진축하, sprite: 니즈_승진_레드선호,   customer_sprite: 손님_승진축하_카툰,   budget: yellow, occasion: 승진, label: 승진 축하 · 중간 예산 · 레드 선호 }
+    - { id: 니즈_집들이,   sprite: 니즈_집들이_화이트,   customer_sprite: 손님_집들이_카툰,     budget: green,  occasion: 집들이, label: 집들이 · 낮은 예산 · 화이트 }
+    - { id: 니즈_부모님,   sprite: 니즈_부모님_레드,     customer_sprite: 손님_부모님선물_카툰, budget: red,    occasion: 부모님, label: 부모님 선물 · 높은 예산 · 레드 }
+    - { id: 니즈_와인초보, sprite: 니즈_초보_스위트,     customer_sprite: 손님_와인초보_카툰,   budget: green,  occasion: 입문, label: 와인 초보 · 낮은 예산 · 달달한 맛 }
+    - { id: 니즈_기념일,   sprite: 니즈_기념일_스파클링, customer_sprite: 손님_기념일_카툰,     budget: yellow, occasion: 기념일, label: 기념일 · 중간 예산 · 스파클링 }
 
   # 오른쪽 = 와인 상품. 종류는 아이콘, 가격대는 색 + 가격표 개수. (12종 중 화면용 7종 발췌)
   right:
@@ -90,7 +93,7 @@ data:
   sudden:
     id: 손님_오건우_환불
     sprite: 손님_개봉상품_고성
-    appears_at: 30
+    appears_at: 7
     label: 영수증 없는 개봉 상품 환불 요구 · 고성
     stages:
       - { id: 경청_사실확인, sprite: 구매이력_조회,   label: 경청하고 구매 이력 조회로 사실 확인 }

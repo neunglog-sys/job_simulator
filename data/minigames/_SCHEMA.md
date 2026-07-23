@@ -119,7 +119,8 @@ data:
 
 ```yaml
 data:
-  left:  [{ id: 전표_A, sprite: 카드전표_원형파랑 }]
+  presentation: customer_floor    # 선택 — kts-03: 원본 장면 위 손님·상품 배치 + 돌발 손님 6개 대응 화면
+  left:  [{ id: 전표_A, sprite: 카드전표_원형파랑, customer_sprite: 손님_A_카툰 }] # customer_sprite는 kts-03 표시 전용
   right: [{ id: 영수증_A, sprite: 영수증_원형파랑 }]
   pairs: [[전표_A, 영수증_A]]
   unmatched: [전표_C]              # 짝 없음 → '누락' 도장이 정답

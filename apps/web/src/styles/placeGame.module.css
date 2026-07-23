@@ -348,9 +348,14 @@
   background-image:
     linear-gradient(rgb(8 12 26 / 0.06), rgb(8 12 26 / 0.12)),
     var(--minigame-background-image);
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
+  background-position: center, center;
+  background-size: 100% 100%, contain;
+  background-repeat: no-repeat, no-repeat;
+}
+
+:global([data-cartoon-background="true"]) .board {
+  aspect-ratio: 24 / 11;
+  align-content: center;
 }
 
 :global([data-cartoon-background="true"]) .mapSceneArt,
@@ -883,3 +888,23 @@
 .occupant { filter: none; }
 .submitButton,
 .escalateButton { border: 2px solid var(--cartoon-ink); box-shadow: 0 4px 0 var(--cartoon-ink); }
+
+/* Cartoon contrast pass: tray/card copy and controls on cream paper. */
+.stainHint,
+.pieceCue,
+.cartEmpty,
+.trayLabel,
+.trayHint,
+.personName {
+  color: var(--cartoon-ink);
+}
+.submitButton,
+.escalateButton {
+  color: var(--cartoon-ink);
+  background: var(--cartoon-gold);
+}
+.escalateButton[data-on="true"] {
+  border-color: var(--cartoon-ink);
+  color: var(--cartoon-ink);
+  background: var(--cartoon-mint);
+}
