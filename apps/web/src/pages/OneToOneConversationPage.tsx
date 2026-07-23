@@ -275,6 +275,7 @@ export function OneToOneConversationPage() {
   const [voiceIssue, setVoiceIssue] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<ActiveConversationPanel>("chat");
   const [surveyAnswers, setSurveyAnswers] = useState<SurveyAnswers>({});
+  const [surveyCompleted, setSurveyCompleted] = useState(false);
   const [activeMenuId, setActiveMenuId] =
     useState<NavigationMenuId>("new-consultation");
   const [voiceLevel, setVoiceLevel] = useState(0);
@@ -568,6 +569,7 @@ export function OneToOneConversationPage() {
           );
         }
         setSurveyQuestions(toSurveyQuestions(survey.items));
+        setSurveyCompleted(survey.completed);
       } catch {
         // 백엔드 연결 실패 — 로컬 대화만 유지하는 오프라인 폴백
       }
@@ -1059,6 +1061,7 @@ export function OneToOneConversationPage() {
           content: line,
         })),
       ]);
+      setSurveyCompleted(true);
       setActivePanel("chat");
     } catch (error) {
       setSurveyError(
@@ -1281,6 +1284,7 @@ export function OneToOneConversationPage() {
       setVoiceIssue(null);
       setSurveyAnswers({});
       setSurveyError(null);
+      setSurveyCompleted(false);
       setReportState(INITIAL_REPORT_STATE);
       setRecommendation(null);
       recommendationCacheRef.current = null;
@@ -1307,6 +1311,7 @@ export function OneToOneConversationPage() {
             : initialConversationMessages,
         );
         setSurveyQuestions(toSurveyQuestions(survey.items));
+        setSurveyCompleted(survey.completed);
       } catch (error) {
         setMessages([
           {
@@ -1335,6 +1340,11 @@ export function OneToOneConversationPage() {
     }
 
     if (id === "recommended-jobs") {
+      if (!surveyCompleted) {
+        setSurveyError("추천 직무를 보려면 사전 설문을 먼저 완료해주세요.");
+        setActivePanel("survey");
+        return;
+      }
       setActiveModal("recommendations");
       void loadRecommendedJobs();
       return;
@@ -1364,6 +1374,7 @@ export function OneToOneConversationPage() {
       setSurveyAnswers({});
       setSurveyError(null);
       setSurveyQuestions([]);
+      setSurveyCompleted(false);
       setConsultationId(null);
       setReportState(INITIAL_REPORT_STATE);
       setRecommendation(null);
@@ -1379,6 +1390,7 @@ export function OneToOneConversationPage() {
           setConsultationId(consultation.id);
           const survey = await fetchSurveyItems(consultation.id);
           setSurveyQuestions(toSurveyQuestions(survey.items));
+          setSurveyCompleted(survey.completed);
         } catch {
           // 백엔드 연결 실패 — 로컬 대화만 유지하는 오프라인 폴백
         }
@@ -1387,6 +1399,11 @@ export function OneToOneConversationPage() {
     }
 
     if (id === "final-report") {
+      if (!surveyCompleted) {
+        setSurveyError("최종 리포트를 보려면 사전 설문을 먼저 완료해주세요.");
+        setActivePanel("survey");
+        return;
+      }
       setActivePanel("report");
       return;
     }
@@ -1399,12 +1416,21 @@ export function OneToOneConversationPage() {
     loadRecommendedJobs,
     recommendation,
     resetAvatarSpeech,
+    surveyCompleted,
   ]);
 
-  const handlePanelChange = useCallback((panel: ActiveConversationPanel) => {
-    setActivePanel(panel);
-    if (panel === "report") setActiveMenuId("final-report");
-  }, []);
+  const handlePanelChange = useCallback(
+    (panel: ActiveConversationPanel) => {
+      if (panel === "report" && !surveyCompleted) {
+        setSurveyError("최종 리포트를 보려면 사전 설문을 먼저 완료해주세요.");
+        setActivePanel("survey");
+        return;
+      }
+      setActivePanel(panel);
+      if (panel === "report") setActiveMenuId("final-report");
+    },
+    [surveyCompleted],
+  );
 
   return (
     <main className={styles.screen} aria-label="AI 직무 마스터와의 1대1 대화 화면">

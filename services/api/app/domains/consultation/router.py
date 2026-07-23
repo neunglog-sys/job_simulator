@@ -73,8 +73,8 @@ async def get_survey(
     user: User = Depends(get_current_user),
 ):
     """사전 설문 문항 배달 (5지선다) — 자유대화 전 단계. 페이징은 프론트 재량."""
-    await service.get_owned_consultation(session, consultation_id, user)
-    return {"items": survey.public_items()}
+    consultation = await service.get_owned_consultation(session, consultation_id, user)
+    return {"items": survey.public_items(), "completed": consultation.survey is not None}
 
 
 @router.post("/{consultation_id}/survey")

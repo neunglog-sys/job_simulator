@@ -355,7 +355,9 @@ export type SurveyItem = {
   options: Array<{ key: string; label: string }>;
 };
 
-export function fetchSurveyItems(consultationId: number): Promise<{ items: SurveyItem[] }> {
+export function fetchSurveyItems(
+  consultationId: number,
+): Promise<{ items: SurveyItem[]; completed: boolean }> {
   return request(API_ENDPOINTS.consultations.survey(consultationId), { method: "GET" });
 }
 
