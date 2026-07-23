@@ -932,14 +932,15 @@ button.headerOrb:active {
 
 .dialoguePanel {
   display: grid;
-  grid-template-rows: 204px 60px;
-  gap: 30px;
+  grid-template-rows: minmax(0, 1fr) 60px;
+  gap: 14px;
   padding: 15px;
 }
 
 .npcConversation {
   min-width: 0;
-  height: 204px;
+  min-height: 0;
+  height: 100%;
 }
 
 .npcIdentity {
@@ -981,11 +982,31 @@ button.headerOrb:active {
   position: relative;
   display: flex;
   min-width: 0;
-  height: 204px;
-  padding: 0 7px 0 0;
-  overflow: hidden;
+  min-height: 0;
+  height: 100%;
+  padding: 6px 7px 8px 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   flex-direction: column;
   gap: 12px;
+  overscroll-behavior: contain;
+  scrollbar-color: rgb(231 216 255 / 0.72) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scroll-padding-block: 6px 8px;
+}
+
+.conversationBubbles::-webkit-scrollbar {
+  width: 6px;
+}
+
+.conversationBubbles::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgb(231 216 255 / 0.72);
+}
+
+.conversationBubbles::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .dialogueMessageRow {
@@ -1035,7 +1056,7 @@ button.headerOrb:active {
   left: -15px;
   align-self: flex-start;
   width: max-content;
-  max-width: calc(100% + 32.4px);
+  max-width: 100%;
   min-height: 52px;
   flex: 0 0 auto;
   margin-top: 0;
@@ -1078,7 +1099,7 @@ button.headerOrb:active {
 
 .userSpeechBubble {
   position: relative;
-  right: -17.4px;
+  right: 0;
   width: max-content;
   min-height: 52px;
   max-width: 78%;
