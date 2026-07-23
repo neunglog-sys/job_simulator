@@ -16,7 +16,11 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-3.5-flash"  # Vertex에선 global 엔드포인트 전용 (us-central1엔 없음)
+    # 2026-07-23 3.5-flash → 3.6-flash. 검증: 프로덕션 프롬프트 기준 품질 차이 없음(t=+0.77,
+    # n=10 페어드) · 전체 응답 13.5% 빠름 · thinking_budget=0 지원(첫토큰 지연 회귀 없음).
+    # ⚠️ 모델 교체 시 thinking_budget=0 지원 여부를 반드시 확인할 것 — consultation/service.py가
+    #    이 값을 하드코딩하는데, gemini-2.5-pro 계열은 이 파라미터를 400으로 거부해 상담이 죽는다.
+    gemini_model: str = "gemini-3.6-flash"  # Vertex에선 global 엔드포인트 전용 (us-central1엔 없음)
     # Gemini 인증 모드 — 기본은 AI Studio(gemini_api_key).
     # GCP $300 크레딧(Vertex AI)으로 쓰려면 .env에:
     #   GOOGLE_GENAI_USE_VERTEXAI=true / GOOGLE_CLOUD_PROJECT=<프로젝트ID> / GOOGLE_CLOUD_LOCATION=us-central1
