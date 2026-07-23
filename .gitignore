@@ -70,3 +70,13 @@ data/codex_validate_*/
 assets_by_map/
 
 storage/user-avatars/
+
+# 아바타 파이프라인 코랩 노트북 — 코랩에서 관리(레포에 안 넣음)
+/JOBIVERSE_*.ipynb
+/JOBIVERSE_*.ipynb.bak
+
+# 음성 클로닝 원본 녹음 — 실존 인물 음성이라 레포 커밋 금지 (팀 드라이브 보관)
+/*.mp3
+
+# 맵 칠하기 사용법 — 디스코드 공유용 문서
+tools/map-geometry/맵칠하기_사용법.md
