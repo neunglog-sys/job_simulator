@@ -1,12 +1,22 @@
+// 배포/프로덕션: VITE_API_BASE_URL을 비워 두면 API_BASE_URL이 빈 문자열이 되고,
+// 브라우저는 /api·/ws 를 **현재 오리진**으로 호출한다 → nginx가 api:8000으로 동일오리진
+// 프록시(apps/web/nginx.conf)하므로 CORS가 아예 없고, 터널 주소 변경에도 안 묶인다.
+// 로컬 vite dev 서버(5173)에서만 api를 별도 오리진(localhost:8000)으로 직접 호출한다.
 const configuredApiBaseUrl =
-  import.meta.env.VITE_API_BASE_URL?.trim() || "http://localhost:8000";
+  import.meta.env.VITE_API_BASE_URL?.trim() ||
+  (import.meta.env.DEV ? "http://localhost:8000" : "");
 
 export const API_BASE_URL = configuredApiBaseUrl.replace(/\/+$/, "");
 
 const apiUrl = (path: string) => `${API_BASE_URL}${path}`;
 
 // WebSocket은 헤더를 못 실어서 토큰을 쿼리로 붙인다 (백엔드 규약).
-export const WS_BASE_URL = API_BASE_URL.replace(/^http/, "ws");
+// API_BASE_URL이 비어(상대경로) 있으면 절대 ws URL을 만들 수 없으므로 현재 페이지 오리진에서 유도한다.
+export const WS_BASE_URL = API_BASE_URL
+  ? API_BASE_URL.replace(/^http/, "ws")
+  : typeof window !== "undefined"
+    ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`
+    : "";
 
 export const FRONTEND_ENDPOINTS = {
   home: "/",
