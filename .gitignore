@@ -68,3 +68,5 @@ maps/**/*.zip
 # Codex 검증 산출물 (임시)
 data/codex_validate_*/
 assets_by_map/
+
+storage/user-avatars/

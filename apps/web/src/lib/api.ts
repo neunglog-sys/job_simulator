@@ -151,6 +151,33 @@ export function changeProfilePassword(currentPassword: string, newPassword: stri
   });
 }
 
+export async function fetchProfileAvatar(): Promise<Blob | null> {
+  const headers = new Headers();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  let response: Response;
+  try {
+    response = await fetch(API_ENDPOINTS.profile.avatar, { headers });
+  } catch {
+    throw new ApiError(0, null, "프로필 이미지 서버에 연결할 수 없어요.");
+  }
+
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    const raw = await response.text();
+    const data = raw ? safeJson(raw) : null;
+    const detail = (data as { detail?: unknown } | null)?.detail;
+    throw new ApiError(response.status, detail, messageFromDetail(detail, response.status));
+  }
+  return response.blob();
+}
+
+export function uploadProfileAvatar(file: File): Promise<void> {
+  const form = new FormData();
+  form.append("file", file);
+  return request(API_ENDPOINTS.profile.avatar, { method: "POST", body: form });
+}
+
 export function fetchProfileDocuments(): Promise<UserDocument[]> {
   return request(API_ENDPOINTS.profile.documents, { method: "GET" });
 }

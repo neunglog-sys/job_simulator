@@ -25,6 +25,12 @@ router = APIRouter(prefix="/api/profile", tags=["profile"])
 logger = logging.getLogger(__name__)
 
 MAX_PDF_BYTES = 8 * 1024 * 1024
+MAX_AVATAR_BYTES = 5 * 1024 * 1024
+AVATAR_MEDIA_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+}
 
 
 def _account_out(user: User) -> ProfileAccountOut:
@@ -38,6 +44,29 @@ def _account_out(user: User) -> ProfileAccountOut:
 
 def _document_root(user_id: int) -> Path:
     return Path(settings.storage_dir) / "user-documents" / str(user_id)
+
+
+def _avatar_root(user_id: int) -> Path:
+    return Path(settings.storage_dir) / "user-avatars" / str(user_id)
+
+
+def _avatar_path(user_id: int) -> Path | None:
+    root = _avatar_root(user_id)
+    for suffix in AVATAR_MEDIA_TYPES.values():
+        candidate = root / f"avatar{suffix}"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _valid_avatar_signature(data: bytes, media_type: str) -> bool:
+    if media_type == "image/jpeg":
+        return data.startswith(b"\xff\xd8\xff")
+    if media_type == "image/png":
+        return data.startswith(b"\x89PNG\r\n\x1a\n")
+    if media_type == "image/webp":
+        return len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP"
+    return False
 
 
 def _owned_document_path(document: UserDocument, user_id: int) -> Path:
@@ -93,6 +122,56 @@ async def change_password(
 
     user.pw_hash = hash_password(body.new_password)
     await session.commit()
+    return Response(status_code=204)
+
+
+@router.get("/avatar")
+async def get_avatar(user: User = Depends(get_current_user)):
+    """로그인한 사용자의 프로필 이미지만 반환한다."""
+    path = _avatar_path(user.id)
+    if path is None:
+        raise HTTPException(status_code=404, detail="등록된 프로필 이미지가 없어요.")
+    media_type = next(
+        media_type
+        for media_type, suffix in AVATAR_MEDIA_TYPES.items()
+        if suffix == path.suffix.lower()
+    )
+    return FileResponse(path, media_type=media_type)
+
+
+@router.post("/avatar", status_code=204)
+async def upload_avatar(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+):
+    """로그인한 사용자의 프로필 이미지를 전용 저장소에 교체 저장한다."""
+    media_type = (file.content_type or "").lower()
+    suffix = AVATAR_MEDIA_TYPES.get(media_type)
+    if suffix is None:
+        raise HTTPException(status_code=400, detail="JPG, PNG, WEBP 이미지만 등록할 수 있어요.")
+    if file.size is not None and file.size > MAX_AVATAR_BYTES:
+        raise HTTPException(status_code=413, detail="프로필 이미지는 최대 5MB까지 등록할 수 있어요.")
+
+    data = await file.read(MAX_AVATAR_BYTES + 1)
+    if len(data) > MAX_AVATAR_BYTES:
+        raise HTTPException(status_code=413, detail="프로필 이미지는 최대 5MB까지 등록할 수 있어요.")
+    if not _valid_avatar_signature(data, media_type):
+        raise HTTPException(status_code=400, detail="올바른 이미지 파일인지 확인해주세요.")
+
+    root = _avatar_root(user.id)
+    root.mkdir(parents=True, exist_ok=True)
+    final_path = root / f"avatar{suffix}"
+    temp_path = root / f".{uuid4().hex}.upload"
+    try:
+        temp_path.write_bytes(data)
+        os.replace(temp_path, final_path)
+        for old_suffix in AVATAR_MEDIA_TYPES.values():
+            old_path = root / f"avatar{old_suffix}"
+            if old_path != final_path:
+                old_path.unlink(missing_ok=True)
+    except Exception:
+        temp_path.unlink(missing_ok=True)
+        raise
     return Response(status_code=204)
 
 

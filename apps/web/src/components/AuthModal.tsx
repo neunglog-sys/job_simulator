@@ -285,6 +285,12 @@ export function AuthModal({ mode, onClose, onModeChange, onSuccess }: Props) {
     rememberOAuthReturnTo();
   };
 
+  const oauthHref = (endpoint: string) => {
+    const url = new URL(endpoint, window.location.origin);
+    url.searchParams.set("frontend_origin", window.location.origin);
+    return url.toString();
+  };
+
   return (
     <div
       className="auth-overlay"
@@ -406,7 +412,7 @@ export function AuthModal({ mode, onClose, onModeChange, onSuccess }: Props) {
             <div className="auth-social-actions" aria-label="소셜 로그인">
               <a
                 className="auth-social-button auth-social-google"
-                href={API_ENDPOINTS.auth.oauth.google}
+                href={oauthHref(API_ENDPOINTS.auth.oauth.google)}
                 aria-disabled={consentRequired}
                 onClick={guardSocialAuthentication}
               >
@@ -417,7 +423,7 @@ export function AuthModal({ mode, onClose, onModeChange, onSuccess }: Props) {
               </a>
               <a
                 className="auth-social-button auth-social-kakao"
-                href={API_ENDPOINTS.auth.oauth.kakao}
+                href={oauthHref(API_ENDPOINTS.auth.oauth.kakao)}
                 aria-disabled={consentRequired}
                 onClick={guardSocialAuthentication}
               >
@@ -428,7 +434,7 @@ export function AuthModal({ mode, onClose, onModeChange, onSuccess }: Props) {
               </a>
               <a
                 className="auth-social-button auth-social-naver"
-                href={API_ENDPOINTS.auth.oauth.naver}
+                href={oauthHref(API_ENDPOINTS.auth.oauth.naver)}
                 aria-disabled={consentRequired}
                 onClick={guardSocialAuthentication}
               >

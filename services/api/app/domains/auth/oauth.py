@@ -13,6 +13,7 @@ import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Callable
+from urllib.parse import urlsplit
 
 import httpx
 import jwt
@@ -113,9 +114,46 @@ def redirect_uri(provider: str) -> str:
     return f"{settings.oauth_redirect_base}/api/auth/oauth/{provider}/callback"
 
 
-def make_state() -> str:
+def _allowed_frontend_origin(origin: str | None) -> str | None:
+    """Return a normalized, allow-listed frontend origin for the OAuth callback."""
+    if not origin:
+        return None
+
+    try:
+        parsed = urlsplit(origin)
+    except ValueError:
+        return None
+
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.netloc
+        or parsed.username
+        or parsed.password
+        or parsed.path not in {"", "/"}
+        or parsed.query
+        or parsed.fragment
+    ):
+        return None
+
+    normalized = f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
+    allowed = {
+        candidate.strip().rstrip("/")
+        for candidate in settings.cors_origins.split(",")
+        if candidate.strip()
+    }
+    allowed.add(settings.frontend_url.rstrip("/"))
+    return normalized if normalized in allowed else None
+
+
+def make_state(frontend_origin: str | None = None) -> str:
     """CSRF 방지용 서명 state(짧은 만료) — 서버 저장 없이 콜백에서 검증(stateless)."""
-    payload = {"n": secrets.token_urlsafe(8), "exp": datetime.now(timezone.utc) + timedelta(minutes=10)}
+    payload = {
+        "n": secrets.token_urlsafe(8),
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=10),
+    }
+    allowed_origin = _allowed_frontend_origin(frontend_origin)
+    if allowed_origin:
+        payload["frontend_origin"] = allowed_origin
     return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
 
 
@@ -125,6 +163,15 @@ def verify_state(state: str) -> bool:
         return True
     except jwt.InvalidTokenError:
         return False
+
+
+def frontend_origin_from_state(state: str) -> str | None:
+    """Read the validated frontend origin embedded in a signed OAuth state."""
+    try:
+        payload = jwt.decode(state, settings.jwt_secret, algorithms=["HS256"])
+    except jwt.InvalidTokenError:
+        return None
+    return _allowed_frontend_origin(payload.get("frontend_origin"))
 
 
 def authorize_url(provider: str, state: str) -> str:
