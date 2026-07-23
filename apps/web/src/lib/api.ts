@@ -243,7 +243,9 @@ export type PolicyCard = {
   body?: string;
   more_url?: string;
   /** 본문이 실제로 언급한 제도 — 백엔드가 후보와 대조해 검증한 것만 담긴다. */
-  cited?: Array<{ name: string; link: string }>;
+  // YouthPolicyModal이 summary·provider를 읽는데 타입에 없어 빌드가 깨져 있었다(2026-07-23).
+  // 컴포넌트가 `policy.summary || ""` 처럼 방어적으로 쓰므로 옵셔널로 넓힌다.
+  cited?: Array<{ name: string; link: string; summary?: string; provider?: string }>;
   source_count?: number;
 };
 
@@ -667,6 +669,14 @@ export type MuseTalkSpeakRequest = {
   voice?: string | null;
   speaker_id?: string;
   gesture_index?: number;
+  /** 한 답변을 묶는 식별자. 문장 단위로 쪼개진 청크들이 같은 값을 공유한다. */
+  session_id?: string;
+  /** 이 답변 안에서의 **재생 순번**(0부터).
+   *
+   * 서버는 이 번호로 줄을 세워 앞 청크가 끝난 프레임에서 이어붙인다.
+   * 도착 순서·TTS 완료 순서는 재생 순서와 다르기 때문에 반드시 명시해야 한다
+   * (짧은 문장이 TTS를 먼저 끝내 추론 순서가 뒤집힌다). */
+  seq?: number;
 };
 
 export type MuseTalkBlobOut = {
