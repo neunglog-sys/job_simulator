@@ -116,7 +116,7 @@ def _extract_url(out) -> str | None:
     return None
 
 
-def _submit_sync(audio_path: str) -> str:
+def _submit_sync(audio_path: str, image_path: str) -> str:
     """블로킹 호출 — 첫 HLS URL이 나오는 즉시 반환 (전체 생성 완료를 기다리지 않음)."""
     from gradio_client import handle_file
 
@@ -126,7 +126,7 @@ def _submit_sync(audio_path: str) -> str:
         settings.avatar_ckpt_dir,
         settings.avatar_wav2vec_dir,
         settings.avatar_model_type,
-        handle_file(settings.avatar_image_path),
+        handle_file(image_path),
         handle_file(audio_path),
         settings.avatar_seed,
         settings.avatar_use_face_crop,
@@ -358,8 +358,59 @@ async def stream_mp4(stream_id: str):
             await asyncio.sleep(0.1)
 
 
-async def speak(text: str, voice: str | None = None) -> dict:
-    """발화 텍스트 → 연속 MP4 스트림 URL."""
+# ── 선택형 아바타 ───────────────────────────────────────────────────────────
+# 프론트가 발화 요청마다 avatar_id를 보낸다 — 세션·DB에 묶지 않아 상담 시작 전에도,
+# 상담 도중에도 즉시 바꿀 수 있다. 표시 이름은 팀이 정할 몫이라 중립 id만 둔다.
+DEFAULT_AVATAR_ID = "male"
+
+
+def avatar_catalog() -> dict[str, dict]:
+    """id → {image_path, voice_id}. 설정을 매번 읽어 .env 변경이 재기동 없이 반영되게 한다."""
+    return {
+        "male": {
+            "image_path": settings.avatar_image_path,
+            "voice_id": settings.elevenlabs_voice_id,
+        },
+        "female": {
+            "image_path": settings.avatar_image_path_female,
+            "voice_id": settings.avatar_voice_id_female or settings.elevenlabs_voice_id,
+        },
+    }
+
+
+def resolve_avatar(avatar_id: str | None) -> tuple[str, str]:
+    """avatar_id → (이미지 경로, 목소리 id).
+
+    모르는 id이거나 이미지 파일이 아직 없으면 기본 아바타로 폴백한다 — 선택 UI가 에셋보다
+    먼저 나와도 발화가 깨지지 않게(에셋은 나중에 파일만 넣으면 그대로 붙는다).
+    """
+    catalog = avatar_catalog()
+    entry = catalog.get(avatar_id or DEFAULT_AVATAR_ID)
+    if entry is None:
+        logger.warning("알 수 없는 avatar_id=%r — 기본 아바타로 진행", avatar_id)
+        entry = catalog[DEFAULT_AVATAR_ID]
+    elif not Path(entry["image_path"]).is_file():
+        logger.warning("아바타 이미지 없음(%s) — 기본 아바타로 진행", entry["image_path"])
+        entry = catalog[DEFAULT_AVATAR_ID]
+    return entry["image_path"], entry["voice_id"]
+
+
+def available_avatars() -> list[dict]:
+    """프론트 선택 UI용 — 고를 수 있는 아바타 id 목록. 표시 이름·썸네일은 프론트/팀이 정한다.
+
+    image_present는 **백엔드 로컬에 이미지 파일이 있는지**라는 사실만 알려준다.
+    gradio provider는 이 파일을 업로드하므로 없으면 그 아바타가 실패하지만,
+    fastapi/musetalk provider는 provider 쪽 이미지를 쓰므로 false여도 정상 동작한다
+    → 이 값만 보고 선택지를 숨기지 말 것.
+    """
+    return [
+        {"id": aid, "image_present": Path(entry["image_path"]).is_file()}
+        for aid, entry in avatar_catalog().items()
+    ]
+
+
+async def speak(text: str, voice: str | None = None, avatar_id: str | None = None) -> dict:
+    """발화 텍스트 → 연속 MP4 스트림 URL. avatar_id로 아바타(이미지·목소리)를 고른다."""
     if not settings.avatar_gradio_url and not settings.avatar_fastapi_url:
         # Colab 세션이 안 떠 있으면 여기로 — 프론트는 idle 영상 유지로 폴백
         raise HTTPException(
@@ -367,11 +418,14 @@ async def speak(text: str, voice: str | None = None) -> dict:
             detail="아바타 서버가 설정되지 않았어요 (AVATAR_GRADIO_URL 또는 AVATAR_FASTAPI_URL)",
         )
 
-    if not Path(settings.avatar_image_path).is_file():
+    image_path, avatar_voice = resolve_avatar(avatar_id)
+    if not Path(image_path).is_file():
         raise HTTPException(
             status_code=503,
-            detail=f"아바타 이미지가 없어요: {settings.avatar_image_path}",
+            detail=f"아바타 이미지가 없어요: {image_path}",
         )
+    # 호출자가 목소리를 명시하면 그게 이기고, 아니면 아바타에 딸린 목소리를 쓴다.
+    voice = voice or avatar_voice
 
     audio, media_type = await tts_service.synthesize(text, voice)
     suffix = ".mp3" if "mpeg" in media_type else ".wav"
@@ -382,10 +436,10 @@ async def speak(text: str, voice: str | None = None) -> dict:
         audio_path = tmp.name
     try:
         if settings.avatar_fastapi_url:
-            return await _speak_fastapi_provider(text, audio_path, media_type, voice)
+            return await _speak_fastapi_provider(text, audio_path, media_type, voice, avatar_id)
 
         t0 = time.monotonic()
-        colab_url = await asyncio.to_thread(_submit_sync, audio_path)
+        colab_url = await asyncio.to_thread(_submit_sync, audio_path, image_path)
         logger.info("Colab HLS URL 확보: %.2fs", time.monotonic() - t0)
         # Colab의 조각난 HLS를 연속 타임라인 HLS로 재인코딩해 우리가 서빙(끊김 제거).
         stream_url = await asyncio.to_thread(_serve_continuous_sync, colab_url)
@@ -405,7 +459,8 @@ async def speak(text: str, voice: str | None = None) -> dict:
 
 
 async def _speak_fastapi_provider(
-    text: str, audio_path: str, media_type: str, voice: str | None = None
+    text: str, audio_path: str, media_type: str, voice: str | None = None,
+    avatar_id: str | None = None,
 ) -> dict:
     """Colab FastAPI/ngrok POC provider.
 
@@ -433,6 +488,9 @@ async def _speak_fastapi_provider(
                 "voice": voice or "",
                 "model_type": settings.avatar_model_type,
                 "seed": str(settings.avatar_seed),
+                # 어느 아바타로 말할지 — provider 쪽에서 이미지를 고르도록 함께 넘긴다.
+                # (이 provider는 이미지를 업로드받지 않으므로 선택 책임이 provider에 있다.)
+                "avatar_id": avatar_id or DEFAULT_AVATAR_ID,
             }
             async with httpx.AsyncClient(timeout=timeout) as client:
                 res = await client.post(
@@ -637,7 +695,7 @@ async def _fire_dummy_warmup() -> None:
                     continue
 
 
-async def speak_chunk_events(text: str, voice: str | None = None):
+async def speak_chunk_events(text: str, voice: str | None = None, avatar_id: str | None = None):
     """문장 청킹 아바타 생성 이벤트.
 
     첫 청크 URL을 받자마자 프론트가 재생을 시작하고, 이 제너레이터는 이어서 다음 청크를 만든다.
@@ -655,7 +713,7 @@ async def speak_chunk_events(text: str, voice: str | None = None):
     for index, chunk in enumerate(chunks):
         t0 = time.monotonic()
         try:
-            result = await speak(chunk, voice)
+            result = await speak(chunk, voice, avatar_id)
         except HTTPException as e:
             yield {
                 "event": "error",

@@ -64,4 +64,7 @@ class SimulationOut(BaseModel):
     # 4단계 미니게임 정의(data/minigames/<slug>.yaml) — null이면 프론트는 '준비 중' 폴백.
     # 엔진별로 data 구조가 달라 dict 그대로 통과시킨다(스키마로 좁히면 새 엔진마다 백엔드 수정 필요).
     minigame: dict | None = None
+    # 한 직무에 게임 2~3개를 붙일 때 쓰는 전체 목록 (단일 게임 시나리오는 1개짜리).
+    # 각 항목의 step이 있으면 그 시나리오 스텝에서, 없으면 목록 순서대로 진행한다.
+    minigames: list[dict] = []
     created_at: datetime
