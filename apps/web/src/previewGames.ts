@@ -1355,12 +1355,14 @@ export const PREVIEW_GAMES = {
     "time_limit": 75,
     "pass_score": 70,
     "data": {
+      "presentation": "customer_floor",
       "left_label": "손님 니즈",
       "right_label": "와인 진열",
       "left": [
         {
           "id": "니즈_승진축하",
           "sprite": "니즈_승진_레드선호",
+          "customer_sprite": "손님_승진축하_카툰",
           "budget": "yellow",
           "occasion": "승진",
           "label": "승진 축하 · 중간 예산 · 레드 선호"
@@ -1368,6 +1370,7 @@ export const PREVIEW_GAMES = {
         {
           "id": "니즈_집들이",
           "sprite": "니즈_집들이_화이트",
+          "customer_sprite": "손님_집들이_카툰",
           "budget": "green",
           "occasion": "집들이",
           "label": "집들이 · 낮은 예산 · 화이트"
@@ -1375,6 +1378,7 @@ export const PREVIEW_GAMES = {
         {
           "id": "니즈_부모님",
           "sprite": "니즈_부모님_레드",
+          "customer_sprite": "손님_부모님선물_카툰",
           "budget": "red",
           "occasion": "부모님",
           "label": "부모님 선물 · 높은 예산 · 레드"
@@ -1382,6 +1386,7 @@ export const PREVIEW_GAMES = {
         {
           "id": "니즈_와인초보",
           "sprite": "니즈_초보_스위트",
+          "customer_sprite": "손님_와인초보_카툰",
           "budget": "green",
           "occasion": "입문",
           "label": "와인 초보 · 낮은 예산 · 달달한 맛"
@@ -1389,6 +1394,7 @@ export const PREVIEW_GAMES = {
         {
           "id": "니즈_기념일",
           "sprite": "니즈_기념일_스파클링",
+          "customer_sprite": "손님_기념일_카툰",
           "budget": "yellow",
           "occasion": "기념일",
           "label": "기념일 · 중간 예산 · 스파클링"
@@ -1517,7 +1523,7 @@ export const PREVIEW_GAMES = {
       "sudden": {
         "id": "손님_오건우_환불",
         "sprite": "손님_개봉상품_고성",
-        "appears_at": 30,
+        "appears_at": 7,
         "label": "영수증 없는 개봉 상품 환불 요구 · 고성",
         "stages": [
           {

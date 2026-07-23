@@ -744,9 +744,9 @@
   background-image:
     linear-gradient(rgb(8 12 26 / 0.08), rgb(8 12 26 / 0.14)),
     var(--minigame-background-image);
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
+  background-position: center, center;
+  background-size: 100% 100%, contain;
+  background-repeat: no-repeat, no-repeat;
 }
 
 :global([data-cartoon-background="true"]) .mapLayer {
@@ -783,3 +783,32 @@
 .actionButton:active,
 .submitButton:active,
 .dpadButton:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--cartoon-ink); }
+
+/* Cartoon contrast pass: banners and route controls stay legible in every state. */
+.badge[data-start="true"] {
+  background: #0e7d5d;
+  color: #ffffff;
+}
+.weatherBanner[data-effect] {
+  border-color: var(--cartoon-ink);
+  background: var(--cartoon-gold);
+  color: var(--cartoon-ink);
+}
+.weatherBanner[data-effect] .weatherBadge,
+.weatherNotice,
+.notice {
+  color: var(--cartoon-ink);
+}
+.weatherBanner[data-effect] .weatherBadge {
+  background: var(--cartoon-paper);
+}
+.controlButton,
+.dpadButton {
+  background: var(--cartoon-paper);
+  color: var(--cartoon-ink);
+}
+.actionButton,
+.submitButton {
+  background: var(--cartoon-gold);
+  color: var(--cartoon-ink);
+}

@@ -399,12 +399,9 @@
 /* 44개 게임 공통 카툰 배경. HUD·카드의 불투명 표면은 유지하고 셸의 빈 공간에만
    공간 맥락을 보여 준다. 좌표가 있는 실제 작업면은 엔진별 모듈에서 같은 변수를 쓴다. */
 :global([data-cartoon-background="true"]) .shell {
-  background-image:
-    linear-gradient(155deg, rgb(10 15 32 / 0.16), rgb(10 15 32 / 0.24)),
-    var(--minigame-background-image);
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
+  /* Keep the HUD shell as a stable reading surface. The artwork belongs to the
+     engine canvas below, where its 24:11 coordinate system can be preserved. */
+  background-image: none;
 }
 
 /* Cartoon theme layer
