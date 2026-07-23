@@ -15,7 +15,11 @@ router = APIRouter(prefix="/api/avatar", tags=["avatar"])
 
 class SpeakIn(BaseModel):
     text: str = Field(min_length=1, max_length=1000)
-    voice: str | None = None  # 미지정 시 서버 기본값
+    voice: str | None = None  # 미지정 시 아바타에 딸린 목소리 → 서버 기본값
+    # 어느 아바타로 말할지 — /status의 avatars[].id 중 하나("male"|"female").
+    # 요청마다 받으므로 상담 시작 전에도, 상담 도중에도 자유롭게 바꿀 수 있다.
+    # 미지정·미지원 id면 기본 아바타로 진행한다(선택 UI가 에셋보다 먼저 나와도 안 깨짐).
+    avatar_id: str | None = None
 
 
 @router.get("/status")
@@ -35,6 +39,11 @@ async def status():
         ),
         "model_type": settings.avatar_model_type,
         "provider": provider,
+        # 선택 UI가 고를 수 있는 아바타 목록. image_present는 백엔드 로컬 파일 유무일 뿐이라
+        # (fastapi/musetalk provider는 provider 쪽 이미지 사용) 이 값으로 선택지를 숨기지 말 것.
+        # 표시 이름·썸네일은 프론트/팀이 정한다.
+        "avatars": service.available_avatars(),
+        "default_avatar_id": service.DEFAULT_AVATAR_ID,
     }
 
 
@@ -48,7 +57,7 @@ async def speak(body: SpeakIn, user: User = Depends(get_current_user)):
     백엔드가 Colab의 조각난 HLS를 ffmpeg로 **하나의 연속 fragmented MP4**로 재인코딩하고,
     프론트는 이 URL을 `<video src>`로 **네이티브 프로그레시브 재생**한다(hls.js 불필요).
     """
-    return await service.speak(body.text, body.voice)
+    return await service.speak(body.text, body.voice, body.avatar_id)
 
 
 @router.post("/speak-chunks")
@@ -61,7 +70,9 @@ async def speak_chunks(body: SpeakIn, user: User = Depends(get_current_user)):
     - `done`: `{total}`
     - `error`: `{index, detail}`
     """
-    return EventSourceResponse(service.speak_chunk_events(body.text, body.voice))
+    return EventSourceResponse(
+        service.speak_chunk_events(body.text, body.voice, body.avatar_id)
+    )
 
 
 @router.post("/warmup")

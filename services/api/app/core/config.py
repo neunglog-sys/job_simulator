@@ -73,6 +73,12 @@ class Settings(BaseSettings):
     avatar_model_type: str = "lite"
     # 소스가 정확히 512×512 → SoulX 출력과 같아서 리사이즈·크롭이 전혀 없음.
     avatar_image_path: str = "assets/ai_avatar_6_2.png"  # 백엔드 로컬 (매 호출 업로드)
+    # 선택형 아바타 2종 — 프론트가 요청마다 avatar_id("male"|"female")를 보낸다.
+    # 세션에 묶지 않아 상담 시작 전에도, 상담 중에도 언제든 바꿀 수 있다.
+    # 아래 파일이 아직 없으면 /api/avatar/status가 available=false로 알려주고,
+    # 발화 요청이 와도 기본 아바타로 폴백한다(선택 UI가 먼저 나와도 안 깨지게).
+    avatar_image_path_female: str = "assets/ai_avatar_female.png"
+    avatar_voice_id_female: str = ""  # 비우면 기본 목소리(elevenlabs_voice_id) 사용
     # 소스가 이미 512라 크롭 불필요. 크롭하면 idle 영상과 구도가 어긋나 전환 때 튐.
     avatar_use_face_crop: bool = False
     # idle 시드 스윕에서 채택 — 발화도 같은 시드를 써야 모션 성격이 일치한다.
