@@ -111,6 +111,9 @@ export function FinalReportPanel({ reportState, onRetry }: FinalReportPanelProps
                   {topJob.score}%
                 </small>
                 <h3>{topJob.job_title}</h3>
+                {topJob.description ? (
+                  <p className={styles.reportJobDescription}>{topJob.description}</p>
+                ) : null}
                 <p>{topJob.reason}</p>
               </div>
             </div>

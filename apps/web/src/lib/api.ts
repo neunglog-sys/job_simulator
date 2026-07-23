@@ -378,6 +378,7 @@ export function submitConsultationSurvey(
 export type JobRecommendation = {
   job_code: string;
   job_title: string;
+  description: string | null;
   score: number;
   reason: string;
   education_requirement: Record<string, unknown> | null;
