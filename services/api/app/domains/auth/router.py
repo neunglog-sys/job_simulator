@@ -69,12 +69,14 @@ async def me(user: User = Depends(get_current_user)):
 
 
 @router.get("/oauth/{provider}")
-async def oauth_start(provider: str):
+async def oauth_start(provider: str, frontend_origin: str | None = None):
     """소셜 로그인 시작 — provider 동의 화면으로 리다이렉트. 프론트는 이 URL로 이동만 하면 된다."""
     oauth.get_config(provider)  # 미지원 provider → 404
     if not oauth.is_configured(provider):
         raise HTTPException(status_code=503, detail=f"{provider} 소셜 로그인이 아직 설정되지 않았어요.")
-    return RedirectResponse(oauth.authorize_url(provider, oauth.make_state()))
+    return RedirectResponse(
+        oauth.authorize_url(provider, oauth.make_state(frontend_origin))
+    )
 
 
 @router.get("/oauth/{provider}/callback")
@@ -95,4 +97,5 @@ async def oauth_callback(
         raise HTTPException(status_code=400, detail="유효하지 않은 로그인 요청이에요. 다시 시도해주세요.")
     user = await oauth.complete_login(session, provider, code, state)
     token = create_token(user.id)
-    return RedirectResponse(f"{settings.frontend_url}/#access_token={token}")
+    frontend_url = oauth.frontend_origin_from_state(state) or settings.frontend_url.rstrip("/")
+    return RedirectResponse(f"{frontend_url}/#access_token={token}")
