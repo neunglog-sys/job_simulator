@@ -25,6 +25,7 @@ class LLMProvider(Protocol):
         json_schema: dict | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
+        thinking_budget: int | None = None,
     ) -> str:
         """단발 응답. json_schema를 주면 해당 스키마의 JSON 문자열을 반환.
 

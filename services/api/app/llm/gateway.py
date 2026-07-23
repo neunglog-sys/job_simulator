@@ -97,12 +97,13 @@ class LLMGateway:
         json_schema: dict | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
+        thinking_budget: int | None = None,
     ) -> str:
         started = time.time()
         try:
             out = await self.provider.chat(
                 messages, system=system, json_schema=json_schema, temperature=temperature,
-                max_tokens=max_tokens,
+                max_tokens=max_tokens, thinking_budget=thinking_budget,
             )
         except Exception as e:
             self._log("chat", started, ok=False, chars=0, error=str(e))

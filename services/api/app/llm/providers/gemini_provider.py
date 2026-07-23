@@ -72,11 +72,15 @@ class GeminiProvider:
         json_schema: dict | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
+        thinking_budget: int | None = None,
     ) -> str:
         config = types.GenerateContentConfig(
             system_instruction=system, temperature=temperature,
             max_output_tokens=max_tokens,
         )
+        # thinking을 끄지 않으면 사고 토큰이 max_output_tokens를 먹어 본문이 잘린다.
+        if thinking_budget is not None:
+            config.thinking_config = types.ThinkingConfig(thinking_budget=thinking_budget)
         if json_schema:
             config.response_mime_type = "application/json"
             # google-genai의 네이티브 JSON Schema 구조화 출력을 사용한다.

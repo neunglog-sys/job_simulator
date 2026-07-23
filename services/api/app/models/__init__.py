@@ -41,6 +41,23 @@ class User(TimestampMixin, Base):
     privacy_agreed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     privacy_version: Mapped[str | None] = mapped_column(String(20))
 
+    # ── 맞춤 제도 추천용 프로필 (전부 선택 입력, 없으면 그 조건 없이 넓게 찾는다) ──
+    birth_year: Mapped[int | None] = mapped_column(Integer)  # 생년만 — 제도 조건이 만 나이 기준
+    gender: Mapped[str | None] = mapped_column(String(10))  # male|female
+    region_ctpv: Mapped[str | None] = mapped_column(String(30))  # 시도 (예: 경기도)
+    region_sgg: Mapped[str | None] = mapped_column(String(30))  # 시군구 (예: 양주시)
+    # ⚠️ 장애 여부는 개인정보보호법상 민감정보 — 별도 동의를 받은 사용자만 저장하고,
+    # 값 자체도 암호화해 둔다. 장애 '정도/등급'은 받지 않는다: 등급제는 2019년 폐지됐고
+    # 제도 API도 심각도를 구분하지 않아(있음/없음 플래그 하나) 물어볼 이유가 없다.
+    has_disability_enc: Mapped[str | None] = mapped_column(EncryptedText)
+    sensitive_agreed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    @property
+    def has_disability(self) -> bool | None:
+        if self.has_disability_enc is None:
+            return None
+        return self.has_disability_enc == "Y"
+
 
 class UserDocument(TimestampMixin, Base):
     """마이페이지에 보관하는 사용자 소유 PDF 문서.

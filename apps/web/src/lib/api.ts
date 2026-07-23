@@ -234,6 +234,23 @@ export function warmupAvatar(): void {
   });
 }
 
+// --- 맞춤 제도 카드 — 백엔드가 정부 API에서 조건에 맞는 제도를 찾아 문구까지 만들어 준다.
+// available=false면 카드를 감춘다(키 미설정·조건에 맞는 제도 없음·생성 실패).
+export type PolicyCard = {
+  available: boolean;
+  reason?: "not_configured" | "no_match";
+  title?: string;
+  body?: string;
+  more_url?: string;
+  /** 본문이 실제로 언급한 제도 — 백엔드가 후보와 대조해 검증한 것만 담긴다. */
+  cited?: Array<{ name: string; link: string }>;
+  source_count?: number;
+};
+
+export function fetchPolicyCard(): Promise<PolicyCard> {
+  return request(API_ENDPOINTS.policies.card, { method: "GET" });
+}
+
 export function createConsultation(): Promise<Consultation> {
   return request(API_ENDPOINTS.consultations.create, { method: "POST" });
 }

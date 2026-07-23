@@ -30,6 +30,7 @@ class OpenAIProvider:
         json_schema: dict | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
+        thinking_budget: int | None = None,  # 이 provider는 사고 예산 개념이 없어 무시한다
     ) -> str:
         kwargs: dict = {}
         if json_schema:
