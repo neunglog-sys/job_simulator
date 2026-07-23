@@ -263,7 +263,9 @@ async def to_out(session: AsyncSession, simulation: Simulation, scenario: Scenar
         "npcs": _public_npcs(roster, slots),  # 시나리오 NPC 표시정보 (step.npcs는 npc_id 목록)
         "map": map_info,
         # 4단계 미니게임 정의 — null이면 프론트는 '준비 중' 빈 창으로 폴백
-        "minigame": minigame.minigame_for(scenario.slug),
+        "minigame": minigame.minigame_for(scenario.slug),  # 하위호환(첫 게임)
+        # 직무당 게임 2~3개 — 목록 순서대로, step이 있으면 그 스텝에서 띄운다
+        "minigames": minigame.minigames_for(scenario.slug),
         "created_at": simulation.created_at,
     }
 
