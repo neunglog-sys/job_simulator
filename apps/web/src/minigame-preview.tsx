@@ -18,7 +18,17 @@ const labelOf = (key: string): string => {
 
 function Preview() {
   const slug = new URLSearchParams(window.location.search).get("game") ?? "";
-  const game = PREVIEW_GAMES[slug];
+  const flowGames = useMemo(
+    () =>
+      slug === "kts-03-flow"
+        ? [
+            { ...PREVIEW_GAMES["kts-03-supply"], id: "kts-03-supply" },
+            { ...PREVIEW_GAMES["kts-03"], id: "kts-03-customer" },
+          ]
+        : undefined,
+    [slug],
+  );
+  const game = flowGames?.[0] ?? PREVIEW_GAMES[slug];
   const gameWithId = useMemo(() => (game ? { ...game, id: slug } : null), [game, slug]);
   const [sent, setSent] = useState<Record<string, unknown> | null>(null);
 
@@ -69,6 +79,7 @@ function Preview() {
       <MiniGamePanel
         missionTitle="미리보기"
         game={gameWithId}
+        games={flowGames}
         onClear={(result) => setSent(result ?? { engine: "stub" })}
       />
       {sent ? (

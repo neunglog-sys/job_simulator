@@ -32,6 +32,10 @@ RAG_MAX_DISTANCE = 0.35  # 실측(0722, doc_chunks 25건): 정답매칭 ~0.22~0.
 # RAG는 스트리밍 시작 전 직렬 구간 — 실측 ~1.2s를 사용자가 빈 화면으로 기다린다.
 # 지연 스파이크에 상담이 볼모잡히지 않게 가드하고, 지식 검색이 무의미한 발화는 왕복을 생략한다.
 RAG_EMBED_TIMEOUT_S = 2.0  # 초과 시 지식 없이 진행 (짧은 지연 > 지식 주입 이득)
+# 일반 진로상담 KB(포트폴리오·이력서·면접·공백기 등) 스코프. 직무 코드가 아니라서
+# 직무 스코프만 걸면 통째로 배제된다 — 스코프를 좁힐 때 **반드시 함께 포함**한다.
+# (실측: 직무 스코프만 걸면 일반 상담 질문 4/4가 '미주입'으로 떨어짐)
+GENERAL_KB_SCOPE = "general-career-counseling"
 
 # 응답 길이 정책 — 긴 응답일수록 아바타 발화 생성이 오래 걸려 사용자가 기다리는 지연이 커진다.
 # 첫 응답은 더 짧게 "워밍업"하고, 이후에도 평소엔 짧게 유지하되 사용자가 명시적으로 자세한 설명을
@@ -64,7 +68,42 @@ def _is_detail_request(text: str) -> bool:
 REPLY_MAX_TOKENS_HEADROOM = 120
 
 
-async def _fetch_knowledge(session: AsyncSession, user_text: str) -> str | None:
+async def _recommended_scope(
+    session: AsyncSession, consultation_id: int | None
+) -> list[str] | None:
+    """추천 직무 + 일반 상담 KB로 검색 스코프를 좁힌다 (없으면 None = 전역검색).
+
+    전역검색은 동일계열 인접 직무가 섞여 최근접이 어긋난다(실측 Recall@1 75%·오염 45%).
+    추천 직무로 좁히면 Recall@1 100%·오염 9%로 개선된다.
+    ⚠️ 추천의 job_code는 소문자(j047)로 저장되고 doc_chunks는 대문자(J047)라 정규화가 필수다
+       — 안 하면 IN 조건이 하나도 안 맞아 오히려 전부 미주입이 된다.
+    """
+    if consultation_id is None:
+        return None
+    try:
+        results = (
+            await session.execute(
+                select(Recommendation.results).where(
+                    Recommendation.consultation_id == consultation_id
+                )
+            )
+        ).scalar_one_or_none()
+    except Exception:  # 추천 조회 실패는 상담을 막지 않는다 — 전역검색으로 폴백
+        logger.warning("추천 스코프 조회 실패 — 전역검색으로 진행", exc_info=True)
+        return None
+    codes = [
+        str(r["job_code"]).upper()
+        for r in (results or [])
+        if isinstance(r, dict) and r.get("job_code")
+    ]
+    if not codes:
+        return None  # 추천 전(대화 초반)에는 전역검색 유지
+    return [*codes, GENERAL_KB_SCOPE]
+
+
+async def _fetch_knowledge(
+    session: AsyncSession, user_text: str, scope: list[str] | None = None
+) -> str | None:
     """발화 관련 직무 지식 검색 — 게이트 통과분만, 계열 교차오염은 스코프로 좁힘.
 
     실패·타임아웃·스킵·범용판정 시 None: 상담은 지식 없이도 기존 품질로 계속되어야 한다.
@@ -73,19 +112,33 @@ async def _fetch_knowledge(session: AsyncSession, user_text: str) -> str | None:
         return None
     try:
         candidates = await search_knowledge(
-            session, user_text, top_k=RAG_SCOPE_CANDIDATES, max_distance=RAG_MAX_DISTANCE,
+            session, user_text, job_code=scope,
+            top_k=RAG_SCOPE_CANDIDATES, max_distance=RAG_MAX_DISTANCE,
             embed_timeout=RAG_EMBED_TIMEOUT_S,
         )
+        chunks = rag_gate.scope_chunks(candidates, top_k=RAG_TOP_K)
+        if scope and not chunks:
+            # 추천 밖 직무를 물은 경우 — 스코프 안엔 쓸 근거가 없다(후보가 없거나 흩어짐).
+            # 전역으로 한 번 더 찾는다. 상담 프롬프트는 사용자가 물은 직무를 설명하게 돼
+            # 있는데 여기서 빈손이 되면 '자료 없음' 분기로 빠져 답변이 막연해진다.
+            # 임베딩 1회 추가 비용은 이 경우에만 발생한다.
+            candidates = await search_knowledge(
+                session, user_text,
+                top_k=RAG_SCOPE_CANDIDATES, max_distance=RAG_MAX_DISTANCE,
+                embed_timeout=RAG_EMBED_TIMEOUT_S,
+            )
+            chunks = rag_gate.scope_chunks(candidates, top_k=RAG_TOP_K)
     except asyncio.TimeoutError:
         logger.warning("RAG 임베딩 %.1fs 초과 — 지식 없이 진행", RAG_EMBED_TIMEOUT_S)
         return None
-    chunks = rag_gate.scope_chunks(candidates, top_k=RAG_TOP_K)
     if candidates and not chunks:
         logger.info("RAG 스코프: 여러 직무 흩어짐 → 주입 생략(범용) (후보 %d)", len(candidates))
     return "\n\n".join(f"[{c.source}]\n{c.content}" for c in chunks) if chunks else None
 
 
-async def _fetch_knowledge_isolated(user_text: str) -> str | None:
+async def _fetch_knowledge_isolated(
+    user_text: str, consultation_id: int | None = None
+) -> str | None:
     """RAG를 메인 세션과 분리된 세션에서 실행 — 발화 저장·이력 조회와 동시에 돌리기 위함.
 
     async 세션은 한 세션에서 쿼리를 동시에 못 돌리니 별도 세션이 필요하다.
@@ -96,7 +149,9 @@ async def _fetch_knowledge_isolated(user_text: str) -> str | None:
         return None
     try:
         async with SessionFactory() as rag_session:
-            return await _fetch_knowledge(rag_session, user_text)
+            # 스코프 조회도 이 분리 세션에서 — 메인 경로(발화 저장·이력)를 붙잡지 않는다.
+            scope = await _recommended_scope(rag_session, consultation_id)
+            return await _fetch_knowledge(rag_session, user_text, scope)
     except Exception:
         logger.warning("RAG 조회 실패 — 지식 없이 진행", exc_info=True)
         return None
@@ -280,7 +335,9 @@ async def stream_reply(
         logger.warning("RAG 게이트 판정 실패 — 지식 검색 진행", exc_info=True)
         rag_run, rag_reason = True, "run"
     knowledge_task = (
-        asyncio.create_task(_fetch_knowledge_isolated(user_text)) if rag_run else None
+        asyncio.create_task(_fetch_knowledge_isolated(user_text, consultation.id))
+        if rag_run
+        else None
     )
     try:
         session.add(Message(consultation_id=consultation.id, role="user", content=user_text))

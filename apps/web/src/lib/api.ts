@@ -601,6 +601,7 @@ export type Simulation = {
   npcs: GameNpc[];
   map: GameMapData | null; // null이면 맵 미배정 → 프론트 기본 배경 폴백
   minigame: MinigameDef | null; // 4단계 게임 정의. null이면 '준비 중' 빈 창으로 폴백
+  minigames: MinigameDef[]; // 다중 게임 시 순서대로 실행. 단일 게임은 1개짜리 목록.
   created_at: string;
 };
 

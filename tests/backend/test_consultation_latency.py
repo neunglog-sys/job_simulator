@@ -39,7 +39,8 @@ def test_rag_task_cancelled_when_prep_fails(monkeypatch):
     """
     cancelled = asyncio.Event()
 
-    async def slow_rag(_user_text):
+    # _fetch_knowledge_isolated(user_text, consultation_id) — 스코프 인자 추가분까지 받는다
+    async def slow_rag(_user_text, _consultation_id=None):
         try:
             await asyncio.sleep(5)  # await knowledge_task 전에 실패가 나면 취소돼야 함
         except asyncio.CancelledError:
