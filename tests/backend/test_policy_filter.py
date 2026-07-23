@@ -120,6 +120,17 @@ def test_cited_policies_detects_real_and_fabricated_names():
     assert service._cited_policies("청년만능지원금은 매달 100만원을 줍니다.", candidates) == []
 
 
+def test_summary_strips_source_formatting():
+    """복지로 원문의 '❍' 글머리·줄바꿈이 화면과 프롬프트로 새어 나가면 안 된다."""
+    rows = [{
+        "name": "청년 일경험 지원", "theme": "일자리", "ctpv": "", "sgg": "",
+        "provider": "", "link": "",
+        "summary": "❍ 청년 취업 지원\n❍ 일 경험 기회 제공\n",
+    }]
+    out = service._filter_bokjiro(rows, ctpv=None, sgg=None)
+    assert out[0]["summary"] == "청년 취업 지원 일 경험 기회 제공"
+
+
 def test_cited_policies_tolerates_spacing_difference():
     """제도명 표기가 띄어쓰기만 다른 경우도 인용으로 인정한다."""
     candidates = [{"name": "부산 4050 채용 촉진 지원사업", "link": ""}]

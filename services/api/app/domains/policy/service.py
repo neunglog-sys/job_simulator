@@ -24,6 +24,20 @@ MAX_CANDIDATES = 24  # LLM에 넘길 후보 상한 — 프롬프트가 너무 �
 CARD_TIMEOUT_S = 12.0
 
 
+def _clean_summary(text: str | None) -> str:
+    """제도 설명을 한 줄로 정리한다.
+
+    복지로 요약에는 '❍ ...\\n❍ ...' 같은 원문 서식이 그대로 들어 있다. 그대로 두면
+    프롬프트에서는 잘릴 자리를 잡아먹고, 화면에서는 줄바꿈이 뭉개져 기호만 남는다.
+    """
+    lines = []
+    for raw in (text or "").splitlines():
+        line = raw.strip().lstrip("❍○●・-*·∘ \t")
+        if line:
+            lines.append(line)
+    return " ".join(lines)
+
+
 def _as_int(value) -> int | None:
     try:
         return int(value)
@@ -84,7 +98,7 @@ def _filter_gov24(
         picked.append(
             {
                 "name": (service.get("서비스명") or "").strip(),
-                "summary": (service.get("서비스목적요약") or "").strip(),
+                "summary": _clean_summary(service.get("서비스목적요약")),
                 "provider": service.get("소관기관명") or "",
                 "link": service.get("상세조회URL") or "",
                 "scope": "national",
@@ -121,7 +135,7 @@ def _filter_bokjiro(rows: list[dict], *, ctpv: str | None, sgg: str | None) -> l
         out.append(
             {
                 "name": row.get("name", ""),
-                "summary": row.get("summary", ""),
+                "summary": _clean_summary(row.get("summary")),
                 "provider": row.get("provider", ""),
                 "link": row.get("link", ""),
                 "scope": scope,
@@ -251,6 +265,15 @@ async def build_card(
             (c["link"] for c in cited if c.get("link")),
             "https://www.gov.kr/portal/rcvfvrSvc/main",
         ),
-        "cited": [{"name": c["name"], "link": c.get("link", "")} for c in cited],
+        # 카드에서 '더 알아보기'로 열리는 목록 — 본문이 실제로 언급한 제도만 담는다.
+        "cited": [
+            {
+                "name": c["name"],
+                "summary": c.get("summary", ""),
+                "provider": c.get("provider", ""),
+                "link": c.get("link", ""),
+            }
+            for c in cited
+        ],
         "source_count": len(candidates),
     }

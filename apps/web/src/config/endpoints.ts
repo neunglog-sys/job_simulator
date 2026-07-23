@@ -46,6 +46,9 @@ export const API_ENDPOINTS = {
     document: (id: number) => apiUrl(`/api/profile/documents/${id}`),
     download: (id: number) => apiUrl(`/api/profile/documents/${id}/download`),
   },
+  policies: {
+    card: apiUrl("/api/policies/card"),
+  },
   consultations: {
     list: apiUrl("/api/consultations"),
     create: apiUrl("/api/consultations"),
