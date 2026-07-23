@@ -240,6 +240,62 @@ export function MovementArea({
     return () => clearTimeout(timer);
   }, [guidePosition]);
 
+  // 사수 순찰 — geometry.npc_paths에 하드코딩된 좌표를 왕복 (팀 결정 2026-07-23: 사수만 이동,
+  // 좌표는 collision 배열 실측 검증됨 — kts-03/find_patrol_points.py). 온보딩 투어와 무관하게 항상 동작.
+  // 좌표는 spawns와 같은 스테이지 좌표계라 마커에 쓸 땐 origin을 빼서 로컬화한다.
+  const [patrolTargets, setPatrolTargets] = useState<Record<string, Position>>({});
+  const [patrolFacing, setPatrolFacing] = useState<Record<string, NpcFacing>>({});
+  const [patrolWalking, setPatrolWalking] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    const paths = geometry?.npc_paths ?? [];
+    if (paths.length === 0) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+
+    for (const path of paths) {
+      if (path.points.length < 2) continue;
+      const npcId = path.npc_id;
+      const speed = path.speed ?? 60;
+      const pauseMs = path.pause_ms ?? 1500;
+      setPatrolTargets((prev) => ({ ...prev, [npcId]: path.points[0] }));
+
+      const advance = (index: number) => {
+        const from = path.points[index];
+        const to = path.points[(index + 1) % path.points.length];
+        timers.push(
+          setTimeout(() => {
+            const dx = to.x - from.x;
+            const dy = to.y - from.y;
+            setPatrolFacing((prev) => ({
+              ...prev,
+              [npcId]:
+                Math.abs(dx) >= Math.abs(dy)
+                  ? dx > 0
+                    ? "screen_right"
+                    : "screen_left"
+                  : dy > 0
+                    ? "front"
+                    : "back",
+            }));
+            setPatrolWalking((prev) => ({ ...prev, [npcId]: true }));
+            setPatrolTargets((prev) => ({ ...prev, [npcId]: to }));
+            const travelMs = Math.max(300, (Math.hypot(dx, dy) / speed) * 1000);
+            timers.push(
+              setTimeout(() => {
+                setPatrolWalking((prev) => ({ ...prev, [npcId]: false }));
+                advance((index + 1) % path.points.length);
+              }, travelMs),
+            );
+          }, pauseMs),
+        );
+      };
+      advance(0);
+    }
+
+    return () => {
+      timers.forEach(clearTimeout);
+    };
+  }, [geometry]);
+
   // 주인공 바라보는 방향·걷기 — 이동 delta의 지배 축으로 판정, 입력이 멎으면 220ms 뒤 idle 복귀
   // (키 리피트 간격보다 길어야 걷는 중에 끊기지 않는다)
   const [playerFacing, setPlayerFacing] = useState<NpcFacing>("front");
@@ -285,8 +341,18 @@ export function MovementArea({
         const step = Math.ceil(index / 2) * SLOT_SPREAD * (index % 2 === 1 ? 1 : -1);
         // 투어 중인 사수는 자기 자리가 아니라 지금 안내하는 위치에 그린다(걸어다니는 연출).
         const touring = guideNpcId === npc.npc_id && guidePosition;
-        const rawX = touring ? guidePosition.x : spot.x - origin.x + step;
-        const rawY = touring ? guidePosition.y : spot.y - origin.y;
+        // 순찰 중인 사수(geometry.npc_paths)도 마찬가지로 자기 자리 대신 순찰 목표점을 그린다.
+        const patrolTarget = touring ? null : patrolTargets[npc.npc_id];
+        const rawX = touring
+          ? guidePosition.x
+          : patrolTarget
+            ? patrolTarget.x - origin.x
+            : spot.x - origin.x + step;
+        const rawY = touring
+          ? guidePosition.y
+          : patrolTarget
+            ? patrolTarget.y - origin.y
+            : spot.y - origin.y;
         // 마커는 transform: translate(-50%, -50%)로 좌표 중심에 그려지므로, 스프라이트 절반
         // 폭·높이만큼 안쪽으로 clamp해야 컨테이너(overflow: hidden) 밖으로 잘려나가지 않는다.
         // 한 자리에 인원이 몰려 SLOT_SPREAD로 벌어질 때(4번째, 5번째 인원 등) 경계를 넘던 문제.
@@ -302,7 +368,7 @@ export function MovementArea({
       }
     }
     return markers;
-  }, [geometry, npcs, origin, activeNpcId, guideNpcId, guidePosition, areaSize]);
+  }, [geometry, npcs, origin, activeNpcId, guideNpcId, guidePosition, patrolTargets, areaSize]);
 
   const collidesAt = useCallback(
     (pos: Position) => {
@@ -646,12 +712,14 @@ export function MovementArea({
               <NpcSprite
                 npcId={marker.npc_id}
                 facing={
-                  guideNpcId === marker.npc_id ? guideTrack.current.facing : "front"
+                  guideNpcId === marker.npc_id
+                    ? guideTrack.current.facing
+                    : (patrolFacing[marker.npc_id] ?? "front")
                 }
                 walking={
-                  guideNpcId === marker.npc_id &&
-                  guideWalking &&
-                  !WALK_DISABLED_NPCS.has(marker.npc_id)
+                  !WALK_DISABLED_NPCS.has(marker.npc_id) &&
+                  ((guideNpcId === marker.npc_id && guideWalking) ||
+                    Boolean(patrolWalking[marker.npc_id]))
                 }
               />
               <span className={styles.npcMarkerName}>{marker.name}</span>

@@ -1768,7 +1768,17 @@
       "mask": "mask_018.png"
     }
   ],
-  "npc_paths": [],
+  "npc_paths": [
+    {
+      "npc_id": "npc_kts-03_02",
+      "points": [
+        { "x": 1619, "y": 317 },
+        { "x": 1539, "y": 317 }
+      ],
+      "speed": 60,
+      "pause_ms": 1800
+    }
+  ],
   "interactions": [],
   "spawns": [
     {
