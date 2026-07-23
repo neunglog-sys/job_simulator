@@ -247,7 +247,8 @@ def write_csv(geometry: dict, path: Path) -> None:
                 ])
         for p in geometry["npc_paths"]:
             writer.writerow([
-                "npc_paths", p["id"], "", "", "", "",
+                # 변환기 생성물은 id, 손으로 쓴 순찰 경로는 npc_id를 쓴다 — 둘 다 받는다
+                "npc_paths", p.get("id") or p.get("npc_id") or "", "", "", "", "",
                 " → ".join(f"({x},{y})" for x, y in p["points"]),
             ])
         for kind in ("collision_polys", "overhead"):
@@ -306,14 +307,15 @@ def write_overlay(geometry: dict, path: Path) -> None:
     for s in geometry["spawns"]:
         parts.append(dot(s, "spawns"))
     for p in geometry["npc_paths"]:
-        pts = " ".join(f"{x},{y}" for x, y in p["points"])
+        points = _path_points(p)
+        pts = " ".join(f"{x},{y}" for x, y in points)
         parts.append(
             f'<svg class="path"><polyline points="{pts}" fill="none" '
             f'stroke="{OVERLAY_COLORS["npc_paths"]}" stroke-width="4" stroke-dasharray="10 6"/></svg>'
         )
-        if p["points"]:
-            x, y = p["points"][0]
-            parts.append(dot({"x": x, "y": y, "id": p["id"]}, "npc_paths"))
+        if points:
+            x, y = points[0]
+            parts.append(dot({"x": x, "y": y, "id": p.get("id") or p.get("npc_id") or ""}, "npc_paths"))
 
     path.write_text(
         f"""<!doctype html><meta charset="utf-8"><title>{geometry["map_id"]} 좌표 검수</title>
@@ -521,6 +523,41 @@ window.__pt = {{ get pos() {{ return [px, py]; }}, set(x, y) {{ px = x; py = y; 
     )
 
 
+def _path_points(path_obj: dict) -> list[tuple[float, float]]:
+    """npc_paths의 points를 (x, y) 목록으로 정규화.
+
+    변환기가 만든 건 [[x, y], …], 손으로 쓴 순찰 경로는 [{"x":…, "y":…}, …] 형식이라
+    검수 산출물(오버레이·CSV)이 두 형식을 모두 읽을 수 있어야 한다.
+    """
+    out: list[tuple[float, float]] = []
+    for pt in path_obj.get("points") or []:
+        if isinstance(pt, dict):
+            out.append((pt.get("x", 0), pt.get("y", 0)))
+        elif isinstance(pt, (list, tuple)) and len(pt) >= 2:
+            out.append((pt[0], pt[1]))
+    return out
+
+
+def _keep_handwritten_npc_paths(geometry: dict, existing_path: Path) -> int:
+    """기존 geometry.json에 손으로 넣은 npc_paths를 재변환에서 지키지 않고 살린다.
+
+    NPC 순찰 경로는 Tiled가 아니라 geometry.json에 직접 작성돼 있고(speed·prompt·nudge_* 등
+    변환기가 모르는 필드 포함), 그대로 두면 맵을 고칠 때마다 통째로 날아간다.
+    TMX에 npc_paths 레이어가 있으면 그쪽이 원본이므로 그게 이긴다 — 비어 있을 때만 살린다.
+    """
+    if geometry.get("npc_paths"):
+        return 0  # TMX가 경로를 제공 → 그게 정본
+    try:
+        old = json.loads(existing_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return 0
+    kept = old.get("npc_paths") or []
+    if not isinstance(kept, list) or not kept:
+        return 0
+    geometry["npc_paths"] = kept
+    return len(kept)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Tiled .tmx/.tmj → geometry.json 변환")
     parser.add_argument("tiled_file", type=Path, help="Tiled 파일 (.tmx 또는 .tmj)")
@@ -528,6 +565,7 @@ def main() -> None:
 
     geometry = convert(args.tiled_file)
     out_dir = args.tiled_file.parent
+    preserved = _keep_handwritten_npc_paths(geometry, out_dir / "geometry.json")
     (out_dir / "geometry.json").write_text(
         json.dumps(geometry, ensure_ascii=False, indent=2), encoding="utf-8"
     )
@@ -542,6 +580,8 @@ def main() -> None:
     print(f"[{geometry['map_id']}] geometry.json / review.csv / debug-overlay.html 생성")
     print("  " + " · ".join(f"{k} {v}" for k, v in counts.items())
           + ("  (playable은 공통 프리셋 자동 적용)" if geometry.get("playable_default") else ""))
+    if preserved:
+        print(f"  ↳ 기존 npc_paths {preserved}개 보존 (손으로 작성된 NPC 순찰 경로 — 덮어쓰지 않음)")
 
 
 if __name__ == "__main__":
