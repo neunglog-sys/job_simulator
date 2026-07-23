@@ -26,6 +26,8 @@ import type { Engine, MinigameDef, MinigameResult } from "./minigames/types";
 type MiniGamePanelProps = {
   missionTitle: string;
   game: MinigameDef | null;
+  /** 시나리오에 게임이 여러 개면 이 순서대로 각각 결과 화면을 거쳐 실행한다. */
+  games?: MinigameDef[];
   /** 게임을 마쳤을 때 — engine을 붙여 서버로 보낸다. 스텁이면 result가 없다. */
   onClear: (result?: MinigameResult & { engine: string }) => void;
 };
@@ -66,12 +68,18 @@ function reflectedResult(attempts: MinigameResult[]): MinigameResult {
   };
 }
 
-export function MiniGamePanel({ missionTitle, game, onClear }: MiniGamePanelProps) {
-  const heading = game?.title || missionTitle;
-  const EngineComponent = game ? ENGINE_COMPONENTS[game.engine] : undefined;
-  const gameId = game?.id?.trim();
-  const backgroundUrl = gameId
-    ? `${import.meta.env.BASE_URL}assets/minigames/backgrounds/cartoon-day-v3/${encodeURIComponent(`${gameId}-background-cartoon-day-v3.webp`)}`
+export function MiniGamePanel({ missionTitle, game, games, onClear }: MiniGamePanelProps) {
+  const queue = games?.length ? games : game ? [game] : [];
+  const queueKey = queue.map((item) => item.id ?? `${item.engine}:${item.title}`).join("|");
+  const [gameIndex, setGameIndex] = useState(0);
+  const activeGame = queue[gameIndex] ?? null;
+  const heading = activeGame?.title || missionTitle;
+  const EngineComponent = activeGame ? ENGINE_COMPONENTS[activeGame.engine] : undefined;
+  const gameId = activeGame?.id?.trim();
+  const backgroundId =
+    typeof activeGame?.data?.background_id === "string" ? activeGame.data.background_id.trim() : gameId;
+  const backgroundUrl = backgroundId
+    ? `${import.meta.env.BASE_URL}assets/minigames/backgrounds/cartoon-day-v3/${encodeURIComponent(`${backgroundId}-background-cartoon-day-v3.webp`)}`
     : null;
   const backgroundStyle = backgroundUrl
     ? ({ "--minigame-background-image": `url("${backgroundUrl}")` } as React.CSSProperties)
@@ -80,15 +88,18 @@ export function MiniGamePanel({ missionTitle, game, onClear }: MiniGamePanelProp
   // 다시하기 — 완료를 가로채 시도를 누적하고, 재도전 시 엔진을 remount(key)로 리셋한다.
   // 엔진은 손대지 않으므로 전 게임에 공통 적용된다. '완료'를 눌러야 반영 점수로 확정된다.
   const [attempts, setAttempts] = useState<MinigameResult[]>([]);
+  const [completedGames, setCompletedGames] = useState<MinigameResult[]>([]);
   const [attemptKey, setAttemptKey] = useState(0);
   const [lastResult, setLastResult] = useState<MinigameResult | null>(null);
 
-  // 게임이 바뀌면 시도 기록 초기화.
+  // 시나리오의 게임 목록이 바뀌면 전체 진행과 시도 기록을 초기화.
   useEffect(() => {
+    setGameIndex(0);
     setAttempts([]);
+    setCompletedGames([]);
     setAttemptKey(0);
     setLastResult(null);
-  }, [game]);
+  }, [queueKey]);
 
   const handleAttempt = (result: MinigameResult) => {
     setAttempts((prev) => [...prev, result]);
@@ -99,7 +110,26 @@ export function MiniGamePanel({ missionTitle, game, onClear }: MiniGamePanelProp
     setAttemptKey((k) => k + 1);
   };
   const finishAll = () => {
-    onClear({ ...reflectedResult(attempts), engine: game!.engine });
+    if (!activeGame) {
+      onClear();
+      return;
+    }
+    const current = reflectedResult(attempts);
+    if (gameIndex < queue.length - 1) {
+      setCompletedGames((previous) => [...previous, current]);
+      setGameIndex((index) => index + 1);
+      setAttempts([]);
+      setLastResult(null);
+      setAttemptKey((key) => key + 1);
+      return;
+    }
+    const results = [...completedGames, current];
+    const combined: MinigameResult = {
+      accuracy: Math.round(results.reduce((sum, result) => sum + result.accuracy, 0) / results.length),
+      time_seconds: results.reduce((sum, result) => sum + (result.time_seconds ?? 0), 0),
+      mistakes: results.reduce((sum, result) => sum + (result.mistakes ?? 0), 0),
+    };
+    onClear({ ...combined, engine: activeGame.engine });
   };
   const reflected = reflectedResult(attempts);
 
@@ -118,9 +148,15 @@ export function MiniGamePanel({ missionTitle, game, onClear }: MiniGamePanelProp
           </div>
         </div>
 
-        {game && EngineComponent ? (
+        {activeGame && EngineComponent ? (
           <>
-            {game.intro ? <p className={styles.miniGameBody}>{game.intro}</p> : null}
+            {queue.length > 1 ? (
+              <p className={styles.miniGameBody}>
+                게임 <strong>{gameIndex + 1}</strong> / {queue.length} · {activeGame.intro}
+              </p>
+            ) : activeGame.intro ? (
+              <p className={styles.miniGameBody}>{activeGame.intro}</p>
+            ) : null}
             {/* 게임 영역은 모달 안에서 스크롤되게 가둔다 — 카드/아이템이 많아도(match 15장 등)
                 모달·뷰포트 밖으로 넘치지 않는다. match 선 좌표는 보드 기준 상대값이라
                 보드가 한 덩어리로 스크롤돼도 선이 어긋나지 않는다. */}
@@ -131,7 +167,7 @@ export function MiniGamePanel({ missionTitle, game, onClear }: MiniGamePanelProp
                 data-minigame-id={gameId}
                 style={backgroundStyle}
               >
-                <EngineComponent key={attemptKey} game={game} onComplete={handleAttempt} />
+                <EngineComponent key={`${gameId ?? activeGame.engine}-${attemptKey}`} game={activeGame} onComplete={handleAttempt} />
               </div>
             </div>
             {/* 다시하기 바 — 게임 종료 후 나타난다. 재도전은 첫 시도보다 적게 반영된다. */}
@@ -151,7 +187,7 @@ export function MiniGamePanel({ missionTitle, game, onClear }: MiniGamePanelProp
                     다시하기
                   </button>
                   <button className={styles.missionSubmit} type="button" onClick={finishAll}>
-                    완료하고 계속 →
+                    {gameIndex < queue.length - 1 ? "다음 게임으로 →" : "완료하고 계속 →"}
                   </button>
                 </span>
               </div>

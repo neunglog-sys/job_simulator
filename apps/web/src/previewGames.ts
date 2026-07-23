@@ -1355,7 +1355,29 @@ export const PREVIEW_GAMES = {
     "time_limit": 75,
     "pass_score": 70,
     "data": {
+      "background_id": "kts-03",
       "presentation": "customer_floor",
+      "supply_run": {
+        "memory_seconds": 7,
+        "order": [
+          { "id": "레드", "label": "레드 와인", "display_label": "Red wine", "sprite": "와인_레드_중가", "target": 7, "at": [105, 64], "hit_at": [151, 114], "hit_size": [31, 63] },
+          { "id": "화이트", "label": "화이트 와인", "display_label": "White wine", "sprite": "와인_화이트_저가", "target": 5, "at": [915, 194], "hit_at": [893, 280], "hit_size": [41, 80] },
+          { "id": "스파클링", "label": "스파클링 와인", "display_label": "Sparkling wine", "sprite": "와인_스파클링_중가", "target": 3, "at": [769, 126], "hit_at": [811, 155], "hit_size": [21, 27] },
+          { "id": "로제", "label": "로제 와인", "display_label": "Rose wine", "sprite": "와인_스위트_저가", "target": 1, "at": [646, 141], "hit_at": [671, 192], "hit_size": [27, 19] },
+          { "id": "스위트", "label": "스위트 와인", "display_label": "Sweet wine", "sprite": "와인_스위트_저가", "target": 4, "at": [167, 231], "hit_at": [212, 254], "hit_size": [27, 37] }
+        ],
+        "transport": {
+          "duration_seconds": 24,
+          "overspeed_ticks": 12,
+          "obstacles": [
+            { "id": "직원_통로", "label": "이동 중인 직원", "sprite": "손님_갈색머리", "lane": 0, "at": 24 },
+            { "id": "적치_상자", "label": "통로의 적치물", "sprite": "적치물_상자더미", "lane": 2, "at": 43 },
+            { "id": "고객_횡단", "label": "지나가는 고객", "sprite": "손님_금발_안경", "lane": 1, "at": 61 },
+            { "id": "작업_라바콘", "label": "작업 구역", "sprite": "장애물_라바콘", "lane": 0, "at": 79 },
+            { "id": "진열_상자", "label": "진열 대기 상자", "sprite": "상자_별아이콘_도장별", "lane": 2, "at": 91 }
+          ]
+        }
+      },
       "left_label": "손님 니즈",
       "right_label": "와인 진열",
       "left": [
@@ -4993,3 +5015,28 @@ export const PREVIEW_GAMES = {
     }
   }
 } as unknown as Record<string, MinigameDef>;
+
+// KTS-03은 운영 YAML에서 두 게임으로 분리된다. 미리보기에서도 같은 화면을 각각
+// 독립 실행할 수 있도록 출고 데이터만 떼어 별도 항목으로 만든다.
+const kts03PreviewData = PREVIEW_GAMES["kts-03"].data as Record<string, unknown>;
+const kts03SupplyRun = kts03PreviewData.supply_run;
+delete kts03PreviewData.supply_run;
+PREVIEW_GAMES["kts-03-supply"] = {
+  id: "kts-03-supply",
+  engine: "match",
+  title: "오픈 진열분 출고·안전 운반",
+  intro: "출고 목록의 종류와 수량을 기억해 정확히 피킹하고, 카트 속도를 조절하며 장애물을 피해 매장까지 운반하세요.",
+  time_limit: 70,
+  pass_score: 70,
+  data: {
+    background_id: "kts-03",
+    presentation: "supply_run",
+    supply_only: true,
+    supply_run: kts03SupplyRun,
+    left: [],
+    right: [],
+    pairs: [],
+    unmatched: [],
+  },
+  scoring: { supply_weight: 100 },
+};

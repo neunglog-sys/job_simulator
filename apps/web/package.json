@@ -10,6 +10,7 @@
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
+    "@fontsource/new-rocker": "^5.3.0",
     "@phosphor-icons/react": "^2.1.10",
     "hls.js": "^1.6.16",
     "motion": "^12.42.2",
