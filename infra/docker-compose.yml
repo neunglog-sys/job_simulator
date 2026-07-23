@@ -54,8 +54,10 @@ services:
     build:
       context: ../apps/web
       args:
-        # 브라우저가 백엔드를 호출할 공개 주소 — 배포 VM에선 .env에 VITE_API_BASE_URL=http://<공개IP>
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+        # 기본 빈 값 → 프론트가 상대경로(/api·/ws)로 호출, nginx가 api:8000으로 동일오리진 프록시
+        # (nginx.conf) → CORS 없음·터널 주소 독립. 특정 오리진 강제 시에만 .env에 VITE_API_BASE_URL 지정.
+        # ⚠️ ':-'(empty도 기본값 대체) 대신 그냥 빈 기본값 — 서버 .env에서 비우면 그대로 빈 값이 넘어가야 함.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
     ports:
       - "80:80"
     depends_on:
