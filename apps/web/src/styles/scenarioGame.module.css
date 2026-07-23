@@ -922,11 +922,8 @@ button.headerOrb:active {
 }
 
 .npcConversation {
-  display: grid;
-  grid-template-columns: 100px minmax(0, 1fr);
-  align-items: stretch;
-  gap: 12px;
   min-width: 0;
+  height: 204px;
 }
 
 .npcIdentity {
@@ -969,19 +966,45 @@ button.headerOrb:active {
   display: flex;
   min-width: 0;
   height: 204px;
-  padding: 15px 7px 4px 15px;
-  overflow-x: hidden;
-  overflow-y: auto;
+  padding: 0 7px 0 0;
+  overflow: hidden;
   flex-direction: column;
   gap: 12px;
-  scrollbar-color: var(--scenario-accent) rgb(255 255 255 / 0.1);
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
 }
 
-.conversationBubbles::-webkit-scrollbar { width: 7px; }
-.conversationBubbles::-webkit-scrollbar-track { background: rgb(255 255 255 / 0.08); border-radius: 999px; }
-.conversationBubbles::-webkit-scrollbar-thumb { background: var(--scenario-accent); border-radius: 999px; }
+.dialogueMessageRow {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.dialogueMessageRowNpc {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.dialogueMessageRowUser {
+  display: flex;
+  min-height: 52px;
+  justify-content: flex-end;
+  padding-left: 112px;
+}
+
+.dialogueMessageRowUser:first-child {
+  margin-top: auto;
+}
+
+.dialogueMessageRowNpc .npcSpeechBubble {
+  left: 0;
+  margin-top: 15px;
+}
+
+.dialogueMessageRowUser .userSpeechBubble {
+  margin-top: 0;
+}
 
 .npcSpeechBubble,
 .userSpeechBubble {

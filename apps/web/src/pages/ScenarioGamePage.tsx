@@ -1080,6 +1080,7 @@ export function ScenarioGamePage() {
             npcRole={visibleChatNpc?.role}
             npcMessage={visibleNpcMessage}
             userMessage={userMessage}
+            dialogueEntries={dialogueHistory}
             isStreaming={isStreaming}
             isHistoryOpen={isHistoryOpen}
             isMemoOpen={isMemoOpen}
