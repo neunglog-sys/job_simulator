@@ -1,0 +1,122 @@
+[
+  {
+    "source_id": "NCS_FAIR_HIRING",
+    "title": "NCS 공정채용 소개",
+    "organization": "한국산업인력공단 NCS",
+    "url": "https://www.ncs.go.kr/blind/bl01/RH-102-001-01.scdo",
+    "type": "official",
+    "used_for": "직무능력 중심 서류·면접, 직무 관련 교육·훈련·자격·경험 중심 작성, 차별 요소 제외",
+    "stability": "slow-changing",
+    "review_cycle_days": 180
+  },
+  {
+    "source_id": "NCS_DEFINITION",
+    "title": "NCS 국가직무능력표준 소개",
+    "organization": "한국산업인력공단 NCS",
+    "url": "https://ncs.go.kr/mobile/rm01/TH10200101.do",
+    "type": "official",
+    "used_for": "직무 수행에 필요한 지식·기술·태도(KSA) 기준",
+    "stability": "slow-changing",
+    "review_cycle_days": 180
+  },
+  {
+    "source_id": "WORK24",
+    "title": "고용24",
+    "organization": "고용노동부·한국고용정보원",
+    "url": "https://www.work24.go.kr/",
+    "type": "official",
+    "used_for": "최신 채용정보, 직업심리검사, 이력서·자소서 작성가이드의 실시간 확인 경로",
+    "stability": "dynamic",
+    "review_cycle_days": 7
+  },
+  {
+    "source_id": "CAREERNET",
+    "title": "커리어넷 직업정보",
+    "organization": "교육부·한국직업능력연구원",
+    "url": "https://www.career.go.kr/",
+    "type": "official",
+    "used_for": "직업의 하는 일, 준비방법, 적성·흥미, 필요 능력과 업무환경 확인 경로",
+    "stability": "slow-changing",
+    "review_cycle_days": 90
+  },
+  {
+    "source_id": "QNET",
+    "title": "Q-Net 자격의 모든 것",
+    "organization": "한국산업인력공단",
+    "url": "https://www.q-net.or.kr/",
+    "type": "official",
+    "used_for": "자격 시험 일정, 응시자격, 응시자격 자가진단의 최신 확인 경로",
+    "stability": "dynamic",
+    "review_cycle_days": 7
+  },
+  {
+    "source_id": "MIT_RESUME",
+    "title": "Career toolkit: Crafting an effective resume",
+    "organization": "MIT Career Advising & Professional Development",
+    "url": "https://capd.mit.edu/resources/career-toolkit-crafting-an-effective-resume/",
+    "type": "university-career-center",
+    "used_for": "PAR(Project–Action–Result) 문장, 행동 동사, 성과 정량화, 프로젝트·봉사·개인 경험 활용",
+    "stability": "stable",
+    "review_cycle_days": 365
+  },
+  {
+    "source_id": "MIT_RESUME_CHECKLIST",
+    "title": "Resume checklist and worksheet",
+    "organization": "MIT Career Advising & Professional Development",
+    "url": "https://capd.mit.edu/resources/resume-checklist/",
+    "type": "university-career-center",
+    "used_for": "이력서 경험·기술·활동 항목 체크리스트",
+    "stability": "stable",
+    "review_cycle_days": 365
+  },
+  {
+    "source_id": "MIT_STAR",
+    "title": "Using the STAR method for your next behavioral interview",
+    "organization": "MIT Career Advising & Professional Development",
+    "url": "https://capd.mit.edu/resources/the-star-method-for-behavioral-interviews/",
+    "type": "university-career-center",
+    "used_for": "STAR 답변 구성과 Action 중심 시간 배분",
+    "stability": "stable",
+    "review_cycle_days": 365
+  },
+  {
+    "source_id": "YALE_BEHAVIORAL",
+    "title": "Preparing for the Behavioral Interview",
+    "organization": "Yale Office of Career Strategy",
+    "url": "https://ocs.yale.edu/stem-ppg-module-6-behavioral-interview-with-star/",
+    "type": "university-career-center",
+    "used_for": "간결한 경험 이야기, 스토리 뱅크, 녹화·모의면접 연습",
+    "stability": "stable",
+    "review_cycle_days": 365
+  },
+  {
+    "source_id": "CAREERONESTOP_PORTFOLIO",
+    "title": "Portfolios",
+    "organization": "CareerOneStop, U.S. Department of Labor",
+    "url": "https://www.careeronestop.org/JobSearch/Resumes/portfolios.aspx",
+    "type": "government-career-service",
+    "used_for": "포트폴리오 목적, 대표 작업 선택, 프로젝트 설명·기여·결과, 디지털 포트폴리오 점검",
+    "stability": "stable",
+    "review_cycle_days": 365
+  },
+  {
+    "source_id": "CAREERONESTOP_JOB_SEARCH",
+    "title": "Job Search",
+    "organization": "CareerOneStop, U.S. Department of Labor",
+    "url": "https://www.careeronestop.org/JobSearch/job-search.aspx",
+    "type": "government-career-service",
+    "used_for": "취업 준비를 계획·자료준비·기업조사·네트워킹·지원·면접으로 구조화",
+    "stability": "stable",
+    "review_cycle_days": 365
+  },
+  {
+    "source_id": "NCS_GAP",
+    "title": "Explain a gap in employment",
+    "organization": "UK National Careers Service",
+    "url": "https://nationalcareers.service.gov.uk/careers-advice/explain-gaps-in-work-history/",
+    "type": "government-career-service",
+    "used_for": "공백기를 솔직하고 간결하게 설명하고, 학습·이전가능역량·복귀 준비에 초점을 두는 원칙",
+    "stability": "stable",
+    "review_cycle_days": 365
+  }
+]

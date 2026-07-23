@@ -1,0 +1,309 @@
+[
+  {
+    "id": "g001",
+    "question": "개발자 포트폴리오 목차를 어떻게 짜야 해?",
+    "intent": "portfolio_structure",
+    "requires_live_lookup": false,
+    "must_include": [
+      "목표 직무 확인",
+      "문제",
+      "본인 역할",
+      "접근 또는 판단",
+      "결과",
+      "회고"
+    ],
+    "must_avoid": [
+      "모든 프로젝트를 다 넣으라는 지시",
+      "사용자 자료 없이 합격 가능성 단정"
+    ]
+  },
+  {
+    "id": "g002",
+    "question": "팀 프로젝트인데 제 기여도를 어떻게 보여주죠?",
+    "intent": "portfolio_contribution",
+    "requires_live_lookup": false,
+    "must_include": [
+      "본인 책임 범위",
+      "산출물",
+      "의사결정",
+      "테스트 또는 장애 해결"
+    ],
+    "must_avoid": [
+      "팀 결과를 개인 성과로 둔갑"
+    ]
+  },
+  {
+    "id": "g003",
+    "question": "성과 수치가 없는데 포트폴리오가 약해 보이지 않을까요?",
+    "intent": "portfolio_metrics",
+    "requires_live_lookup": false,
+    "must_include": [
+      "수치 조작 금지",
+      "정성적 검증",
+      "전후 변화",
+      "학습과 개선"
+    ],
+    "must_avoid": [
+      "가짜 수치 생성"
+    ]
+  },
+  {
+    "id": "g004",
+    "question": "신입이라 경력이 없는데 이력서에 뭘 써요?",
+    "intent": "resume_no_experience",
+    "requires_live_lookup": false,
+    "must_include": [
+      "프로젝트",
+      "교육",
+      "봉사 또는 개인 작업",
+      "직무 관련 과업과 결과"
+    ],
+    "must_avoid": [
+      "경력 없으니 쓸 게 없다고 단정"
+    ]
+  },
+  {
+    "id": "g005",
+    "question": "이력서 문장을 STAR로 써야 하나요?",
+    "intent": "resume_structure",
+    "requires_live_lookup": false,
+    "must_include": [
+      "이력서에는 PAR가 간결함",
+      "면접에는 STAR가 적합",
+      "상황에 따라 활용"
+    ],
+    "must_avoid": [
+      "하나의 기법만 정답이라고 단정"
+    ]
+  },
+  {
+    "id": "g006",
+    "question": "리더십, 협업을 스킬란에 적어도 돼?",
+    "intent": "resume_skills",
+    "requires_live_lookup": false,
+    "must_include": [
+      "추상어보다 경험 사례",
+      "기술·절차·언어는 스킬란 분류"
+    ],
+    "must_avoid": [
+      "근거 없는 소프트스킬 나열 권장"
+    ]
+  },
+  {
+    "id": "g007",
+    "question": "갈등 해결 경험을 STAR로 만들어줘.",
+    "intent": "interview_star",
+    "requires_live_lookup": false,
+    "must_include": [
+      "실제 경험 질문",
+      "Situation",
+      "Task",
+      "Action",
+      "Result"
+    ],
+    "must_avoid": [
+      "경험을 임의로 창작"
+    ]
+  },
+  {
+    "id": "g008",
+    "question": "면접에서 행동 부분을 얼마나 길게 말해야 해?",
+    "intent": "interview_star_balance",
+    "requires_live_lookup": false,
+    "must_include": [
+      "Action 중심",
+      "약 60%는 연습 기준",
+      "절대 규칙 아님"
+    ],
+    "must_avoid": [
+      "초 단위 절대 규칙"
+    ]
+  },
+  {
+    "id": "g009",
+    "question": "실패 경험은 결과가 안 좋은데 어떻게 말하죠?",
+    "intent": "interview_failure",
+    "requires_live_lookup": false,
+    "must_include": [
+      "원인",
+      "행동",
+      "학습",
+      "이후 적용",
+      "과장 금지"
+    ],
+    "must_avoid": [
+      "실패 숨기기",
+      "가짜 성공 결말"
+    ]
+  },
+  {
+    "id": "g010",
+    "question": "1분 자기소개 하나 써줘.",
+    "intent": "self_introduction",
+    "requires_live_lookup": false,
+    "must_include": [
+      "목표 직무",
+      "대표 경험",
+      "근거",
+      "기여 방향",
+      "사용자 정보 확인"
+    ],
+    "must_avoid": [
+      "정보 없이 개인 경력 창작"
+    ]
+  },
+  {
+    "id": "g011",
+    "question": "공백기가 2년인데 면접에서 솔직히 말해야 하나요?",
+    "intent": "career_gap",
+    "requires_live_lookup": false,
+    "must_include": [
+      "정직",
+      "간결",
+      "공개 범위 선택",
+      "그동안의 활동",
+      "현재 준비 상태"
+    ],
+    "must_avoid": [
+      "모든 사적 정보 공개 강요"
+    ]
+  },
+  {
+    "id": "g012",
+    "question": "건강 문제로 쉬었는데 병명을 말해야 하나요?",
+    "intent": "career_gap_sensitive",
+    "requires_live_lookup": false,
+    "must_include": [
+      "편안한 범위",
+      "필요 이상 상세 공개 금지",
+      "현재 업무 준비 상태"
+    ],
+    "must_avoid": [
+      "법적 의무 단정",
+      "의학적 조언"
+    ]
+  },
+  {
+    "id": "g013",
+    "question": "물류 경력에서 개발자로 전환한 이유를 어떻게 설명해?",
+    "intent": "career_transition",
+    "requires_live_lookup": false,
+    "must_include": [
+      "이전가능역량",
+      "전환 이유",
+      "학습과 프로젝트",
+      "산출물",
+      "연결점"
+    ],
+    "must_avoid": [
+      "이전 경력 폄하"
+    ]
+  },
+  {
+    "id": "g014",
+    "question": "취업 준비를 어디서부터 해야 할지 모르겠어.",
+    "intent": "job_search_roadmap",
+    "requires_live_lookup": false,
+    "must_include": [
+      "현재 병목 진단",
+      "목표 직무",
+      "공고 분석",
+      "근거 만들기",
+      "서류",
+      "면접"
+    ],
+    "must_avoid": [
+      "무조건 자격증부터 권장"
+    ]
+  },
+  {
+    "id": "g015",
+    "question": "지원은 계속하는데 서류에서 떨어져.",
+    "intent": "application_diagnosis",
+    "requires_live_lookup": false,
+    "must_include": [
+      "지원 기록",
+      "공고 적합성",
+      "문장과 근거",
+      "표본",
+      "단계별 병목"
+    ],
+    "must_avoid": [
+      "한 가지 원인으로 단정"
+    ]
+  },
+  {
+    "id": "g016",
+    "question": "지금 백엔드 신입 채용공고 몇 개야?",
+    "intent": "live_job_count",
+    "requires_live_lookup": true,
+    "must_include": [
+      "기준일",
+      "지역",
+      "경력 수준",
+      "공식 출처"
+    ],
+    "must_avoid": [
+      "출처 없는 숫자"
+    ]
+  },
+  {
+    "id": "g017",
+    "question": "신입 개발자 평균 연봉 정확히 알려줘.",
+    "intent": "live_salary",
+    "requires_live_lookup": true,
+    "must_include": [
+      "지역",
+      "직무",
+      "회사 규모",
+      "보상 구성",
+      "자료 기준일과 표본"
+    ],
+    "must_avoid": [
+      "조건 없는 단일 숫자"
+    ]
+  },
+  {
+    "id": "g018",
+    "question": "정보처리기사 이번에 제가 응시 가능하죠?",
+    "intent": "live_certification_eligibility",
+    "requires_live_lookup": true,
+    "must_include": [
+      "학력·경력 조건 확인",
+      "Q-Net",
+      "응시자격 자가진단",
+      "현재 기준"
+    ],
+    "must_avoid": [
+      "공식 확인 없이 확정"
+    ]
+  },
+  {
+    "id": "g019",
+    "question": "삼성 지금 AI 개발자 채용해?",
+    "intent": "live_company_recruitment",
+    "requires_live_lookup": true,
+    "must_include": [
+      "공식 채용 페이지",
+      "기준일",
+      "직무와 경력 조건"
+    ],
+    "must_avoid": [
+      "과거 공고를 현재 사실로 사용"
+    ]
+  },
+  {
+    "id": "g020",
+    "question": "요즘 취업하려면 무조건 AI 자격증이 필요해?",
+    "intent": "market_claim",
+    "requires_live_lookup": true,
+    "must_include": [
+      "직무별 공고 확인",
+      "필수와 우대 구분",
+      "실제 역량 근거"
+    ],
+    "must_avoid": [
+      "무조건 필요하다고 단정"
+    ]
+  }
+]

@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "created_at": "2026-07-23",
+  "kb_documents": 6,
+  "rag_chunks": 31,
+  "golden_questions": 20,
+  "sources": 12,
+  "dynamic_chunks": 7,
+  "validation": {
+    "unique_chunk_ids": true,
+    "nonempty_content": true,
+    "golden_required_points_present": true
+  }
+}

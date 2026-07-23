@@ -5,8 +5,10 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import "@fontsource/new-rocker/400.css";
 import common from "../../../styles/minigame.module.css";
 import styles from "../../../styles/matchGame.module.css";
 import { PixelSprite } from "./PixelSprite";
@@ -67,9 +69,45 @@ type SuddenDef = {
   forbidden_actions?: Array<{ id: string; reason?: string }>;
 };
 
+type SupplyOrderItem = {
+  id: string;
+  label: string;
+  display_label?: string;
+  sprite: string;
+  target: number;
+  /** 와인 이미지 표시 영역 중심 좌표. */
+  at: [number, number];
+  /** 실제 수량이 증가하는 선반 상자 클릭 영역 중심 좌표. */
+  hit_at?: [number, number];
+  /** SVG 상자 테두리의 폭·높이. */
+  hit_size?: [number, number];
+};
+
+type SupplyObstacle = {
+  id: string;
+  label: string;
+  sprite: string;
+  lane: number;
+  at: number;
+};
+
+type SupplyRunDef = {
+  memory_seconds?: number;
+  order?: SupplyOrderItem[];
+  transport?: {
+    duration_seconds?: number;
+    overspeed_ticks?: number;
+    obstacles?: SupplyObstacle[];
+  };
+};
+
 type MatchData = {
   /** kts-03 — 원본 장면 위 손님·상품 배치 + 돌발 손님 상세 대응 화면. 채점에는 영향 없음. */
   presentation?: "customer_floor" | string;
+  /** kts-03 — 출고 목록 기억 → 창고 피킹 → 카트 안전 운반 프롤로그. */
+  supply_run?: SupplyRunDef;
+  /** kts-03 첫 번째 분리 게임 — 운반 완료 시 고객 응대로 이어지지 않고 게임을 끝낸다. */
+  supply_only?: boolean;
   left?: MatchCard[];
   right?: MatchCard[];
   /** 컬럼 헤더(선택) — 예: 입장객/제시된 출입증. 없으면 중립 라벨 '왼쪽'/'오른쪽'. */
@@ -114,6 +152,8 @@ type Anchor = { x: number; y: number };
 
 type Outcome = {
   accuracy: number;
+  matchAccuracy: number;
+  supplyAccuracy?: number;
   penalty: number;
   incidents: number;
   numerator: number;
@@ -191,6 +231,12 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const sudden = data.sudden;
   const stages = useMemo(() => sudden?.stages ?? [], [sudden]);
   const customerFloor = data.presentation === "customer_floor";
+  const supplyRun = data.supply_run;
+  const supplyOrder = useMemo(() => supplyRun?.order ?? [], [supplyRun?.order]);
+  const supplyObstacles = useMemo(
+    () => supplyRun?.transport?.obstacles ?? [],
+    [supplyRun?.transport?.obstacles],
+  );
 
   const unmatchedSet = useMemo(() => new Set(unmatchedList), [unmatchedList]);
   const discardSet = useMemo(() => new Set(discardItems.map((item) => item.id)), [discardItems]);
@@ -275,12 +321,113 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const [suddenVisible, setSuddenVisible] = useState(false);
   const [suddenArrived, setSuddenArrived] = useState(false);
   const [suddenFocused, setSuddenFocused] = useState(false);
+  const [floorCustomerIndex, setFloorCustomerIndex] = useState(0);
+  const [floorMatchFlash, setFloorMatchFlash] = useState(false);
+  const floorAdvanceTimer = useRef<number | null>(null);
+  const supplyHintTimer = useRef<number | null>(null);
+  const [flowPhase, setFlowPhase] = useState<"memory" | "picking" | "transport" | "customer">(
+    supplyRun ? "memory" : "customer",
+  );
+  const [memoryRemaining, setMemoryRemaining] = useState(Math.max(1, supplyRun?.memory_seconds ?? 7));
+  const [pickedCounts, setPickedCounts] = useState<Record<string, number>>({});
+  const [supplyHintVisible, setSupplyHintVisible] = useState(false);
+  const [transportLane, setTransportLane] = useState(1);
+  const [transportSpeed, setTransportSpeed] = useState<"slow" | "normal" | "fast">("normal");
+  const [transportProgress, setTransportProgress] = useState(0);
+  const [transportRunning, setTransportRunning] = useState(false);
+  const [transportComplete, setTransportComplete] = useState(false);
+  const [transportHits, setTransportHits] = useState<string[]>([]);
+  const [transportCollisions, setTransportCollisions] = useState(0);
+  const [overspeedTicks, setOverspeedTicks] = useState(0);
   const [keysGiven, setKeysGiven] = useState<Record<string, string>>({});
   const [done, setDone] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const finishedRef = useRef(false);
 
   const linkedSet = useMemo(() => new Set(lines.flatMap((l) => [l.left, l.right])), [lines]);
+  const activeFloorCustomer = customerFloor ? displayLeft[floorCustomerIndex] : undefined;
+
+  useEffect(
+    () => () => {
+      if (floorAdvanceTimer.current !== null) window.clearTimeout(floorAdvanceTimer.current);
+      if (supplyHintTimer.current !== null) window.clearTimeout(supplyHintTimer.current);
+    },
+    [],
+  );
+
+  // kts-03 ① 출고 목록은 정해진 시간만 보여 준 뒤 자동으로 창고 피킹 화면으로 넘어간다.
+  useEffect(() => {
+    if (!supplyRun || flowPhase !== "memory" || done) return;
+    const timer = window.setInterval(() => {
+      setMemoryRemaining((value) => {
+        if (value <= 1) {
+          window.clearInterval(timer);
+          setFlowPhase("picking");
+          return 0;
+        }
+        return value - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [supplyRun, flowPhase, done]);
+
+  // kts-03 ③ 카트 운반. 속도는 완주 시간과 과속 위험에 함께 반영된다.
+  useEffect(() => {
+    if (!supplyRun || flowPhase !== "transport" || !transportRunning || transportComplete || done) return;
+    const duration = Math.max(8, supplyRun.transport?.duration_seconds ?? 24);
+    const baseStep = 100 / (duration * (1000 / 120));
+    const multiplier = transportSpeed === "slow" ? 0.62 : transportSpeed === "fast" ? 1.7 : 1;
+    const timer = window.setInterval(() => {
+      if (transportSpeed === "fast") setOverspeedTicks((value) => value + 1);
+      setTransportProgress((value) => {
+        const next = Math.min(100, value + baseStep * multiplier);
+        if (next >= 100) {
+          setTransportRunning(false);
+          setTransportComplete(true);
+        }
+        return next;
+      });
+    }, 120);
+    return () => window.clearInterval(timer);
+  }, [supplyRun, flowPhase, transportRunning, transportComplete, transportSpeed, done]);
+
+  // 장애물과 카트가 같은 차선에서 만나는 순간을 한 번만 충돌로 센다.
+  useEffect(() => {
+    if (flowPhase !== "transport" || !transportRunning || done) return;
+    const hit = supplyObstacles.find(
+      (obstacle) =>
+        obstacle.lane === transportLane &&
+        !transportHits.includes(obstacle.id) &&
+        Math.abs(obstacle.at - transportProgress) <= 1.15,
+    );
+    if (!hit) return;
+    setTransportHits((current) => [...current, hit.id]);
+    setTransportCollisions((value) => value + 1);
+  }, [
+    flowPhase,
+    transportRunning,
+    transportLane,
+    transportProgress,
+    transportHits,
+    supplyObstacles,
+    done,
+  ]);
+
+  // 마우스 버튼뿐 아니라 방향키로도 카트를 피할 수 있게 한다.
+  useEffect(() => {
+    if (flowPhase !== "transport" || done) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setTransportLane((lane) => Math.max(0, lane - 1));
+      } else if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setTransportLane((lane) => Math.min(2, lane + 1));
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [flowPhase, done]);
 
   // 연결선 색 — 좌 카드 id 마다 고정 색. 선을 다시 그어도 같은 좌 카드면 같은 색이 유지된다.
   const wireColorMap = useMemo(() => {
@@ -308,6 +455,26 @@ export function MatchGame({ game, onComplete }: EngineProps) {
       scoringOf(game, "pair_count", pairs.length) +
         (includeUnmatched ? scoringOf(game, "unmatched_count", unmatchedList.length) : 0),
   );
+
+  const computeSupplyOutcome = () => {
+    if (!supplyRun || supplyOrder.length === 0) return { accuracy: 100, incidents: 0, exact: 0 };
+    const exact = supplyOrder.filter((item) => (pickedCounts[item.id] ?? 0) === item.target).length;
+    const countIncidents = supplyOrder.length - exact;
+    const overspeedLimit = Math.max(1, supplyRun.transport?.overspeed_ticks ?? 12);
+    const overspeedIncident = overspeedTicks >= overspeedLimit ? 1 : 0;
+    const transportPoints = transportComplete ? 30 : 0;
+    const accuracy = clampScore(
+      (exact / supplyOrder.length) * 70 +
+        transportPoints -
+        transportCollisions * 12 -
+        overspeedIncident * 10,
+    );
+    return {
+      accuracy,
+      incidents: countIncidents + transportCollisions + overspeedIncident,
+      exact,
+    };
+  };
 
   /** 최종 상태에서 한 번 채점 — 감점 중첩 금지(사건당 가장 무거운 것 하나). */
   const computeOutcome = (): Outcome => {
@@ -455,8 +622,28 @@ export function MatchGame({ game, onComplete }: EngineProps) {
       correctPairs +
       (includeUnmatched ? correctStamps : 0) +
       (includeExtras ? correctDiscards + caught + correctEscalates : 0);
-    const accuracy = clampScore((numerator / denominator) * 100 - penalty);
-    return { accuracy, penalty, incidents, numerator, denominator, correctLineKeys, cardVerdicts: verdicts };
+    const matchAccuracy = clampScore((numerator / denominator) * 100 - penalty);
+    const supply = computeSupplyOutcome();
+    const supplyWeight = supplyRun
+      ? Math.min(0.8, Math.max(0.1, scoringOf(game, "supply_weight", 35) / 100))
+      : 0;
+    const accuracy = data.supply_only
+      ? supply.accuracy
+      : supplyRun
+        ? clampScore(supply.accuracy * supplyWeight + matchAccuracy * (1 - supplyWeight))
+      : matchAccuracy;
+    incidents = data.supply_only ? supply.incidents : incidents + (supplyRun ? supply.incidents : 0);
+    return {
+      accuracy,
+      matchAccuracy,
+      supplyAccuracy: supplyRun ? supply.accuracy : undefined,
+      penalty,
+      incidents,
+      numerator,
+      denominator,
+      correctLineKeys,
+      cardVerdicts: verdicts,
+    };
   };
 
   const finish = () => {
@@ -470,13 +657,13 @@ export function MatchGame({ game, onComplete }: EngineProps) {
 
   const { remaining, startedAt } = useCountdown(game.time_limit, done, () => finish());
 
-  // 돌발 등장 — 시작 시각 기준 지연(kts-03 appears_at: 30)
+  // 돌발 등장 — 출고·운반 프롤로그가 끝나고 고객 응대 화면이 열린 시점부터 센다.
   useEffect(() => {
-    if (!sudden || done) return;
-    const delay = Math.max(0, (sudden.appears_at ?? 0) * 1000 - (Date.now() - startedAt.current));
+    if (!sudden || done || flowPhase !== "customer") return;
+    const delay = Math.max(0, (sudden.appears_at ?? 0) * 1000);
     const timer = window.setTimeout(() => setSuddenVisible(true), delay);
     return () => window.clearTimeout(timer);
-  }, [sudden, done, startedAt]);
+  }, [sudden, done, flowPhase]);
 
   // kts-03 돌발 손님은 7초 뒤 왼쪽에서 들어온 다음, 도착 모션이 끝난 뒤에만 말풍선이 뜬다.
   useEffect(() => {
@@ -593,6 +780,33 @@ export function MatchGame({ game, onComplete }: EngineProps) {
     setSelected(null);
   };
 
+  const matchFloorWine = (wineId: string) => {
+    if (done || !activeFloorCustomer || floorMatchFlash) return;
+    const usedByOther = lines.some(
+      (line) => line.right === wineId && line.left !== activeFloorCustomer.id,
+    );
+    if (usedByOther) return;
+
+    const nextLines = [
+      ...lines.filter((line) => line.left !== activeFloorCustomer.id && line.right !== wineId),
+      { left: activeFloorCustomer.id, right: wineId },
+    ];
+    setLines(nextLines);
+    setSelected(null);
+    setFloorMatchFlash(true);
+
+    if (floorAdvanceTimer.current !== null) window.clearTimeout(floorAdvanceTimer.current);
+    floorAdvanceTimer.current = window.setTimeout(() => {
+      const nextUnresolved = displayLeft.findIndex(
+        (customer, index) =>
+          index !== floorCustomerIndex && !nextLines.some((line) => line.left === customer.id),
+      );
+      if (nextUnresolved >= 0) setFloorCustomerIndex(nextUnresolved);
+      setFloorMatchFlash(false);
+      floorAdvanceTimer.current = null;
+    }, 650);
+  };
+
   const markSelected = (mark: CardMark) => {
     if (done || !selected) return;
     const id = selected.id;
@@ -635,6 +849,47 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const giveKey = (guest: string, color: string) => {
     if (done) return;
     setKeysGiven((prev) => ({ ...prev, [guest]: color }));
+  };
+
+  const pickSupply = (item: SupplyOrderItem) => {
+    if (done || flowPhase !== "picking") return;
+    setPickedCounts((current) => ({
+      ...current,
+      [item.id]: Math.min(item.target + 4, (current[item.id] ?? 0) + 1),
+    }));
+  };
+
+  const showSupplyHint = () => {
+    if (done || flowPhase !== "picking") return;
+    if (supplyHintTimer.current !== null) window.clearTimeout(supplyHintTimer.current);
+    setSupplyHintVisible(true);
+    supplyHintTimer.current = window.setTimeout(() => {
+      setSupplyHintVisible(false);
+      supplyHintTimer.current = null;
+    }, 3000);
+  };
+
+  const startTransport = () => {
+    if (done) return;
+    setFlowPhase("transport");
+    setTransportRunning(false);
+  };
+
+  const startDriving = () => {
+    if (done || transportComplete) return;
+    setTransportRunning(true);
+  };
+
+  const enterCustomerFloor = () => {
+    if (done || !transportComplete) return;
+    if (data.supply_only) {
+      finish();
+      return;
+    }
+    setFlowPhase("customer");
+    setSuddenVisible(false);
+    setSuddenArrived(false);
+    setSuddenFocused(false);
   };
 
   // ── 표시 도우미 ──
@@ -747,26 +1002,21 @@ export function MatchGame({ game, onComplete }: EngineProps) {
 
   const renderFloorCustomer = (card: MatchCard) => {
     const verdict = verdictOf(card.id);
-    const mark = marks[card.id];
     const linkedWineId = lines.find((line) => line.left === card.id)?.right;
     const linkedWine = linkedWineId ? right.find((wine) => wine.id === linkedWineId) : undefined;
     const bubbleCard = linkedWine ?? card;
     const cue = data.visual_cues?.[bubbleCard.id];
     return (
-      <button
+      <article
         key={card.id}
-        type="button"
-        ref={registerCard(card.id, "left")}
         className={styles.customerFloorCustomer}
         data-state={stateOf(card.id)}
         data-verdict={verdict}
-        aria-pressed={selected?.id === card.id}
-        aria-label={cardAria(card, "left")}
-        disabled={done || mark === "escalated"}
-        onClick={() => toggleCard("left", card.id)}
+        data-matched={floorMatchFlash && linkedWine ? "true" : undefined}
+        aria-label={`${floorCustomerIndex + 1}번 손님 — ${card.label ?? pretty(card.id)}`}
       >
         <span className={styles.customerFloorBubble} data-linked={linkedWine ? "true" : undefined}>
-          <PixelSprite id={bubbleCard.sprite} label={bubbleCard.label ?? bubbleCard.sprite} size={90} smooth />
+          <PixelSprite id={bubbleCard.sprite} label={bubbleCard.label ?? bubbleCard.sprite} size={132} smooth />
           <span className={styles.customerFloorBubbleInfo}>
             <strong>{bubbleCard.label ?? pretty(bubbleCard.id)}</strong>
             {cue ? <small>{pretty(cue)}</small> : null}
@@ -776,7 +1026,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
           <PixelSprite
             id={card.customer_sprite ?? card.sprite}
             label={`${card.label ?? pretty(card.id)} 손님`}
-            size={150}
+            size={230}
             smooth
           />
         </span>
@@ -785,7 +1035,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
             {verdict === "ok" ? "✓" : "✕"}
           </span>
         ) : null}
-      </button>
+      </article>
     );
   };
 
@@ -793,6 +1043,10 @@ export function MatchGame({ game, onComplete }: EngineProps) {
     const verdict = verdictOf(card.id);
     const mark = marks[card.id];
     const cue = data.visual_cues?.[card.id];
+    const linkedOwner = lines.find((line) => line.right === card.id)?.left;
+    const usedByOtherCustomer = Boolean(
+      linkedOwner && activeFloorCustomer && linkedOwner !== activeFloorCustomer.id,
+    );
     return (
       <button
         key={card.id}
@@ -800,13 +1054,14 @@ export function MatchGame({ game, onComplete }: EngineProps) {
         ref={registerCard(card.id, "right")}
         className={styles.customerFloorWine}
         data-state={stateOf(card.id)}
+        data-used={usedByOtherCustomer || undefined}
         data-verdict={verdict}
         aria-pressed={selected?.id === card.id}
         aria-label={cardAria(card, "right")}
-        disabled={done || mark === "escalated"}
-        onClick={() => toggleCard("right", card.id)}
+        disabled={done || mark === "escalated" || floorMatchFlash || usedByOtherCustomer}
+        onClick={() => (customerFloor ? matchFloorWine(card.id) : toggleCard("right", card.id))}
       >
-        <PixelSprite id={card.sprite} label={card.label ?? card.sprite} size={72} smooth />
+        <PixelSprite id={card.sprite} label={card.label ?? card.sprite} size={92} smooth />
         <span className={styles.customerFloorWineInfo}>
           <strong>{card.label ?? pretty(card.id)}</strong>
           {cue ? <small>{pretty(cue)}</small> : null}
@@ -820,6 +1075,270 @@ export function MatchGame({ game, onComplete }: EngineProps) {
       </button>
     );
   };
+
+  const supplyTargetTotal = supplyOrder.reduce((sum, item) => sum + item.target, 0);
+  const supplyPickedTotal = supplyOrder.reduce((sum, item) => sum + (pickedCounts[item.id] ?? 0), 0);
+  const supplyStep = flowPhase === "memory" ? 1 : flowPhase === "picking" ? 2 : flowPhase === "transport" ? 3 : 4;
+  const supplyStepLabels = data.supply_only
+    ? ["목록 확인", "창고 피킹", "안전 운반"]
+    : ["목록 확인", "창고 피킹", "안전 운반", "고객 응대"];
+  const supplyHudCount =
+    flowPhase === "picking"
+      ? supplyPickedTotal
+      : flowPhase === "transport"
+        ? Math.round(transportProgress)
+        : supplyStep;
+  const supplyHudTotal =
+    flowPhase === "picking" ? supplyTargetTotal : flowPhase === "transport" ? 100 : supplyStepLabels.length;
+  const warehouseBackground = `${import.meta.env.BASE_URL}assets/minigames/backgrounds/cartoon-day-v3/kts-03-background-wine-warehouse-cartoon-day-v3.webp`;
+  const supplyBoardStyle = {
+    "--supply-background": `url("${warehouseBackground}")`,
+  } as CSSProperties;
+  const overspeedLimit = Math.max(1, supplyRun?.transport?.overspeed_ticks ?? 12);
+  const cargoState =
+    transportCollisions > 0
+      ? "충격 발생"
+      : overspeedTicks >= overspeedLimit
+        ? "파손 위험"
+        : transportSpeed === "fast"
+          ? "심하게 흔들림"
+          : "안정";
+
+  if (supplyRun && flowPhase !== "customer") {
+    return (
+      <div className={common.shell} data-supply-flow="true">
+        <GameHud
+          label={
+            flowPhase === "memory"
+              ? `출고 목록 확인 · ${memoryRemaining}초`
+              : flowPhase === "picking"
+                ? `피킹 수량 ${supplyPickedTotal}병`
+                : `카트 운반 ${Math.round(transportProgress)}%`
+          }
+          count={supplyHudCount}
+          total={supplyHudTotal}
+          remaining={remaining}
+          timeLimit={game.time_limit}
+        />
+
+        <div
+          className={styles.supplyBoard}
+          data-phase={flowPhase}
+          data-hint-visible={flowPhase === "picking" && supplyHintVisible ? "true" : undefined}
+          style={supplyBoardStyle}
+          role="group"
+          aria-label={
+            flowPhase === "memory"
+              ? "출고 목록 기억하기"
+              : flowPhase === "picking"
+                ? "창고에서 와인 피킹하기"
+                : "카트로 와인 안전 운반하기"
+          }
+        >
+          {flowPhase === "memory" ? (
+            <section className={styles.supplyMemoryCard} aria-label="오늘의 출고 목록">
+              <header>
+                <strong>List</strong>
+              </header>
+              <ul>
+                {supplyOrder.map((item) => (
+                  <li key={item.id}>
+                    <span>{item.display_label ?? item.label}</span>
+                    <b>{item.id === "스위트" ? "x" : "X"} {item.target}</b>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {flowPhase === "picking" ? (
+            <>
+              <p className={styles.supplyInstruction}>선반에 있는 와인상자를 수량만큼 클릭해서 담으세요.</p>
+              <div className={styles.supplyPickScene}>
+                {supplyOrder.map((item) => (
+                  <div key={item.id} className={styles.supplyPickGroup}>
+                    <button
+                      type="button"
+                      className={styles.supplyPickItem}
+                      data-item={item.id}
+                      style={{
+                        left: `${((item.hit_at ?? item.at)[0] / 960) * 100}%`,
+                        top: `${((item.hit_at ?? item.at)[1] / 440) * 100}%`,
+                        "--hit-width": `${item.hit_size?.[0] ?? 40}px`,
+                        "--hit-height": `${item.hit_size?.[1] ?? 65}px`,
+                      } as CSSProperties}
+                      disabled={done}
+                      aria-label={`${item.label} 상자에서 한 병 담기, 현재 ${pickedCounts[item.id] ?? 0}병`}
+                      onClick={() => pickSupply(item)}
+                    >
+                      {supplyHintVisible ? (
+                        <span className={styles.supplyBoxHint}>
+                          <strong>{item.display_label ?? item.label}</strong>
+                          <b>× {item.target}</b>
+                        </span>
+                      ) : null}
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                className={styles.supplyHintButton}
+                aria-label={supplyHintVisible ? "와인 수량 힌트 표시 중" : "필요한 와인 수량 힌트 보기"}
+                aria-pressed={supplyHintVisible}
+                onClick={showSupplyHint}
+              >
+                <span aria-hidden="true">💡</span>
+                <small>힌트</small>
+              </button>
+              <section className={styles.supplyCounter} aria-label="현재 카트에 담은 와인 수량">
+                <div>
+                  {supplyOrder.map((item) => (
+                    <article key={item.id}>
+                      <span>{item.display_label ?? item.label}</span>
+                      <b>{pickedCounts[item.id] ?? 0}</b>
+                    </article>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className={styles.supplyPrimary}
+                  disabled={done || supplyPickedTotal === 0}
+                  onClick={startTransport}
+                >
+                  제출하기
+                </button>
+              </section>
+            </>
+          ) : null}
+
+          {flowPhase === "transport" ? (
+            <>
+              {transportRunning || transportComplete ? (
+                <p className={styles.supplyInstruction}>↑↓ 방향키 또는 차선 버튼으로 장애물을 피하고 적정 속도를 유지하세요.</p>
+              ) : null}
+              <div className={styles.supplyRoad} aria-label="카트 운반 통로">
+                {[0, 1, 2].map((lane) => (
+                  <span key={lane} className={styles.supplyLane} style={{ top: `${17 + lane * 31}%` }} aria-hidden="true" />
+                ))}
+                {supplyObstacles.map((obstacle) => (
+                  <span
+                    key={obstacle.id}
+                    className={styles.supplyObstacle}
+                    data-hit={transportHits.includes(obstacle.id) || undefined}
+                    style={{
+                      left: `${18 + (obstacle.at - transportProgress) * 2.2}%`,
+                      top: `${5 + obstacle.lane * 31}%`,
+                    }}
+                    aria-label={obstacle.label}
+                  >
+                    <PixelSprite id={obstacle.sprite} label="" size={76} smooth />
+                    <small>{obstacle.label}</small>
+                  </span>
+                ))}
+                <div
+                  className={styles.supplyCart}
+                  data-hit={transportCollisions > 0 || undefined}
+                  style={{ top: `${7 + transportLane * 31}%` }}
+                  aria-label={`와인 카트, ${transportLane + 1}번 차선`}
+                >
+                  <span className={styles.supplyCartCargo}>
+                    {supplyOrder.slice(0, 4).map((item) => (
+                      <PixelSprite key={item.id} id={item.sprite} label="" size={26} smooth />
+                    ))}
+                  </span>
+                  <span className={styles.supplyCartBody} aria-hidden="true" />
+                  <i aria-hidden="true" />
+                  <i aria-hidden="true" />
+                </div>
+                <span className={styles.supplyFinishLine} aria-hidden="true">매장</span>
+                <aside
+                  className={styles.supplySpeedGauge}
+                  style={{ "--speed-angle": transportSpeed === "slow" ? "-48deg" : transportSpeed === "fast" ? "48deg" : "0deg" } as CSSProperties}
+                  aria-label={`속도 계기판, ${transportSpeed === "slow" ? "천천히" : transportSpeed === "normal" ? "적정 속도" : "빠르게"}`}
+                >
+                  <span>속도 계기판</span>
+                  <i aria-hidden="true" />
+                </aside>
+                {!transportRunning && !transportComplete && transportProgress === 0 ? (
+                  <div className={styles.supplyTransportIntro}>
+                    <strong>카트라이더 게임</strong>
+                    <p>너무 빠르게 가면 물품이 다 깨져서 실패</p>
+                    <p>앞에 장애물은 백화점 직원, 손님, 적재품 등등</p>
+                    <button type="button" className={styles.supplyPrimary} onClick={startDriving}>
+                      운반 시작
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+
+              <section className={styles.supplyDrivePanel}>
+                <div className={styles.supplyLaneControls} role="group" aria-label="카트 차선 이동">
+                  <button
+                    type="button"
+                    disabled={done || !transportRunning || transportComplete || transportLane === 0}
+                    onClick={() => setTransportLane((lane) => Math.max(0, lane - 1))}
+                  >
+                    ↑ 위 차선
+                  </button>
+                  <strong>{transportLane + 1}번 차선</strong>
+                  <button
+                    type="button"
+                    disabled={done || !transportRunning || transportComplete || transportLane === 2}
+                    onClick={() => setTransportLane((lane) => Math.min(2, lane + 1))}
+                  >
+                    ↓ 아래 차선
+                  </button>
+                </div>
+                <div className={styles.supplySpeedControls} role="group" aria-label="카트 속도 조절">
+                  {(["slow", "normal", "fast"] as const).map((speed) => (
+                    <button
+                      key={speed}
+                      type="button"
+                      data-active={transportSpeed === speed || undefined}
+                      disabled={done || !transportRunning || transportComplete}
+                      onClick={() => setTransportSpeed(speed)}
+                    >
+                      {speed === "slow" ? "천천히" : speed === "normal" ? "적정 속도" : "빠르게"}
+                    </button>
+                  ))}
+                </div>
+                <div className={styles.supplyDriveStatus}>
+                  <span>
+                    적재 상태 <b data-state={cargoState}>{cargoState}</b>
+                  </span>
+                  <span>
+                    충돌 <b>{transportCollisions}</b>회
+                  </span>
+                </div>
+              </section>
+
+              {transportComplete ? (
+                <div className={styles.supplyComplete} role="status">
+                  <strong>{transportCollisions === 0 ? "매장까지 운반 완료!" : "운반 완료 · 충격 기록 확인"}</strong>
+                  <span>
+                    {data.supply_only
+                      ? "출고 결과를 확인한 뒤 별도의 고객 응대 게임으로 이동합니다."
+                      : "이제 손님의 니즈에 맞는 와인을 추천하세요."}
+                  </span>
+                  <button type="button" className={styles.supplyPrimary} disabled={done} onClick={enterCustomerFloor}>
+                    {data.supply_only ? "출고 게임 완료" : "고객 응대 시작 →"}
+                  </button>
+                </div>
+              ) : null}
+            </>
+          ) : null}
+        </div>
+
+        {done && outcome ? (
+          <ResultBar score={outcome.accuracy}>
+            출고·운반 <b>{outcome.supplyAccuracy ?? 0}점</b>
+            {outcome.incidents > 0 ? <> · 실수 <b>{outcome.incidents}건</b></> : <> · 실수 <b>없음</b></>}
+          </ResultBar>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className={common.shell}>
@@ -874,11 +1393,34 @@ export function MatchGame({ game, onComplete }: EngineProps) {
         </svg>
         {customerFloor ? (
           <>
-            <section className={styles.customerFloorWineShelf} aria-label={`${rightHead} 선택지`}>
+            <section className={styles.customerFloorWineShelf} aria-label={`${rightHead} 우측 진열대`}>
+              <header className={styles.customerFloorWineShelfHead}>
+                <strong>와인 진열</strong>
+                <span>현재 손님에게 추천할 와인을 고르세요</span>
+              </header>
               {displayRight.map(renderFloorWine)}
             </section>
-            <section className={styles.customerFloorCast} aria-label={`${leftHead} 손님 5명`}>
-              {displayLeft.map(renderFloorCustomer)}
+            <section className={styles.customerFloorCast} aria-label={`${leftHead} 손님 한 명씩 응대`}>
+              <nav className={styles.customerFloorProgress} aria-label="일반 손님 응대 순서">
+                {displayLeft.map((customer, index) => (
+                  <button
+                    key={customer.id}
+                    type="button"
+                    data-active={index === floorCustomerIndex || undefined}
+                    data-complete={lines.some((line) => line.left === customer.id) || undefined}
+                    aria-label={`${index + 1}번 손님 보기${lines.some((line) => line.left === customer.id) ? " — 연결 완료" : ""}`}
+                    aria-current={index === floorCustomerIndex ? "step" : undefined}
+                    disabled={done || floorMatchFlash}
+                    onClick={() => {
+                      setFloorCustomerIndex(index);
+                      setSelected(null);
+                    }}
+                  >
+                    {index + 1}
+                  </button>
+                ))}
+              </nav>
+              {activeFloorCustomer ? renderFloorCustomer(activeFloorCustomer) : null}
             </section>
           </>
         ) : (
@@ -921,69 +1463,76 @@ export function MatchGame({ game, onComplete }: EngineProps) {
               ) : null}
               <strong>{suddenSettled ? "조치 완료" : "진상 손님"}</strong>
             </span>
+            {!suddenSettled ? (
+              <span className={styles.customerFloorHoverCue} aria-hidden="true">
+                대응하기
+              </span>
+            ) : null}
           </button>
         ) : null}
 
         {customerFloor && sudden && suddenVisible && suddenFocused ? (
           <div className={styles.customerResponse} role="dialog" aria-modal="true" aria-label="진상 손님 대응 선택">
-            <div className={styles.customerResponseSpeech}>
-              <strong>손님</strong>
-              <span>영수증은 없지만 여기서 샀어요. 개봉했어도 지금 바로 환불해 주세요!</span>
-            </div>
-            <div className={styles.customerResponsePerson}>
-              {sudden.sprite ? <PixelSprite id={sudden.sprite} label="진상 손님" size={150} smooth /> : null}
-              <strong>{sudden.label ?? "돌발 손님"}</strong>
+            <div className={styles.customerResponsePanel}>
+              <div className={styles.customerResponseSpeech}>
+                <strong>손님</strong>
+                <span>영수증은 없지만 여기서 샀어요. 개봉했어도 지금 바로 환불해 주세요!</span>
+              </div>
+              <div className={styles.customerResponsePerson}>
+                {sudden.sprite ? <PixelSprite id={sudden.sprite} label="진상 손님" size={176} smooth /> : null}
+                <strong>{sudden.label ?? "돌발 손님"}</strong>
+              </div>
               <button type="button" className={styles.customerResponseBack} onClick={() => setSuddenFocused(false)}>
                 돌아가기
               </button>
-            </div>
-            <div className={styles.customerResponseActions} role="group" aria-label="진상 손님 대처 방법 6개">
-              {displayStages.map((stage) => (
-                <button
-                  key={stage.id}
-                  type="button"
-                  className={styles.customerResponseAction}
-                  data-done={stagesDone.includes(stage.id) || undefined}
-                  disabled={done || stagesDone.includes(stage.id)}
-                  onClick={() => {
-                    pressStage(stage.id);
-                    setSuddenFocused(false);
-                  }}
-                >
-                  {stage.sprite ? <PixelSprite id={stage.sprite} label="" size={34} smooth /> : null}
-                  <span>{stage.label ?? pretty(stage.id)}</span>
-                </button>
-              ))}
-              {(sudden.forbidden_actions ?? []).map((action) => (
-                <button
-                  key={action.id}
-                  type="button"
-                  className={styles.customerResponseAction}
-                  data-forbidden-pressed={pressedForbidden.includes(action.id) || undefined}
-                  disabled={done || pressedForbidden.includes(action.id)}
-                  onClick={() => {
-                    pressForbiddenButton(action.id);
-                    setSuddenFocused(false);
-                  }}
-                >
-                  <span>{pretty(action.id)}</span>
-                </button>
-              ))}
-              {!isItemEscalate && data.escalate ? (
-                <button
-                  type="button"
-                  className={styles.customerResponseAction}
-                  data-kind="escalate"
-                  data-done={escalated || undefined}
-                  disabled={done || escalated}
-                  onClick={() => {
-                    pressStateEscalate();
-                    setSuddenFocused(false);
-                  }}
-                >
-                  <span>{data.escalate.label ?? "호출"}</span>
-                </button>
-              ) : null}
+              <div className={styles.customerResponseActions} role="group" aria-label="진상 손님 대처 방법 6개">
+                {displayStages.map((stage) => (
+                  <button
+                    key={stage.id}
+                    type="button"
+                    className={styles.customerResponseAction}
+                    data-done={stagesDone.includes(stage.id) || undefined}
+                    disabled={done || stagesDone.includes(stage.id)}
+                    onClick={() => {
+                      pressStage(stage.id);
+                      setSuddenFocused(false);
+                    }}
+                  >
+                    {stage.sprite ? <PixelSprite id={stage.sprite} label="" size={34} smooth /> : null}
+                    <span>{stage.label ?? pretty(stage.id)}</span>
+                  </button>
+                ))}
+                {(sudden.forbidden_actions ?? []).map((action) => (
+                  <button
+                    key={action.id}
+                    type="button"
+                    className={styles.customerResponseAction}
+                    data-forbidden-pressed={pressedForbidden.includes(action.id) || undefined}
+                    disabled={done || pressedForbidden.includes(action.id)}
+                    onClick={() => {
+                      pressForbiddenButton(action.id);
+                      setSuddenFocused(false);
+                    }}
+                  >
+                    <span>{pretty(action.id)}</span>
+                  </button>
+                ))}
+                {!isItemEscalate && data.escalate ? (
+                  <button
+                    type="button"
+                    className={styles.customerResponseAction}
+                    data-kind="escalate"
+                    data-done={escalated || undefined}
+                    disabled={done || escalated}
+                    onClick={() => {
+                      pressStateEscalate();
+                      setSuddenFocused(false);
+                    }}
+                  >
+                    <span>{data.escalate.label ?? "호출"}</span>
+                  </button>
+                ) : null}
+              </div>
             </div>
           </div>
         ) : null}
@@ -1175,18 +1724,27 @@ export function MatchGame({ game, onComplete }: EngineProps) {
 
       {done && outcome ? (
         <ResultBar score={outcome.accuracy}>
-          판정{" "}
-          <b>
-            {outcome.numerator}/{outcome.denominator}
-          </b>{" "}
-          정답
-          {outcome.incidents > 0 ? (
+          {supplyRun ? (
             <>
-              {" · "}감점 <b>{outcome.incidents}건</b> −{outcome.penalty}점
+              출고·운반 <b>{outcome.supplyAccuracy ?? 0}점</b> · 고객 응대 <b>{outcome.matchAccuracy}점</b>
             </>
           ) : (
             <>
-              {" · "}감점 <b>없음</b>
+              판정{" "}
+              <b>
+                {outcome.numerator}/{outcome.denominator}
+              </b>{" "}
+              정답
+            </>
+          )}
+          {outcome.incidents > 0 ? (
+            <>
+              {" · "}실수 <b>{outcome.incidents}건</b>
+              {outcome.penalty > 0 ? <> · 고객 응대 감점 −{outcome.penalty}점</> : null}
+            </>
+          ) : (
+            <>
+              {" · "}실수 <b>없음</b>
             </>
           )}
         </ResultBar>

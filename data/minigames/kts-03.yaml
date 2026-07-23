@@ -1,4 +1,4 @@
-# 4단계 미니게임 — kts-03 영업·판매·매장응대(와인 매장)
+# 4단계 미니게임 — kts-03 영업·판매·매장응대(출고·운반 / 고객 추천 분리)
 # 근거: 2스텝 "와인 선물 고객 니즈 파악" — 유선우: "선물할 와인 하나 골라줘요. 좋은 걸로."
 #       미션 "니즈(받는 분·상황·예산·취향)를 파악해 니즈 메모를 완성"
 #       제공 자료 "상품 정보 카드(와인 12종), 재고 현황, 가격대별 추천 매트릭스"
@@ -16,9 +16,10 @@ intro: 손님의 선물 니즈(상황 아이콘 · 예산 가격표)에 맞는 �
 time_limit: 75
 pass_score: 70
 
-data:
+data: &customer_game_data
   # 표시 전용 — 1920×880 매장 원본 위에 손님·상품을 배치하고, 돌발 손님 클릭 시
   # 6개 대응 버튼을 같은 장면 안에 띄운다. 판정·채점 데이터는 아래 기존 필드를 그대로 사용.
+  background_id: kts-03
   presentation: customer_floor
   # 표시 전용 — 컬럼 헤더(엔진 left_label/right_label 규약, 채점 무관. 도트 아트 2026-07-20).
   # 가격표 개수는 visual_cues 텍스트에 의존하지 않도록 스프라이트 하단에 같은 개수의
@@ -116,7 +117,7 @@ data:
 # accuracy = (맞은 pairs / 5) * 100 − 감점, 하한 0
 # 감점 중첩 금지 — 한 선(사건)에 wrong_pair·forbidden_pair·matched_unmatched 가 겹치면
 # 가장 무거운 감점 하나만 적용한다(_SCHEMA 표준 채점 키 — 전 엔진 공통, 검증 지적 반영).
-scoring:
+scoring: &customer_game_scoring
   pair_count: 5
   wrong_pair_penalty: 14
   forbidden_penalty: 40        # 표준 키 — 금기 페어·행동 공통(변형 금지)     # 예산 초과·품절 상품을 이은 선 — 합격선을 뚫는다(규칙 7)
@@ -126,3 +127,53 @@ scoring:
   stage_skip_penalty: 15         # 돌발 단계(경청→규정→대안) 생략·순서 위반 — 건당
   ignore_sudden_penalty: 40      # 돌발(오건우)을 아예 응대하지 않고 종료 — 방치가 최적 전략이 되지 않게
   missed_escalate_penalty: 40    # 고성 지속(persists_after_stages)인데 매니저 미호출 — 원문 정답 ④
+
+# 첫 번째 게임 전용 데이터 — SVG 기획안 순서
+# ① 출고 목록 기억 → ② 창고에서 종류별 수량 피킹 → ③ 카트 안전 운반.
+supply_game_data: &supply_game_data
+  background_id: kts-03
+  presentation: supply_run
+  supply_only: true
+  supply_run:
+    memory_seconds: 7
+    order:
+      - { id: 레드,       label: 레드 와인,       display_label: Red wine,       sprite: 와인_레드_중가,       target: 7, at: [105, 64],  hit_at: [151, 114], hit_size: [31, 63] }
+      - { id: 화이트,     label: 화이트 와인,     display_label: White wine,     sprite: 와인_화이트_저가,     target: 5, at: [915, 194], hit_at: [893, 280], hit_size: [41, 80] }
+      - { id: 스파클링,   label: 스파클링 와인,   display_label: Sparkling wine, sprite: 와인_스파클링_중가,   target: 3, at: [769, 126], hit_at: [811, 155], hit_size: [21, 27] }
+      - { id: 로제,       label: 로제 와인,       display_label: Rose wine,      sprite: 와인_스위트_저가,     target: 1, at: [646, 141], hit_at: [671, 192], hit_size: [27, 19] }
+      - { id: 스위트,     label: 스위트 와인,     display_label: Sweet wine,     sprite: 와인_스위트_저가,     target: 4, at: [167, 231], hit_at: [212, 254], hit_size: [27, 37] }
+    transport:
+      duration_seconds: 24
+      overspeed_ticks: 12
+      obstacles:
+        - { id: 직원_통로,     label: 이동 중인 직원, sprite: 손님_갈색머리,      lane: 0, at: 24 }
+        - { id: 적치_상자,     label: 통로의 적치물, sprite: 적치물_상자더미,     lane: 2, at: 43 }
+        - { id: 고객_횡단,     label: 지나가는 고객, sprite: 손님_금발_안경,      lane: 1, at: 61 }
+        - { id: 작업_라바콘,   label: 작업 구역,     sprite: 장애물_라바콘,        lane: 0, at: 79 }
+        - { id: 진열_상자,     label: 진열 대기 상자, sprite: 상자_별아이콘_도장별, lane: 2, at: 91 }
+  left: []
+  right: []
+  pairs: []
+  unmatched: []
+
+# 팀장 확정: 두 게임은 별도 결과 화면을 거쳐 순서대로 실행한다.
+games:
+  - id: kts-03-supply
+    step: m1
+    engine: match
+    title: 오픈 진열분 출고·안전 운반
+    intro: 출고 목록의 종류와 수량을 기억해 정확히 피킹하고, 카트 속도를 조절하며 장애물을 피해 매장까지 운반하세요.
+    time_limit: 70
+    pass_score: 70
+    data: *supply_game_data
+    scoring:
+      supply_weight: 100
+  - id: kts-03-customer
+    step: m2
+    engine: match
+    title: 니즈-상품 추천 매칭
+    intro: 손님의 선물 니즈에 맞는 와인을 추천하고, 예산 초과·품절 상품과 돌발 환불 요구에 올바르게 대응하세요.
+    time_limit: 75
+    pass_score: 70
+    data: *customer_game_data
+    scoring: *customer_game_scoring
