@@ -3093,6 +3093,12 @@
   line-height: 21px;
 }
 
+.reportHero .reportJobDescription {
+  margin: 0 0 6px;
+  color: #88779b;
+  font-size: 13px;
+}
+
 .reportSection {
   margin-top: 16px;
   padding: 18px 20px;

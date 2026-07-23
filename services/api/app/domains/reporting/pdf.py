@@ -62,10 +62,17 @@ def render_report_pdf(
         Paragraph("추천 직무", _h2),
     ]
 
-    rows = [["순위", "직무", "적합도", "추천 근거"]]
+    rows = [["순위", "직무", "적합도", "직무 설명", "추천 근거"]]
     for i, r in enumerate(recommendations, 1):
-        rows.append([str(i), r["job_title"], f"{r['score']}점", Paragraph(r["reason"], _body)])
-    table = Table(rows, colWidths=[12 * mm, 32 * mm, 18 * mm, None])
+        # description은 이 필드 추가 이전에 저장된 과거 추천 스냅샷엔 없을 수 있음
+        rows.append([
+            str(i),
+            r["job_title"],
+            f"{r['score']}점",
+            Paragraph(r.get("description") or "-", _muted),
+            Paragraph(r["reason"], _body),
+        ])
+    table = Table(rows, colWidths=[12 * mm, 26 * mm, 16 * mm, 48 * mm, None])
     table.setStyle(TableStyle([
         ("FONTNAME", (0, 0), (-1, -1), FONT),
         ("FONTSIZE", (0, 0), (-1, -1), 10),

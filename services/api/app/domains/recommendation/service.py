@@ -272,6 +272,7 @@ async def create_recommendation(
         {
             "job_code": job.code,
             "job_title": job.title,
+            "description": job.description,
             "score": _score_job(job, scores, interest_profile),
             "reason": _build_reason(job, scores, names, interest_profile),
             # NCS 조사자료(배치1) — 미조사 직무는 내부 필드가 비어있을 수 있음
