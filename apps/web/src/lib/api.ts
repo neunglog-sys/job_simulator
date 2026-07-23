@@ -243,7 +243,7 @@ export type PolicyCard = {
   body?: string;
   more_url?: string;
   /** 본문이 실제로 언급한 제도 — 백엔드가 후보와 대조해 검증한 것만 담긴다. */
-  cited?: Array<{ name: string; link: string }>;
+  cited?: Array<{ name: string; summary?: string; provider?: string; link: string }>;
   source_count?: number;
 };
 
