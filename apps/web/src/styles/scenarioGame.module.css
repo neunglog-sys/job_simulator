@@ -420,6 +420,22 @@ button.headerOrb:active {
   /* 도트 캐릭터는 바닥에 서 있어야 해서 둥둥 뜨는 objectFloat는 쓰지 않는다 */
 }
 
+/* 걷고 있지 않은 NPC(대기 중인 사수 포함 전원)의 잔잔한 제자리 움직임 (팀 요청 2026-07-23 갱신).
+   위치 중심 정렬(-50%,-50%)을 유지한 채로 살짝 흔든다 — left/top 900ms 트랜지션과는 별개 레이어. */
+.npcIdleSway {
+  animation: npcIdleSway 3.6s ease-in-out infinite;
+}
+
+@keyframes npcIdleSway {
+  0%,
+  100% {
+    transform: translate(-50%, -50%);
+  }
+  50% {
+    transform: translate(-50%, calc(-50% - 3px));
+  }
+}
+
 .npcMarkerAvatar {
   transition: transform 150ms ease;
 }

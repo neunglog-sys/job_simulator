@@ -1,4 +1,11 @@
-import { Briefcase, ChartLineUp, CheckCircle, DownloadSimple, ListChecks } from "@phosphor-icons/react";
+import {
+  Briefcase,
+  ChartLineUp,
+  CheckCircle,
+  DownloadSimple,
+  GraduationCap,
+  ListChecks,
+} from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 import { ApiError, fetchReportPdfBlob } from "../../lib/api";
 import styles from "../../styles/oneToOneConversation.module.css";
@@ -28,6 +35,13 @@ export function FinalReportPanel({ reportState, onRetry }: FinalReportPanelProps
 
   const topJob = recommendation?.results[0] ?? null;
   const otherJobs = recommendation?.results.slice(1, 4) ?? [];
+
+  // 조사 안 된 직무가 대부분이라 세 필드 다 없는 경우가 흔함 — 하나라도 있을 때만 섹션을 그린다.
+  const educationValue = topJob?.education_requirement?.value ?? null;
+  const salaryStats = topJob?.salary?.reference_statistics;
+  const medianSalary = salaryStats?.median_annual_krw ?? null;
+  const certifications = topJob?.certifications ?? [];
+  const hasJobMeta = Boolean(educationValue) || medianSalary !== null || certifications.length > 0;
 
   const handleDownloadPdf = async () => {
     if (!report || pdfStatus === "loading") return;
@@ -117,6 +131,48 @@ export function FinalReportPanel({ reportState, onRetry }: FinalReportPanelProps
                 <p>{topJob.reason}</p>
               </div>
             </div>
+            {hasJobMeta ? (
+              <article className={styles.reportSection}>
+                <h3>
+                  <GraduationCap weight="fill" aria-hidden="true" /> 직무 기본 정보
+                </h3>
+                <dl className={styles.reportJobMeta}>
+                  {educationValue ? (
+                    <div className={styles.reportJobMetaRow}>
+                      <dt>학력 요건</dt>
+                      <dd>{educationValue}</dd>
+                    </div>
+                  ) : null}
+                  {medianSalary !== null ? (
+                    <div className={styles.reportJobMetaRow}>
+                      <dt>평균 연봉</dt>
+                      <dd>
+                        {Math.round(medianSalary / 10000).toLocaleString()}만원
+                        {salaryStats?.reference_year || salaryStats?.population ? (
+                          <span className={styles.reportJobMetaCaption}>
+                            {" "}
+                            ({salaryStats.reference_year ? `${salaryStats.reference_year}년 · ` : ""}
+                            {salaryStats.population ?? ""} 기준)
+                          </span>
+                        ) : null}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {certifications.length > 0 ? (
+                    <div className={styles.reportJobMetaRow}>
+                      <dt>관련 자격증</dt>
+                      <dd>
+                        <div className={styles.reportTags}>
+                          {certifications.map((cert) => (
+                            <span key={cert.name}>{cert.name}</span>
+                          ))}
+                        </div>
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </article>
+            ) : null}
             <article className={styles.reportSection}>
               <h3>
                 <CheckCircle weight="fill" aria-hidden="true" /> 발견한 강점

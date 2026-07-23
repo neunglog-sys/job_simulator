@@ -3147,6 +3147,38 @@
   font-weight: 650;
 }
 
+.reportJobMeta {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.reportJobMetaRow {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.reportJobMetaRow dt {
+  color: #88779b;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.reportJobMetaRow dd {
+  margin: 0;
+  color: #3b2f53;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.reportJobMetaCaption {
+  color: #a196ac;
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .panelIndexTabs {
   position: absolute;
   top: 102px;

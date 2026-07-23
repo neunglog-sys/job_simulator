@@ -129,6 +129,13 @@ function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(Math.max(value, minimum), Math.max(minimum, maximum));
 }
 
+// 대기 애니메이션이 전원 같은 박자로 흔들리지 않도록 npc_id 기반으로 딜레이를 흩뿌린다.
+function idleSwayDelay(npcId: string): number {
+  let hash = 0;
+  for (let i = 0; i < npcId.length; i++) hash = (hash * 31 + npcId.charCodeAt(i)) >>> 0;
+  return (hash % 20) / 10; // 0.0–1.9초
+}
+
 export function MovementArea({
   position,
   onPositionChange,
@@ -240,6 +247,89 @@ export function MovementArea({
     return () => clearTimeout(timer);
   }, [guidePosition]);
 
+  // 넛지 체크가 플레이어의 최신 좌표를 읽기 위한 ref — effect를 position 변화마다 재실행하지
+  // 않기 위해 별도로 둔다 (movePlayer용 positionRef와 동일한 패턴, 아래에서 재선언됨).
+  const livePositionRef = useRef(position);
+  livePositionRef.current = position;
+
+  // 사수 안내 — geometry.npc_paths의 스폰→안내 지점으로 한 번만 리드하고, 도착 후 플레이어가
+  // 안 따라오면 일정 주기로 말을 건다(팀 결정 2026-07-23 갱신: 왕복 순찰 → 1회 안내+넛지).
+  // 좌표는 collision 배열 실측 검증됨 — kts-03/find_patrol_points.py. 온보딩 투어와 무관하게 항상 동작.
+  // 좌표는 spawns와 같은 스테이지 좌표계라 마커에 쓸 땐 origin을 빼서 로컬화한다.
+  const [patrolTargets, setPatrolTargets] = useState<Record<string, Position>>({});
+  const [patrolFacing, setPatrolFacing] = useState<Record<string, NpcFacing>>({});
+  const [patrolWalking, setPatrolWalking] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    const paths = geometry?.npc_paths ?? [];
+    if (paths.length === 0) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const intervals: ReturnType<typeof setInterval>[] = [];
+
+    for (const path of paths) {
+      if (path.points.length < 2) continue;
+      const npcId = path.npc_id;
+      const speed = path.speed ?? 60;
+      const pauseMs = path.pause_ms ?? 1500;
+      const from = path.points[0];
+      const to = path.points[1];
+      setPatrolTargets((prev) => ({ ...prev, [npcId]: from }));
+
+      timers.push(
+        setTimeout(() => {
+          const dx = to.x - from.x;
+          const dy = to.y - from.y;
+          setPatrolFacing((prev) => ({
+            ...prev,
+            [npcId]:
+              Math.abs(dx) >= Math.abs(dy)
+                ? dx > 0
+                  ? "screen_right"
+                  : "screen_left"
+                : dy > 0
+                  ? "front"
+                  : "back",
+          }));
+          setPatrolWalking((prev) => ({ ...prev, [npcId]: true }));
+          setPatrolTargets((prev) => ({ ...prev, [npcId]: to }));
+          const travelMs = Math.max(300, (Math.hypot(dx, dy) / speed) * 1000);
+          timers.push(
+            setTimeout(() => {
+              setPatrolWalking((prev) => ({ ...prev, [npcId]: false }));
+              // 안내 도착 — prompt가 있으면 플레이어가 안 따라올 때 주기적으로 말을 건다.
+              if (!path.prompt) return;
+              const radius = path.nudge_radius ?? 240;
+              const intervalMs = path.nudge_interval_ms ?? 6000;
+              const maxNudges = path.nudge_max ?? 3;
+              const targetLocalX = to.x - origin.x;
+              const targetLocalY = to.y - origin.y;
+              let count = 0;
+              const timer = setInterval(() => {
+                const p = livePositionRef.current;
+                const dist = Math.hypot(
+                  p.x + PLAYER_SIZE.width / 2 - targetLocalX,
+                  p.y + PLAYER_SIZE.height / 2 - targetLocalY,
+                );
+                if (dist <= radius) {
+                  clearInterval(timer);
+                  return;
+                }
+                count += 1;
+                onCoachMessage(path.prompt as string);
+                if (count >= maxNudges) clearInterval(timer);
+              }, intervalMs);
+              intervals.push(timer);
+            }, travelMs),
+          );
+        }, pauseMs),
+      );
+    }
+
+    return () => {
+      timers.forEach(clearTimeout);
+      intervals.forEach(clearInterval);
+    };
+  }, [geometry, origin, onCoachMessage]);
+
   // 주인공 바라보는 방향·걷기 — 이동 delta의 지배 축으로 판정, 입력이 멎으면 220ms 뒤 idle 복귀
   // (키 리피트 간격보다 길어야 걷는 중에 끊기지 않는다)
   const [playerFacing, setPlayerFacing] = useState<NpcFacing>("front");
@@ -285,8 +375,18 @@ export function MovementArea({
         const step = Math.ceil(index / 2) * SLOT_SPREAD * (index % 2 === 1 ? 1 : -1);
         // 투어 중인 사수는 자기 자리가 아니라 지금 안내하는 위치에 그린다(걸어다니는 연출).
         const touring = guideNpcId === npc.npc_id && guidePosition;
-        const rawX = touring ? guidePosition.x : spot.x - origin.x + step;
-        const rawY = touring ? guidePosition.y : spot.y - origin.y;
+        // 순찰 중인 사수(geometry.npc_paths)도 마찬가지로 자기 자리 대신 순찰 목표점을 그린다.
+        const patrolTarget = touring ? null : patrolTargets[npc.npc_id];
+        const rawX = touring
+          ? guidePosition.x
+          : patrolTarget
+            ? patrolTarget.x - origin.x
+            : spot.x - origin.x + step;
+        const rawY = touring
+          ? guidePosition.y
+          : patrolTarget
+            ? patrolTarget.y - origin.y
+            : spot.y - origin.y;
         // 마커는 transform: translate(-50%, -50%)로 좌표 중심에 그려지므로, 스프라이트 절반
         // 폭·높이만큼 안쪽으로 clamp해야 컨테이너(overflow: hidden) 밖으로 잘려나가지 않는다.
         // 한 자리에 인원이 몰려 SLOT_SPREAD로 벌어질 때(4번째, 5번째 인원 등) 경계를 넘던 문제.
@@ -302,7 +402,7 @@ export function MovementArea({
       }
     }
     return markers;
-  }, [geometry, npcs, origin, activeNpcId, guideNpcId, guidePosition, areaSize]);
+  }, [geometry, npcs, origin, activeNpcId, guideNpcId, guidePosition, patrolTargets, areaSize]);
 
   const collidesAt = useCallback(
     (pos: Position) => {
@@ -624,39 +724,48 @@ export function MovementArea({
           />
         ))}
         {geometry ? (
-          npcMarkers.map((marker) => (
-            <button
-              className={`${styles.npcMarker} ${marker.isActive ? styles.npcMarkerActive : ""}`}
-              type="button"
-              key={marker.npc_id}
-              style={{
-                left: marker.x,
-                top: marker.y,
-                // 오클루전 맵에서는 NPC도 y-정렬에 참여 — 가구 뒤 자리면 하반신이 가려진다
-                zIndex: occluders.length > 0 ? Math.round(marker.y + NPC_FRAME.height / 2) : undefined,
-              }}
-              onClick={() => onNpcClick?.(marker.npc_id)}
-              aria-label={`${marker.name}와 대화하기`}
-            >
-              {marker.isActive ? (
-                <span className={styles.npcMarkerBadge} aria-hidden="true">
-                  !
-                </span>
-              ) : null}
-              <NpcSprite
-                npcId={marker.npc_id}
-                facing={
-                  guideNpcId === marker.npc_id ? guideTrack.current.facing : "front"
-                }
-                walking={
-                  guideNpcId === marker.npc_id &&
-                  guideWalking &&
-                  !WALK_DISABLED_NPCS.has(marker.npc_id)
-                }
-              />
-              <span className={styles.npcMarkerName}>{marker.name}</span>
-            </button>
-          ))
+          npcMarkers.map((marker) => {
+            // 걷는 중이 아닌 NPC는 전부 잔잔한 제자리 흔들림을 켠다 — 도착해 대기 중인 사수도,
+            // 애초에 순찰 경로가 없는 나머지 NPC도 포함(팀 요청 2026-07-23 갱신).
+            const isWalking =
+              !WALK_DISABLED_NPCS.has(marker.npc_id) &&
+              ((guideNpcId === marker.npc_id && guideWalking) ||
+                Boolean(patrolWalking[marker.npc_id]));
+            return (
+              <button
+                className={`${styles.npcMarker} ${marker.isActive ? styles.npcMarkerActive : ""} ${
+                  isWalking ? "" : styles.npcIdleSway
+                }`}
+                type="button"
+                key={marker.npc_id}
+                style={{
+                  left: marker.x,
+                  top: marker.y,
+                  // 오클루전 맵에서는 NPC도 y-정렬에 참여 — 가구 뒤 자리면 하반신이 가려진다
+                  zIndex: occluders.length > 0 ? Math.round(marker.y + NPC_FRAME.height / 2) : undefined,
+                  animationDelay: isWalking ? undefined : `${idleSwayDelay(marker.npc_id)}s`,
+                }}
+                onClick={() => onNpcClick?.(marker.npc_id)}
+                aria-label={`${marker.name}와 대화하기`}
+              >
+                {marker.isActive ? (
+                  <span className={styles.npcMarkerBadge} aria-hidden="true">
+                    !
+                  </span>
+                ) : null}
+                <NpcSprite
+                  npcId={marker.npc_id}
+                  facing={
+                    guideNpcId === marker.npc_id
+                      ? guideTrack.current.facing
+                      : (patrolFacing[marker.npc_id] ?? "front")
+                  }
+                  walking={isWalking}
+                />
+                <span className={styles.npcMarkerName}>{marker.name}</span>
+              </button>
+            );
+          })
         ) : (
           GAME_OBJECTS.map((object) => {
             const ObjectIcon = object.icon;

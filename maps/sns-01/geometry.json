@@ -2028,7 +2028,21 @@
       "mask": "mask_019.png"
     }
   ],
-  "npc_paths": [],
+  "npc_paths": [
+    {
+      "npc_id": "npc_sns-01_01",
+      "points": [
+        { "x": 1535, "y": 530 },
+        { "x": 1395, "y": 530 }
+      ],
+      "speed": 60,
+      "pause_ms": 1800,
+      "prompt": "이쪽으로 와주실래요? 같이 확인할 게 있어요.",
+      "nudge_radius": 240,
+      "nudge_interval_ms": 6000,
+      "nudge_max": 3
+    }
+  ],
   "interactions": [],
   "spawns": [
     {
