@@ -531,13 +531,18 @@ export type GameNpc = {
   spawn: string | null; // 맵 geometry.spawns의 자리 id (teamjang|sasu|bujang)
 };
 export type GameSpawn = { id: string; x: number; y: number };
-// 하드코딩된 NPC 순찰 경로 — 사수 역할 NPC가 두 지점을 왕복한다(팀 결정, 2026-07-23).
+// 하드코딩된 NPC 안내 경로 — 사수 역할 NPC가 스폰 지점에서 안내 지점까지 한 번 리드하고,
+// 플레이어가 일정 시간 안 따라오면 말을 건다(팀 결정, 2026-07-23 갱신).
 // 좌표는 collision 배열을 실측 검증해 정한 안전 지점 (find_patrol_points 스크립트).
 export type GameNpcPath = {
   npc_id: string;
   points: Array<{ x: number; y: number }>;
   speed?: number; // px/초
   pause_ms?: number; // 각 지점 도착 후 대기 시간
+  prompt?: string; // 플레이어가 안 따라올 때 사수가 건네는 대사
+  nudge_radius?: number; // 이 반경(px) 밖이면 안 따라온 것으로 판단
+  nudge_interval_ms?: number; // 넛지 재확인 주기
+  nudge_max?: number; // 넛지 최대 반복 횟수(그 이상은 조용히 대기)
 };
 // overhead 오클루더 — 가구 상단부. 배경을 같은 위치에서 잘라 캐릭터 위에 y-정렬로 겹친다.
 // 사각형(x,y,w,h) 또는 폴리곤(points+bbox), 복잡한 가구는 픽셀 마스크(mask 파일명).

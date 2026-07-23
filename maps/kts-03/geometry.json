@@ -1776,7 +1776,11 @@
         { "x": 1539, "y": 317 }
       ],
       "speed": 60,
-      "pause_ms": 1800
+      "pause_ms": 1800,
+      "prompt": "이쪽으로 와보세요, 매대 좀 같이 봐요.",
+      "nudge_radius": 240,
+      "nudge_interval_ms": 6000,
+      "nudge_max": 3
     }
   ],
   "interactions": [],
