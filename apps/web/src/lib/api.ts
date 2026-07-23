@@ -375,15 +375,40 @@ export function submitConsultationSurvey(
 }
 
 // --- 직무 추천 · 최종 리포트 — 백엔드 recommendation/reporting 스키마와 1:1 ---
+// education_requirement/salary는 조사 안 된 직무가 대부분이라 값 자체가 null이거나
+// note만 채워진 채로 오는 경우가 흔함 — 렌더링 시 value/median_annual_krw 존재 여부로 판단.
+export type JobEducationRequirement = {
+  value: string | null;
+  source_field?: string;
+  evidence_type?: string;
+  note?: string;
+};
+
+export type JobSalary = {
+  entry_level?: { min_krw: number | null; max_krw: number | null };
+  reference_statistics?: {
+    median_annual_krw?: number;
+    statistic_type?: string;
+    population?: string;
+    reference_year?: number;
+  } | null;
+  note?: string;
+};
+
+export type JobCertification = {
+  name: string;
+  tier: string;
+};
+
 export type JobRecommendation = {
   job_code: string;
   job_title: string;
   description: string | null;
   score: number;
   reason: string;
-  education_requirement: Record<string, unknown> | null;
-  salary: Record<string, unknown> | null;
-  certifications: unknown[];
+  education_requirement: JobEducationRequirement | null;
+  salary: JobSalary | null;
+  certifications: JobCertification[];
   scenario_slug: string | null;
 };
 

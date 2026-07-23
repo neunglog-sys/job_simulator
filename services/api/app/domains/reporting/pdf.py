@@ -89,6 +89,30 @@ def render_report_pdf(
         fit_label += "  (상담 50% + 직무 체험 수행 50%)"
     story.append(Paragraph(fit_label, _h2))
 
+    # 1순위 직무만 표시 — 학력/급여/자격증은 조사된 직무가 일부라 대부분 비어있다.
+    top = recommendations[0] if recommendations else {}
+    edu_value = (top.get("education_requirement") or {}).get("value")
+    salary_stats = (top.get("salary") or {}).get("reference_statistics") or {}
+    median_salary = salary_stats.get("median_annual_krw")
+    certs = top.get("certifications") or []
+    if edu_value or median_salary or certs:
+        story.append(Paragraph("직무 기본 정보", _h2))
+        if edu_value:
+            story.append(Paragraph(f"학력 요건: {edu_value}", _body))
+        if median_salary:
+            caption_parts = [
+                p for p in (
+                    f"{salary_stats['reference_year']}년" if salary_stats.get("reference_year") else None,
+                    salary_stats.get("population"),
+                ) if p
+            ]
+            caption = f" ({' · '.join(caption_parts)} 기준)" if caption_parts else ""
+            story.append(Paragraph(f"평균 연봉: {round(median_salary / 10000):,}만원{caption}", _body))
+        if certs:
+            cert_names = ", ".join(c.get("name", "") for c in certs if c.get("name"))
+            story.append(Paragraph(f"관련 자격증: {cert_names}", _body))
+        story.append(Spacer(1, 4))
+
     if performance is not None:
         story.append(Paragraph("직무 체험 수행 결과", _h2))
         head = f"{performance['scenario_title']} — 시나리오 총점 {performance['total']}점"
