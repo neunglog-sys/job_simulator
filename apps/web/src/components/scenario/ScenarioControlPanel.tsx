@@ -8,9 +8,11 @@ import {
   Stop,
   UserCircle,
 } from "@phosphor-icons/react";
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { RecordingState } from "../../types/conversation";
 import styles from "../../styles/scenarioGame.module.css";
+import type { DialogueHistoryEntry } from "./DialogueHistoryPanel";
 
 type SpeechRecognitionAlternativeLike = {
   transcript: string;
@@ -69,6 +71,7 @@ type ScenarioControlPanelProps = {
   npcRole?: string;
   npcMessage: string;
   userMessage: string;
+  dialogueEntries: DialogueHistoryEntry[];
   isStreaming?: boolean;
   isHistoryOpen?: boolean;
   isMemoOpen?: boolean;
@@ -89,6 +92,7 @@ export function ScenarioControlPanel({
   npcRole,
   npcMessage,
   userMessage,
+  dialogueEntries,
   isStreaming = false,
   isHistoryOpen = false,
   isMemoOpen = false,
@@ -121,6 +125,61 @@ export function ScenarioControlPanel({
 
   // 스트리밍 중 백엔드 정리 전에 잠깐 새어나올 수 있는 화자 태그("[이름] ")를 표시 단계에서도 제거.
   const displayNpcMessage = npcMessage.replace(/^\s*\[[^\]]{1,20}\]\s*/, "");
+  const visibleMessages = useMemo(() => {
+    const currentNpcName = npcName.trim();
+    const currentConversation: Array<
+      DialogueHistoryEntry & { animationKey: string; streaming?: boolean }
+    > = [];
+
+    if (displayNpcMessage || userMessage || isStreaming) {
+      for (let index = dialogueEntries.length - 1; index >= 0; index -= 1) {
+        const entry = dialogueEntries[index];
+        if (entry.role === "npc" && entry.speaker.trim() !== currentNpcName) break;
+        currentConversation.unshift({
+          ...entry,
+          animationKey: `history-${entry.id}`,
+        });
+      }
+    }
+
+    const latestUser = [...currentConversation].reverse().find((entry) => entry.role === "user");
+    if (userMessage && latestUser?.text !== userMessage) {
+      currentConversation.push({
+        id: -1,
+        speaker: "나",
+        role: "user",
+        text: userMessage,
+        animationKey: `live-user-${currentNpcName}`,
+      });
+    }
+
+    const latestNpc = [...currentConversation].reverse().find((entry) => entry.role === "npc");
+    if (displayNpcMessage && latestNpc?.text !== displayNpcMessage) {
+      currentConversation.push({
+        id: -2,
+        speaker: npcName,
+        role: "npc",
+        text: displayNpcMessage,
+        animationKey: `live-npc-${currentNpcName}`,
+        streaming: isStreaming,
+      });
+    } else if (isStreaming && displayNpcMessage && latestNpc) {
+      latestNpc.streaming = true;
+    }
+
+    if (currentConversation.length === 0) {
+      currentConversation.push({
+        id: -3,
+        speaker: npcName,
+        role: "npc",
+        text: isStreaming ? "" : `${npcName}에게 궁금한 점을 물어보세요.`,
+        animationKey: `empty-npc-${currentNpcName}`,
+        streaming: isStreaming,
+      });
+    }
+
+    return currentConversation.slice(-2);
+  }, [dialogueEntries, displayNpcMessage, isStreaming, npcName, userMessage]);
 
   const cleanupVoiceResources = useCallback(() => {
     if (voiceAnimationFrameRef.current !== null) {
@@ -192,7 +251,7 @@ export function ScenarioControlPanel({
     const conversation = conversationRef.current;
     if (!conversation) return;
     conversation.scrollTop = conversation.scrollHeight;
-  }, [displayNpcMessage, isStreaming, userMessage]);
+  }, [visibleMessages]);
 
   useEffect(() => {
     voiceInputEnabledRef.current = !disabled;
@@ -479,32 +538,51 @@ export function ScenarioControlPanel({
 
       <section className={`${styles.glassPanel} ${styles.dialoguePanel}`} aria-label="NPC 대화창">
         <div className={styles.npcConversation}>
-          <div className={styles.npcIdentity}>
-            <span className={styles.speakerPortrait} aria-hidden="true">
-              <UserCircle weight="duotone" />
-            </span>
-            <strong>{npcName}</strong>
-            <small>{npcRole || "NPC"}</small>
-          </div>
-
           <div
             className={styles.conversationBubbles}
             ref={conversationRef}
             role="log"
             aria-label="현재 대화 한 턴"
           >
-            <div className={styles.npcSpeechBubble} aria-live="polite">
-              <p>
-                {displayNpcMessage ||
-                  (isStreaming ? "" : `${npcName}에게 궁금한 점을 물어보세요.`)}
-                {isStreaming ? <span aria-hidden="true">▍</span> : null}
-              </p>
-            </div>
-            {userMessage ? (
-              <div className={styles.userSpeechBubble} aria-label="내 답변" aria-live="polite">
-                <p>{userMessage}</p>
-              </div>
-            ) : null}
+            <AnimatePresence initial={false} mode="popLayout">
+              {visibleMessages.map((message) => (
+                <motion.div
+                  className={`${styles.dialogueMessageRow} ${
+                    message.role === "npc"
+                      ? styles.dialogueMessageRowNpc
+                      : styles.dialogueMessageRowUser
+                  }`}
+                  key={message.animationKey}
+                  layout="position"
+                  initial={{ opacity: 0, y: 28 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -28 }}
+                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  {message.role === "npc" ? (
+                    <>
+                      <div className={styles.npcIdentity}>
+                        <span className={styles.speakerPortrait} aria-hidden="true">
+                          <UserCircle weight="duotone" />
+                        </span>
+                        <strong>{message.speaker || npcName}</strong>
+                        <small>{npcRole || "NPC"}</small>
+                      </div>
+                      <div className={styles.npcSpeechBubble} aria-live="polite">
+                        <p>
+                          {message.text}
+                          {message.streaming ? <span aria-hidden="true">▍</span> : null}
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <div className={styles.userSpeechBubble} aria-label="내 답변" aria-live="polite">
+                      <p>{message.text}</p>
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         </div>
 
