@@ -120,6 +120,16 @@ def test_cited_policies_detects_real_and_fabricated_names():
     assert service._cited_policies("청년만능지원금은 매달 100만원을 줍니다.", candidates) == []
 
 
+def test_dash_sgg_is_treated_as_province_wide():
+    """복지로가 '시군구 없음'을 '-'로 주는 행이 있다. 시군구 전용으로 오해하면 도 전체 정책이 사라진다."""
+    rows = [{
+        "name": "경기도 청년 취업지원", "summary": "취업 지원", "theme": "일자리",
+        "ctpv": "경기도", "sgg": "-", "provider": "", "link": "",
+    }]
+    out = service._filter_bokjiro(rows, ctpv="경기도", sgg="양주시")
+    assert len(out) == 1 and out[0]["scope"] == "province"
+
+
 def test_summary_strips_source_formatting():
     """복지로 원문의 '❍' 글머리·줄바꿈이 화면과 프롬프트로 새어 나가면 안 된다."""
     rows = [{

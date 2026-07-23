@@ -243,9 +243,10 @@ export type PolicyCard = {
   body?: string;
   more_url?: string;
   /** 본문이 실제로 언급한 제도 — 백엔드가 후보와 대조해 검증한 것만 담긴다. */
-  // YouthPolicyModal이 summary·provider를 읽는데 타입에 없어 빌드가 깨져 있었다(2026-07-23).
-  // 컴포넌트가 `policy.summary || ""` 처럼 방어적으로 쓰므로 옵셔널로 넓힌다.
-  cited?: Array<{ name: string; link: string; summary?: string; provider?: string }>;
+  // 백엔드(policy/service.py·providers.py)는 name·summary·provider·link 4개를 내려준다.
+  // summary·provider가 빠져 있어 YouthPolicyModal의 접근이 TS2339로 빌드를 깨뜨렸다(배포 실패).
+  // 값이 없을 때 빈 문자열이 오므로 optional로 둔다.
+  cited?: Array<{ name: string; summary?: string; provider?: string; link: string }>;
   source_count?: number;
 };
 
