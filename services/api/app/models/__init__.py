@@ -58,6 +58,12 @@ class User(TimestampMixin, Base):
             return None
         return self.has_disability_enc == "Y"
 
+    @has_disability.setter
+    def has_disability(self, value: bool | None) -> None:
+        # None = 미입력/철회. 'N'과 구분해야 한다 — 'N'은 "장애 없음"이라고 답한 것이고,
+        # None은 답하지 않은 것이라 동의 기록도 남기지 않는다.
+        self.has_disability_enc = None if value is None else ("Y" if value else "N")
+
 
 class UserDocument(TimestampMixin, Base):
     """마이페이지에 보관하는 사용자 소유 PDF 문서.

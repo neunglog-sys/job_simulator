@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -15,6 +16,8 @@ from app.core.security import hash_password, verify_password
 from app.domains.profile.schemas import (
     DocumentKind,
     PasswordChangeIn,
+    PolicyProfileIn,
+    PolicyProfileOut,
     ProfileAccountOut,
     ProfileUpdateIn,
     UserDocumentOut,
@@ -104,6 +107,58 @@ async def update_account(
     await session.commit()
     await session.refresh(user)
     return _account_out(user)
+
+
+def _policy_profile_out(user: User) -> PolicyProfileOut:
+    return PolicyProfileOut(
+        birth_year=user.birth_year,
+        gender=user.gender,
+        region_ctpv=user.region_ctpv,
+        region_sgg=user.region_sgg,
+        has_disability=user.has_disability,
+        sensitive_agreed_at=user.sensitive_agreed_at,
+    )
+
+
+@router.get("/policy-profile", response_model=PolicyProfileOut)
+async def get_policy_profile(user: User = Depends(get_current_user)):
+    """맞춤 제도 조회에 쓰는 프로필. 입력 폼 초기값 채우기용."""
+    return _policy_profile_out(user)
+
+
+@router.patch("/policy-profile", response_model=PolicyProfileOut)
+async def update_policy_profile(
+    body: PolicyProfileIn,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """맞춤 제도 조회 프로필을 수정한다.
+
+    부분 수정이라 **요청에 담긴 항목만** 반영한다 — 한 화면에서 일부만 고쳐 보내도
+    나머지가 지워지지 않게. 명시적으로 null을 보내면 그 항목은 지운다.
+    """
+    sent = body.model_fields_set
+    for field in ("birth_year", "gender", "region_ctpv", "region_sgg"):
+        if field in sent:
+            setattr(user, field, getattr(body, field))
+
+    if "has_disability" in sent:
+        # 민감정보(개인정보보호법 §23) — 별도 동의 없이는 저장하지 않는다.
+        if body.has_disability is not None and not body.sensitive_agreed:
+            raise HTTPException(
+                status_code=400,
+                detail="장애 여부는 민감정보라 별도 동의가 필요해요.",
+            )
+        user.has_disability = body.has_disability
+        # 철회(null)하면 동의 기록도 함께 지운다 — 값이 없는데 동의 시각만 남으면
+        # 동의한 적 있는 사용자로 보인다.
+        user.sensitive_agreed_at = (
+            datetime.now(UTC) if body.has_disability is not None else None
+        )
+
+    await session.commit()
+    await session.refresh(user)
+    return _policy_profile_out(user)
 
 
 @router.put("/password", status_code=204)

@@ -119,7 +119,8 @@ def _filter_bokjiro(rows: list[dict], *, ctpv: str | None, sgg: str | None) -> l
         if not _is_employment(blob) or _is_startup(blob) or _off_topic(blob):
             continue
 
-        row_ctpv, row_sgg = row.get("ctpv") or "", row.get("sgg") or ""
+        row_ctpv = codes.normalize_region(row.get("ctpv"))
+        row_sgg = codes.normalize_region(row.get("sgg"))
         if row_ctpv and ctpv and row_ctpv != ctpv:
             continue  # 타 시도 전용 제도는 의미가 없다
         if row_sgg and sgg and row_sgg != sgg:
