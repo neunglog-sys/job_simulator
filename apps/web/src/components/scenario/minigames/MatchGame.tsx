@@ -45,6 +45,8 @@ type Side = "left" | "right";
 type MatchCard = {
   id: string;
   sprite: string;
+  /** kts-03 전용 — 니즈 말풍선과 별개로 보여 주는 투명 배경 손님 일러스트. */
+  customer_sprite?: string;
   label?: string;
   /** ys-03 — 금속탐지기 반응자. 게이트 램프 점멸(확산 링)에 카드 흔들림·붉은 펄스를 얹는다
    *  (시각 단서 강화 — 디자이너 피드백 2026-07-20). '벨이 정답'을 가리키는 표시는 금지 —
@@ -66,6 +68,8 @@ type SuddenDef = {
 };
 
 type MatchData = {
+  /** kts-03 — 원본 장면 위 손님·상품 배치 + 돌발 손님 상세 대응 화면. 채점에는 영향 없음. */
+  presentation?: "customer_floor" | string;
   left?: MatchCard[];
   right?: MatchCard[];
   /** 컬럼 헤더(선택) — 예: 입장객/제시된 출입증. 없으면 중립 라벨 '왼쪽'/'오른쪽'. */
@@ -186,6 +190,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const outliers = useMemo(() => data.stream?.outliers ?? [], [data.stream]);
   const sudden = data.sudden;
   const stages = useMemo(() => sudden?.stages ?? [], [sudden]);
+  const customerFloor = data.presentation === "customer_floor";
 
   const unmatchedSet = useMemo(() => new Set(unmatchedList), [unmatchedList]);
   const discardSet = useMemo(() => new Set(discardItems.map((item) => item.id)), [discardItems]);
@@ -268,6 +273,8 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   /** 금지 버튼을 누른 직후의 제지 배너 — tick 은 같은 배너 재등장 시 애니메이션 재생용. */
   const [forbiddenWarning, setForbiddenWarning] = useState<{ id: string; reason: string; tick: number } | null>(null);
   const [suddenVisible, setSuddenVisible] = useState(false);
+  const [suddenArrived, setSuddenArrived] = useState(false);
+  const [suddenFocused, setSuddenFocused] = useState(false);
   const [keysGiven, setKeysGiven] = useState<Record<string, string>>({});
   const [done, setDone] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
@@ -471,6 +478,18 @@ export function MatchGame({ game, onComplete }: EngineProps) {
     return () => window.clearTimeout(timer);
   }, [sudden, done, startedAt]);
 
+  // kts-03 돌발 손님은 7초 뒤 왼쪽에서 들어온 다음, 도착 모션이 끝난 뒤에만 말풍선이 뜬다.
+  useEffect(() => {
+    if (!customerFloor || !suddenVisible) {
+      setSuddenArrived(false);
+      return;
+    }
+    setSuddenArrived(false);
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    const timer = window.setTimeout(() => setSuddenArrived(true), reduceMotion ? 0 : 850);
+    return () => window.clearTimeout(timer);
+  }, [customerFloor, suddenVisible, sudden?.id]);
+
   // ── 일괄 제출 — 자동 종료 없음(디자이너 확정). 전판을 판정해도 '제출'을 눌러야 채점하고,
   //    시간 만료(useCountdown)만 예외로 즉시 채점한다. 아래 값들은 제출 버튼 강조·안내용 신호다.
   const allResolved =
@@ -479,6 +498,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const caughtCount = outliers.filter((o) => beadClicks[o.id] === "caught").length;
   const streamDone = outliers.length === 0 || caughtCount === outliers.length;
   const stagesAllDone = stages.every((s) => stagesDone.includes(s.id));
+  const suddenSettled = stagesAllDone && (!sudden?.persists_after_stages || escalated);
   const suddenGate =
     !sudden || (suddenVisible && stagesAllDone && (!sudden.persists_after_stages || escalated));
   const keysDone =
@@ -725,6 +745,82 @@ export function MatchGame({ game, onComplete }: EngineProps) {
     );
   };
 
+  const renderFloorCustomer = (card: MatchCard) => {
+    const verdict = verdictOf(card.id);
+    const mark = marks[card.id];
+    const linkedWineId = lines.find((line) => line.left === card.id)?.right;
+    const linkedWine = linkedWineId ? right.find((wine) => wine.id === linkedWineId) : undefined;
+    const bubbleCard = linkedWine ?? card;
+    const cue = data.visual_cues?.[bubbleCard.id];
+    return (
+      <button
+        key={card.id}
+        type="button"
+        ref={registerCard(card.id, "left")}
+        className={styles.customerFloorCustomer}
+        data-state={stateOf(card.id)}
+        data-verdict={verdict}
+        aria-pressed={selected?.id === card.id}
+        aria-label={cardAria(card, "left")}
+        disabled={done || mark === "escalated"}
+        onClick={() => toggleCard("left", card.id)}
+      >
+        <span className={styles.customerFloorBubble} data-linked={linkedWine ? "true" : undefined}>
+          <PixelSprite id={bubbleCard.sprite} label={bubbleCard.label ?? bubbleCard.sprite} size={90} smooth />
+          <span className={styles.customerFloorBubbleInfo}>
+            <strong>{bubbleCard.label ?? pretty(bubbleCard.id)}</strong>
+            {cue ? <small>{pretty(cue)}</small> : null}
+          </span>
+        </span>
+        <span className={styles.customerFloorCutout}>
+          <PixelSprite
+            id={card.customer_sprite ?? card.sprite}
+            label={`${card.label ?? pretty(card.id)} 손님`}
+            size={150}
+            smooth
+          />
+        </span>
+        {verdict ? (
+          <span className={common.mark} data-kind={verdict === "ok" ? "hit" : undefined} aria-hidden="true">
+            {verdict === "ok" ? "✓" : "✕"}
+          </span>
+        ) : null}
+      </button>
+    );
+  };
+
+  const renderFloorWine = (card: MatchCard) => {
+    const verdict = verdictOf(card.id);
+    const mark = marks[card.id];
+    const cue = data.visual_cues?.[card.id];
+    return (
+      <button
+        key={card.id}
+        type="button"
+        ref={registerCard(card.id, "right")}
+        className={styles.customerFloorWine}
+        data-state={stateOf(card.id)}
+        data-verdict={verdict}
+        aria-pressed={selected?.id === card.id}
+        aria-label={cardAria(card, "right")}
+        disabled={done || mark === "escalated"}
+        onClick={() => toggleCard("right", card.id)}
+      >
+        <PixelSprite id={card.sprite} label={card.label ?? card.sprite} size={72} smooth />
+        <span className={styles.customerFloorWineInfo}>
+          <strong>{card.label ?? pretty(card.id)}</strong>
+          {cue ? <small>{pretty(cue)}</small> : null}
+        </span>
+        {mark === "stamped" ? <em>{stampLabel}</em> : null}
+        {verdict ? (
+          <span className={common.mark} data-kind={verdict === "ok" ? "hit" : undefined} aria-hidden="true">
+            {verdict === "ok" ? "✓" : "✕"}
+          </span>
+        ) : null}
+      </button>
+    );
+  };
+
   return (
     <div className={common.shell}>
       <GameHud
@@ -738,6 +834,8 @@ export function MatchGame({ game, onComplete }: EngineProps) {
       <div
         className={styles.board}
         data-density={density}
+        data-layout={customerFloor ? "customer-floor" : undefined}
+        data-sudden-focused={customerFloor && suddenFocused ? "true" : undefined}
         ref={boardRef}
         role="group"
         aria-label={`매칭 보드 — ${leftHead} 카드와 ${rightHead} 카드를 이으세요`}
@@ -774,20 +872,121 @@ export function MatchGame({ game, onComplete }: EngineProps) {
             />
           ) : null}
         </svg>
-        <section className={styles.columnWrap} data-side="left" aria-label={`${leftHead} 카드 열`}>
-          <div className={styles.columnHead}>
-            <span>{leftHead}</span>
-            <span className={styles.columnCount}>{left.length}장</span>
+        {customerFloor ? (
+          <>
+            <section className={styles.customerFloorWineShelf} aria-label={`${rightHead} 선택지`}>
+              {displayRight.map(renderFloorWine)}
+            </section>
+            <section className={styles.customerFloorCast} aria-label={`${leftHead} 손님 5명`}>
+              {displayLeft.map(renderFloorCustomer)}
+            </section>
+          </>
+        ) : (
+          <>
+            <section className={styles.columnWrap} data-side="left" aria-label={`${leftHead} 카드 열`}>
+              <div className={styles.columnHead}>
+                <span>{leftHead}</span>
+                <span className={styles.columnCount}>{left.length}장</span>
+              </div>
+              <div className={styles.column}>{displayLeft.map((card) => renderCard(card, "left"))}</div>
+            </section>
+            <section className={styles.columnWrap} data-side="right" aria-label={`${rightHead} 카드 열`}>
+              <div className={styles.columnHead}>
+                <span>{rightHead}</span>
+                <span className={styles.columnCount}>{right.length}장</span>
+              </div>
+              <div className={styles.column}>{displayRight.map((card) => renderCard(card, "right"))}</div>
+            </section>
+          </>
+        )}
+
+        {customerFloor && sudden && suddenVisible && !suddenFocused ? (
+          <button
+            type="button"
+            className={styles.customerFloorIncident}
+            data-settled={suddenSettled || undefined}
+            data-arrived={suddenArrived || undefined}
+            disabled={done || suddenSettled || !suddenArrived}
+            onClick={() => setSuddenFocused(true)}
+            aria-label={`진상 손님 대응 열기 — ${sudden.label ?? "돌발 상황"}`}
+          >
+            {suddenArrived ? (
+              <span className={styles.customerFloorSpeech}>
+                아니, 여기서 샀다니까요!<br />영수증 없어도 당장 환불해요!
+              </span>
+            ) : null}
+            <span className={styles.customerFloorPerson}>
+              {sudden.sprite ? (
+                <PixelSprite id={sudden.sprite} label="진상 손님" size={96} smooth />
+              ) : null}
+              <strong>{suddenSettled ? "조치 완료" : "진상 손님"}</strong>
+            </span>
+          </button>
+        ) : null}
+
+        {customerFloor && sudden && suddenVisible && suddenFocused ? (
+          <div className={styles.customerResponse} role="dialog" aria-modal="true" aria-label="진상 손님 대응 선택">
+            <div className={styles.customerResponseSpeech}>
+              <strong>손님</strong>
+              <span>영수증은 없지만 여기서 샀어요. 개봉했어도 지금 바로 환불해 주세요!</span>
+            </div>
+            <div className={styles.customerResponsePerson}>
+              {sudden.sprite ? <PixelSprite id={sudden.sprite} label="진상 손님" size={150} smooth /> : null}
+              <strong>{sudden.label ?? "돌발 손님"}</strong>
+              <button type="button" className={styles.customerResponseBack} onClick={() => setSuddenFocused(false)}>
+                돌아가기
+              </button>
+            </div>
+            <div className={styles.customerResponseActions} role="group" aria-label="진상 손님 대처 방법 6개">
+              {displayStages.map((stage) => (
+                <button
+                  key={stage.id}
+                  type="button"
+                  className={styles.customerResponseAction}
+                  data-done={stagesDone.includes(stage.id) || undefined}
+                  disabled={done || stagesDone.includes(stage.id)}
+                  onClick={() => {
+                    pressStage(stage.id);
+                    setSuddenFocused(false);
+                  }}
+                >
+                  {stage.sprite ? <PixelSprite id={stage.sprite} label="" size={34} smooth /> : null}
+                  <span>{stage.label ?? pretty(stage.id)}</span>
+                </button>
+              ))}
+              {(sudden.forbidden_actions ?? []).map((action) => (
+                <button
+                  key={action.id}
+                  type="button"
+                  className={styles.customerResponseAction}
+                  data-forbidden-pressed={pressedForbidden.includes(action.id) || undefined}
+                  disabled={done || pressedForbidden.includes(action.id)}
+                  onClick={() => {
+                    pressForbiddenButton(action.id);
+                    setSuddenFocused(false);
+                  }}
+                >
+                  <span>{pretty(action.id)}</span>
+                </button>
+              ))}
+              {!isItemEscalate && data.escalate ? (
+                <button
+                  type="button"
+                  className={styles.customerResponseAction}
+                  data-kind="escalate"
+                  data-done={escalated || undefined}
+                  disabled={done || escalated}
+                  onClick={() => {
+                    pressStateEscalate();
+                    setSuddenFocused(false);
+                  }}
+                >
+                  <span>{data.escalate.label ?? "호출"}</span>
+                </button>
+              ) : null}
+            </div>
           </div>
-          <div className={styles.column}>{displayLeft.map((card) => renderCard(card, "left"))}</div>
-        </section>
-        <section className={styles.columnWrap} data-side="right" aria-label={`${rightHead} 카드 열`}>
-          <div className={styles.columnHead}>
-            <span>{rightHead}</span>
-            <span className={styles.columnCount}>{right.length}장</span>
-          </div>
-          <div className={styles.column}>{displayRight.map((card) => renderCard(card, "right"))}</div>
-        </section>
+        ) : null}
       </div>
 
       {flowBeads.length > 0 ? (
@@ -828,7 +1027,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
         </div>
       ) : null}
 
-      {sudden && suddenVisible ? (
+      {sudden && suddenVisible && !customerFloor ? (
         <div
           className={styles.sudden}
           role="group"

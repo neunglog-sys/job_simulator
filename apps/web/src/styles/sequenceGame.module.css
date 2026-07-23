@@ -557,9 +557,14 @@ button.mapSpot:not(:disabled):hover {
   background-image:
     linear-gradient(rgb(8 12 26 / 0.1), rgb(8 12 26 / 0.18)),
     var(--minigame-background-image);
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
+  background-position: center, center;
+  background-size: 100% 100%, contain;
+  background-repeat: no-repeat, no-repeat;
+}
+
+:global([data-cartoon-background="true"]) .board {
+  aspect-ratio: 24 / 11;
+  align-content: center;
 }
 
 /* 트렌치 진행 상태 SVG는 판정 단서이므로 제거하지 않고 배경 위 보조선으로 남긴다. */
@@ -586,3 +591,14 @@ button.mapSpot:not(:disabled):hover {
 .mapSpot { border: 3px dashed var(--cartoon-aqua); background: rgb(91 215 208 / 0.16); box-shadow: inset 0 0 0 2px var(--cartoon-ink); }
 .finishButton { border: 2px solid var(--cartoon-ink); box-shadow: 0 4px 0 var(--cartoon-ink); }
 .finishButton:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--cartoon-ink); }
+
+/* Cartoon contrast pass: tray guidance and the final action sit on paper. */
+.trayLabel,
+.trayEmpty,
+.hint {
+  color: var(--cartoon-ink);
+}
+.finishButton {
+  background: var(--cartoon-gold);
+  color: var(--cartoon-ink);
+}
