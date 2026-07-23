@@ -98,6 +98,9 @@ class Settings(BaseSettings):
     work24_api_key: str = ""
     # 커리어넷 진로심리검사 — 인증키 승인 완료, /api/career-test 연동 완료(2026-07-20).
     careernet_api_key: str = ""
+    # 공공데이터포털 인증키 — 보조금24(odcloud)·복지로(apis.data.go.kr) 공용.
+    # 없으면 정책 카드만 생략되고 상담 흐름은 그대로 진행된다.
+    data_go_kr_api_key: str = ""
 
     # CORS — 프론트 개발 서버 주소 (콤마 구분)
     cors_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost"

@@ -50,6 +50,7 @@ class MockProvider:
         json_schema: dict | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
+        thinking_budget: int | None = None,  # 이 provider는 사고 예산 개념이 없어 무시한다
     ) -> str:
         if json_schema:
             return json.dumps(_fake_json(json_schema), ensure_ascii=False)
