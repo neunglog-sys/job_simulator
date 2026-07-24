@@ -66,6 +66,21 @@ def minigame_for(slug: str) -> dict | None:
     return games[0] if games else None
 
 
+def declared_for_engine(slug: str, engine: str | None) -> dict | None:
+    """제출된 engine에 해당하는 게임 선언. 없으면 None(= 대조 대상 없음).
+
+    결과 검증은 '선언된 게임 중 그 엔진이 있는지'를 봐야 한다. 첫 게임하고만 비교하면
+    2번째 게임 결과가 통째로 engine_mismatch로 버려진다.
+    선언이 하나도 없는 시나리오는 그대로 None — 게임 데이터가 아직 없어도 4단계는 통과한다.
+    """
+    games = minigames_for(slug)
+    if not games:
+        return None
+    name = str(engine or "").strip()
+    # 엔진이 안 맞으면 첫 게임을 돌려줘 기존처럼 engine_mismatch로 기록되게 한다.
+    return next((g for g in games if g.get("engine") == name), games[0])
+
+
 def _sanitize_all(doc: object, filename: str, slug: str) -> list[dict]:
     """파일 한 개 → 게임 목록. `games:` 리스트면 다중, 아니면 단일 게임으로 취급."""
     if not isinstance(doc, dict):

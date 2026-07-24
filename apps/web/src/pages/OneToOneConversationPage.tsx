@@ -1104,8 +1104,18 @@ export function OneToOneConversationPage() {
     }
   }, [consultationId, surveyAnswers, surveyQuestions.length, surveySubmitting]);
 
+  // 리포트 로딩을 이미 시작한 상담 id. 아래 effect의 재실행 가드로 쓴다.
+  // reportState.phase를 의존성으로 쓰면 안 된다 — effect가 첫 줄에서 phase를 바꾸므로
+  // 곧바로 재실행되고, 그때 도는 cleanup이 방금 띄운 요청을 취소해 영원히 '로딩 중'이 된다.
+  const reportLoadedForRef = useRef<number | null>(null);
+  // '다시 시도'가 effect를 다시 태우는 유일한 신호. ref만 풀면 의존성이 그대로라
+  // effect가 재실행되지 않아 '분석 중'에서 멈춘다.
+  const [reportReloadToken, setReportReloadToken] = useState(0);
+
   const handleReportRetry = useCallback(() => {
+    reportLoadedForRef.current = null; // 다시 시도하면 한 번 더 받아온다
     setReportState(INITIAL_REPORT_STATE);
+    setReportReloadToken((token) => token + 1);
   }, []);
 
   useEffect(() => {
@@ -1141,7 +1151,9 @@ export function OneToOneConversationPage() {
   );
 
   useEffect(() => {
-    if (activePanel !== "report" || !consultationId || reportState.phase !== "idle") return;
+    if (activePanel !== "report" || !consultationId) return;
+    if (reportLoadedForRef.current === consultationId) return; // 이 상담은 이미 받아왔다
+    reportLoadedForRef.current = consultationId;
 
     let cancelled = false;
     setReportState((current) => ({ ...current, phase: "loading" }));
@@ -1199,7 +1211,7 @@ export function OneToOneConversationPage() {
     return () => {
       cancelled = true;
     };
-  }, [activePanel, consultationId, ensureRecommendation, reportState.phase]);
+  }, [activePanel, consultationId, ensureRecommendation, reportReloadToken]);
 
   const loadConsultationHistory = useCallback(async () => {
     setHistoryLoading(true);

@@ -100,3 +100,45 @@ def test_broken_game_entry_is_skipped_not_fatal(tmp_path, monkeypatch):
 
     games = minigame.minigames_for("demo-04")
     assert [g["engine"] for g in games] == ["spot"]
+
+
+def test_declared_for_engine_picks_the_matching_game(monkeypatch, tmp_path):
+    """다중 게임에서 2번째 게임 결과가 engine_mismatch로 버려지면 안 된다."""
+    from app.content import minigame
+
+    monkeypatch.setattr(
+        minigame, "minigames_for",
+        lambda slug: [{"engine": "match", "pass_score": 70},
+                      {"engine": "puzzle", "pass_score": 60}],
+    )
+    assert minigame.declared_for_engine("sns-01", "puzzle")["engine"] == "puzzle"
+    assert minigame.declared_for_engine("sns-01", "match")["engine"] == "match"
+    # 선언에 없는 엔진이면 첫 게임과 대조 → 기존처럼 불일치로 기록된다
+    assert minigame.declared_for_engine("sns-01", "unknown")["engine"] == "match"
+
+
+def test_result_is_accepted_when_it_matches_any_declared_game(monkeypatch):
+    """두 번째 게임의 engine으로 와도 통과해야 한다 — 첫 게임하고만 비교하면 전부 버려진다.
+
+    kts-03처럼 두 게임의 engine이 같은 경우도 있지만, 다른 조합이면 예전 코드는
+    2번째 게임 결과를 통째로 engine_mismatch로 떨궜다.
+    """
+    from app.content import minigame
+    from app.domains.simulation import service
+
+    monkeypatch.setattr(
+        minigame, "minigames_for",
+        lambda slug: [{"engine": "match", "pass_score": 70},
+                      {"engine": "sort", "pass_score": 60}],
+    )
+    second = service._minigame_result(
+        {"engine": "sort", "accuracy": 80}, minigame.declared_for_engine("x", "sort")
+    )
+    assert not second.get("rejected")
+    assert second["passed"] is True
+
+    # 선언에 없는 엔진은 예전처럼 불일치로 기록된다(저장은 하되 점수엔 안 들어감)
+    bogus = service._minigame_result(
+        {"engine": "bogus", "accuracy": 99}, minigame.declared_for_engine("x", "bogus")
+    )
+    assert bogus["rejected"] == "engine_mismatch"
