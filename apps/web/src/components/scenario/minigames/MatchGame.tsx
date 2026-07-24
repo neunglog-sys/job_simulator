@@ -1091,8 +1091,9 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const supplyHudTotal =
     flowPhase === "picking" ? supplyTargetTotal : flowPhase === "transport" ? 100 : supplyStepLabels.length;
   const warehouseBackground = `${import.meta.env.BASE_URL}assets/minigames/backgrounds/cartoon-day-v3/kts-03-background-wine-warehouse-cartoon-day-v3.webp`;
+  const cartRouteBackground = `${import.meta.env.BASE_URL}assets/minigames/backgrounds/cartoon-day-v3/kts-03-background-cart-route-cartoon-day-v1.webp`;
   const supplyBoardStyle = {
-    "--supply-background": `url("${warehouseBackground}")`,
+    "--supply-background": `url("${flowPhase === "transport" ? cartRouteBackground : warehouseBackground}")`,
   } as CSSProperties;
   const overspeedLimit = Math.max(1, supplyRun?.transport?.overspeed_ticks ?? 12);
   const cargoState =
@@ -1171,12 +1172,8 @@ export function MatchGame({ game, onComplete }: EngineProps) {
                       aria-label={`${item.label} 상자에서 한 병 담기, 현재 ${pickedCounts[item.id] ?? 0}병`}
                       onClick={() => pickSupply(item)}
                     >
-                      {supplyHintVisible ? (
-                        <span className={styles.supplyBoxHint}>
-                          <strong>{item.display_label ?? item.label}</strong>
-                          <b>× {item.target}</b>
-                        </span>
-                      ) : null}
+                      <span className={styles.supplyBoxName}>{item.display_label ?? item.label}</span>
+                      {supplyHintVisible ? <b className={styles.supplyBoxCount}>× {item.target}</b> : null}
                     </button>
                   </div>
                 ))}
@@ -1219,7 +1216,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
               ) : null}
               <div className={styles.supplyRoad} aria-label="카트 운반 통로">
                 {[0, 1, 2].map((lane) => (
-                  <span key={lane} className={styles.supplyLane} style={{ top: `${17 + lane * 31}%` }} aria-hidden="true" />
+                  <span key={lane} className={styles.supplyLane} style={{ top: `${46 + lane * 22}%` }} aria-hidden="true" />
                 ))}
                 {supplyObstacles.map((obstacle) => (
                   <span
@@ -1228,7 +1225,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
                     data-hit={transportHits.includes(obstacle.id) || undefined}
                     style={{
                       left: `${18 + (obstacle.at - transportProgress) * 2.2}%`,
-                      top: `${5 + obstacle.lane * 31}%`,
+                      top: `${37 + obstacle.lane * 22}%`,
                     }}
                     aria-label={obstacle.label}
                   >
@@ -1239,7 +1236,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
                 <div
                   className={styles.supplyCart}
                   data-hit={transportCollisions > 0 || undefined}
-                  style={{ top: `${7 + transportLane * 31}%` }}
+                  style={{ top: `${38 + transportLane * 22}%` }}
                   aria-label={`와인 카트, ${transportLane + 1}번 차선`}
                 >
                   <span className={styles.supplyCartCargo}>
@@ -1262,9 +1259,9 @@ export function MatchGame({ game, onComplete }: EngineProps) {
                 </aside>
                 {!transportRunning && !transportComplete && transportProgress === 0 ? (
                   <div className={styles.supplyTransportIntro}>
-                    <strong>카트라이더 게임</strong>
-                    <p>너무 빠르게 가면 물품이 다 깨져서 실패</p>
-                    <p>앞에 장애물은 백화점 직원, 손님, 적재품 등등</p>
+                    <strong>백화점 매장 운반</strong>
+                    <p>창고에서 매장까지 카트를 안전하게 운반하세요.</p>
+                    <p>직원·손님·적재품을 피하고 적정 속도를 유지해야 합니다.</p>
                     <button type="button" className={styles.supplyPrimary} onClick={startDriving}>
                       운반 시작
                     </button>
