@@ -275,8 +275,17 @@ export type PolicyCard = {
   // 백엔드(policy/service.py·providers.py)는 name·summary·provider·link 4개를 내려준다.
   // summary·provider가 빠져 있어 YouthPolicyModal의 접근이 TS2339로 빌드를 깨뜨렸다(배포 실패).
   // 값이 없을 때 빈 문자열이 오므로 optional로 둔다.
-  cited?: Array<{ name: string; summary?: string; provider?: string; link: string }>;
+  cited?: PolicyCardItem[];
+  /** 본문에는 없지만 '더 알아보기'에서 함께 보여줄 제도 — 이것도 후보와 대조해 검증된 것만. */
+  more?: PolicyCardItem[];
   source_count?: number;
+};
+
+export type PolicyCardItem = {
+  name: string;
+  summary?: string;
+  provider?: string;
+  link: string;
 };
 
 export function fetchPolicyCard(): Promise<PolicyCard> {

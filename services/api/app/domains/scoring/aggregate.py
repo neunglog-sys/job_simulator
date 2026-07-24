@@ -9,6 +9,7 @@
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.state_keys import ENGINE_STATE_KEYS
 from app.models import ActionLog
 
 MIN_PERCENTILE_SAMPLE = 30  # 이 미만이면 백분위 숨김 (요동치는 "상위 67%" 방지)
@@ -172,10 +173,14 @@ def competency_scores(
         for key, weight in TYPE_COMPETENCY.get(type_ or "", {}).items():
             acc[key].append((score, weight))
 
+    # 시나리오가 정의한 상태값(신뢰도·친밀도 등 0~100)만 센다. 엔진이 쓰는 키를 빼지 않으면
+    # coach_streak 같은 카운터가 점수로 오인돼 평균을 끌어내린다(실측: 81 → 77).
     numeric_state = [
         v
         for k, v in state.items()
-        if isinstance(v, (int, float)) and not isinstance(v, bool) and k != "step"
+        if isinstance(v, (int, float))
+        and not isinstance(v, bool)
+        and k not in ENGINE_STATE_KEYS
     ]
     state_avg = sum(numeric_state) / len(numeric_state) if numeric_state else None
 

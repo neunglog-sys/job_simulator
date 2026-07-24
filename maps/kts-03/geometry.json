@@ -1770,14 +1770,14 @@
   ],
   "npc_paths": [
     {
-      "npc_id": "npc_kts-03_02",
+      "npc_id": "npc_kts-03_01",
       "points": [
-        { "x": 1619, "y": 317 },
-        { "x": 1539, "y": 317 }
+        { "x": 635, "y": 589 },
+        { "x": 715, "y": 589 }
       ],
       "speed": 60,
       "pause_ms": 1800,
-      "prompt": "이쪽으로 와보세요, 매대 좀 같이 봐요.",
+      "prompt": "이쪽으로 와서 인사부터 나눠볼까요.",
       "nudge_radius": 240,
       "nudge_interval_ms": 6000,
       "nudge_max": 3
@@ -1806,6 +1806,6 @@
       "id": "bujang"
     }
   ],
-  "background": "kts-03.png",
+  "background": "kts-03.webp",
   "playable_default": true
 }

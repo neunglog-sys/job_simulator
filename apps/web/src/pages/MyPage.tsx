@@ -5,6 +5,7 @@ import {
   CaretRight,
   ChatCircleDots,
   CheckCircle,
+  Compass,
   DownloadSimple,
   FilePdf,
   Files,
@@ -61,34 +62,17 @@ import {
   type UserDocumentKind,
 } from "../lib/api";
 import { logout, refreshAuth, useAuth } from "../lib/auth";
+import {
+  POLICY_BIRTH_YEAR_MAX,
+  POLICY_BIRTH_YEAR_MIN,
+  POLICY_REGION_CTPV,
+} from "../lib/policyProfile";
 import styles from "../styles/myPage.module.css";
 
 const MAX_FILE_SIZE = 8 * 1024 * 1024;
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
 const MY_PAGE_DESIGN_WIDTH = 1920;
 const MY_PAGE_DESIGN_HEIGHT = 900;
-const POLICY_BIRTH_YEAR_MIN = 1900;
-const POLICY_BIRTH_YEAR_MAX = 2026;
-const POLICY_REGION_CTPV = [
-  "서울특별시",
-  "부산광역시",
-  "대구광역시",
-  "인천광역시",
-  "광주광역시",
-  "대전광역시",
-  "울산광역시",
-  "세종특별자치시",
-  "경기도",
-  "강원특별자치도",
-  "충청북도",
-  "충청남도",
-  "전북특별자치도",
-  "전라남도",
-  "경상북도",
-  "경상남도",
-  "제주특별자치도",
-] as const;
-
 type MyPageStageStyle = CSSProperties & {
   "--my-page-scale": number;
 };
@@ -115,6 +99,7 @@ const DOCUMENT_META: Record<
 };
 
 type MyPageSection = "documents" | "account" | "activity";
+type ScenarioNavigationState = "idle" | "loading" | "missing" | "error";
 type PolicyDisabilitySelection = "" | "yes" | "no";
 
 type PolicyProfileForm = {
@@ -300,7 +285,11 @@ export function MyPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
+  const [scenarioNavigationState, setScenarioNavigationState] =
+    useState<ScenarioNavigationState>("idle");
   const headerMenuRef = useRef<HTMLDivElement>(null);
+  const headerMenuButtonRef = useRef<HTMLButtonElement>(null);
+  const recentScenarioRedirectRef = useRef<number | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const avatarObjectUrlRef = useRef<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -483,7 +472,9 @@ export function MyPage() {
       if (!headerMenuRef.current?.contains(event.target as Node)) setIsHeaderMenuOpen(false);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsHeaderMenuOpen(false);
+      if (event.key !== "Escape") return;
+      setIsHeaderMenuOpen(false);
+      headerMenuButtonRef.current?.focus();
     };
     window.document.addEventListener("pointerdown", closeMenu);
     window.addEventListener("keydown", closeOnEscape);
@@ -492,6 +483,21 @@ export function MyPage() {
       window.removeEventListener("keydown", closeOnEscape);
     };
   }, [isHeaderMenuOpen]);
+
+  useEffect(() => {
+    if (isHeaderMenuOpen) return;
+    if (recentScenarioRedirectRef.current !== null) {
+      window.clearTimeout(recentScenarioRedirectRef.current);
+      recentScenarioRedirectRef.current = null;
+    }
+    setScenarioNavigationState("idle");
+  }, [isHeaderMenuOpen]);
+
+  useEffect(() => () => {
+    if (recentScenarioRedirectRef.current !== null) {
+      window.clearTimeout(recentScenarioRedirectRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     if (activeSection === "activity" && !activityLoaded && !activityLoading) {
@@ -772,6 +778,45 @@ export function MyPage() {
     window.location.assign(FRONTEND_ENDPOINTS.conversation);
   };
 
+  const handleRecentScenarioOpen = async () => {
+    if (scenarioNavigationState === "loading") return;
+
+    if (recentScenarioRedirectRef.current !== null) {
+      window.clearTimeout(recentScenarioRedirectRef.current);
+      recentScenarioRedirectRef.current = null;
+    }
+    setScenarioNavigationState("loading");
+    try {
+      const recentSimulations = await fetchSimulationSummaries();
+      setSimulations(recentSimulations);
+      const latestSimulation = recentSimulations[0];
+
+      if (!latestSimulation) {
+        setScenarioNavigationState("missing");
+        recentScenarioRedirectRef.current = window.setTimeout(() => {
+          recentScenarioRedirectRef.current = null;
+          window.location.assign(FRONTEND_ENDPOINTS.conversation);
+        }, 1400);
+        return;
+      }
+
+      if (latestSimulation.status === "active") {
+        window.sessionStorage.setItem(
+          `sim:${latestSimulation.scenario_slug}`,
+          String(latestSimulation.id),
+        );
+      }
+
+      window.location.assign(
+        `${FRONTEND_ENDPOINTS.scenario}?slug=${encodeURIComponent(
+          latestSimulation.scenario_slug,
+        )}`,
+      );
+    } catch {
+      setScenarioNavigationState("error");
+    }
+  };
+
   const initial = me?.name.trim().charAt(0) || "나";
   const resumeCount = documents.filter((document) => document.kind === "resume").length;
   const activityCount = consultations.length + simulations.length + reports.length;
@@ -809,20 +854,147 @@ export function MyPage() {
             </button>
             <div className={styles.headerMenu} ref={headerMenuRef}>
               <button
-                className={styles.headerIconButton}
+                ref={headerMenuButtonRef}
+                className={`${styles.headerIconButton} ${
+                  isHeaderMenuOpen ? styles.headerIconButtonActive : ""
+                }`}
                 type="button"
-                aria-label="내 정보 메뉴 열기"
+                aria-label={isHeaderMenuOpen ? "메뉴 닫기" : "메뉴 열기"}
                 aria-expanded={isHeaderMenuOpen}
                 data-tooltip="메뉴"
-                onClick={() => setIsHeaderMenuOpen((open) => !open)}
+                onClick={() => {
+                  setScenarioNavigationState("idle");
+                  setIsHeaderMenuOpen((open) => !open);
+                }}
               >
                 <List weight="bold" />
               </button>
               {isHeaderMenuOpen && (
                 <div className={styles.headerMenuPopover} role="menu">
-                  <button type="button" role="menuitem" onClick={() => { setActiveSection("documents"); setIsHeaderMenuOpen(false); }}><Files weight="duotone" />문서 보관함</button>
-                  <button type="button" role="menuitem" onClick={() => { setActiveSection("account"); setIsHeaderMenuOpen(false); }}><IdentificationCard weight="duotone" />회원 정보</button>
-                  <button type="button" role="menuitem" onClick={() => { setActiveSection("activity"); setIsHeaderMenuOpen(false); }}><GameController weight="duotone" />활동 기록</button>
+                  <div className={styles.headerMenuHeading}>
+                    <span><Compass weight="duotone" /> JOBIVERSE MENU</span>
+                    <strong>빠른 이동</strong>
+                  </div>
+
+                  <span className={styles.headerMenuGroupLabel}>마이페이지</span>
+                  <button
+                    className={`${styles.headerMenuItem} ${
+                      activeSection === "documents" ? styles.headerMenuItemActive : ""
+                    }`}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setActiveSection("documents");
+                      setIsHeaderMenuOpen(false);
+                    }}
+                  >
+                    <span className={styles.headerMenuItemIcon}><Files weight="duotone" /></span>
+                    <span>
+                      <strong>문서 보관함</strong>
+                      <small>이력서와 증빙 서류를 관리해요</small>
+                    </span>
+                  </button>
+                  <button
+                    className={`${styles.headerMenuItem} ${
+                      activeSection === "account" ? styles.headerMenuItemActive : ""
+                    }`}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setActiveSection("account");
+                      setIsHeaderMenuOpen(false);
+                    }}
+                  >
+                    <span className={styles.headerMenuItemIcon}>
+                      <IdentificationCard weight="duotone" />
+                    </span>
+                    <span>
+                      <strong>회원 정보</strong>
+                      <small>기본 정보와 맞춤 조건을 관리해요</small>
+                    </span>
+                  </button>
+                  <button
+                    className={`${styles.headerMenuItem} ${
+                      activeSection === "activity" ? styles.headerMenuItemActive : ""
+                    }`}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setActiveSection("activity");
+                      setIsHeaderMenuOpen(false);
+                    }}
+                  >
+                    <span className={styles.headerMenuItemIcon}>
+                      <GameController weight="duotone" />
+                    </span>
+                    <span>
+                      <strong>활동 기록</strong>
+                      <small>상담·체험·리포트를 모아봐요</small>
+                    </span>
+                  </button>
+
+                  <div className={styles.headerMenuDivider} />
+                  <span className={styles.headerMenuGroupLabel}>서비스</span>
+                  <button
+                    className={styles.headerMenuItem}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => window.location.assign(FRONTEND_ENDPOINTS.home)}
+                  >
+                    <span className={styles.headerMenuItemIcon}><House weight="duotone" /></span>
+                    <span>
+                      <strong>홈</strong>
+                      <small>JOBIVERSE 시작 화면으로 이동해요</small>
+                    </span>
+                  </button>
+                  <button
+                    className={styles.headerMenuItem}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => window.location.assign(FRONTEND_ENDPOINTS.conversation)}
+                  >
+                    <span className={styles.headerMenuItemIcon}>
+                      <ChatCircleDots weight="duotone" />
+                    </span>
+                    <span>
+                      <strong>1:1 화면</strong>
+                      <small>AI 커리어 코치와 상담을 이어가요</small>
+                    </span>
+                  </button>
+                  <button
+                    className={styles.headerMenuItem}
+                    type="button"
+                    role="menuitem"
+                    disabled={scenarioNavigationState === "loading"}
+                    onClick={() => void handleRecentScenarioOpen()}
+                  >
+                    <span className={styles.headerMenuItemIcon}>
+                      {scenarioNavigationState === "loading" ? (
+                        <SpinnerGap className={styles.spinner} />
+                      ) : (
+                        <GameController weight="duotone" />
+                      )}
+                    </span>
+                    <span>
+                      <strong>
+                        {scenarioNavigationState === "loading"
+                          ? "최근 체험 확인 중"
+                          : "시나리오 화면"}
+                      </strong>
+                      <small>가장 최근 직무체험을 이어서 열어요</small>
+                    </span>
+                  </button>
+
+                  {scenarioNavigationState === "missing" && (
+                    <p className={styles.headerMenuNotice} role="status">
+                      아직 추천 직무를 받지 못했어요. 1:1 화면으로 이동할게요.
+                    </p>
+                  )}
+                  {scenarioNavigationState === "error" && (
+                    <p className={`${styles.headerMenuNotice} ${styles.headerMenuNoticeError}`} role="alert">
+                      최근 체험을 확인하지 못했어요. 잠시 후 다시 시도해주세요.
+                    </p>
+                  )}
                 </div>
               )}
             </div>

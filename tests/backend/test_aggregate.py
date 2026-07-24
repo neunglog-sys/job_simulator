@@ -102,3 +102,26 @@ def test_bool_state_excluded_from_blend():
     state = {"step": "s3", "trust": 60, "escalated": True}
     comps = competency_scores(rows, None, None, state)
     assert comps["communication"] == 81  # 90*0.7 + 60*0.3 (True 제외)
+
+
+def test_engine_counters_do_not_pollute_competency_scores():
+    """coach_streak 같은 엔진 카운터가 상태값 평균에 섞이면 역량 점수가 왜곡된다.
+
+    실측으로 81 → 77까지 내려갔다. 기존 테스트 픽스처에 그 키가 없어 안 잡혔다.
+    """
+    from app.domains.scoring import aggregate
+
+    missions = [{"type": "report", "adjusted": 80.0}]
+    scenario_state = {"trust": 80, "rapport": 80}
+
+    clean = aggregate.competency_scores(missions, None, None, dict(scenario_state))
+    # 엔진 진행 정보가 들어와도 역량 점수는 그대로여야 한다.
+    # (minigame은 의도적으로 반영되는 값이라 여기서 제외 — 카운터류만 본다)
+    polluted = aggregate.competency_scores(
+        missions, None, None,
+        {**scenario_state, "coach_streak": 3, "score": 0, "step": "s1", "attempts": {}},
+    )
+    assert clean == polluted
+
+    # 고치기 전에는 coach_streak가 0~100 점수로 오인돼 평균을 끌어내렸다
+    assert clean["collaboration"] is not None and clean["collaboration"] >= 80

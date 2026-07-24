@@ -961,9 +961,9 @@ export function CareerLaunch() {
           mode={authMode}
           onClose={() => setAuthMode(null)}
           onModeChange={setAuthMode}
-          onSuccess={() => {
+          onSuccess={(message) => {
             setAuthMode(null);
-            showToast("환영해요! 직무 여정을 시작할 준비가 됐어요.");
+            showToast(message ?? "환영해요! 직무 여정을 시작할 준비가 됐어요.");
             if (postAuthDestination) {
               window.location.assign(postAuthDestination);
             }

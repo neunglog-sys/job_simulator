@@ -9,6 +9,13 @@ type AuthState =
   | { status: "authed"; me: api.Me };
 
 const OAUTH_RETURN_TO_KEY = "jobiverse:oauth-return-to";
+const POST_OAUTH_POLICY_PROFILE_KEY = "jobiverse:post-oauth-policy-profile";
+const LEGACY_PENDING_POLICY_PROFILE_KEY = "jobiverse:pending-policy-profile";
+const POST_OAUTH_POLICY_PROFILE_TTL_MS = 30 * 60 * 1000;
+
+export type AuthenticationResult = {
+  policyProfileSaved: boolean;
+};
 
 function isAllowedReturnTo(destination: string | null): destination is string {
   return Boolean(
@@ -58,8 +65,9 @@ export async function authenticate(
     name?: string;
     termsAgreed?: boolean;
     privacyAgreed?: boolean;
+    policyProfile?: api.PolicyProfileUpdate;
   },
-): Promise<void> {
+): Promise<AuthenticationResult> {
   if (mode === "signUp" && (!body.termsAgreed || !body.privacyAgreed)) {
     throw new api.ApiError(400, null, "필수 약관 동의가 필요해요.");
   }
@@ -75,7 +83,22 @@ export async function authenticate(
         })
       : await api.login({ email: body.email, password: body.password });
   api.setToken(token.access_token);
+
+  let policyProfileSaved = true;
+  if (
+    mode === "signUp" &&
+    body.policyProfile &&
+    Object.keys(body.policyProfile).length > 0
+  ) {
+    try {
+      await api.updatePolicyProfile(body.policyProfile);
+    } catch {
+      policyProfileSaved = false;
+    }
+  }
+
   await refresh();
+  return { policyProfileSaved };
 }
 
 /** OAuth 리다이렉트 URL의 토큰을 저장하고, 로그인 사용자 정보를 즉시 갱신한다. */
@@ -83,6 +106,44 @@ export async function completeOAuthAuthentication(token: string): Promise<boolea
   api.setToken(token);
   await refresh();
   return state.status === "authed";
+}
+
+export function rememberPostOAuthPolicyProfileCompletion(enabled: boolean): void {
+  try {
+    // 이전 구현이 sessionStorage에 남겼을 수 있는 프로필 원문은 사용하지 않고 즉시 지운다.
+    window.sessionStorage.removeItem(LEGACY_PENDING_POLICY_PROFILE_KEY);
+
+    if (!enabled) {
+      window.sessionStorage.removeItem(POST_OAUTH_POLICY_PROFILE_KEY);
+      return;
+    }
+
+    window.sessionStorage.setItem(POST_OAUTH_POLICY_PROFILE_KEY, String(Date.now()));
+  } catch {
+    // sessionStorage를 사용할 수 없는 환경에서는 소셜 인증만 계속한다.
+  }
+}
+
+export function hasPostOAuthPolicyProfileCompletion(): boolean {
+  try {
+    window.sessionStorage.removeItem(LEGACY_PENDING_POLICY_PROFILE_KEY);
+    const storedAt = Number(window.sessionStorage.getItem(POST_OAUTH_POLICY_PROFILE_KEY));
+    if (
+      !Number.isFinite(storedAt) ||
+      storedAt <= 0 ||
+      Date.now() - storedAt > POST_OAUTH_POLICY_PROFILE_TTL_MS
+    ) {
+      window.sessionStorage.removeItem(POST_OAUTH_POLICY_PROFILE_KEY);
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function clearPostOAuthPolicyProfileCompletion(): void {
+  rememberPostOAuthPolicyProfileCompletion(false);
 }
 
 /** 소셜 로그인으로 페이지를 벗어나기 전에 원래 가려던 보호 경로를 보관한다. */
@@ -109,6 +170,7 @@ export function consumeOAuthReturnTo(): string | null {
 }
 
 export function logout(): void {
+  clearPostOAuthPolicyProfileCompletion();
   api.setToken(null);
   setState({ status: "anon", me: null });
 }
