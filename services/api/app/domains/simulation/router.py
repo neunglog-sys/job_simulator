@@ -20,6 +20,7 @@ router = APIRouter(tags=["simulation"])
 # WS 텍스트 입력 상한 — HTTP MessageIn(max_length=2000)과 같은 캡을 WS 경로에도 강제한다.
 # 없으면 수 MB 문자열을 LLM 프롬프트에 실어 비용 폭증·지연(DoS)을 유발할 수 있다.
 WS_TEXT_MAX = 2000
+WS_CHAT_MODES = frozenset({"work", "process_learning"})
 
 
 def _ws_text(data: dict, key: str) -> str:
@@ -29,6 +30,14 @@ def _ws_text(data: dict, key: str) -> str:
         raise HTTPException(status_code=400, detail=f"{key}는 문자열이어야 합니다")
     if len(value) > WS_TEXT_MAX:
         raise HTTPException(status_code=400, detail=f"{key}가 너무 깁니다(최대 {WS_TEXT_MAX}자)")
+    return value
+
+
+def _ws_chat_mode(data: dict) -> str:
+    """클라이언트 대화 화면의 의도를 제한된 모드 값으로만 받는다."""
+    value = data.get("mode", "work")
+    if not isinstance(value, str) or value not in WS_CHAT_MODES:
+        raise HTTPException(status_code=400, detail="지원하지 않는 대화 모드입니다")
     return value
 
 
@@ -204,6 +213,7 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, token: str | N
                         async for kind, payload in service.stream_npc_chat(
                             session, simulation, scenario,
                             _ws_text(data, "npc"), _ws_text(data, "content"),
+                            chat_mode=_ws_chat_mode(data),
                         ):
                             if kind == "token":
                                 await websocket.send_json({"type": "token", "text": payload})

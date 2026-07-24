@@ -152,6 +152,17 @@ const SCENARIO_MAP_IMAGES: Readonly<Record<string, string>> = {
   "sns-01": `${API_BASE_URL}/maps/sns-01/sns-01.webp`,
 };
 
+const SCENARIO_BGM_TRACKS: Readonly<Record<string, readonly string[]>> = {
+  "kts-03": [
+    `${import.meta.env.BASE_URL}assets/scenario/bgm/kts-03/golden-hour.mp3`,
+    `${import.meta.env.BASE_URL}assets/scenario/bgm/kts-03/velvet-and-vine.mp3`,
+  ],
+  "sns-01": [
+    `${import.meta.env.BASE_URL}assets/scenario/bgm/sns-01/creative-flow.mp3`,
+    `${import.meta.env.BASE_URL}assets/scenario/bgm/sns-01/neon-alley-groove.mp3`,
+  ],
+};
+
 function mapImageForScenario(slug: string) {
   return SCENARIO_MAP_IMAGES[slug] ?? DEFAULT_SCENARIO_MAP_IMAGE;
 }
@@ -651,6 +662,62 @@ export function ScenarioGamePage() {
     localStorage.setItem("scenario-theme", scenarioTheme);
   }, [scenarioTheme]);
 
+  // 시나리오별 BGM 두 곡 중 첫 곡은 무작위로 고르고, 한 곡이 끝나면 다른 곡으로 교대한다.
+  // 브라우저 자동재생 정책에 막히면 첫 클릭/키 입력에서 즉시 재생을 다시 시도한다.
+  useEffect(() => {
+    const tracks = SCENARIO_BGM_TRACKS[scenarioSlug];
+    if (!tracks?.length) return;
+
+    let disposed = false;
+    let trackIndex = Math.floor(Math.random() * tracks.length);
+    let unlockArmed = false;
+    const audio = new Audio();
+    audio.preload = "auto";
+    audio.volume = 0.22;
+
+    const disarmUnlock = () => {
+      if (!unlockArmed) return;
+      unlockArmed = false;
+      window.removeEventListener("pointerdown", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+    };
+
+    const unlockAudio = () => {
+      if (disposed) return;
+      void audio.play().then(disarmUnlock).catch(() => undefined);
+    };
+
+    const armUnlock = () => {
+      if (unlockArmed || disposed) return;
+      unlockArmed = true;
+      window.addEventListener("pointerdown", unlockAudio);
+      window.addEventListener("keydown", unlockAudio);
+    };
+
+    const playTrack = () => {
+      audio.src = tracks[trackIndex];
+      audio.currentTime = 0;
+      void audio.play().then(disarmUnlock).catch(armUnlock);
+    };
+
+    const handleEnded = () => {
+      trackIndex = (trackIndex + 1) % tracks.length;
+      playTrack();
+    };
+
+    audio.addEventListener("ended", handleEnded);
+    playTrack();
+
+    return () => {
+      disposed = true;
+      disarmUnlock();
+      audio.removeEventListener("ended", handleEnded);
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+    };
+  }, [scenarioSlug]);
+
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(Boolean(document.fullscreenElement));
@@ -974,7 +1041,11 @@ export function ScenarioGamePage() {
         setPhase("exploring");
         return;
       }
-      const sent = socket.sendChat(chatTargetId, message);
+      const sent = socket.sendChat(
+        chatTargetId,
+        message,
+        phase === "process_learning" ? "process_learning" : "work",
+      );
       if (!sent) {
         setIsStreaming(false);
         setCoachMessage("게임 서버에 연결 중이에요. 잠시 후 다시 보내주세요.");
