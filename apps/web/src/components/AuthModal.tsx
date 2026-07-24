@@ -10,12 +10,22 @@ import {
 } from "react";
 import { API_ENDPOINTS } from "../config/endpoints";
 import { ApiError } from "../lib/api";
-import { authenticate, rememberOAuthReturnTo } from "../lib/auth";
+import {
+  authenticate,
+  rememberOAuthReturnTo,
+  rememberPostOAuthPolicyProfileCompletion,
+} from "../lib/auth";
+import {
+  buildPolicyProfileUpdate,
+  EMPTY_POLICY_PROFILE_FORM,
+  type PolicyProfileForm,
+} from "../lib/policyProfile";
 import {
   AUTH_LEGAL_META,
   AuthLegalDocument,
   type AuthLegalDocumentId,
 } from "./AuthLegalDocument";
+import { PolicyProfileFields } from "./PolicyProfileFields";
 
 // 소셜 로그인 정식 브랜드 로고 (공식 "OO로 계속하기" 버튼용 마크)
 function GoogleIcon() {
@@ -62,7 +72,7 @@ const INITIAL_SCROLL_METRICS: ScrollMetrics = {
   thumbTop: 0,
 };
 
-function AuthScrollbar({
+export function AuthScrollbar({
   viewportRef,
   refreshKey,
   variant,
@@ -196,13 +206,16 @@ type Props = {
   mode: AuthMode;
   onClose: () => void;
   onModeChange: (mode: AuthMode) => void;
-  onSuccess: () => void;
+  onSuccess: (message?: string) => void;
 };
 
 export function AuthModal({ mode, onClose, onModeChange, onSuccess }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [policyProfile, setPolicyProfile] = useState<PolicyProfileForm>(
+    EMPTY_POLICY_PROFILE_FORM,
+  );
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [isMainScrolled, setIsMainScrolled] = useState(false);
@@ -252,16 +265,30 @@ export function AuthModal({ mode, onClose, onModeChange, onSuccess }: Props) {
       return;
     }
 
+    const policyProfileResult = isSignUp
+      ? buildPolicyProfileUpdate(policyProfile)
+      : { profile: {}, error: "" };
+    if (policyProfileResult.error) {
+      setError(policyProfileResult.error);
+      return;
+    }
+
     setBusy(true);
     try {
-      await authenticate(mode, {
+      const result = await authenticate(mode, {
         email,
         password,
         name,
         termsAgreed: consents.terms,
         privacyAgreed: consents.privacy,
+        policyProfile: isSignUp ? policyProfileResult.profile : undefined,
       });
-      onSuccess();
+      rememberPostOAuthPolicyProfileCompletion(false);
+      onSuccess(
+        isSignUp && !result.policyProfileSaved
+          ? "계정은 만들어졌어요. 맞춤 정보는 마이페이지에서 다시 저장해주세요."
+          : undefined,
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "잠시 후 다시 시도해주세요.");
     } finally {
@@ -282,6 +309,8 @@ export function AuthModal({ mode, onClose, onModeChange, onSuccess }: Props) {
       return;
     }
 
+    setError("");
+    rememberPostOAuthPolicyProfileCompletion(isSignUp);
     rememberOAuthReturnTo();
   };
 
@@ -299,7 +328,11 @@ export function AuthModal({ mode, onClose, onModeChange, onSuccess }: Props) {
       aria-label={isSignUp ? "회원가입" : "로그인"}
     >
       <div className="auth-backdrop" onClick={onClose} />
-      <div className="auth-card" data-main-scrolled={isMainScrolled && !activeLegalDocument}>
+      <div
+        className="auth-card"
+        data-auth-mode={mode}
+        data-main-scrolled={isMainScrolled && !activeLegalDocument}
+      >
         <button className="auth-close" type="button" onClick={onClose} aria-label="닫기">
           <X weight="bold" />
         </button>
@@ -319,46 +352,54 @@ export function AuthModal({ mode, onClose, onModeChange, onSuccess }: Props) {
             </p>
 
             <form className="auth-form" ref={formRef} onSubmit={submit} noValidate>
-            {isSignUp && (
+              {isSignUp && (
+                <label className="auth-field">
+                  <span>이름</span>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder="홍길동"
+                    autoComplete="name"
+                    required
+                    maxLength={100}
+                  />
+                </label>
+              )}
+
               <label className="auth-field">
-                <span>이름</span>
+                <span>이메일</span>
                 <input
-                  type="text"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="홍길동"
-                  autoComplete="name"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="you@example.com"
+                  autoComplete="email"
                   required
-                  maxLength={100}
                 />
               </label>
-            )}
 
-            <label className="auth-field">
-              <span>이메일</span>
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
-                autoComplete="email"
-                required
-              />
-            </label>
+              <label className="auth-field">
+                <span>비밀번호</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder={isSignUp ? "8자 이상" : "비밀번호"}
+                  autoComplete={isSignUp ? "new-password" : "current-password"}
+                  required
+                  minLength={isSignUp ? 8 : undefined}
+                  maxLength={72}
+                />
+              </label>
 
-            <label className="auth-field">
-              <span>비밀번호</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder={isSignUp ? "8자 이상" : "비밀번호"}
-                autoComplete={isSignUp ? "new-password" : "current-password"}
-                required
-                minLength={isSignUp ? 8 : undefined}
-                maxLength={72}
-              />
-            </label>
+              {isSignUp && (
+                <PolicyProfileFields
+                  value={policyProfile}
+                  onChange={setPolicyProfile}
+                  socialSignupNotice
+                />
+              )}
 
               {isSignUp && (
                 <fieldset className="auth-consents">
