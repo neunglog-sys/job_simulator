@@ -42,6 +42,34 @@ RAG_MAX_DISTANCE = 0.35  # 실측(0722): 정답매칭 ~0.22~0.33 · 오프토픽
 COACH_RAG_TOP_K = 6  # 코치는 가르치는 입장 — NPC(3)보다 넓게 그 직무 전체 그림을 그라운딩
 
 
+def _player_name(state: dict) -> str:
+    return str(state.get("player_name") or "").strip()
+
+
+def _player_address(state: dict) -> str:
+    """NPC가 사용할 신입 호칭. 역할형 이름도 어색한 '관리자 씨' 대신 '관리자님'으로."""
+    name = _player_name(state)
+    if not name:
+        return "담당자님"
+    if name.endswith(("님", "씨")):
+        return name
+    return f"{name}님"
+
+
+def _personalize_text(scenario: Scenario, state: dict, text: str | None) -> str:
+    """SNS-01 원본의 고정 가명('지수 씨')을 현재 로그인 사용자 호칭으로 치환."""
+    value = str(text or "")
+    if scenario.slug == "sns-01":
+        value = re.sub(r"지수\s*씨", _player_address(state), value)
+    return value
+
+
+def _public_step(scenario: Scenario, state: dict, step: dict) -> dict:
+    out = sm.public_step(step)
+    out["mission"] = _personalize_text(scenario, state, out.get("mission"))
+    return out
+
+
 async def _coach_knowledge(
     session: AsyncSession, scenario: Scenario, *query_parts: str
 ) -> list[str]:
@@ -140,6 +168,7 @@ async def create_simulation(
         "attempts": {},  # 스텝별 과제 제출 횟수 → 힌트 단계·리포트 재료
         "quest": {"status": "pending" if scenario.sudden_quest else "none", "attempts": 0},
         "coach_streak": 0,  # 진전(제출) 없이 이어진 미션 대화 턴 수 → 정체 감지용
+        "player_name": user.name,
     }
     # 상담에서 진입했으면 그 상담 id를 박아둔다 — 재개(이어하기)로 URL 파라미터가 유실돼도
     # 완주 리포트가 상담을 붙일 수 있게. 남의 상담 id는 무시(도용 방지·게임은 계속 진행).
@@ -166,6 +195,13 @@ async def get_owned_simulation(
     simulation = await session.get(Simulation, simulation_id)
     if simulation is None or simulation.user_id != user.id:
         raise HTTPException(status_code=404, detail="시뮬레이션을 찾을 수 없음")
+    # 기존 진행 세션도 프로필의 현재 표시 이름을 즉시 따라간다.
+    if simulation.state.get("player_name") != user.name:
+        state = dict(simulation.state)
+        state["player_name"] = user.name
+        simulation.state = state
+        flag_modified(simulation, "state")
+        await session.commit()
     scenario = await session.get(Scenario, simulation.scenario_id)
     return simulation, scenario
 
@@ -259,7 +295,7 @@ async def to_out(session: AsyncSession, simulation: Simulation, scenario: Scenar
         "module": scenario.module,  # 프론트 배경 8세트 선택용
         "status": simulation.status,
         "state": public_state(simulation.state),
-        "step": sm.public_step(step),
+        "step": _public_step(scenario, simulation.state, step),
         # 본편 미션 id 순서 (진행률 계산용) — 돌발 퀘스트는 steps에 없어 자연히 제외됨
         "step_ids": [s["id"] for s in scenario.steps],
         "npcs": _public_npcs(roster, slots),  # 시나리오 NPC 표시정보 (step.npcs는 npc_id 목록)
@@ -350,7 +386,7 @@ async def stream_npc_chat(
         mission_npcs = {quest_npc}  # 퀘스트 중엔 퀘스트 NPC만 채점 대상
         grading_mission = (scenario.sudden_quest.get("task") or {}).get("prompt", "")
     else:
-        grading_mission = step["mission"]
+        grading_mission = _personalize_text(scenario, simulation.state, step["mission"])
 
     roster = await npc_map(session, scenario.id)
     persona = roster.get(npc_id)
@@ -426,6 +462,8 @@ async def stream_npc_chat(
     system = render_prompt(
         "npc/system.md",
         scenario_title=scenario.title,
+        player_name=_player_name(simulation.state),
+        player_address=_player_address(simulation.state),
         register=register_for_npc(scenario.slug, kind),
         npc_kind=kind,
         mission=grading_mission,
@@ -530,7 +568,7 @@ async def stream_npc_chat(
             "affinity": {"value": aff_value, "delta": aff_delta, "band": affinity.band(aff_value)},
             "state": public_state(new_state),
             "step_changed": (
-                sm.public_step(sm.find_step(scenario.steps, changed_step))
+                _public_step(scenario, new_state, sm.find_step(scenario.steps, changed_step))
                 if changed_step
                 else None
             ),
@@ -547,9 +585,11 @@ async def _persona_line(
     system = render_prompt(
         "npc/system.md",
         scenario_title=scenario.title,
+        player_name=_player_name(simulation.state),
+        player_address=_player_address(simulation.state),
         register=register_for_npc(scenario.slug, kind),
         npc_kind=kind,
-        mission=step["mission"],
+        mission=_personalize_text(scenario, simulation.state, step["mission"]),
         name=persona["name"], role=persona["role"], rank=persona["rank"],
         personality=persona["personality"], likes=persona["likes"],
         dislikes=persona["dislikes"], speech_habits=persona["speech_habits"],
@@ -573,7 +613,9 @@ async def npc_greeting(
     """
     step = _resolve_step(scenario, simulation.state)
     npc_id = (step.get("npcs") or [None])[0]
-    fallback = (step.get("mission") or "").split("\n\n")[0].strip()
+    fallback = _personalize_text(
+        scenario, simulation.state, step.get("mission")
+    ).split("\n\n")[0].strip()
     roster = await npc_map(session, scenario.id)
     persona = roster.get(npc_id or "")
     if persona is None:
@@ -656,9 +698,11 @@ async def onboarding_tour(
     system = render_prompt(
         "npc/system.md",
         scenario_title=scenario.title,
+        player_name=_player_name(simulation.state),
+        player_address=_player_address(simulation.state),
         register=register_for_npc(scenario.slug, kind),
         npc_kind=kind,
-        mission=step["mission"],
+        mission=_personalize_text(scenario, simulation.state, step["mission"]),
         name=guide["name"], role=guide["role"], rank=guide["rank"],
         personality=guide["personality"], likes=guide["likes"],
         dislikes=guide["dislikes"], speech_habits=guide["speech_habits"],
@@ -837,7 +881,7 @@ async def complete_activity(
         next_step = sm.find_step(scenario.steps, str(target))
         state["step"] = next_step["id"]
         state["workflow_stage"] = "exploring"
-        step_changed = sm.public_step(next_step)
+        step_changed = _public_step(scenario, state, next_step)
 
     simulation.state = state
     flag_modified(simulation, "state")
@@ -966,7 +1010,7 @@ async def submit_choice(
         "delta": effects,
         "state": public_state(new_state),
         "step_changed": (
-            sm.public_step(sm.find_step(scenario.steps, changed_step))
+            _public_step(scenario, new_state, sm.find_step(scenario.steps, changed_step))
             if changed_step
             else None
         ),
@@ -1085,7 +1129,7 @@ async def submit_task(
             next_id = task["on_pass"]
             state["step"] = next_id
             next_step = sm.find_step(scenario.steps, next_id)
-            step_changed = sm.public_step(next_step)
+            step_changed = _public_step(scenario, state, next_step)
             # 돌발 퀘스트 발동 판정 (전환 시점 확률 50%, 종착 스텝 진입까지 미발동이면 강제)
             if scenario.sudden_quest and hints.should_fire_quest(
                 next_step, quest.get("status", "none"), random.random()
@@ -1249,7 +1293,7 @@ async def skip_step(
         completed = True
     else:
         state["step"] = on_pass
-        step_changed = sm.public_step(sm.find_step(scenario.steps, on_pass))
+        step_changed = _public_step(scenario, state, sm.find_step(scenario.steps, on_pass))
     simulation.state = state
     flag_modified(simulation, "state")
     await scoring.log_action(session, simulation.id, "skip_step", {"from": step["id"]}, {})

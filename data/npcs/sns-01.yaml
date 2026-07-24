@@ -73,5 +73,3 @@ npcs:
     location: bujang
     available_steps:
     - quest
-    conditions:
-    - quest_started
