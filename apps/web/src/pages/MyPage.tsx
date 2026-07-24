@@ -15,6 +15,7 @@ import {
   Key,
   LockKey,
   List,
+  MapPin,
   ShieldCheck,
   SignOut,
   SpinnerGap,
@@ -40,15 +41,20 @@ import {
   deleteProfileDocument,
   downloadProfileDocument,
   fetchConsultations,
+  fetchPolicyProfile,
   fetchProfileAvatar,
   fetchProfileDocuments,
   fetchReportPdfBlob,
   fetchReports,
   fetchSimulationSummaries,
   updateProfileAccount,
+  updatePolicyProfile,
   uploadProfileAvatar,
   uploadProfileDocument,
   type ConsultationSummary,
+  type PolicyProfile,
+  type PolicyProfileGender,
+  type PolicyProfileUpdate,
   type Report,
   type SimulationSummary,
   type UserDocument,
@@ -61,6 +67,27 @@ const MAX_FILE_SIZE = 8 * 1024 * 1024;
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
 const MY_PAGE_DESIGN_WIDTH = 1920;
 const MY_PAGE_DESIGN_HEIGHT = 900;
+const POLICY_BIRTH_YEAR_MIN = 1900;
+const POLICY_BIRTH_YEAR_MAX = 2026;
+const POLICY_REGION_CTPV = [
+  "서울특별시",
+  "부산광역시",
+  "대구광역시",
+  "인천광역시",
+  "광주광역시",
+  "대전광역시",
+  "울산광역시",
+  "세종특별자치시",
+  "경기도",
+  "강원특별자치도",
+  "충청북도",
+  "충청남도",
+  "전북특별자치도",
+  "전라남도",
+  "경상북도",
+  "경상남도",
+  "제주특별자치도",
+] as const;
 
 type MyPageStageStyle = CSSProperties & {
   "--my-page-scale": number;
@@ -88,6 +115,39 @@ const DOCUMENT_META: Record<
 };
 
 type MyPageSection = "documents" | "account" | "activity";
+type PolicyDisabilitySelection = "" | "yes" | "no";
+
+type PolicyProfileForm = {
+  birthYear: string;
+  gender: "" | PolicyProfileGender;
+  regionCtpv: string;
+  regionSgg: string;
+  hasDisability: PolicyDisabilitySelection;
+  sensitiveAgreed: boolean;
+};
+
+const EMPTY_POLICY_PROFILE_FORM: PolicyProfileForm = {
+  birthYear: "",
+  gender: "",
+  regionCtpv: "",
+  regionSgg: "",
+  hasDisability: "",
+  sensitiveAgreed: false,
+};
+
+function policyProfileToForm(profile: PolicyProfile): PolicyProfileForm {
+  return {
+    birthYear: profile.birth_year?.toString() ?? "",
+    gender: profile.gender ?? "",
+    regionCtpv: profile.region_ctpv ?? "",
+    regionSgg: profile.region_sgg ?? "",
+    hasDisability:
+      profile.has_disability === null ? "" : profile.has_disability ? "yes" : "no",
+    sensitiveAgreed: Boolean(
+      profile.has_disability !== null && profile.sensitive_agreed_at,
+    ),
+  };
+}
 
 type ActivityItem = {
   id: string;
@@ -255,6 +315,14 @@ export function MyPage() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [accountNotice, setAccountNotice] = useState<string | null>(null);
   const [accountError, setAccountError] = useState<string | null>(null);
+  const [policyProfile, setPolicyProfile] = useState<PolicyProfile | null>(null);
+  const [policyProfileForm, setPolicyProfileForm] = useState<PolicyProfileForm>(
+    EMPTY_POLICY_PROFILE_FORM,
+  );
+  const [policyProfileLoading, setPolicyProfileLoading] = useState(false);
+  const [savingPolicyProfile, setSavingPolicyProfile] = useState(false);
+  const [policyProfileNotice, setPolicyProfileNotice] = useState<string | null>(null);
+  const [policyProfileError, setPolicyProfileError] = useState<string | null>(null);
 
   const [consultations, setConsultations] = useState<ConsultationSummary[]>([]);
   const [simulations, setSimulations] = useState<SimulationSummary[]>([]);
@@ -264,6 +332,46 @@ export function MyPage() {
   const [activityError, setActivityError] = useState<string | null>(null);
 
   const me = auth.status === "authed" ? auth.me : null;
+  const userId = me?.id ?? null;
+
+  const applyPolicyProfile = useCallback((profile: PolicyProfile) => {
+    setPolicyProfile(profile);
+    setPolicyProfileForm(policyProfileToForm(profile));
+  }, []);
+
+  const policyProfileChanges = useMemo<PolicyProfileUpdate>(() => {
+    if (!policyProfile) return {};
+
+    const changes: PolicyProfileUpdate = {};
+    const birthYear = policyProfileForm.birthYear.trim()
+      ? Number(policyProfileForm.birthYear)
+      : null;
+    const gender = policyProfileForm.gender || null;
+    const regionCtpv = policyProfileForm.regionCtpv.trim() || null;
+    const regionSgg = policyProfileForm.regionSgg.trim() || null;
+    const hasDisability =
+      policyProfileForm.hasDisability === ""
+        ? null
+        : policyProfileForm.hasDisability === "yes";
+
+    if (birthYear !== policyProfile.birth_year) changes.birth_year = birthYear;
+    if (gender !== policyProfile.gender) changes.gender = gender;
+    if (regionCtpv !== policyProfile.region_ctpv) changes.region_ctpv = regionCtpv;
+    if (regionSgg !== policyProfile.region_sgg) changes.region_sgg = regionSgg;
+    if (hasDisability !== policyProfile.has_disability) {
+      changes.has_disability = hasDisability;
+      if (hasDisability !== null) {
+        changes.sensitive_agreed = policyProfileForm.sensitiveAgreed;
+      }
+    }
+
+    return changes;
+  }, [policyProfile, policyProfileForm]);
+
+  const hasPolicyProfileChanges = Object.keys(policyProfileChanges).length > 0;
+  const hasStoredSensitiveConsent = Boolean(
+    policyProfile?.has_disability !== null && policyProfile?.sensitive_agreed_at,
+  );
 
   const showAvatar = useCallback((blob: Blob) => {
     if (avatarObjectUrlRef.current) URL.revokeObjectURL(avatarObjectUrlRef.current);
@@ -327,6 +435,28 @@ export function MyPage() {
   useEffect(() => {
     if (me) setProfileName(me.name);
   }, [me]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    setPolicyProfileLoading(true);
+    setPolicyProfileError(null);
+
+    void fetchPolicyProfile()
+      .then((profile) => {
+        if (active) applyPolicyProfile(profile);
+      })
+      .catch((loadError) => {
+        if (active) setPolicyProfileError(errorMessage(loadError));
+      })
+      .finally(() => {
+        if (active) setPolicyProfileLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [applyPolicyProfile, userId]);
 
   useEffect(() => {
     if (!me) return;
@@ -480,6 +610,66 @@ export function MyPage() {
       setAccountError(errorMessage(saveError));
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const handlePolicyProfileSave = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setPolicyProfileNotice(null);
+    setPolicyProfileError(null);
+
+    if (!policyProfile) {
+      setPolicyProfileError("맞춤 제도 정보를 불러온 뒤 다시 시도해주세요.");
+      return;
+    }
+
+    const birthYearText = policyProfileForm.birthYear.trim();
+    if (birthYearText) {
+      const birthYear = Number(birthYearText);
+      if (
+        !Number.isInteger(birthYear) ||
+        birthYear < POLICY_BIRTH_YEAR_MIN ||
+        birthYear > POLICY_BIRTH_YEAR_MAX
+      ) {
+        setPolicyProfileError(
+          `출생 연도는 ${POLICY_BIRTH_YEAR_MIN}-${POLICY_BIRTH_YEAR_MAX} 사이로 입력해주세요.`,
+        );
+        return;
+      }
+    }
+
+    if (policyProfileForm.regionSgg.trim() && !policyProfileForm.regionCtpv) {
+      setPolicyProfileError("시군구를 입력하려면 시도를 먼저 선택해주세요.");
+      return;
+    }
+
+    const disabilityChanged = Object.prototype.hasOwnProperty.call(
+      policyProfileChanges,
+      "has_disability",
+    );
+    if (
+      disabilityChanged &&
+      policyProfileChanges.has_disability !== null &&
+      !policyProfileForm.sensitiveAgreed
+    ) {
+      setPolicyProfileError("장애 여부를 저장하려면 민감정보 저장에 동의해주세요.");
+      return;
+    }
+
+    if (!hasPolicyProfileChanges) {
+      setPolicyProfileNotice("변경된 맞춤 제도 정보가 없어요.");
+      return;
+    }
+
+    setSavingPolicyProfile(true);
+    try {
+      const saved = await updatePolicyProfile(policyProfileChanges);
+      applyPolicyProfile(saved);
+      setPolicyProfileNotice("맞춤 제도 정보가 저장됐어요.");
+    } catch (saveError) {
+      setPolicyProfileError(errorMessage(saveError));
+    } finally {
+      setSavingPolicyProfile(false);
     }
   };
 
@@ -935,6 +1125,203 @@ export function MyPage() {
                     </div>
                   )}
                 </div>
+
+                <form
+                  className={`${styles.settingsCard} ${styles.policyProfileCard}`}
+                  onSubmit={(event) => void handlePolicyProfileSave(event)}
+                  aria-busy={policyProfileLoading || savingPolicyProfile}
+                >
+                  <div className={styles.settingsCardHeading}>
+                    <span><MapPin weight="duotone" /></span>
+                    <div>
+                      <h3>맞춤 제도 프로필</h3>
+                      <p>입력한 조건을 바탕으로 나에게 맞는 취업 지원제도를 찾아요.</p>
+                    </div>
+                  </div>
+
+                  <div className={styles.policyProfileFeedback} aria-live="polite">
+                    {policyProfileError ? (
+                      <p className={styles.error}>
+                        <WarningCircle weight="fill" />
+                        {policyProfileError}
+                      </p>
+                    ) : policyProfileNotice ? (
+                      <p className={styles.success}>
+                        <CheckCircle weight="fill" />
+                        {policyProfileNotice}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  {policyProfileLoading && !policyProfile ? (
+                    <div className={styles.policyProfileLoading}>
+                      <SpinnerGap className={styles.spinner} aria-hidden="true" />
+                      맞춤 제도 정보를 불러오고 있어요
+                    </div>
+                  ) : (
+                    <>
+                      <div className={styles.policyProfileFields}>
+                        <label className={styles.formField}>
+                          <span>출생 연도</span>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={POLICY_BIRTH_YEAR_MIN}
+                            max={POLICY_BIRTH_YEAR_MAX}
+                            value={policyProfileForm.birthYear}
+                            onChange={(event) =>
+                              setPolicyProfileForm((current) => ({
+                                ...current,
+                                birthYear: event.target.value,
+                              }))
+                            }
+                            placeholder="예: 1993"
+                            disabled={!policyProfile || savingPolicyProfile}
+                          />
+                        </label>
+
+                        <label className={styles.formField}>
+                          <span>성별</span>
+                          <select
+                            value={policyProfileForm.gender}
+                            onChange={(event) =>
+                              setPolicyProfileForm((current) => ({
+                                ...current,
+                                gender: event.target.value as PolicyProfileForm["gender"],
+                              }))
+                            }
+                            disabled={!policyProfile || savingPolicyProfile}
+                          >
+                            <option value="">응답하지 않음</option>
+                            <option value="male">남성</option>
+                            <option value="female">여성</option>
+                          </select>
+                        </label>
+
+                        <label className={styles.formField}>
+                          <span>시도</span>
+                          <select
+                            value={policyProfileForm.regionCtpv}
+                            onChange={(event) => {
+                              const regionCtpv = event.target.value;
+                              setPolicyProfileForm((current) => ({
+                                ...current,
+                                regionCtpv,
+                                regionSgg: regionCtpv ? current.regionSgg : "",
+                              }));
+                            }}
+                            disabled={!policyProfile || savingPolicyProfile}
+                          >
+                            <option value="">응답하지 않음</option>
+                            {POLICY_REGION_CTPV.map((region) => (
+                              <option key={region} value={region}>{region}</option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label className={styles.formField}>
+                          <span>시군구</span>
+                          <input
+                            value={policyProfileForm.regionSgg}
+                            onChange={(event) =>
+                              setPolicyProfileForm((current) => ({
+                                ...current,
+                                regionSgg: event.target.value,
+                              }))
+                            }
+                            maxLength={30}
+                            placeholder={policyProfileForm.regionCtpv ? "예: 양주시" : "시도를 먼저 선택"}
+                            disabled={
+                              !policyProfile ||
+                              !policyProfileForm.regionCtpv ||
+                              savingPolicyProfile
+                            }
+                          />
+                        </label>
+                      </div>
+
+                      <div className={styles.policySensitivePanel}>
+                        <label className={styles.formField}>
+                          <span>장애 여부</span>
+                          <select
+                            value={policyProfileForm.hasDisability}
+                            onChange={(event) => {
+                              const hasDisability =
+                                event.target.value as PolicyDisabilitySelection;
+                              setPolicyProfileForm((current) => ({
+                                ...current,
+                                hasDisability,
+                                sensitiveAgreed: hasDisability
+                                  ? current.sensitiveAgreed
+                                  : false,
+                              }));
+                            }}
+                            aria-describedby="policy-disability-help"
+                            disabled={!policyProfile || savingPolicyProfile}
+                          >
+                            <option value="">응답하지 않음</option>
+                            <option value="no">해당 없음</option>
+                            <option value="yes">해당</option>
+                          </select>
+                        </label>
+
+                        <label
+                          className={`${styles.policyConsent} ${
+                            policyProfileForm.hasDisability === ""
+                              ? styles.policyConsentDisabled
+                              : ""
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={policyProfileForm.sensitiveAgreed}
+                            onChange={(event) =>
+                              setPolicyProfileForm((current) => ({
+                                ...current,
+                                sensitiveAgreed: event.target.checked,
+                              }))
+                            }
+                            disabled={
+                              !policyProfile ||
+                              policyProfileForm.hasDisability === "" ||
+                              (hasStoredSensitiveConsent &&
+                                policyProfileForm.sensitiveAgreed) ||
+                              savingPolicyProfile
+                            }
+                          />
+                          <span>
+                            <strong>장애 여부 저장에 동의합니다</strong>
+                            <small id="policy-disability-help">
+                              장애 여부는 민감정보로 분류되며 맞춤 제도 조회에만 사용해요.
+                              저장된 답변을 철회하려면 장애 여부에서 응답하지 않음을 선택해주세요.
+                            </small>
+                          </span>
+                        </label>
+                      </div>
+
+                      <div className={styles.policyProfileActions}>
+                        <small>입력하지 않은 조건은 맞춤 제도 검색에서 제외돼요.</small>
+                        <button
+                          className={styles.primaryAction}
+                          type="submit"
+                          disabled={
+                            !policyProfile ||
+                            policyProfileLoading ||
+                            savingPolicyProfile ||
+                            !hasPolicyProfileChanges
+                          }
+                        >
+                          {savingPolicyProfile ? (
+                            <SpinnerGap className={styles.spinner} aria-hidden="true" />
+                          ) : (
+                            <CheckCircle weight="bold" aria-hidden="true" />
+                          )}
+                          {savingPolicyProfile ? "저장 중" : "맞춤 정보 저장"}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </form>
               </div>
             </section>
           )}

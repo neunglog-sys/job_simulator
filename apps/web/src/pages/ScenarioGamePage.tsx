@@ -127,6 +127,16 @@ const DEFAULT_COACH_MESSAGE =
 const DEFAULT_SCENARIO_MAP_IMAGE =
   `${import.meta.env.BASE_URL}assets/scenario/maps/modern-design-video-studio.webp`;
 
+const NPC_STANDING_ILLUSTRATIONS: Readonly<Record<string, string>> = {
+  "npc_kts-03_01": `${import.meta.env.BASE_URL}npc/standing/npc_kts-03_01.png`,
+  "npc_kts-03_02": `${import.meta.env.BASE_URL}npc/standing/npc_kts-03_02.png`,
+  "npc_kts-03_03": `${import.meta.env.BASE_URL}npc/standing/npc_kts-03_03.png`,
+  "npc_kts-03_04": `${import.meta.env.BASE_URL}npc/standing/npc_kts-03_04.png`,
+  "npc_sns-01_01": `${import.meta.env.BASE_URL}npc/standing/npc_sns-01_01.png`,
+  "npc_sns-01_02": `${import.meta.env.BASE_URL}npc/standing/npc_sns-01_02.png`,
+  "npc_sns-01_03": `${import.meta.env.BASE_URL}npc/standing/npc_sns-01_03.png`,
+};
+
 // 테스트 대상 시나리오 — ?slug= 쿼리로 덮어쓸 수 있다. 기본은 ms-06(농축산 현장 작업 / 작업순서_농축산현장작업 맵).
 const DEFAULT_SCENARIO_SLUG =
   new URLSearchParams(window.location.search).get("slug") ||
@@ -377,6 +387,24 @@ export function ScenarioGamePage() {
         : tourStop?.line ?? "";
   const visibleChatNpc = tourActive ? tourDialogueSpeaker ?? chatNpc : chatNpc;
   const visibleNpcMessage = tourActive ? tourDialogueMessage : npcMessage;
+  const visibleChatNpcId = tourActive
+    ? tourDialogueSpeaker?.npc ?? chatNpc?.npc_id
+    : chatNpc?.npc_id;
+  const standingIllustrationSrc = visibleChatNpcId
+    ? NPC_STANDING_ILLUSTRATIONS[visibleChatNpcId]
+    : undefined;
+  const showStandingIllustration = Boolean(
+    standingIllustrationSrc &&
+      !MODAL_PHASES.has(phase) &&
+      !isHistoryOpen &&
+      !isMemoOpen &&
+      !isWorkflowOpen &&
+      (tourActive ||
+        chatNpcId !== null ||
+        isStreaming ||
+        visibleNpcMessage.trim().length > 0 ||
+        userMessage.trim().length > 0),
+  );
 
   // 위 자막에서 지나간 사수의 소개와 마무리도 이전 대화 목록에 남긴다.
   // 동료 답변은 onNpcReply에서 완성된 문장으로 별도 기록한다.
@@ -955,6 +983,16 @@ export function ScenarioGamePage() {
           guideNpcId={tour?.guide?.npc ?? null}
           guidePosition={guidePosition}
         />
+        {showStandingIllustration && standingIllustrationSrc ? (
+          <div className={styles.npcStandingStage} aria-hidden="true">
+            <img
+              src={standingIllustrationSrc}
+              alt=""
+              decoding="async"
+              draggable={false}
+            />
+          </div>
+        ) : null}
         <DashboardHeader
           progress={progress}
           theme={scenarioTheme}
@@ -1080,6 +1118,7 @@ export function ScenarioGamePage() {
           <ScenarioControlPanel
             npcName={visibleChatNpc?.name ?? "NPC"}
             npcRole={visibleChatNpc?.role}
+            npcPortraitSrc={standingIllustrationSrc}
             npcMessage={visibleNpcMessage}
             userMessage={userMessage}
             dialogueEntries={dialogueHistory}

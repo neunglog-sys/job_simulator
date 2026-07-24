@@ -40,6 +40,7 @@ export const API_ENDPOINTS = {
   },
   profile: {
     account: apiUrl("/api/profile/account"),
+    policyProfile: apiUrl("/api/profile/policy-profile"),
     password: apiUrl("/api/profile/password"),
     avatar: apiUrl("/api/profile/avatar"),
     documents: apiUrl("/api/profile/documents"),

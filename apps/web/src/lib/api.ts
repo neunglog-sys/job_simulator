@@ -105,6 +105,24 @@ export type UserDocument = {
   created_at: string;
 };
 
+export type PolicyProfileGender = "male" | "female";
+export type PolicyProfile = {
+  birth_year: number | null;
+  gender: PolicyProfileGender | null;
+  region_ctpv: string | null;
+  region_sgg: string | null;
+  has_disability: boolean | null;
+  sensitive_agreed_at: string | null;
+};
+export type PolicyProfileUpdate = Partial<{
+  birth_year: number | null;
+  gender: PolicyProfileGender | null;
+  region_ctpv: string | null;
+  region_sgg: string | null;
+  has_disability: boolean | null;
+  sensitive_agreed: boolean;
+}>;
+
 export type SimulationSummary = {
   id: number;
   scenario_slug: string;
@@ -138,6 +156,17 @@ export function updateProfileAccount(name: string): Promise<Me> {
   return request(API_ENDPOINTS.profile.account, {
     method: "PATCH",
     body: JSON.stringify({ name }),
+  });
+}
+
+export function fetchPolicyProfile(): Promise<PolicyProfile> {
+  return request(API_ENDPOINTS.profile.policyProfile, { method: "GET" });
+}
+
+export function updatePolicyProfile(body: PolicyProfileUpdate): Promise<PolicyProfile> {
+  return request(API_ENDPOINTS.profile.policyProfile, {
+    method: "PATCH",
+    body: JSON.stringify(body),
   });
 }
 
