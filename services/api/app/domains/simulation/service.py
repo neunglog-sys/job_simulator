@@ -764,9 +764,18 @@ async def save_minigame_result(
     엔진은 시나리오의 게임 선언과 대조하고(_minigame_result), 스텁·불일치도 저장은 한다 —
     반영 여부는 aggregate.minigame_of가 거른다.
     """
-    result = _minigame_result(payload, minigame.minigame_for(scenario.slug))
+    # 한 직무에 게임이 2~3개 붙는다. 첫 게임하고만 대조하면 두 번째 게임 결과가
+    # 통째로 engine_mismatch로 버려진다 — 선언된 게임 중 engine이 같은 것을 찾아 대조한다.
+    declared = minigame.declared_for_engine(scenario.slug, payload.get("engine"))
+    result = _minigame_result(payload, declared)
 
     state = dict(simulation.state)
+    # 게임별로 따로 보관한다. 슬롯이 하나뿐이라 두 번째 게임이 첫 게임 결과를 덮어썼다.
+    # state["minigame"]은 마지막 결과로 유지 — 기존 리포트·프론트가 이 키를 읽는다.
+    results = dict(state.get("minigames") or {})
+    if result.get("engine"):
+        results[result["engine"]] = result
+    state["minigames"] = results
     state["minigame"] = result
     simulation.state = state
     flag_modified(simulation, "state")

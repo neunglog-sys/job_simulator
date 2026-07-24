@@ -100,3 +100,36 @@ def test_broken_game_entry_is_skipped_not_fatal(tmp_path, monkeypatch):
 
     games = minigame.minigames_for("demo-04")
     assert [g["engine"] for g in games] == ["spot"]
+
+
+def test_declared_for_engine_picks_the_matching_game(monkeypatch, tmp_path):
+    """다중 게임에서 2번째 게임 결과가 engine_mismatch로 버려지면 안 된다."""
+    from app.content import minigame
+
+    monkeypatch.setattr(
+        minigame, "minigames_for",
+        lambda slug: [{"engine": "match", "pass_score": 70},
+                      {"engine": "puzzle", "pass_score": 60}],
+    )
+    assert minigame.declared_for_engine("sns-01", "puzzle")["engine"] == "puzzle"
+    assert minigame.declared_for_engine("sns-01", "match")["engine"] == "match"
+    # 선언에 없는 엔진이면 첫 게임과 대조 → 기존처럼 불일치로 기록된다
+    assert minigame.declared_for_engine("sns-01", "unknown")["engine"] == "match"
+
+
+def test_second_game_result_does_not_overwrite_the_first():
+    """게임별로 따로 보관해야 한다 — 슬롯이 하나면 두 번째가 첫 결과를 덮어쓴다."""
+    from app.domains.simulation import service
+
+    first = service._minigame_result(
+        {"engine": "match", "accuracy": 90}, {"engine": "match", "pass_score": 70}
+    )
+    second = service._minigame_result(
+        {"engine": "puzzle", "accuracy": 80}, {"engine": "puzzle", "pass_score": 60}
+    )
+    results = {}
+    for r in (first, second):
+        results[r["engine"]] = r
+    assert set(results) == {"match", "puzzle"}
+    assert results["match"]["score"] == 90 and results["puzzle"]["score"] == 80
+    assert not any(r.get("rejected") for r in results.values())

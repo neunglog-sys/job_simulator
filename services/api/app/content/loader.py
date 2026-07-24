@@ -6,6 +6,7 @@ from pathlib import Path
 import yaml
 
 from app.core.config import settings
+from app.core.state_keys import ENGINE_STATE_KEYS
 
 logger = logging.getLogger(__name__)
 
@@ -157,9 +158,11 @@ def validate_scenario(doc: dict, source: str, npc_ids: set[str]) -> None:
                     f"{source}: step '{step['id']}'의 on_pass '{task['on_pass']}'가 존재하지 않음"
                 )
             _validate_task(task, f"{source}: step '{step['id']}'")
-    reserved = {"step", "attempts", "quest"} & set(doc.get("initial_state", {}))
+    # 엔진 키 전체를 막는다. 세 개만 막고 있어서 minigame·coach_streak 같은 키를
+    # 시나리오가 정의하면 엔진 상태를 덮어쓸 수 있었다.
+    reserved = ENGINE_STATE_KEYS & set(doc.get("initial_state", {}))
     if reserved:
-        raise ValueError(f"{source}: initial_state에 예약 키 사용 불가 {reserved}")
+        raise ValueError(f"{source}: initial_state에 예약 키 사용 불가 {sorted(reserved)}")
     quest = doc.get("sudden_quest")
     if quest:
         if len(doc["steps"]) < 2:
