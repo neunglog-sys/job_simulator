@@ -918,8 +918,15 @@ button.headerOrb:active {
   z-index: 10;
   display: grid;
   grid-template-columns: minmax(0, 1080fr) minmax(0, 680fr);
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
   gap: 20px;
   height: var(--hud-height);
+  min-height: 0;
+}
+
+.bottomHud > * {
+  min-height: 0;
 }
 
 .npcStandingStage {
@@ -937,6 +944,8 @@ button.headerOrb:active {
 }
 
 .npcStandingStage img {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
@@ -944,9 +953,76 @@ button.headerOrb:active {
   object-position: center bottom;
 }
 
+.npcStandingNameplate {
+  position: absolute;
+  bottom: 38px;
+  left: 330px;
+  z-index: 2;
+  display: flex;
+  width: 265px;
+  min-height: 100px;
+  padding: 16px 20px 15px;
+  overflow: hidden;
+  border: 1px solid var(--scenario-glass-border);
+  border-radius: 22px;
+  flex-direction: column;
+  justify-content: center;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 0.2), rgb(255 255 255 / 0.06)),
+    var(--scenario-glass-surface);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.52),
+    inset 1px 0 0 rgb(255 255 255 / 0.16),
+    0 18px 42px rgb(20 13 58 / 0.28);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  backdrop-filter: blur(18px) saturate(150%);
+}
+
+.npcStandingNameplate::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 0;
+  width: 4px;
+  border-radius: 0 999px 999px 0;
+  background: linear-gradient(180deg, var(--scenario-accent), var(--scenario-accent-2));
+  box-shadow: 0 0 14px var(--scenario-accent-soft);
+}
+
+.npcStandingNameplate strong,
+.npcStandingNameplate small {
+  position: relative;
+  z-index: 1;
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.npcStandingNameplate strong {
+  color: #ffffff;
+  font-size: calc(22px * var(--scenario-ui-text-scale));
+  font-weight: 850;
+  line-height: 1.15;
+  text-shadow: 0 2px 9px rgb(20 13 58 / 0.72);
+}
+
+.npcStandingNameplate small {
+  margin-top: 7px;
+  color: rgb(244 239 255 / 0.86);
+  font-size: calc(13px * var(--scenario-ui-text-scale));
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  text-shadow: 0 2px 7px rgb(20 13 58 / 0.64);
+}
+
 .glassPanel {
   position: relative;
   min-width: 0;
+  min-height: 0;
   height: 100%;
   overflow: hidden;
   border-radius: 30px;
@@ -956,79 +1032,95 @@ button.headerOrb:active {
   display: grid;
   grid-template-rows: minmax(0, 1fr) 60px;
   gap: 14px;
+  min-height: 0;
   padding: 15px;
+  contain: layout;
 }
 
 .npcConversation {
-  min-width: 0;
-  min-height: 0;
-  height: 100%;
-}
-
-.npcIdentity {
   display: flex;
   min-width: 0;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  text-align: center;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.npcIdentity .speakerPortrait {
+.npcMessageCard {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.npcMessageCard .speakerPortrait {
+  width: 64px;
+  height: 64px;
   flex: 0 0 auto;
   border-radius: 50%;
-}
-
-.npcIdentity strong {
-  width: 100px;
-  margin-top: 10px;
-  overflow: hidden;
-  color: #fffaff;
-  font-size: calc(13px * var(--scenario-ui-text-scale));
-  font-weight: 800;
-  text-shadow: 0 2px 8px rgb(20 13 58 / 0.82);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.npcIdentity small {
-  margin-top: 4px;
-  color: #e8e1ff;
-  font-size: calc(9px * var(--scenario-ui-text-scale));
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-shadow: 0 2px 7px rgb(20 13 58 / 0.78);
 }
 
 .conversationBubbles {
   position: relative;
   display: flex;
+  flex: 1 1 0;
   min-width: 0;
   min-height: 0;
-  height: 100%;
+  max-height: 100%;
   padding: 6px 7px 8px 0;
   overflow-x: hidden;
   overflow-y: auto;
   flex-direction: column;
   gap: 12px;
   overscroll-behavior: contain;
-  scrollbar-color: rgb(231 216 255 / 0.72) transparent;
   scrollbar-gutter: stable;
-  scrollbar-width: thin;
+  /* Chromium에서는 표준 scrollbar-color를 지정하면 Windows 기본 화살표가 다시 나타날 수 있다.
+     WebKit 가상 요소만 사용하고, 미지원 브라우저는 아래 @supports에서 별도 처리한다. */
+  scrollbar-color: auto;
+  scrollbar-width: auto;
   scroll-padding-block: 6px 8px;
 }
 
 .conversationBubbles::-webkit-scrollbar {
-  width: 6px;
+  width: 7px;
+}
+
+.conversationBubbles::-webkit-scrollbar-button,
+.conversationBubbles::-webkit-scrollbar-button:single-button,
+.conversationBubbles::-webkit-scrollbar-button:vertical:start:decrement,
+.conversationBubbles::-webkit-scrollbar-button:vertical:end:increment {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+  width: 0;
+  height: 0;
+  background: transparent;
 }
 
 .conversationBubbles::-webkit-scrollbar-thumb {
+  border: 1px solid transparent;
   border-radius: 999px;
-  background: rgb(231 216 255 / 0.72);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--scenario-scroll-start) 82%, #ffffff),
+      var(--scenario-scroll-end)
+    ) padding-box;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.38),
+    0 0 6px color-mix(in srgb, var(--scenario-scroll-end) 28%, transparent);
 }
 
 .conversationBubbles::-webkit-scrollbar-track {
+  border-radius: 999px;
   background: transparent;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  .conversationBubbles {
+    scrollbar-color: var(--scenario-scroll-end) transparent;
+    scrollbar-width: thin;
+  }
 }
 
 .dialogueMessageRow {
@@ -1039,10 +1131,9 @@ button.headerOrb:active {
 }
 
 .dialogueMessageRowNpc {
-  display: grid;
-  grid-template-columns: 100px minmax(0, 1fr);
-  align-items: start;
-  gap: 12px;
+  display: block;
+  box-sizing: border-box;
+  padding-left: 10px;
 }
 
 .dialogueMessageRowUser {
@@ -1058,7 +1149,8 @@ button.headerOrb:active {
 
 .dialogueMessageRowNpc .npcSpeechBubble {
   left: 0;
-  margin-top: 15px;
+  align-self: center;
+  margin-top: 0;
 }
 
 .dialogueMessageRowUser .userSpeechBubble {
@@ -1075,14 +1167,14 @@ button.headerOrb:active {
 }
 
 .npcSpeechBubble {
-  left: -15px;
+  left: 0;
   align-self: flex-start;
   width: max-content;
   max-width: 100%;
   min-height: 52px;
   flex: 0 0 auto;
   margin-top: 0;
-  padding: 10px 20px 10px 30px;
+  padding: 10px 20px;
   border: 1px solid rgb(255 255 255 / 0.72);
   border-radius: 24px;
   background: rgb(249 247 255 / 0.76);
@@ -1163,6 +1255,8 @@ button.headerOrb:active {
   align-items: center;
   gap: 15px;
   height: 60px;
+  min-height: 60px;
+  overflow: visible;
 }
 
 .dialogueComposer input {

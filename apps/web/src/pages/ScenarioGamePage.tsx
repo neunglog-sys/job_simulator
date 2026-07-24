@@ -385,10 +385,12 @@ export function ScenarioGamePage() {
   const tourStop = tour && tourIndex < tour.stops.length ? tour.stops[tourIndex] : null;
   const tourActive = TOUR_PHASES.has(phase);
   // 투어 자막과 하단 대화창이 서로 다른 상태를 보지 않도록 현재 발화자와 대사를 한곳에서 계산한다.
-  // 직접 인사를 입력하는 동안에는 직전에 말한 사수의 소개를 유지하고, 동료 답변 토큰이 도착하면
-  // 그때부터 발화자를 해당 동료로 전환한다.
+  // 인사를 입력하기 전까지는 직전에 말한 사수의 소개를 유지하고, 전송한 순간부터
+  // 작성 중 말풍선과 스탠딩의 화자를 인사받는 동료로 전환한다.
   const tourReplyStarted =
-    phase === "tour_reply" || (phase === "tour_greet" && npcMessage.trim().length > 0);
+    phase === "tour_reply" ||
+    (phase === "tour_greet" &&
+      (userMessage.trim().length > 0 || npcMessage.trim().length > 0 || isStreaming));
   const tourDialogueSpeaker =
     phase === "tour_closing" || !tourReplyStarted
       ? tour?.guide ?? tourStop
@@ -407,6 +409,32 @@ export function ScenarioGamePage() {
   const standingIllustrationSrc = visibleChatNpcId
     ? NPC_STANDING_ILLUSTRATIONS[visibleChatNpcId]
     : undefined;
+  const npcPortraitSrcBySpeaker = useMemo(() => {
+    const portraitEntries: Array<[string, string]> = [];
+
+    for (const npc of npcs) {
+      const portraitSrc = NPC_STANDING_ILLUSTRATIONS[npc.npc_id];
+      if (npc.name.trim() && portraitSrc) {
+        portraitEntries.push([npc.name.trim(), portraitSrc]);
+      }
+    }
+
+    if (tour?.guide) {
+      const portraitSrc = NPC_STANDING_ILLUSTRATIONS[tour.guide.npc];
+      if (tour.guide.name.trim() && portraitSrc) {
+        portraitEntries.push([tour.guide.name.trim(), portraitSrc]);
+      }
+    }
+
+    for (const stop of tour?.stops ?? []) {
+      const portraitSrc = NPC_STANDING_ILLUSTRATIONS[stop.npc];
+      if (stop.name.trim() && portraitSrc) {
+        portraitEntries.push([stop.name.trim(), portraitSrc]);
+      }
+    }
+
+    return Object.fromEntries(portraitEntries);
+  }, [npcs, tour]);
   const showStandingIllustration = Boolean(
     standingIllustrationSrc &&
       !MODAL_PHASES.has(phase) &&
@@ -1026,6 +1054,10 @@ export function ScenarioGamePage() {
               decoding="async"
               draggable={false}
             />
+            <div className={styles.npcStandingNameplate}>
+              <strong>{visibleChatNpc?.name ?? "NPC"}</strong>
+              <small>{visibleChatNpc?.role || "직급 정보 없음"}</small>
+            </div>
           </div>
         ) : null}
         <DashboardHeader
@@ -1152,8 +1184,8 @@ export function ScenarioGamePage() {
         <div className={styles.bottomHud}>
           <ScenarioControlPanel
             npcName={visibleChatNpc?.name ?? "NPC"}
-            npcRole={visibleChatNpc?.role}
             npcPortraitSrc={standingIllustrationSrc}
+            npcPortraitSrcBySpeaker={npcPortraitSrcBySpeaker}
             npcMessage={visibleNpcMessage}
             userMessage={userMessage}
             dialogueEntries={dialogueHistory}
