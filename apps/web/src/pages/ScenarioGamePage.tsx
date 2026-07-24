@@ -277,6 +277,60 @@ function findSafeSpot(
   return target;
 }
 
+// findSafeSpot은 두 지점(시작/끝)만 충돌 검증해서, 그 사이 직선이 책상을 가로지르면 그대로
+// 뚫고 지나가는 것처럼 보인다(2026-07-24, "가로질러가는데" 재현 확인). 대각선 한 번이 아니라
+// 상하좌우 두 구간(L자)으로 나눠 이동시키면 자연히 책상을 피해간다.
+function tourPathClear(
+  from: Position,
+  to: Position,
+  collisions: Array<{ x: number; y: number; w: number; h: number }>,
+): boolean {
+  if (collisions.length === 0) return true;
+  const dist = Math.hypot(to.x - from.x, to.y - from.y);
+  const steps = Math.max(1, Math.ceil(dist / 4));
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    if (tourCollidesAt({ x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t }, collisions)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// 직선이 막혔을 때만 L자 코너(수평 우선 또는 수직 우선)로 우회 지점을 계산한다. 두 코너 다
+// 막혀 있으면 null — 호출부가 직선 이동으로 폴백한다(좁은 통로에 낀 극단적 케이스).
+function tourWaypoint(
+  from: Position,
+  to: Position,
+  collisions: Array<{ x: number; y: number; w: number; h: number }>,
+): Position | null {
+  if (tourPathClear(from, to, collisions)) return null;
+  const corners: Position[] = [
+    { x: to.x, y: from.y },
+    { x: from.x, y: to.y },
+  ];
+  for (const corner of corners) {
+    if (
+      !tourCollidesAt(corner, collisions) &&
+      tourPathClear(from, corner, collisions) &&
+      tourPathClear(corner, to, collisions)
+    ) {
+      return corner;
+    }
+  }
+  return null;
+}
+
+// MovementArea의 guideHopMsRef(900~2200ms, 거리비례)와 동일한 공식 — 두 번째 구간을
+// setTimeout으로 예약할 때 그쪽 CSS transition 종료 시점과 맞추기 위해 값을 그대로 복제했다.
+const TOUR_HOP_MIN_MS = 900;
+const TOUR_HOP_MAX_MS = 2200;
+const TOUR_HOP_SPEED_PX_S = 500;
+function tourHopDurationMs(from: Position, to: Position): number {
+  const dist = Math.hypot(to.x - from.x, to.y - from.y);
+  return Math.min(TOUR_HOP_MAX_MS, Math.max(TOUR_HOP_MIN_MS, (dist / TOUR_HOP_SPEED_PX_S) * 1000));
+}
+
 export function ScenarioGamePage() {
   const [isHintOpen, setIsHintOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -565,21 +619,47 @@ export function ScenarioGamePage() {
     const target = tourStop?.npc ?? tour.guide?.npc;
     return target ? spawnPos(target) : null;
   }, [tour, tourStop, spawnPos]);
-  const guidePosition = useMemo(() => {
-    if (!tourActive || !tourAnchor) return null;
-    return findSafeSpot({ x: tourAnchor.x - 70, y: tourAnchor.y }, tourAnchor, tourCollisions);
+  // 다음 스톱으로 넘어갈 때 직선이 책상을 가로지르면 L자 코너를 거쳐 두 구간으로 나눠 이동한다.
+  // useMemo로는 "먼저 코너로, 시간차를 두고 target으로" 같은 갱신을 표현할 수 없어 state+setTimeout으로 둔다.
+  const [guidePosition, setGuidePosition] = useState<Position | null>(null);
+  const guideHopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (guideHopTimerRef.current) clearTimeout(guideHopTimerRef.current);
+    if (!tourActive || !tourAnchor) {
+      setGuidePosition(null);
+      return;
+    }
+    const target = findSafeSpot({ x: tourAnchor.x - 70, y: tourAnchor.y }, tourAnchor, tourCollisions);
+    setGuidePosition((prev) => {
+      const corner = prev ? tourWaypoint(prev, target, tourCollisions) : null;
+      if (!corner || !prev) return target;
+      guideHopTimerRef.current = setTimeout(() => setGuidePosition(target), tourHopDurationMs(prev, corner));
+      return corner;
+    });
+    return () => {
+      if (guideHopTimerRef.current) clearTimeout(guideHopTimerRef.current);
+    };
   }, [tourActive, tourAnchor, tourCollisions]);
 
-  // 사수가 이동하면 신입은 자동으로 따라붙는다(컷신 — 플레이어 조작 없음).
+  // 사수가 이동하면 신입은 자동으로 따라붙는다(컷신 — 플레이어 조작 없음). 같은 L자 두 구간 방식.
+  const playerHopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
+    if (playerHopTimerRef.current) clearTimeout(playerHopTimerRef.current);
     if (!tourActive || !tourAnchor) return;
-    setPlayerPosition(
-      findSafeSpot(
-        { x: tourAnchor.x - 140 - PLAYER_SIZE.width / 2, y: tourAnchor.y - PLAYER_SIZE.height },
-        { x: tourAnchor.x - PLAYER_SIZE.width / 2, y: tourAnchor.y - PLAYER_SIZE.height },
-        tourCollisions,
-      ),
+    const target = findSafeSpot(
+      { x: tourAnchor.x - 140 - PLAYER_SIZE.width / 2, y: tourAnchor.y - PLAYER_SIZE.height },
+      { x: tourAnchor.x - PLAYER_SIZE.width / 2, y: tourAnchor.y - PLAYER_SIZE.height },
+      tourCollisions,
     );
+    setPlayerPosition((prev) => {
+      const corner = tourWaypoint(prev, target, tourCollisions);
+      if (!corner) return target;
+      playerHopTimerRef.current = setTimeout(() => setPlayerPosition(target), tourHopDurationMs(prev, corner));
+      return corner;
+    });
+    return () => {
+      if (playerHopTimerRef.current) clearTimeout(playerHopTimerRef.current);
+    };
   }, [tourActive, tourAnchor, tourCollisions]);
 
   // 투어 전이: 사수 소개(tour_intro) → 신입이 직접 인사(tour_greet) → 동료 응답(tour_reply)
