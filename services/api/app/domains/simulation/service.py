@@ -372,10 +372,21 @@ async def stream_npc_chat(
     scenario: Scenario,
     npc_id: str,
     user_text: str,
+    *,
+    chat_mode: str = "work",
 ) -> AsyncIterator[tuple[str, object]]:
     """NPC 대화 처리 — ("token", str) 조각들 후 ("final", dict) 하나를 yield. npc_id로 지목."""
     _ensure_active(simulation)
     step = _resolve_step(scenario, simulation.state)
+    # 업무 설명 대화는 SNS-01의 실제 브리핑이 있는 단계에서만 허용한다.
+    # 클라이언트가 임의 문맥을 보내지 않고 서버의 시나리오 원문을 사용해 프롬프트 주입을 막는다.
+    process_learning = (
+        chat_mode == "process_learning"
+        and scenario.slug == "sns-01"
+        and bool(step.get("briefing"))
+    )
+    conversation_mode = "process_learning" if process_learning else "work"
+    learning_briefing = list(step.get("briefing") or []) if process_learning else []
     mission_npcs = set(step.get("npcs", []))
     # 활성 퀘스트 중에는 채점 기준을 퀘스트 과제로 바꾼다 — 안 그러면 퀘스트 NPC와의 대화가
     # 엉뚱한 본편 스텝 루브릭으로 평가돼 무관한 상태값(trust 등)이 오르내린다.
@@ -398,7 +409,8 @@ async def stream_npc_chat(
     # 단 미션 채점·상태 전이·코치 TIP은 현재 스텝(또는 활성 퀘스트) NPC일 때만 —
     # 엉뚱한 NPC와의 잡담이 미션을 진행시키거나 점수를 주면 안 된다.
     # 호감도는 NPC별 사회적 값이라 상대가 누구든 즉시 반영한다.
-    mission_active = npc_id in mission_npcs
+    # 설명을 이해하기 위한 질문은 과제 제출이나 역량 평가가 아니다.
+    mission_active = npc_id in mission_npcs and not process_learning
 
     # 호감도: 이번 발화의 태도로 이 NPC 호감도만 가감(룰 기반, 즉시 반영). NPC별 독립값이라
     # 시나리오 전역 상태값(trust 등)과 별개.
@@ -464,6 +476,8 @@ async def stream_npc_chat(
         scenario_title=scenario.title,
         player_name=_player_name(simulation.state),
         player_address=_player_address(simulation.state),
+        conversation_mode=conversation_mode,
+        learning_briefing=learning_briefing,
         register=register_for_npc(scenario.slug, kind),
         npc_kind=kind,
         mission=grading_mission,
@@ -480,9 +494,13 @@ async def stream_npc_chat(
         #   투어 밖에서 처음 만남 = 스스로 소개한다
         #   그 뒤부터 = 평소 업무 대화
         phase=(
-            ("tour_greeting" if not simulation.state.get("tour_done") else "orientation")
-            if first_meeting
-            else "work"
+            "process_learning"
+            if process_learning
+            else (
+                ("tour_greeting" if not simulation.state.get("tour_done") else "orientation")
+                if first_meeting
+                else "work"
+            )
         ),
     )
 

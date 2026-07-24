@@ -764,14 +764,27 @@ export function MovementArea({
         }
         return true;
       };
-      // roam_area(없으면 스폰 주변) 안에서 가구에 안 걸리는 목적지 하나를 고른다.
+      // 목적지 조건 두 가지(사용자 피드백 영상: NPC가 벽·화분에 붙어 제자리 서성임):
+      //  (1) 벽·집기에서 GOAL_MARGIN만큼 떨어진 '열린 바닥' — 벽에 코 박고 서성이지 않게.
+      //  (2) 지금 위치에서 minTravel 이상 떨어진 곳 우선 — 제자리 맴돌지 않고 매장을 가로지르게.
+      const GOAL_MARGIN = 30;
+      const minTravel = area ? Math.min(area.w, area.h) * 0.6 : 150;
+      const isOpen = (gx: number, gy: number) =>
+        !collidesAt(toLocal(gx, gy)) &&
+        !collidesAt(toLocal(gx + GOAL_MARGIN, gy)) &&
+        !collidesAt(toLocal(gx - GOAL_MARGIN, gy)) &&
+        !collidesAt(toLocal(gx, gy + GOAL_MARGIN)) &&
+        !collidesAt(toLocal(gx, gy - GOAL_MARGIN));
       const pickGoal = () => {
-        for (let i = 0; i < 40; i++) {
+        let fallback: Position | null = null; // 먼 곳을 못 찾으면 아무 열린 바닥이라도
+        for (let i = 0; i < 60; i++) {
           const gx = area ? area.x + Math.random() * area.w : spot.x + (Math.random() - 0.5) * 200;
           const gy = area ? area.y + Math.random() * area.h : spot.y + (Math.random() - 0.5) * 200;
-          if (!collidesAt(toLocal(gx, gy))) return { x: gx, y: gy };
+          if (!isOpen(gx, gy)) continue;
+          if (!fallback) fallback = { x: gx, y: gy };
+          if (Math.hypot(gx - last.x, gy - last.y) >= minTravel) return { x: gx, y: gy };
         }
-        return { x: last.x, y: last.y };
+        return fallback ?? { x: last.x, y: last.y };
       };
       let goal = pickGoal();
       let stuck = 0;
