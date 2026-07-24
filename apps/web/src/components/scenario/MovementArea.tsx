@@ -702,12 +702,21 @@ export function MovementArea({
       };
       let goal = pickGoal();
       let stuck = 0;
+      let bestDist = Infinity; // 이 목적지까지 도달한 최소 맨해튼 거리 — 우회 실패(맴돌기) 감지
+      let noProgress = 0; // 목적지에 더 못 가까워진 연속 스텝 수
+      const nextGoal = () => {
+        goal = pickGoal();
+        stuck = 0;
+        bestDist = Infinity;
+        noProgress = 0;
+      };
 
       const step = () => {
         // 플레이어가 이 NPC에게 말을 걸었으면(마지막 발화 후 5초 이내) 멈춰서 대화에 응한다.
         // 5초간 새 발화가 없으면 아래 로직으로 넘어가 다시 돌아다닌다.
         const talk = talkRef.current;
         if (talk.id === npc.npc_id && Date.now() - talk.at < ROAM_TALK_PAUSE_MS) {
+          // 멈춘다. 플레이어를 바라보는 건 아래 '말 거는 NPC 시선' 효과가 로머·직원 공통으로 처리.
           setPatrolWalking((prev) => (prev[npc.npc_id] ? { ...prev, [npc.npc_id]: false } : prev));
           return;
         }
@@ -716,8 +725,7 @@ export function MovementArea({
         const gdx = goal.x - last.x;
         const gdy = goal.y - last.y;
         if (Math.abs(gdx) + Math.abs(gdy) < 60) {
-          goal = pickGoal(); // 도착 — 다음 목적지
-          stuck = 0;
+          nextGoal(); // 도착 — 다음 목적지
           return;
         }
         // 대각선 금지: 남은 거리가 큰 축부터 한 축씩 시도, 막히면 다른 축, 그래도 막히면 랜덤 탈출.
@@ -742,16 +750,22 @@ export function MovementArea({
           setPatrolTargets((prev) => ({ ...prev, [npc.npc_id]: { x: tx, y: ty } }));
           last = { x: tx, y: ty };
           stuck = 0;
+          // 장애물에 막혀 목적지 쪽으로 못 가고 옆에서 맴돌면(경로탐색이 없어 생기는 지역최소)
+          // 몇 스텝 안에 목적지를 포기한다 — 안 그러면 진열대 옆에서 위아래로만 튕긴다(영상 오건우).
+          const nd = Math.abs(goal.x - tx) + Math.abs(goal.y - ty);
+          if (nd < bestDist - 8) {
+            bestDist = nd;
+            noProgress = 0;
+          } else if (++noProgress > 3) {
+            nextGoal();
+          }
           timers.push(
             setTimeout(() => setPatrolWalking((prev) => ({ ...prev, [npc.npc_id]: false })), ROAM_HOP_MS),
           );
           return;
         }
         // 사방이 막힘 — 몇 번 연속 막히면 목적지를 새로 잡아 빠져나온다.
-        if (++stuck > 2) {
-          goal = pickGoal();
-          stuck = 0;
-        }
+        if (++stuck > 2) nextGoal();
       };
 
       // 잰걸음으로 자주 움직이게(사용자: "더 뽈뽈뽈") — 0.9~1.4초 간격. NPC마다 살짝 어긋나게.
@@ -769,6 +783,28 @@ export function MovementArea({
       intervals.forEach(clearInterval);
     };
   }, [geometry, npcs, origin, collidesAt, clampPosition]);
+
+  // patrolTargets(로머의 현재 위치)를 아래 시선 효과가 deps 없이 최신값으로 읽기 위한 ref.
+  const patrolTargetsRef = useRef(patrolTargets);
+  patrolTargetsRef.current = patrolTargets;
+
+  // 말 거는 NPC는 플레이어를 바라본다(사용자 요청) — 돌아다니는 손님이든 자리 지키는 직원이든 공통.
+  // 클릭(대화 시작)·플레이어 이동마다 그 NPC의 위치에서 플레이어 쪽으로 방향을 다시 잡는다.
+  // position을 deps로 두어 플레이어가 움직이면 시선이 따라간다. 5초(발화 없음)가 지나면 갱신을 멈춰,
+  // 로머는 다시 로밍하고 직원은 마지막 방향을 유지한다.
+  useEffect(() => {
+    if (!talkingNpcId || Date.now() - talkingAt >= ROAM_TALK_PAUSE_MS) return;
+    const npc = npcs.find((n) => n.npc_id === talkingNpcId);
+    const pt = patrolTargetsRef.current[talkingNpcId];
+    const spot = npc?.spawn ? geometry?.spawns?.find((s) => s.id === npc.spawn) : null;
+    const stage = pt ?? (spot ? { x: spot.x, y: spot.y } : null);
+    if (!stage) return;
+    const fdx = position.x + PLAYER_SIZE.width / 2 - (stage.x - origin.x);
+    const fdy = position.y + PLAYER_SIZE.height / 2 - (stage.y - origin.y);
+    const facing: NpcFacing =
+      Math.abs(fdx) >= Math.abs(fdy) ? (fdx > 0 ? "screen_right" : "screen_left") : fdy > 0 ? "front" : "back";
+    setPatrolFacing((prev) => (prev[talkingNpcId] === facing ? prev : { ...prev, [talkingNpcId]: facing }));
+  }, [position, talkingNpcId, talkingAt, npcs, geometry, origin]);
 
   // 이동 키는 window에서 받는다 — 이동영역 div에 포커스가 있어야만 동작하던 탓에
   // '맵을 한 번 클릭해야 키보드가 먹고, 채팅창에 타이핑하면 다시 먹통'이 됐다.
