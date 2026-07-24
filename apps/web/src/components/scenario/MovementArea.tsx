@@ -45,7 +45,7 @@ type GameObject = {
 type Rect = { x: number; y: number; w: number; h: number };
 type NpcMarker = { npc_id: string; name: string; x: number; y: number; isActive: boolean };
 
-const MOVE_STEP = 18;             // 클릭 이동의 경로 샘플링 간격
+const MOVE_STEP = 18;             // 키보드 방향키 한 번 입력의 기준 크기(부호만 프레임 루프에서 사용)
 const MOVE_SPEED = 260;           // 키보드 이동 속도 (px/초) — 프레임 루프 기준
 // 화면 확대 배율 (팀 확정 2026-07-20). 배경·NPC·플레이어가 같은 world 래퍼 안에서
 // 함께 확대되고, 카메라가 플레이어를 따라가며 맵 밖으로는 나가지 않게 clamp된다.
@@ -164,6 +164,10 @@ export function MovementArea({
   // 지금 눌려 있는 이동 키 — 누른 순서대로 보관한다(마지막 것이 유효).
   // 프레임 루프가 매 프레임 읽는다 (리렌더 유발 안 함).
   const heldKeysRef = useRef<string[]>([]);
+  // 클릭 이동 목적지 — 프레임 루프가 매 프레임 한 걸음씩 다가간다(즉시 점프하지 않는다).
+  // 대각선 클릭 이동이 예전엔 경로를 미리 계산해 한 번에 그 자리로 '점프'해서, 대각선으로
+  // 멀리 찍으면 순간이동처럼 보였다. 키보드와 같은 프레임 루프를 타면 자연히 애니메이션된다.
+  const walkTargetRef = useRef<Position | null>(null);
 
   // geometry 좌표계(스테이지 1920×1080)의 원점 = walkable 영역의 좌상단. movementArea 로컬좌표 = (x-origin).
   const origin = useMemo(() => {
@@ -219,48 +223,22 @@ export function MovementArea({
     });
   }, [geometry, mapImage, origin]);
 
-  // 투어 중인 사수의 진행 방향 — 좌표 변화의 지배 축으로 판정해 스프라이트가 걷는 쪽을 본다.
-  // ref에 이전 좌표와 함께 저장: 좌표가 실제로 바뀐 렌더에서만 갱신 (StrictMode 이중 렌더 안전).
-  const guideTrack = useRef<{ pos: Position | null; facing: NpcFacing }>({
-    pos: null,
-    facing: "front",
-  });
-  if (guidePosition) {
-    const prev = guideTrack.current.pos;
-    if (prev && (prev.x !== guidePosition.x || prev.y !== guidePosition.y)) {
-      const dx = guidePosition.x - prev.x;
-      const dy = guidePosition.y - prev.y;
-      guideTrack.current.facing =
-        Math.abs(dx) >= Math.abs(dy)
-          ? dx > 0
-            ? "screen_right"
-            : "screen_left"
-          : dy > 0
-            ? "front"
-            : "back";
-    }
-    guideTrack.current.pos = guidePosition;
-  } else {
-    guideTrack.current = { pos: null, facing: "front" };
-  }
-
-  // 마커 이동은 CSS transition(900ms)이라, 좌표가 바뀔 때마다 그 시간만큼만 걷기 애니메이션을 켠다.
-  const [guideWalking, setGuideWalking] = useState(false);
-  useEffect(() => {
-    if (!guidePosition) return;
-    setGuideWalking(true);
-    const timer = setTimeout(() => setGuideWalking(false), 900);
-    return () => clearTimeout(timer);
-  }, [guidePosition]);
-
   // 넛지 체크가 플레이어의 최신 좌표를 읽기 위한 ref — effect를 position 변화마다 재실행하지
   // 않기 위해 별도로 둔다 (movePlayer용 positionRef와 동일한 패턴, 아래에서 재선언됨).
   const livePositionRef = useRef(position);
   livePositionRef.current = position;
 
+  // 넛지 체크가 "이 npc가 지금 온보딩 투어를 이끄는 중인지"를 최신값으로 읽기 위한 ref —
+  // guidePosition은 투어 중 매 프레임 바뀌므로 patrol effect의 deps에 넣으면 타이머가 계속
+  // 리셋된다(위 livePositionRef와 동일한 이유의 패턴).
+  const guideNpcIdRef = useRef(guideNpcId);
+  guideNpcIdRef.current = guideNpcId;
+
   // 사수 안내 — geometry.npc_paths의 스폰→안내 지점으로 한 번만 리드하고, 도착 후 플레이어가
   // 안 따라오면 일정 주기로 말을 건다(팀 결정 2026-07-23 갱신: 왕복 순찰 → 1회 안내+넛지).
   // 좌표는 collision 배열 실측 검증됨 — kts-03/find_patrol_points.py. 온보딩 투어와 무관하게 항상 동작.
+  // 단, 이 NPC 자신이 지금 온보딩 투어를 이끄는 중이면 넛지는 쉰다 — 안 그러면 투어 대사
+  // 중간에 AI 코치가 "이쪽으로 와보세요" 같은 넛지를 끼얹어 방해한다.
   // 좌표는 spawns와 같은 스테이지 좌표계라 마커에 쓸 땐 origin을 빼서 로컬화한다.
   const [patrolTargets, setPatrolTargets] = useState<Record<string, Position>>({});
   const [patrolFacing, setPatrolFacing] = useState<Record<string, NpcFacing>>({});
@@ -310,6 +288,7 @@ export function MovementArea({
               const targetLocalY = to.y - origin.y;
               let count = 0;
               const timer = setInterval(() => {
+                if (guideNpcIdRef.current === npcId) return; // 지금 이 NPC가 투어 진행 중 — 넛지 보류
                 const p = livePositionRef.current;
                 const dist = Math.hypot(
                   p.x + PLAYER_SIZE.width / 2 - targetLocalX,
@@ -335,6 +314,58 @@ export function MovementArea({
       intervals.forEach(clearInterval);
     };
   }, [geometry, origin, onCoachMessage]);
+
+  // 투어 중인 사수의 진행 방향 — 좌표 변화의 지배 축으로 판정해 스프라이트가 걷는 쪽을 본다.
+  // ref에 이전 좌표와 함께 저장: 좌표가 실제로 바뀐 렌더에서만 갱신 (StrictMode 이중 렌더 안전).
+  const guideTrack = useRef<{ pos: Position | null; facing: NpcFacing }>({
+    pos: null,
+    facing: "front",
+  });
+  // 사수 컷신 한 걸음의 소요 시간 — 고정 900ms만 쓰면 스폰이 먼 동료(예: 맵 반대편)로
+  // 첫 이동할 때 거리 대비 너무 빨라 "순간이동"처럼 보인다(팀 확인 2026-07-24). 짧은 이동은
+  // 기존 900ms 느낌을 그대로 유지하고, 먼 이동만 거리 비례로 늘린다.
+  const GUIDE_HOP_MIN_MS = 900;
+  const GUIDE_HOP_MAX_MS = 2200;
+  const GUIDE_HOP_SPEED_PX_S = 500; // patrol(60px/s)보다 빠른 컷신용 체감 속도
+  const guideHopMsRef = useRef(GUIDE_HOP_MIN_MS);
+  if (guidePosition) {
+    // 투어가 막 시작된 첫 이동은 guideTrack.current.pos가 아직 null이라 거리 계산이 빠진다 —
+    // 하필 이게 제일 긴 이동(자기 자리 → 첫 소개 동료)이라 놓치면 그대로 순간이동처럼 보인다.
+    // 이 NPC의 순찰 도착 지점(patrolTargets, 곧 투어 시작 직전 자기 제자리)을 기준점으로 대신 쓴다.
+    const patrolFallback = guideNpcId ? patrolTargets[guideNpcId] : undefined;
+    const prev =
+      guideTrack.current.pos ??
+      (patrolFallback ? { x: patrolFallback.x - origin.x, y: patrolFallback.y - origin.y } : null);
+    if (prev && (prev.x !== guidePosition.x || prev.y !== guidePosition.y)) {
+      const dx = guidePosition.x - prev.x;
+      const dy = guidePosition.y - prev.y;
+      guideTrack.current.facing =
+        Math.abs(dx) >= Math.abs(dy)
+          ? dx > 0
+            ? "screen_right"
+            : "screen_left"
+          : dy > 0
+            ? "front"
+            : "back";
+      const dist = Math.hypot(dx, dy);
+      guideHopMsRef.current = Math.min(
+        GUIDE_HOP_MAX_MS,
+        Math.max(GUIDE_HOP_MIN_MS, (dist / GUIDE_HOP_SPEED_PX_S) * 1000),
+      );
+    }
+    guideTrack.current.pos = guidePosition;
+  } else {
+    guideTrack.current = { pos: null, facing: "front" };
+  }
+
+  // 마커 이동은 CSS transition(가변 길이)이라, 좌표가 바뀔 때마다 그 시간만큼만 걷기 애니메이션을 켠다.
+  const [guideWalking, setGuideWalking] = useState(false);
+  useEffect(() => {
+    if (!guidePosition) return;
+    setGuideWalking(true);
+    const timer = setTimeout(() => setGuideWalking(false), guideHopMsRef.current);
+    return () => clearTimeout(timer);
+  }, [guidePosition]);
 
   // 주인공 바라보는 방향·걷기 — 이동 delta의 지배 축으로 판정, 입력이 멎으면 220ms 뒤 idle 복귀
   // (키 리피트 간격보다 길어야 걷는 중에 끊기지 않는다)
@@ -520,6 +551,19 @@ export function MovementArea({
         const c = clampPosition({ x, y });
         return collidesAt(c) ? null : c;
       };
+      // 어시스트 두 다리(수직 밀기, 이어지는 전진)의 양 끝점만 비어 있는지 보면, 벽 모서리 두 개가
+      // 맞물린 자리에서 발판박스가 대각선으로 파고들어 통과할 수 있다(끝점은 둘 다 안 겹쳐도
+      // 그 사이 직선 경로는 모서리를 스친다) — 책상·기둥 안쪽에 끼여 못 나오던 원인.
+      // 경로를 잘게 훑어서(4px 간격) 진짜로 안 막힌 통로일 때만 어시스트를 허용한다.
+      const pathClear = (x0: number, y0: number, x1: number, y1: number) => {
+        const dist = Math.hypot(x1 - x0, y1 - y0);
+        const steps = Math.max(1, Math.ceil(dist / 4));
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          if (collidesAt({ x: x0 + (x1 - x0) * t, y: y0 + (y1 - y0) * t })) return false;
+        }
+        return true;
+      };
       const cur = { x: from.x, y: from.y };
       // 한 축 이동 — 막히면 진행 방향에 수직으로 살짝 밀어(코너 어시스트) 문/모서리로 미끄러진다.
       const slide = (dx: number, dy: number) => {
@@ -536,12 +580,13 @@ export function MovementArea({
             const py = dy === 0 ? s : 0;
             const shifted = freeAt(cur.x + px, cur.y + py);
             if (!shifted) continue;
+            if (!pathClear(cur.x, cur.y, shifted.x, shifted.y)) continue;
             const moved = freeAt(shifted.x + dx, shifted.y + dy);
-            if (moved) {
-              cur.x = moved.x;
-              cur.y = moved.y;
-              return;
-            }
+            if (!moved) continue;
+            if (!pathClear(shifted.x, shifted.y, moved.x, moved.y)) continue;
+            cur.x = moved.x;
+            cur.y = moved.y;
+            return;
           }
         }
       };
@@ -599,9 +644,28 @@ export function MovementArea({
       // 잔상이 두드러진다. 가장 마지막에 누른 방향 하나로만 걷는다(팀 결정).
       const held = heldKeysRef.current;
       const active = held.length ? MOVEMENT_KEYS[held[held.length - 1]] : undefined;
-      if (!active) return;
       const step = MOVE_SPEED * dt;
-      movePlayer(Math.sign(active.x) * step, Math.sign(active.y) * step);
+      if (active) {
+        walkTargetRef.current = null; // 키보드가 우선 — 클릭 이동 중이었다면 취소
+        movePlayer(Math.sign(active.x) * step, Math.sign(active.y) * step);
+        return;
+      }
+      // 클릭 이동: 목표 지점까지 매 프레임 한 걸음씩 다가간다(대각선도 자연스럽게 애니메이션됨).
+      const target = walkTargetRef.current;
+      if (!target) return;
+      const cur = positionRef.current;
+      const dx = target.x - cur.x;
+      const dy = target.y - cur.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 1) {
+        walkTargetRef.current = null;
+        return;
+      }
+      const hopStep = Math.min(dist, step);
+      movePlayer((dx / dist) * hopStep, (dy / dist) * hopStep);
+      if (positionRef.current.x === cur.x && positionRef.current.y === cur.y) {
+        walkTargetRef.current = null; // 더 못 감 — 막힌 지점까지 왔으니 멈춘다
+      }
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
@@ -626,21 +690,9 @@ export function MovementArea({
     // 클릭한 지점까지 '걸어간다' — 벽·집기를 뚫지 않되, 막혔다고 그 자리에 멈춰 서지도 않는다.
     // NPC는 책상 앞에 있어서 NPC를 누르면 목적지가 충돌 안이 되는데, 예전처럼 무시해 버리면
     // "눌러도 아무 일이 없다"가 된다(다가가려고 누른 건데). 갈 수 있는 데까지 이동한다.
-    const from = positionRef.current;
-    const steps = Math.max(1, Math.ceil(Math.hypot(target.x - from.x, target.y - from.y) / MOVE_STEP));
-    let reachable = from;
-    for (let i = 1; i <= steps; i++) {
-      const point = {
-        x: from.x + ((target.x - from.x) * i) / steps,
-        y: from.y + ((target.y - from.y) * i) / steps,
-      };
-      if (collidesAt(point)) break; // 처음 막히는 지점 직전까지만
-      reachable = point;
-    }
-    if (reachable !== from) {
-      onPositionChange(reachable);
-      notePlayerMove(reachable.x - from.x, reachable.y - from.y);
-    }
+    // 실제 이동은 프레임 루프가 매 프레임 한 걸음씩 수행한다(여기서 즉시 점프하면 대각선
+    // 클릭이 순간이동처럼 보인다 — 키보드처럼 애니메이션되도록 목표 지점만 넘겨준다).
+    walkTargetRef.current = target;
   };
 
   useEffect(() => {
@@ -754,6 +806,8 @@ export function MovementArea({
                   // 오클루전 맵에서는 NPC도 y-정렬에 참여 — 가구 뒤 자리면 하반신이 가려진다
                   zIndex: occluders.length > 0 ? Math.round(marker.y + NPC_FEET_OFFSET) : undefined,
                   animationDelay: isWalking ? undefined : `${idleSwayDelay(marker.npc_id)}s`,
+                  transitionDuration:
+                    guideNpcId === marker.npc_id ? `${guideHopMsRef.current}ms` : undefined,
                 }}
                 onClick={() => onNpcClick?.(marker.npc_id)}
                 aria-label={`${marker.name}와 대화하기`}
