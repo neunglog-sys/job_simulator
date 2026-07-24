@@ -76,6 +76,57 @@ def test_no_declaration_keeps_legacy_behavior():
     assert minigame_of({"minigame": result}) is not None
 
 
+def _research_payload(*, total_wrong: int = 4) -> dict:
+    stage_wrong = [1, 0, 2, 0, 1]
+    assert sum(stage_wrong) == total_wrong
+    return {
+        "engine": "research",
+        "completed": True,
+        "metadata": {
+            "gameId": "sns-content-research",
+            "completed": True,
+            "totalStages": 5,
+            "clearedStages": 5,
+            "totalWrongAttempts": total_wrong,
+            "stageResults": [
+                {
+                    "stageId": f"stage-{index + 1}",
+                    "stageIndex": index,
+                    "keyword": f"keyword-{index + 1}",
+                    "wrongAttempts": wrong,
+                    "completed": True,
+                }
+                for index, wrong in enumerate(stage_wrong)
+            ],
+            "completedAt": "2026-07-24T00:00:00.000Z",
+        },
+    }
+
+
+def test_research_game_keeps_raw_wrong_attempts_without_score():
+    result = _minigame_result(
+        _research_payload(),
+        {"engine": "research", "pass_score": 70.0},
+    )
+
+    assert result["completed"] is True
+    assert result["mistakes"] == 4
+    assert result["metadata"]["totalWrongAttempts"] == 4
+    assert [stage["wrongAttempts"] for stage in result["metadata"]["stageResults"]] == [1, 0, 2, 0, 1]
+    assert "accuracy" not in result
+    assert "score" not in result
+    assert "passed" not in result
+    assert minigame_of({"minigame": result}) is None
+
+
+def test_research_game_rejects_wrong_total():
+    payload = _research_payload()
+    payload["metadata"]["totalWrongAttempts"] = 5
+    with pytest.raises(HTTPException) as err:
+        _minigame_result(payload, {"engine": "research", "pass_score": 70.0})
+    assert err.value.status_code == 400
+
+
 def test_minigame_of_filters_unknown_and_invalid():
     # 스텁·모르는 엔진 → 반영 안 함 (프론트 빈 창이 engine:"stub"로 파이프라인만 태운다)
     assert minigame_of({"minigame": {"engine": "stub", "score": 100}}) is None

@@ -440,6 +440,12 @@ export function ScenarioGamePage() {
   const [memo, setMemo] = useState("");
   const [memoSaveStatus, setMemoSaveStatus] = useState<MemoSaveStatus>("idle");
   const pendingMemoRef = useRef<string | null>(null);
+  // 실무 게임 결과 저장 ACK를 받은 뒤에만 활동 완료를 보내 모달을 닫는다.
+  // 저장보다 먼저 다음 활동으로 넘어가 결과가 유실되는 일을 막는다.
+  const pendingMinigameActivityRef = useRef<{
+    gameId: string;
+    engine: string;
+  } | null>(null);
   const socketRef = useRef<SimulationSocket | null>(null);
   const simIdRef = useRef<number | null>(null);
   // 이 체험이 붙은 상담 id — 서버가 sim에 실어주면 그걸 쓰고(재개해도 유지), 없으면 URL 값 폴백.
@@ -976,6 +982,7 @@ export function ScenarioGamePage() {
           onClose: () => {
             if (cancelled) return;
             setConnStatus("closed");
+            pendingMinigameActivityRef.current = null;
             tourRequestPendingRef.current = false;
             setTourRequestPending(false);
             if (pendingMemoRef.current !== null) {
@@ -986,6 +993,7 @@ export function ScenarioGamePage() {
           onError: (detail) => {
             if (cancelled) return;
             setConnStatus("error");
+            pendingMinigameActivityRef.current = null;
             tourRequestPendingRef.current = false;
             setTourRequestPending(false);
             setCoachMessage(detail);
@@ -1109,6 +1117,19 @@ export function ScenarioGamePage() {
             }
             if (state.tour_done) setTourDone(true);
             if (state.tour_done) tourStartedRef.current = true;
+            const pendingGame = pendingMinigameActivityRef.current;
+            const savedMinigame =
+              state.minigame && typeof state.minigame === "object"
+                ? (state.minigame as Record<string, unknown>)
+                : null;
+            if (pendingGame && savedMinigame?.engine === pendingGame.engine) {
+              if (socketRef.current?.sendActivityComplete({ game_id: pendingGame.gameId })) {
+                pendingMinigameActivityRef.current = null;
+                setPhase("exploring");
+              } else {
+                setCoachMessage("게임 결과는 저장됐지만 다음 단계 연결에 실패했어요. 잠시 후 다시 시도해주세요.");
+              }
+            }
             if (state.workflow_stage === "reflection" && !state.reflection) {
               setPhase("reflection");
             }
@@ -1307,6 +1328,7 @@ export function ScenarioGamePage() {
     setMemo("");
     setMemoSaveStatus("idle");
     pendingMemoRef.current = null;
+    pendingMinigameActivityRef.current = null;
     setAdviceCards([]);
     setCoachCards(null);
     setBriefedSteps([]);
@@ -1779,9 +1801,18 @@ export function ScenarioGamePage() {
           }
           onClear={(result) => {
             if (activeActivity?.kind === "minigame" && activeActivity.game_id) {
-              // 게임 정의가 붙기 전에는 준비 중 화면의 완료 버튼만으로 흐름을 검수한다.
-              // 실제 게임이 붙으면 결과도 기존 점수 파이프라인에 함께 전달한다.
-              if (result) socketRef.current?.sendMinigameResult(result);
+              if (result) {
+                pendingMinigameActivityRef.current = {
+                  gameId: activeActivity.game_id,
+                  engine: result.engine,
+                };
+                if (!socketRef.current?.sendMinigameResult(result)) {
+                  pendingMinigameActivityRef.current = null;
+                  setCoachMessage("게임 결과를 저장하지 못했어요. 연결을 확인한 뒤 다시 시도해주세요.");
+                }
+                return;
+              }
+              // 게임 정의가 아직 없는 활동만 준비 중 화면의 완료 버튼으로 넘긴다.
               if (!socketRef.current?.sendActivityComplete({ game_id: activeActivity.game_id })) {
                 setCoachMessage("게임 서버에 연결 중이에요. 잠시 후 다시 시도해주세요.");
                 return;

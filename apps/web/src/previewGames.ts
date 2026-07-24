@@ -1,5 +1,6 @@
 // 미니게임 미리보기 데이터.
 import type { MinigameDef } from "./components/scenario/minigames/types";
+import { SNS_RESEARCH_PREVIEW_GAME } from "./data/snsResearchStages";
 
 export const PREVIEW_GAMES = {
   "cln-01": {
@@ -5068,3 +5069,5 @@ PREVIEW_GAMES["kts-03-supply"] = {
   },
   scoring: { supply_weight: 100 },
 };
+
+PREVIEW_GAMES["sns-01-research"] = SNS_RESEARCH_PREVIEW_GAME;
