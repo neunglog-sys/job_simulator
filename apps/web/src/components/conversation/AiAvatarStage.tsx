@@ -43,6 +43,19 @@ function resolveStartBufferSeconds(): number {
   }
 }
 
+/** 아바타 선택. `?avatarId=female`로 런타임 지정한다(선택 UI가 붙기 전 개발자용 테스트 경로).
+ *  유효하지 않은 값은 기본값(male)으로 떨어뜨린다 — 노트북의 resolve_persona()도 어차피
+ *  모르는 값이면 기본으로 폴백하지만, 프론트에서도 방어해 의도를 명확히 한다. */
+function resolveAvatarId(): "male" | "female" {
+  if (typeof window === "undefined") return "male";
+  try {
+    const raw = new URLSearchParams(window.location.search).get("avatarId");
+    return raw === "female" ? "female" : "male";
+  } catch {
+    return "male";
+  }
+}
+
 export function AiAvatarStage({
   children,
   status = "idle",
@@ -125,6 +138,7 @@ export function AiAvatarStage({
     const socket = createAvatarWebSocket();
     const startedAt = window.performance.now();
     const startBufferSeconds = resolveStartBufferSeconds();
+    const avatarId = resolveAvatarId();
     let firstBinaryAt: number | null = null;
     let firstPlayAt: number | null = null;
     let lastDonePayload: Record<string, unknown> | null = null;
@@ -387,6 +401,7 @@ export function AiAvatarStage({
       socket.send(
         JSON.stringify({
           speaker_id: "coach",
+          avatar_id: avatarId,
           emotion: "neutral",
           idle_time: idleTime,
           ...payload,
