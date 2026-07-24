@@ -213,48 +213,22 @@ export function MovementArea({
     });
   }, [geometry, mapImage, origin]);
 
-  // 투어 중인 사수의 진행 방향 — 좌표 변화의 지배 축으로 판정해 스프라이트가 걷는 쪽을 본다.
-  // ref에 이전 좌표와 함께 저장: 좌표가 실제로 바뀐 렌더에서만 갱신 (StrictMode 이중 렌더 안전).
-  const guideTrack = useRef<{ pos: Position | null; facing: NpcFacing }>({
-    pos: null,
-    facing: "front",
-  });
-  if (guidePosition) {
-    const prev = guideTrack.current.pos;
-    if (prev && (prev.x !== guidePosition.x || prev.y !== guidePosition.y)) {
-      const dx = guidePosition.x - prev.x;
-      const dy = guidePosition.y - prev.y;
-      guideTrack.current.facing =
-        Math.abs(dx) >= Math.abs(dy)
-          ? dx > 0
-            ? "screen_right"
-            : "screen_left"
-          : dy > 0
-            ? "front"
-            : "back";
-    }
-    guideTrack.current.pos = guidePosition;
-  } else {
-    guideTrack.current = { pos: null, facing: "front" };
-  }
-
-  // 마커 이동은 CSS transition(900ms)이라, 좌표가 바뀔 때마다 그 시간만큼만 걷기 애니메이션을 켠다.
-  const [guideWalking, setGuideWalking] = useState(false);
-  useEffect(() => {
-    if (!guidePosition) return;
-    setGuideWalking(true);
-    const timer = setTimeout(() => setGuideWalking(false), 900);
-    return () => clearTimeout(timer);
-  }, [guidePosition]);
-
   // 넛지 체크가 플레이어의 최신 좌표를 읽기 위한 ref — effect를 position 변화마다 재실행하지
   // 않기 위해 별도로 둔다 (movePlayer용 positionRef와 동일한 패턴, 아래에서 재선언됨).
   const livePositionRef = useRef(position);
   livePositionRef.current = position;
 
+  // 넛지 체크가 "이 npc가 지금 온보딩 투어를 이끄는 중인지"를 최신값으로 읽기 위한 ref —
+  // guidePosition은 투어 중 매 프레임 바뀌므로 patrol effect의 deps에 넣으면 타이머가 계속
+  // 리셋된다(위 livePositionRef와 동일한 이유의 패턴).
+  const guideNpcIdRef = useRef(guideNpcId);
+  guideNpcIdRef.current = guideNpcId;
+
   // 사수 안내 — geometry.npc_paths의 스폰→안내 지점으로 한 번만 리드하고, 도착 후 플레이어가
   // 안 따라오면 일정 주기로 말을 건다(팀 결정 2026-07-23 갱신: 왕복 순찰 → 1회 안내+넛지).
   // 좌표는 collision 배열 실측 검증됨 — kts-03/find_patrol_points.py. 온보딩 투어와 무관하게 항상 동작.
+  // 단, 이 NPC 자신이 지금 온보딩 투어를 이끄는 중이면 넛지는 쉰다 — 안 그러면 투어 대사
+  // 중간에 AI 코치가 "이쪽으로 와보세요" 같은 넛지를 끼얹어 방해한다.
   // 좌표는 spawns와 같은 스테이지 좌표계라 마커에 쓸 땐 origin을 빼서 로컬화한다.
   const [patrolTargets, setPatrolTargets] = useState<Record<string, Position>>({});
   const [patrolFacing, setPatrolFacing] = useState<Record<string, NpcFacing>>({});
@@ -304,6 +278,7 @@ export function MovementArea({
               const targetLocalY = to.y - origin.y;
               let count = 0;
               const timer = setInterval(() => {
+                if (guideNpcIdRef.current === npcId) return; // 지금 이 NPC가 투어 진행 중 — 넛지 보류
                 const p = livePositionRef.current;
                 const dist = Math.hypot(
                   p.x + PLAYER_SIZE.width / 2 - targetLocalX,
@@ -329,6 +304,58 @@ export function MovementArea({
       intervals.forEach(clearInterval);
     };
   }, [geometry, origin, onCoachMessage]);
+
+  // 투어 중인 사수의 진행 방향 — 좌표 변화의 지배 축으로 판정해 스프라이트가 걷는 쪽을 본다.
+  // ref에 이전 좌표와 함께 저장: 좌표가 실제로 바뀐 렌더에서만 갱신 (StrictMode 이중 렌더 안전).
+  const guideTrack = useRef<{ pos: Position | null; facing: NpcFacing }>({
+    pos: null,
+    facing: "front",
+  });
+  // 사수 컷신 한 걸음의 소요 시간 — 고정 900ms만 쓰면 스폰이 먼 동료(예: 맵 반대편)로
+  // 첫 이동할 때 거리 대비 너무 빨라 "순간이동"처럼 보인다(팀 확인 2026-07-24). 짧은 이동은
+  // 기존 900ms 느낌을 그대로 유지하고, 먼 이동만 거리 비례로 늘린다.
+  const GUIDE_HOP_MIN_MS = 900;
+  const GUIDE_HOP_MAX_MS = 2200;
+  const GUIDE_HOP_SPEED_PX_S = 500; // patrol(60px/s)보다 빠른 컷신용 체감 속도
+  const guideHopMsRef = useRef(GUIDE_HOP_MIN_MS);
+  if (guidePosition) {
+    // 투어가 막 시작된 첫 이동은 guideTrack.current.pos가 아직 null이라 거리 계산이 빠진다 —
+    // 하필 이게 제일 긴 이동(자기 자리 → 첫 소개 동료)이라 놓치면 그대로 순간이동처럼 보인다.
+    // 이 NPC의 순찰 도착 지점(patrolTargets, 곧 투어 시작 직전 자기 제자리)을 기준점으로 대신 쓴다.
+    const patrolFallback = guideNpcId ? patrolTargets[guideNpcId] : undefined;
+    const prev =
+      guideTrack.current.pos ??
+      (patrolFallback ? { x: patrolFallback.x - origin.x, y: patrolFallback.y - origin.y } : null);
+    if (prev && (prev.x !== guidePosition.x || prev.y !== guidePosition.y)) {
+      const dx = guidePosition.x - prev.x;
+      const dy = guidePosition.y - prev.y;
+      guideTrack.current.facing =
+        Math.abs(dx) >= Math.abs(dy)
+          ? dx > 0
+            ? "screen_right"
+            : "screen_left"
+          : dy > 0
+            ? "front"
+            : "back";
+      const dist = Math.hypot(dx, dy);
+      guideHopMsRef.current = Math.min(
+        GUIDE_HOP_MAX_MS,
+        Math.max(GUIDE_HOP_MIN_MS, (dist / GUIDE_HOP_SPEED_PX_S) * 1000),
+      );
+    }
+    guideTrack.current.pos = guidePosition;
+  } else {
+    guideTrack.current = { pos: null, facing: "front" };
+  }
+
+  // 마커 이동은 CSS transition(가변 길이)이라, 좌표가 바뀔 때마다 그 시간만큼만 걷기 애니메이션을 켠다.
+  const [guideWalking, setGuideWalking] = useState(false);
+  useEffect(() => {
+    if (!guidePosition) return;
+    setGuideWalking(true);
+    const timer = setTimeout(() => setGuideWalking(false), guideHopMsRef.current);
+    return () => clearTimeout(timer);
+  }, [guidePosition]);
 
   // 주인공 바라보는 방향·걷기 — 이동 delta의 지배 축으로 판정, 입력이 멎으면 220ms 뒤 idle 복귀
   // (키 리피트 간격보다 길어야 걷는 중에 끊기지 않는다)
@@ -748,6 +775,8 @@ export function MovementArea({
                   // 오클루전 맵에서는 NPC도 y-정렬에 참여 — 가구 뒤 자리면 하반신이 가려진다
                   zIndex: occluders.length > 0 ? Math.round(marker.y + NPC_FRAME.height / 2) : undefined,
                   animationDelay: isWalking ? undefined : `${idleSwayDelay(marker.npc_id)}s`,
+                  transitionDuration:
+                    guideNpcId === marker.npc_id ? `${guideHopMsRef.current}ms` : undefined,
                 }}
                 onClick={() => onNpcClick?.(marker.npc_id)}
                 aria-label={`${marker.name}와 대화하기`}
