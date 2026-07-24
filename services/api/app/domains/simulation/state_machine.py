@@ -84,4 +84,21 @@ def public_step(step: dict) -> dict:
             {"id": c["id"], "text": c["text"]} for c in step.get("choices", [])
         ],
         "task": public_task(task) if task else None,
+        "activity": public_activity(step.get("activity")),
+    }
+
+
+def public_activity(activity: dict | None) -> dict | None:
+    """클라이언트에 보여줄 후속 활동 정보.
+
+    전이 대상(on_complete)은 서버가 소유한다. 클라이언트는 표시와 제출에 필요한 값만 받는다.
+    """
+    if not isinstance(activity, dict):
+        return None
+    return {
+        "kind": activity.get("kind"),
+        "game_id": activity.get("game_id"),
+        "label": activity.get("label") or "후속 업무",
+        "prompt": activity.get("prompt"),
+        "completion_message": activity.get("completion_message"),
     }

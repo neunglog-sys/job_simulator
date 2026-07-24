@@ -28,6 +28,8 @@ type MiniGamePanelProps = {
   game: MinigameDef | null;
   /** 시나리오에 게임이 여러 개면 이 순서대로 각각 결과 화면을 거쳐 실행한다. */
   games?: MinigameDef[];
+  /** 게임 정의가 아직 없을 때 임무 배정 문구를 보여준다. */
+  placeholderDescription?: string;
   /** 게임을 마쳤을 때 — engine을 붙여 서버로 보낸다. 스텁이면 result가 없다. */
   onClear: (result?: MinigameResult & { engine: string }) => void;
 };
@@ -68,7 +70,13 @@ function reflectedResult(attempts: MinigameResult[]): MinigameResult {
   };
 }
 
-export function MiniGamePanel({ missionTitle, game, games, onClear }: MiniGamePanelProps) {
+export function MiniGamePanel({
+  missionTitle,
+  game,
+  games,
+  placeholderDescription,
+  onClear,
+}: MiniGamePanelProps) {
   const queue = games?.length ? games : game ? [game] : [];
   const queueKey = queue.map((item) => item.id ?? `${item.engine}:${item.title}`).join("|");
   const [gameIndex, setGameIndex] = useState(0);
@@ -199,9 +207,13 @@ export function MiniGamePanel({ missionTitle, game, games, onClear }: MiniGamePa
               <GameController weight="duotone" aria-hidden="true" />
               <p className={styles.miniGameTitle}>준비 중인 단계예요</p>
               <p className={styles.miniGameBody}>
-                앞에서 동료들에게 배운 <strong>신입의 주 업무</strong>를 직접 해보는 자리입니다.
-                <br />
-                자료를 살펴보고 숨은 문제를 찾아내는 실습이 이곳에 들어갈 예정이에요.
+                {placeholderDescription ?? (
+                  <>
+                    앞에서 동료들에게 배운 <strong>신입의 주 업무</strong>를 직접 해보는 자리입니다.
+                    <br />
+                    자료를 살펴보고 숨은 문제를 찾아내는 실습이 이곳에 들어갈 예정이에요.
+                  </>
+                )}
               </p>
             </div>
             <div className={styles.missionFooter}>

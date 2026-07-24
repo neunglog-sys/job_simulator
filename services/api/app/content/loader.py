@@ -159,6 +159,24 @@ def validate_scenario(doc: dict, source: str, npc_ids: set[str]) -> None:
                     f"{source}: step '{step['id']}'의 on_pass '{task['on_pass']}'가 존재하지 않음"
                 )
             _validate_task(task, f"{source}: step '{step['id']}'")
+        activity = step.get("activity")
+        if activity:
+            if not isinstance(activity, dict):
+                raise ValueError(f"{source}: step '{step['id']}' activity는 매핑이어야 함")
+            kind = activity.get("kind")
+            if kind not in {"minigame", "debrief"}:
+                raise ValueError(
+                    f"{source}: step '{step['id']}' activity kind는 minigame/debrief만 가능"
+                )
+            target = activity.get("on_complete")
+            if target != "__reflection__" and target not in step_ids:
+                raise ValueError(
+                    f"{source}: step '{step['id']}' activity.on_complete '{target}'가 존재하지 않음"
+                )
+            if kind == "minigame" and not activity.get("game_id"):
+                raise ValueError(f"{source}: step '{step['id']}' minigame activity에 game_id 필요")
+            if kind == "debrief" and not activity.get("prompt"):
+                raise ValueError(f"{source}: step '{step['id']}' debrief activity에 prompt 필요")
     # 엔진 키 전체를 막는다. 세 개만 막고 있어서 minigame·coach_streak 같은 키를
     # 시나리오가 정의하면 엔진 상태를 덮어쓸 수 있었다.
     reserved = ENGINE_STATE_KEYS & set(doc.get("initial_state", {}))

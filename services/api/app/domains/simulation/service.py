@@ -193,6 +193,8 @@ async def npc_map(session: AsyncSession, scenario_id: int) -> dict[str, dict]:
             "responsibilities": pl.responsibilities or [],
             # 맵 자리 배정용 — YAML의 appearance.location (데이터가 있으면 추론보다 우선)
             "location": (pl.appearance or {}).get("location"),
+            # 등장 조건 — 비어있지 않으면 아직 미충족 상태(예: quest_started)라 온보딩 시점엔 항상 미달성
+            "conditions": (pl.appearance or {}).get("conditions") or [],
         }
         for npc, pl in rows
     }
@@ -626,7 +628,9 @@ async def onboarding_tour(
     guide_id = (step.get("npcs") or [None])[0]
     roster = await npc_map(session, scenario.id)
     guide = roster.get(guide_id or "")
-    others = [v for k, v in roster.items() if k != guide_id]
+    # conditions가 있는 NPC(예: quest_started)는 온보딩 시점엔 조건이 충족될 수 없으므로
+    # 아직 등장할 차례가 아닌 손님·퀘스트 캐릭터 — 팀원 소개 투어에서 제외한다.
+    others = [v for k, v in roster.items() if k != guide_id and not v.get("conditions")]
     if guide is None or not others:
         return {"guide": None, "stops": [], "closing": ""}
 
@@ -781,6 +785,81 @@ async def save_minigame_result(
     return {"state": public_state(state), "step_changed": None}
 
 
+ACTIVITY_TEXT_MAX = 1000
+
+
+async def complete_activity(
+    session: AsyncSession, simulation: Simulation, scenario: Scenario, payload: dict
+) -> dict:
+    """현재 후속 활동을 완료하고 다음 NPC/활동으로 전진한다.
+
+    SNS-01처럼 기존 미션을 모두 끝낸 뒤 미니게임 → 회고 → 다른 NPC의 미니게임으로
+    이어지는 흐름을 `state.step`에 저장한다. 게임 구현 전에는 minigame 활동의 완료
+    신호만 받고, 실제 게임 결과 계약은 게임 확정 시 별도로 붙일 수 있다.
+    """
+    _ensure_active(simulation)
+    state = dict(simulation.state)
+    step = _resolve_step(scenario, state)
+    activity = step.get("activity")
+    if not isinstance(activity, dict):
+        raise HTTPException(status_code=409, detail="현재 단계에는 완료할 후속 활동이 없습니다")
+
+    kind = activity.get("kind")
+    record: dict = {"kind": kind}
+    if kind == "minigame":
+        expected = str(activity.get("game_id") or "")
+        received = str(payload.get("game_id") or "")
+        if not expected or received != expected:
+            raise HTTPException(status_code=400, detail="현재 단계의 미니게임이 아닙니다")
+        record["game_id"] = expected
+    elif kind == "debrief":
+        content = str(payload.get("content") or "").strip()
+        if not content:
+            raise HTTPException(status_code=400, detail="진행하면서 느낀 점을 입력해주세요")
+        content = content[:ACTIVITY_TEXT_MAX]
+        answers = dict(state.get("debrief_answers") or {})
+        answers[step["id"]] = content
+        state["debrief_answers"] = answers
+        record["content"] = content
+    else:
+        raise HTTPException(status_code=409, detail="지원하지 않는 후속 활동입니다")
+
+    progress = dict(state.get("activity_progress") or {})
+    progress[step["id"]] = record
+    state["activity_progress"] = progress
+
+    target = activity.get("on_complete")
+    reflection_ready = target == "__reflection__"
+    step_changed = None
+    if reflection_ready:
+        state["workflow_stage"] = "reflection"
+    else:
+        next_step = sm.find_step(scenario.steps, str(target))
+        state["step"] = next_step["id"]
+        state["workflow_stage"] = "exploring"
+        step_changed = sm.public_step(next_step)
+
+    simulation.state = state
+    flag_modified(simulation, "state")
+    await scoring.log_action(
+        session,
+        simulation.id,
+        "activity_complete",
+        {"step": step["id"], **record},
+        {},
+    )
+    await session.commit()
+    roster = await npc_map(session, scenario.id)
+    completion_npc = roster.get((step.get("npcs") or [None])[0]) or {}
+    return {
+        "state": public_state(state),
+        "step_changed": step_changed,
+        "reflection_ready": reflection_ready,
+        "completion_message": activity.get("completion_message"),
+        "completion_name": completion_npc.get("name"),
+    }
+
+
 MEMO_MAX = 4000
 
 
@@ -804,7 +883,10 @@ REFLECTION_MAX = 1000
 
 
 async def save_reflection(
-    session: AsyncSession, simulation: Simulation, content: str
+    session: AsyncSession,
+    simulation: Simulation,
+    content: str,
+    scenario: Scenario | None = None,
 ) -> dict:
     """5단계 — 체험자가 직접 쓴 소감문 저장.
 
@@ -817,9 +899,25 @@ async def save_reflection(
         raise HTTPException(status_code=400, detail="소감을 입력해주세요")
     state = dict(simulation.state)
     state["reflection"] = text[:REFLECTION_MAX]
+    completed_now = False
+    if simulation.status == "active":
+        if state.get("workflow_stage") != "reflection":
+            raise HTTPException(status_code=409, detail="아직 체험 소감문 단계가 아닙니다")
+        if scenario is None:
+            raise HTTPException(status_code=409, detail="시나리오 정보를 확인할 수 없습니다")
+        state["workflow_stage"] = "completed"
+        simulation.status = "completed"
+        completed_now = True
     simulation.state = state
     flag_modified(simulation, "state")
     await session.commit()
+    if completed_now:
+        try:
+            await finalize_score(session, simulation, scenario)
+        except Exception:  # noqa: BLE001 — 소감 저장·완주 자체는 점수 스냅샷 실패와 분리
+            logger.exception(
+                "소감문 완주 점수 스냅샷 실패 (simulation=%d)", simulation.id
+            )
     return {"state": public_state(state), "step_changed": None}
 
 

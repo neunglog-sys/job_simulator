@@ -409,7 +409,10 @@ button.headerOrb:active {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 0;
+  /* 이름표를 flex 흐름에서 빼(머리 위 absolute) 스프라이트만 남았는데, 이 아래 여백으로
+     예전 요소 높이(123)를 유지한다 → 중심 정렬된 스프라이트의 발밑이 markerY+35로 그대로.
+     (오클루전 z의 NPC_FEET_OFFSET=35와 짝. 값 바꿀 때 함께 맞출 것) */
+  padding: 0 0 27px;
   border: 0;
   background: transparent;
   font: inherit;
@@ -422,18 +425,10 @@ button.headerOrb:active {
 
 /* 걷고 있지 않은 NPC(대기 중인 사수 포함 전원)의 잔잔한 제자리 움직임 (팀 요청 2026-07-23 갱신).
    위치 중심 정렬(-50%,-50%)을 유지한 채로 살짝 흔든다 — left/top 900ms 트랜지션과는 별개 레이어. */
+/* 대기 중엔 흔들지 않고 가만히 선다 (사용자 요청 2026-07-24) — 위로 뜨는 것도, 좌우로
+   흔드는 것도 없앤다. 걷는 중 프레임 애니는 npcWalkCycle이 따로 처리한다. */
 .npcIdleSway {
-  animation: npcIdleSway 3.6s ease-in-out infinite;
-}
-
-@keyframes npcIdleSway {
-  0%,
-  100% {
-    transform: translate(-50%, -50%);
-  }
-  50% {
-    transform: translate(-50%, calc(-50% - 3px));
-  }
+  animation: none;
 }
 
 .npcMarkerAvatar {
@@ -538,6 +533,13 @@ button.headerOrb:active {
 }
 
 .npcMarkerName {
+  /* 이름표를 머리 위에 띄운다 — 발밑에 두면 카운터·가구에 가려져 잘렸다.
+     flex 흐름에서 빼므로 스프라이트가 마커 중앙에 단독 정렬되어 발밑 위치가 예측 가능해진다
+     (오클루전 z는 NPC_FEET_OFFSET=48로 계산 — 스프라이트 높이의 절반). */
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
   padding: 3px 11px;
   border: 1px solid rgb(255 255 255 / 0.62);
   border-radius: 999px;
@@ -550,8 +552,10 @@ button.headerOrb:active {
 }
 
 /* 현재 미션 담당 NPC 마커 강조 (나머지는 흐리게) */
+/* 비담당 NPC도 또렷하게 — 담당 NPC는 노란 글로우+! 배지로 구분되므로 투명도로 흐릴 필요가 없다.
+   0.7로 흐리면 매장 NPC가 전부 유령처럼 반투명해 보였다. */
 .npcMarker:not(.npcMarkerActive) {
-  opacity: 0.7;
+  opacity: 1;
 }
 
 .npcMarkerActive {
