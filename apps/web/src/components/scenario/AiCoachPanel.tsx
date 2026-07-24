@@ -5,14 +5,15 @@ import styles from "../../styles/scenarioGame.module.css";
 
 type AiCoachPanelProps = {
   message: string;
+  coachName?: string;
   children?: ReactNode;
 };
 
-export function AiCoachPanel({ message, children }: AiCoachPanelProps) {
+export function AiCoachPanel({ message, coachName, children }: AiCoachPanelProps) {
   return (
     <section className={`${styles.glassPanel} ${styles.coachPanel}`} aria-label="AI 코치">
       <AiAvatarViewport>{children}</AiAvatarViewport>
-      <CoachSpeechBubble message={message} />
+      <CoachSpeechBubble message={message} coachName={coachName} />
     </section>
   );
 }

@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   GameController,
+  GearSix,
   House,
   Megaphone,
   SignOut,
@@ -33,7 +34,11 @@ function goBack() {
   goHome();
 }
 
-export function ConversationHeader() {
+type ConversationHeaderProps = {
+  onCoachSettingsOpen?: () => void;
+};
+
+export function ConversationHeader({ onCoachSettingsOpen }: ConversationHeaderProps) {
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [isScenarioPickerOpen, setIsScenarioPickerOpen] = useState(false);
   const scenarioPickerRef = useRef<HTMLDivElement>(null);
@@ -113,6 +118,13 @@ export function ConversationHeader() {
             </div>
           ) : null}
         </div>
+        {onCoachSettingsOpen ? (
+          <GlassIconButton
+            icon={GearSix}
+            label="직무코치 설정 열기"
+            onClick={onCoachSettingsOpen}
+          />
+        ) : null}
         <GlassIconButton
           icon={UserCircle}
           label="내 정보 열기"

@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AVATAR_IDLE_SRC } from "../../config/endpoints";
 import { createAvatarWebSocket, type MuseTalkSpeakRequest } from "../../lib/api";
+import {
+  COACH_PROFILES,
+  getStoredCoachId,
+  type CoachAvatarId,
+} from "../../lib/coachPreference";
 import styles from "../../styles/oneToOneConversation.module.css";
 import type { AvatarStatus } from "../../types/conversation";
 
@@ -9,6 +13,8 @@ type MuseTalkStageRequest = MuseTalkSpeakRequest & { id: number };
 type AiAvatarStageProps = {
   children?: ReactNode;
   status?: AvatarStatus;
+  volume?: number;
+  avatarId?: CoachAvatarId;
   museTalkRequest?: MuseTalkStageRequest | null;
   hlsUrl?: string | null;
   onSpeakingEnd?: () => void;
@@ -43,22 +49,24 @@ function resolveStartBufferSeconds(): number {
   }
 }
 
-/** 아바타 선택. `?avatarId=female`로 런타임 지정한다(선택 UI가 붙기 전 개발자용 테스트 경로).
- *  유효하지 않은 값은 기본값(male)으로 떨어뜨린다 — 노트북의 resolve_persona()도 어차피
- *  모르는 값이면 기본으로 폴백하지만, 프론트에서도 방어해 의도를 명확히 한다. */
-function resolveAvatarId(): "male" | "female" {
+/** 명시적인 화면 선택값을 우선하고, 개발용 URL 파라미터와 저장값을 차례로 확인한다. */
+function resolveAvatarId(preferredAvatarId?: CoachAvatarId): CoachAvatarId {
+  if (preferredAvatarId) return preferredAvatarId;
   if (typeof window === "undefined") return "male";
   try {
     const raw = new URLSearchParams(window.location.search).get("avatarId");
-    return raw === "female" ? "female" : "male";
+    if (raw === "male" || raw === "female") return raw;
+    return getStoredCoachId() ?? "male";
   } catch {
-    return "male";
+    return getStoredCoachId() ?? "male";
   }
 }
 
 export function AiAvatarStage({
   children,
   status = "idle",
+  volume = 1,
+  avatarId,
   museTalkRequest,
   hlsUrl,
   onSpeakingEnd,
@@ -87,6 +95,13 @@ export function AiAvatarStage({
   const endFrameRef = useRef<number | null>(null);
 
   const [speakReady, setSpeakReady] = useState(false);
+  const safeVolume = Math.min(1, Math.max(0, volume));
+  const resolvedAvatarId = resolveAvatarId(avatarId);
+  const coach = COACH_PROFILES[resolvedAvatarId];
+
+  useEffect(() => {
+    if (speakRef.current) speakRef.current.volume = safeVolume;
+  }, [safeVolume]);
 
   useEffect(() => {
     const video = speakRef.current;
@@ -138,7 +153,6 @@ export function AiAvatarStage({
     const socket = createAvatarWebSocket();
     const startedAt = window.performance.now();
     const startBufferSeconds = resolveStartBufferSeconds();
-    const avatarId = resolveAvatarId();
     let firstBinaryAt: number | null = null;
     let firstPlayAt: number | null = null;
     let lastDonePayload: Record<string, unknown> | null = null;
@@ -401,7 +415,7 @@ export function AiAvatarStage({
       socket.send(
         JSON.stringify({
           speaker_id: "coach",
-          avatar_id: avatarId,
+          avatar_id: resolvedAvatarId,
           emotion: "neutral",
           idle_time: idleTime,
           ...payload,
@@ -518,7 +532,7 @@ export function AiAvatarStage({
       URL.revokeObjectURL(objectUrl);
       setSpeakReady(false);
     };
-  }, [museTalkRequest, onMuseTalkMetrics, onSpeakingError]);
+  }, [museTalkRequest, onMuseTalkMetrics, onSpeakingError, resolvedAvatarId]);
 
   const speaking =
     status === "speaking" && Boolean(hlsUrl || museTalkRequest) && speakReady;
@@ -533,17 +547,26 @@ export function AiAvatarStage({
       <div className={styles.avatarAmbientLight} aria-hidden="true" />
 
       <div className={styles.avatarContent}>
-        <video
-          ref={idleRef}
-          className={styles.avatarVideo}
-          src={AVATAR_IDLE_SRC}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-          aria-hidden="true"
-        />
+        {coach.idleVideoSrc ? (
+          <video
+            ref={idleRef}
+            className={styles.avatarVideo}
+            src={coach.idleVideoSrc}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            aria-hidden="true"
+          />
+        ) : (
+          <img
+            className={styles.avatarVideo}
+            src={coach.portraitSrc}
+            alt=""
+            aria-hidden="true"
+          />
+        )}
         <video
           ref={speakRef}
           className={styles.avatarVideo}
@@ -551,6 +574,7 @@ export function AiAvatarStage({
           playsInline
           preload="auto"
           onPlaying={(event) => {
+            event.currentTarget.volume = safeVolume;
             event.currentTarget.muted = false;
             setSpeakReady(true);
           }}

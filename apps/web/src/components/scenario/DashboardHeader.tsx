@@ -234,7 +234,7 @@ export function DashboardHeader({
               <GearSix weight="duotone" aria-hidden="true" />
               <span>
                 <strong>설정</strong>
-                <small>사운드와 이동 방식을 조정해요</small>
+                <small>사운드와 직무코치를 조정해요</small>
               </span>
             </button>
             <button

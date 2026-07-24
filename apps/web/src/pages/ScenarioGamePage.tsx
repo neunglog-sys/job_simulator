@@ -1,4 +1,4 @@
-import { UserCircle } from "@phosphor-icons/react";
+import { SpeakerHigh, SpeakerSlash, UserCircle } from "@phosphor-icons/react";
 import { AnimatePresence } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { LogoutConfirmDialog } from "../components/LogoutConfirmDialog";
@@ -21,6 +21,7 @@ import { MovementArea, SLOT_SPREAD } from "../components/scenario/MovementArea";
 import { canChat, canMove, MODAL_PHASES, TOUR_PHASES, type GamePhase } from "../components/scenario/phase";
 import { ReflectionPanel } from "../components/scenario/ReflectionPanel";
 import { PLAYER_SIZE } from "../components/scenario/PlayerSprite";
+import { ScenarioAudioSettingsDialog } from "../components/scenario/ScenarioAudioSettingsDialog";
 import { ScenarioControlPanel } from "../components/scenario/ScenarioControlPanel";
 import { TourBanner } from "../components/scenario/TourBanner";
 import { WorkflowModal } from "../components/scenario/WorkflowModal";
@@ -40,6 +41,12 @@ import {
   type Simulation,
 } from "../lib/api";
 import { logout } from "../lib/auth";
+import {
+  COACH_PROFILES,
+  getStoredCoachId,
+  saveCoachId,
+  type CoachAvatarId,
+} from "../lib/coachPreference";
 import {
   SimulationSocket,
   type AdviceCard,
@@ -163,6 +170,16 @@ const SCENARIO_BGM_TRACKS: Readonly<Record<string, readonly string[]>> = {
   ],
 };
 
+const BGM_VOLUME_KEY = "scenario-bgm-volume";
+const COACH_VOLUME_KEY = "scenario-coach-volume";
+const DEFAULT_BGM_VOLUME = 0.09;
+const DEFAULT_COACH_VOLUME = 1;
+
+function savedVolume(key: string, fallback: number): number {
+  const saved = Number(localStorage.getItem(key));
+  return Number.isFinite(saved) && saved >= 0 && saved <= 1 ? saved : fallback;
+}
+
 function mapImageForScenario(slug: string) {
   return SCENARIO_MAP_IMAGES[slug] ?? DEFAULT_SCENARIO_MAP_IMAGE;
 }
@@ -175,11 +192,6 @@ const CONSULTATION_ID_PARAM = new URLSearchParams(window.location.search).get("c
 const CONSULTATION_ID = CONSULTATION_ID_PARAM && /^\d+$/.test(CONSULTATION_ID_PARAM)
   ? Number(CONSULTATION_ID_PARAM)
   : null;
-
-// 로컬 개발에서는 항상, Docker 프로덕션 빌드에서는 ?reflectionTest=1일 때만 노출한다.
-// 실제 사용자 화면에 테스트 제어가 보이지 않으면서 배포 이미지에서도 검수할 수 있다.
-const REFLECTION_TEST_ENABLED =
-  import.meta.env.DEV || new URLSearchParams(window.location.search).get("reflectionTest") === "1";
 
 // 플레이어가 담당 NPC 좌표(스테이지 로컬 px)에 이 거리 안으로 들어오면 업무를 건넨다.
 const ENCOUNTER_RADIUS = 150;
@@ -293,12 +305,32 @@ export function ScenarioGamePage() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isMemoOpen, setIsMemoOpen] = useState(false);
   const [isWorkflowOpen, setIsWorkflowOpen] = useState(false);
+  const [isAudioSettingsOpen, setIsAudioSettingsOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [scenarioTheme, setScenarioTheme] = useState<ScenarioTheme>(() => {
     const savedTheme = localStorage.getItem("scenario-theme");
     return savedTheme === "deep-space" || savedTheme === "aurora" ? savedTheme : "nebula";
   });
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
+  const [isBgmEnabled, setIsBgmEnabled] = useState(
+    () => localStorage.getItem("scenario-bgm-enabled") !== "false",
+  );
+  const [bgmVolume, setBgmVolume] = useState(() =>
+    savedVolume(BGM_VOLUME_KEY, DEFAULT_BGM_VOLUME),
+  );
+  const [coachVolume, setCoachVolume] = useState(() =>
+    savedVolume(COACH_VOLUME_KEY, DEFAULT_COACH_VOLUME),
+  );
+  const [selectedCoachId, setSelectedCoachId] = useState<CoachAvatarId>(
+    () => getStoredCoachId() ?? "male",
+  );
+  const bgmAudioRef = useRef<HTMLAudioElement | null>(null);
+  const bgmEnabledRef = useRef(isBgmEnabled);
+  const bgmVolumeRef = useRef(bgmVolume);
+  const savedBgmVolumeRef = useRef(bgmVolume);
+  const savedCoachVolumeRef = useRef(coachVolume);
+  const selectedCoachIdRef = useRef<CoachAvatarId>(selectedCoachId);
+  const savedCoachIdRef = useRef<CoachAvatarId>(selectedCoachId);
   const [coachMessage, setCoachMessage] = useState(DEFAULT_COACH_MESSAGE);
 
   // ── AI 아바타 발화 (LIVE 패널) ──────────────────────────────────────────
@@ -317,7 +349,11 @@ export function ScenarioGamePage() {
     // 같은 문장이 effect 재실행 등으로 다시 들어와도 중복 재생하지 않는다.
     if (!trimmed || trimmed === lastSpokenRef.current) return;
     lastSpokenRef.current = trimmed;
-    setMuseTalkRequest({ id: ++museTalkRequestIdRef.current, text: trimmed });
+    setMuseTalkRequest({
+      id: ++museTalkRequestIdRef.current,
+      text: trimmed,
+      avatar_id: selectedCoachIdRef.current,
+    });
     setAvatarStatus("speaking");
   }, []);
 
@@ -680,9 +716,10 @@ export function ScenarioGamePage() {
     let trackIndex = Math.floor(Math.random() * tracks.length);
     let unlockArmed = false;
     const audio = new Audio();
+    bgmAudioRef.current = audio;
     audio.preload = "auto";
-    // 코치 TTS가 항상 전면에 들리도록 BGM은 기존(0.22)의 약 40%로 유지한다.
-    audio.volume = 0.09;
+    // 저장된 음량이 없을 때는 코치 TTS가 항상 전면에 들리도록 기존 0.09를 유지한다.
+    audio.volume = bgmVolumeRef.current;
 
     const disarmUnlock = () => {
       if (!unlockArmed) return;
@@ -692,7 +729,7 @@ export function ScenarioGamePage() {
     };
 
     const unlockAudio = () => {
-      if (disposed) return;
+      if (disposed || !bgmEnabledRef.current) return;
       void audio.play().then(disarmUnlock).catch(() => undefined);
     };
 
@@ -706,7 +743,11 @@ export function ScenarioGamePage() {
     const playTrack = () => {
       audio.src = tracks[trackIndex];
       audio.currentTime = 0;
-      void audio.play().then(disarmUnlock).catch(armUnlock);
+      if (bgmEnabledRef.current) {
+        void audio.play().then(disarmUnlock).catch(armUnlock);
+      } else {
+        audio.load();
+      }
     };
 
     const handleEnded = () => {
@@ -724,8 +765,105 @@ export function ScenarioGamePage() {
       audio.pause();
       audio.removeAttribute("src");
       audio.load();
+      if (bgmAudioRef.current === audio) bgmAudioRef.current = null;
     };
   }, [scenarioSlug]);
+
+  const handleBgmToggle = useCallback(() => {
+    const nextEnabled = !bgmEnabledRef.current;
+    bgmEnabledRef.current = nextEnabled;
+    setIsBgmEnabled(nextEnabled);
+    localStorage.setItem("scenario-bgm-enabled", String(nextEnabled));
+
+    const audio = bgmAudioRef.current;
+    if (!audio) return;
+    if (nextEnabled) {
+      void audio.play().catch(() => undefined);
+    } else {
+      audio.pause();
+    }
+  }, []);
+
+  const handleAudioSettingsPreview = useCallback(
+    (settings: {
+      bgmVolume: number;
+      coachVolume: number;
+      coachId: CoachAvatarId;
+    }) => {
+      const nextBgmVolume = Math.min(1, Math.max(0, settings.bgmVolume));
+      const nextCoachVolume = Math.min(1, Math.max(0, settings.coachVolume));
+
+      bgmVolumeRef.current = nextBgmVolume;
+      setBgmVolume(nextBgmVolume);
+      setCoachVolume(nextCoachVolume);
+      if (settings.coachId !== selectedCoachIdRef.current) {
+        selectedCoachIdRef.current = settings.coachId;
+        setSelectedCoachId(settings.coachId);
+        setMuseTalkRequest(null);
+        setAvatarStatus("idle");
+        lastSpokenRef.current = null;
+      }
+
+      const audio = bgmAudioRef.current;
+      if (!audio) return;
+      audio.volume = nextBgmVolume;
+      // 슬라이더 입력은 사용자 제스처이므로 자동재생이 막혀 있던 경우에도 이때 미리듣기를 시도한다.
+      // 빠른 음소거 상태는 바꾸지 않고, 팝업을 닫을 때 원래 상태로 복구한다.
+      if (audio.paused) void audio.play().catch(() => undefined);
+    },
+    [],
+  );
+
+  const handleAudioSettingsCancel = useCallback(() => {
+    const previousBgmVolume = savedBgmVolumeRef.current;
+    const previousCoachVolume = savedCoachVolumeRef.current;
+    const previousCoachId = savedCoachIdRef.current;
+
+    bgmVolumeRef.current = previousBgmVolume;
+    setBgmVolume(previousBgmVolume);
+    setCoachVolume(previousCoachVolume);
+    if (previousCoachId !== selectedCoachIdRef.current) {
+      selectedCoachIdRef.current = previousCoachId;
+      setSelectedCoachId(previousCoachId);
+      setMuseTalkRequest(null);
+      setAvatarStatus("idle");
+      lastSpokenRef.current = null;
+    }
+    if (bgmAudioRef.current) {
+      bgmAudioRef.current.volume = previousBgmVolume;
+      if (!bgmEnabledRef.current) bgmAudioRef.current.pause();
+    }
+    setIsAudioSettingsOpen(false);
+  }, []);
+
+  const handleAudioSettingsSave = useCallback(
+    (settings: {
+      bgmVolume: number;
+      coachVolume: number;
+      coachId: CoachAvatarId;
+    }) => {
+      const nextBgmVolume = Math.min(1, Math.max(0, settings.bgmVolume));
+      const nextCoachVolume = Math.min(1, Math.max(0, settings.coachVolume));
+
+      bgmVolumeRef.current = nextBgmVolume;
+      savedBgmVolumeRef.current = nextBgmVolume;
+      savedCoachVolumeRef.current = nextCoachVolume;
+      selectedCoachIdRef.current = settings.coachId;
+      savedCoachIdRef.current = settings.coachId;
+      setBgmVolume(nextBgmVolume);
+      setCoachVolume(nextCoachVolume);
+      setSelectedCoachId(settings.coachId);
+      localStorage.setItem(BGM_VOLUME_KEY, String(nextBgmVolume));
+      localStorage.setItem(COACH_VOLUME_KEY, String(nextCoachVolume));
+      saveCoachId(settings.coachId);
+      if (bgmAudioRef.current) {
+        bgmAudioRef.current.volume = nextBgmVolume;
+        if (!bgmEnabledRef.current) bgmAudioRef.current.pause();
+      }
+      setIsAudioSettingsOpen(false);
+    },
+    [],
+  );
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -1256,11 +1394,6 @@ export function ScenarioGamePage() {
     }
   }, []);
 
-  const handleReflectionTest = useCallback(() => {
-    setReflectionSending(false);
-    setPhase("reflection");
-  }, []);
-
   // 미션(과제) 제출 — WS task_submit. 통과 시 step_changed로 다음 미션, 마지막이면 완료.
   const handleTaskSubmit = useCallback((content: string | string[]) => {
     const socket = socketRef.current;
@@ -1332,6 +1465,21 @@ export function ScenarioGamePage() {
           talkingNpcId={talk.id}
           talkingAt={talk.at}
         />
+        <button
+          className={styles.bgmToggleButton}
+          type="button"
+          data-enabled={isBgmEnabled}
+          aria-label={isBgmEnabled ? "배경 음악 끄기" : "배경 음악 켜기"}
+          aria-pressed={isBgmEnabled}
+          title={isBgmEnabled ? "배경 음악 끄기" : "배경 음악 켜기"}
+          onClick={handleBgmToggle}
+        >
+          {isBgmEnabled ? (
+            <SpeakerHigh weight="fill" aria-hidden="true" />
+          ) : (
+            <SpeakerSlash weight="bold" aria-hidden="true" />
+          )}
+        </button>
         {showStandingIllustration && standingIllustrationSrc ? (
           <div className={styles.npcStandingStage} aria-hidden="true">
             <img
@@ -1355,7 +1503,7 @@ export function ScenarioGamePage() {
           onHintToggle={() => setIsHintOpen((current) => !current)}
           onFullscreenToggle={toggleFullscreen}
           onLogout={() => setIsLogoutConfirmOpen(true)}
-          onSettingsOpen={() => setCoachMessage("설정 메뉴에서 사운드와 이동 방식을 조정할 수 있게 될 예정이에요.")}
+          onSettingsOpen={() => setIsAudioSettingsOpen(true)}
           onHome={() => window.location.assign("/")}
           onBack={() => {
             if (window.history.length > 1) window.history.back();
@@ -1538,13 +1686,19 @@ export function ScenarioGamePage() {
             onMemoOpen={handleMemoToggle}
             onWorkflowOpen={handleWorkflowToggle}
           />
-          <AiCoachPanel message={coachMessage}>
+          <AiCoachPanel
+            message={coachMessage}
+            coachName={COACH_PROFILES[selectedCoachId].name}
+          >
             {/* museTalkRequest가 없을 때도 항상 마운트한다 — AiAvatarStage는 idle 영상을
                 내부적으로 상시 재생하고(536-546행), 조언이 있을 때만 발화 오버레이를
                 올린다(speaking = status==="speaking" && museTalkRequest 존재).
                 조건부로 마운트하면(옛 코드) 안 말할 때 컴포넌트 자체가 없어 idle도 안 보였다. */}
             <AiAvatarStage
+              key={selectedCoachId}
+              avatarId={selectedCoachId}
               status={avatarStatus}
+              volume={coachVolume}
               museTalkRequest={museTalkRequest}
               onSpeakingEnd={handleAvatarSpeakingEnd}
               onSpeakingError={handleAvatarSpeakingError}
@@ -1555,16 +1709,6 @@ export function ScenarioGamePage() {
           <kbd>WASD</kbd>
           <span>이동</span>
         </span>
-        {REFLECTION_TEST_ENABLED ? (
-          <button
-            className={styles.reflectionTestButton}
-            type="button"
-            onClick={handleReflectionTest}
-            disabled={connStatus !== "open"}
-          >
-            소감문 테스트
-          </button>
-        ) : null}
       </div>
 
       {/* ── 페이즈별 화면 — 조건 조합 대신 페이즈 하나로 결정된다 ── */}
@@ -1684,6 +1828,16 @@ export function ScenarioGamePage() {
           </div>
         </div>
       ) : null}
+      <ScenarioAudioSettingsDialog
+        open={isAudioSettingsOpen}
+        theme={scenarioTheme}
+        bgmVolume={bgmVolume}
+        coachVolume={coachVolume}
+        coachId={selectedCoachId}
+        onCancel={handleAudioSettingsCancel}
+        onPreview={handleAudioSettingsPreview}
+        onSave={handleAudioSettingsSave}
+      />
       <LogoutConfirmDialog
         open={isLogoutConfirmOpen}
         onCancel={() => setIsLogoutConfirmOpen(false)}
