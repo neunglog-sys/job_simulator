@@ -5,6 +5,7 @@ import { AvatarStatusBadge } from "../components/conversation/AvatarStatusBadge"
 import { ConversationHistoryModal } from "../components/conversation/ConversationHistoryModal";
 import { ConversationHeader } from "../components/conversation/ConversationHeader";
 import { ConversationPanel } from "../components/conversation/ConversationPanel";
+import { CoachSelectionDialog } from "../components/conversation/CoachSelectionDialog";
 import { FinalReportPanel } from "../components/conversation/FinalReportPanel";
 import { FixedNavigationMenu } from "../components/conversation/FixedNavigationMenu";
 import { PanelIndexTabs } from "../components/conversation/PanelIndexTabs";
@@ -40,6 +41,11 @@ import {
   type MuseTalkSpeakRequest,
   type ScenarioSummary,
 } from "../lib/api";
+import {
+  getStoredCoachId,
+  saveCoachId,
+  type CoachAvatarId,
+} from "../lib/coachPreference";
 import styles from "../styles/oneToOneConversation.module.css";
 import { INITIAL_REPORT_STATE } from "../types/conversation";
 import type {
@@ -265,6 +271,14 @@ const STAR_POINTS = Array.from({ length: 54 }, (_, index) => ({
 
 export function OneToOneConversationPage() {
   const [stageScale, setStageScale] = useState(1);
+  const [selectedCoachId, setSelectedCoachId] = useState<CoachAvatarId | null>(
+    () => getStoredCoachId(),
+  );
+  const [isCoachSelectionOpen, setIsCoachSelectionOpen] = useState(
+    () => getStoredCoachId() === null,
+  );
+  const activeCoachId = selectedCoachId ?? "male";
+  const selectedCoachIdRef = useRef<CoachAvatarId>(activeCoachId);
   const [messages, setMessages] = useState<ConversationMessage[]>(initialConversationMessages);
   const [inputValue, setInputValue] = useState("");
   const [avatarStatus, setAvatarStatus] = useState<AvatarStatus>("thinking");
@@ -379,6 +393,7 @@ export function OneToOneConversationPage() {
         try {
           const result = await generateMuseTalkBlob({
             text: chunk.text,
+            avatar_id: selectedCoachIdRef.current,
             session_id: chunk.sessionId,
             seq: chunk.seq,
           });
@@ -438,6 +453,7 @@ export function OneToOneConversationPage() {
         setMuseTalkRequest({
           id: ++museTalkRequestIdRef.current,
           text: chunk,
+          avatar_id: selectedCoachIdRef.current,
           session_id: sessionId,
           seq,
         });
@@ -803,7 +819,11 @@ export function OneToOneConversationPage() {
       }
     } else if (avatarProvider) {
       try {
-        await streamAvatarSpeakChunks(reply, (chunk) => enqueueAvatarSpeech(chunk.hls_url));
+        await streamAvatarSpeakChunks(
+          reply,
+          (chunk) => enqueueAvatarSpeech(chunk.hls_url),
+          { avatarId: selectedCoachIdRef.current },
+        );
       } catch {
         resetAvatarSpeech();
         setAvatarStatus("idle");
@@ -838,6 +858,18 @@ export function OneToOneConversationPage() {
     resetAvatarSpeech();
     setAvatarStatus("idle");
   }, [resetAvatarSpeech]);
+
+  const handleCoachConfirm = useCallback(
+    (coachId: CoachAvatarId) => {
+      resetAvatarSpeech();
+      selectedCoachIdRef.current = coachId;
+      setSelectedCoachId(coachId);
+      saveCoachId(coachId);
+      setAvatarStatus("idle");
+      setIsCoachSelectionOpen(false);
+    },
+    [resetAvatarSpeech],
+  );
 
   const handleMuseTalkMetrics = useCallback((metrics: Record<string, unknown>) => {
     const trace = perfTraceRef.current;
@@ -1499,7 +1531,7 @@ export function OneToOneConversationPage() {
         className={styles.stage}
         style={{ "--conversation-scale": stageScale } as StageStyle}
       >
-        <ConversationHeader />
+        <ConversationHeader onCoachSettingsOpen={() => setIsCoachSelectionOpen(true)} />
         <AvatarStatusBadge status={avatarStatus} />
         <FixedNavigationMenu
           activeMenuId={activeMenuId}
@@ -1508,6 +1540,8 @@ export function OneToOneConversationPage() {
 
         <div className={styles.consultationLayout} data-active-panel={activePanel}>
           <AiAvatarStage
+            key={activeCoachId}
+            avatarId={activeCoachId}
             status={avatarStatus}
             hlsUrl={avatarHlsUrl}
             museTalkRequest={museTalkRequest}
@@ -1606,6 +1640,13 @@ export function OneToOneConversationPage() {
           ) : null}
         </AnimatePresence>
       </div>
+      <CoachSelectionDialog
+        open={isCoachSelectionOpen}
+        selectedCoachId={selectedCoachId}
+        required={selectedCoachId === null}
+        onCancel={() => setIsCoachSelectionOpen(false)}
+        onConfirm={handleCoachConfirm}
+      />
     </main>
   );
 }

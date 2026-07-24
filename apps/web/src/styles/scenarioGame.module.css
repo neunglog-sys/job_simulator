@@ -61,15 +61,18 @@
 
 .mapLayer {
   position: absolute;
-  inset: 0;
+  inset: -18px;
   z-index: 0;
-  width: 100%;
-  height: 100%;
+  width: calc(100% + 36px);
+  height: calc(100% + 36px);
   background-color: #d8dadd;
   background-image: var(--scenario-map-image, none);
   background-repeat: no-repeat;
   background-position: center;
   background-size: cover;
+  filter: blur(6px) brightness(0.76) saturate(0.88);
+  transform: translateZ(0) scale(1.018);
+  transform-origin: center;
 }
 
 .mapDepth {
@@ -322,15 +325,84 @@ button.headerOrb:active {
   bottom: calc(var(--hud-height) + var(--hud-bottom) + 10px);
   left: var(--edge);
   z-index: 2;
+  box-sizing: border-box;
   overflow: hidden;
-  border: 0;
-  background: transparent;
+  border: 1px solid rgb(255 255 255 / 0.26);
+  border-radius: 30px;
+  isolation: isolate;
+  background: rgb(32 24 65 / 0.06);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.28),
+    0 18px 44px rgb(23 16 58 / 0.14);
   cursor: crosshair;
   touch-action: none;
 }
 
 .designStage[data-debug="true"] .movementArea {
   border: 1px dashed rgb(255 255 255 / 0.7);
+}
+
+.bgmToggleButton {
+  position: absolute;
+  top: 96px;
+  left: calc(var(--edge) + 16px);
+  z-index: 5;
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 0.58);
+  border-radius: 15px;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  background:
+    linear-gradient(145deg, var(--scenario-control-start), var(--scenario-control-end)),
+    rgb(44 31 96 / 0.72);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.38),
+    0 10px 24px color-mix(in srgb, var(--scenario-control-start) 30%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(145%);
+  backdrop-filter: blur(14px) saturate(145%);
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease;
+}
+
+.bgmToggleButton svg {
+  width: 23px;
+  height: 23px;
+  filter: drop-shadow(0 2px 5px rgb(19 12 53 / 0.38));
+}
+
+.bgmToggleButton[data-enabled="false"] {
+  color: rgb(238 232 255 / 0.78);
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 0.16), rgb(255 255 255 / 0.06)),
+    rgb(38 29 79 / 0.52);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.24),
+    0 8px 20px rgb(24 17 61 / 0.18);
+}
+
+.bgmToggleButton:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.46),
+    0 13px 28px color-mix(in srgb, var(--scenario-control-start) 38%, transparent);
+}
+
+.bgmToggleButton:active {
+  transform: scale(0.96);
+}
+
+.bgmToggleButton:focus-visible {
+  outline: 3px solid rgb(255 255 255 / 0.92);
+  outline-offset: 3px;
 }
 
 .objectLayer {
@@ -795,6 +867,7 @@ button.headerOrb:active {
   min-height: 0;
   padding-right: 2px;
   overflow-y: auto;
+  scrollbar-color: auto;
   scrollbar-width: auto;
 }
 
@@ -807,20 +880,28 @@ button.headerOrb:active {
 .speechBubble::-webkit-scrollbar-track {
   margin-block: 8px;
   border-radius: 999px;
-  background: rgb(92 70 151 / 0.08);
+  background: color-mix(in srgb, var(--scenario-scroll-end) 7%, transparent);
 }
 
 .hintList::-webkit-scrollbar-thumb,
 .speechBubble::-webkit-scrollbar-thumb {
+  min-height: 38px;
   border: 1px solid transparent;
   border-radius: 999px;
-  background: linear-gradient(180deg, rgb(133 92 207 / 0.72), rgb(202 91 177 / 0.62));
+  background:
+    linear-gradient(180deg, var(--scenario-scroll-start), var(--scenario-scroll-end)) padding-box;
   background-clip: padding-box;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.16);
 }
 
 .hintList::-webkit-scrollbar-thumb:hover,
 .speechBubble::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgb(119 76 199 / 0.9), rgb(193 72 164 / 0.82));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--scenario-scroll-start) 84%, #ffffff),
+      var(--scenario-scroll-end)
+    ) padding-box;
   background-clip: padding-box;
 }
 
@@ -837,9 +918,17 @@ button.headerOrb:active {
   height: 0 !important;
   min-width: 0 !important;
   min-height: 0 !important;
+  max-width: 0 !important;
+  max-height: 0 !important;
   border: 0 !important;
   background: transparent !important;
-  -webkit-appearance: none;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+
+.hintList::-webkit-scrollbar-corner,
+.speechBubble::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 .hintCard {
@@ -965,7 +1054,10 @@ button.headerOrb:active {
   left: 330px;
   z-index: 2;
   display: flex;
-  width: 265px;
+  box-sizing: border-box;
+  width: max-content;
+  min-width: 265px;
+  max-width: calc(1920px - 425px - var(--edge));
   min-height: 100px;
   padding: 16px 20px 15px;
   overflow: hidden;
@@ -1001,9 +1093,8 @@ button.headerOrb:active {
   position: relative;
   z-index: 1;
   display: block;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  width: max-content;
+  max-width: none;
   white-space: nowrap;
 }
 
@@ -1947,6 +2038,16 @@ button.headerOrb:active {
   --avatar-height: 100%;
 }
 
+.avatarViewport > section {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: inherit;
+  box-shadow: none;
+}
+
 .avatarPlaceholder {
   position: absolute;
   inset: 0;
@@ -2051,19 +2152,6 @@ button.headerOrb:active {
   scrollbar-width: auto;
 }
 
-.speechBubble::before {
-  content: "";
-  position: absolute;
-  top: 35px;
-  left: -11px;
-  width: 22px;
-  height: 22px;
-  border-bottom: 1px solid rgb(255 255 255 / 0.72);
-  border-left: 1px solid rgb(255 255 255 / 0.72);
-  background: rgb(249 247 255 / 0.78);
-  transform: rotate(45deg);
-}
-
 .coachLabel {
   display: flex;
   align-items: center;
@@ -2107,7 +2195,7 @@ button.headerOrb:active {
 
 .keyboardGuide {
   position: absolute;
-  right: calc(var(--edge) + 5px);
+  right: calc(var(--edge) + 13px);
   bottom: calc(var(--hud-height) + 24px);
   z-index: 4;
   display: flex;
@@ -2127,43 +2215,6 @@ button.headerOrb:active {
   background: rgb(47 37 111 / 0.38);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.24);
   font: inherit;
-}
-
-/* 시나리오 완수(스킵) 오버레이 — 뷰포트 전체 (스테이지 축소배율 영향 안 받게 fixed) */
-.reflectionTestButton {
-  position: absolute;
-  right: calc(var(--edge) + 82px);
-  bottom: calc(var(--hud-height) + 18px);
-  z-index: 12;
-  min-height: 32px;
-  padding: 0 14px;
-  border: 1px solid var(--scenario-glass-border);
-  border-radius: 999px;
-  color: #ffffff;
-  background: var(--scenario-banner-surface);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.3),
-    0 8px 20px var(--scenario-banner-shadow);
-  font-size: 12px;
-  font-weight: 750;
-  cursor: pointer;
-  transition:
-    transform 150ms ease,
-    filter 150ms ease;
-}
-
-.reflectionTestButton:hover:not(:disabled) {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-}
-
-.reflectionTestButton:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-.reflectionTestButton:disabled {
-  opacity: 0.48;
-  cursor: default;
 }
 
 .completionOverlay {
@@ -4666,7 +4717,7 @@ button.headerIconButton:active {
 
 .dialogueUtilityBar {
   position: absolute;
-  top: -48px;
+  top: -52px;
   left: 15px;
   z-index: 12;
   display: flex;
