@@ -403,8 +403,9 @@ button.headerOrb:active {
 .npcMarker {
   position: absolute;
   z-index: 1;
-  /* 온보딩 투어에서 사수 마커가 자리를 옮길 때 걸어가는 것처럼 보이게 */
-  transition: left 900ms ease-in-out, top 900ms ease-in-out;
+  /* 마커가 자리를 옮길 때 걸어가는 것처럼 보이게 — 로밍 한 걸음(ROAM_HOP_MS)과 맞춘 잰걸음.
+     온보딩 투어의 사수 마커는 거리에 비례한 transitionDuration을 인라인으로 덮어쓴다. */
+  transition: left 650ms ease-in-out, top 650ms ease-in-out;
   display: flex;
   flex-direction: column;
   align-items: center;
