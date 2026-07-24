@@ -117,19 +117,28 @@ def test_declared_for_engine_picks_the_matching_game(monkeypatch, tmp_path):
     assert minigame.declared_for_engine("sns-01", "unknown")["engine"] == "match"
 
 
-def test_second_game_result_does_not_overwrite_the_first():
-    """게임별로 따로 보관해야 한다 — 슬롯이 하나면 두 번째가 첫 결과를 덮어쓴다."""
+def test_result_is_accepted_when_it_matches_any_declared_game(monkeypatch):
+    """두 번째 게임의 engine으로 와도 통과해야 한다 — 첫 게임하고만 비교하면 전부 버려진다.
+
+    kts-03처럼 두 게임의 engine이 같은 경우도 있지만, 다른 조합이면 예전 코드는
+    2번째 게임 결과를 통째로 engine_mismatch로 떨궜다.
+    """
+    from app.content import minigame
     from app.domains.simulation import service
 
-    first = service._minigame_result(
-        {"engine": "match", "accuracy": 90}, {"engine": "match", "pass_score": 70}
+    monkeypatch.setattr(
+        minigame, "minigames_for",
+        lambda slug: [{"engine": "match", "pass_score": 70},
+                      {"engine": "sort", "pass_score": 60}],
     )
     second = service._minigame_result(
-        {"engine": "puzzle", "accuracy": 80}, {"engine": "puzzle", "pass_score": 60}
+        {"engine": "sort", "accuracy": 80}, minigame.declared_for_engine("x", "sort")
     )
-    results = {}
-    for r in (first, second):
-        results[r["engine"]] = r
-    assert set(results) == {"match", "puzzle"}
-    assert results["match"]["score"] == 90 and results["puzzle"]["score"] == 80
-    assert not any(r.get("rejected") for r in results.values())
+    assert not second.get("rejected")
+    assert second["passed"] is True
+
+    # 선언에 없는 엔진은 예전처럼 불일치로 기록된다(저장은 하되 점수엔 안 들어감)
+    bogus = service._minigame_result(
+        {"engine": "bogus", "accuracy": 99}, minigame.declared_for_engine("x", "bogus")
+    )
+    assert bogus["rejected"] == "engine_mismatch"

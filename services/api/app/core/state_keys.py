@@ -23,7 +23,7 @@ ENGINE_STATE_KEYS = frozenset(
         "quest",         # 돌발 퀘스트 진행
         "coach_streak",  # 진전 없이 이어진 대화 턴 수 (점수가 아니라 카운터)
         "minigame",      # 마지막 미니게임 결과
-        "minigames",     # 엔진별 미니게임 결과
+        "minigames",     # (예약) 게임별 결과를 따로 남기게 되면 쓸 자리
         "met_npcs",      # 만난 NPC 목록
         "tour_done",     # 투어 완료 여부
         "memo",          # 플레이어 메모

@@ -770,12 +770,9 @@ async def save_minigame_result(
     result = _minigame_result(payload, declared)
 
     state = dict(simulation.state)
-    # 게임별로 따로 보관한다. 슬롯이 하나뿐이라 두 번째 게임이 첫 게임 결과를 덮어썼다.
-    # state["minigame"]은 마지막 결과로 유지 — 기존 리포트·프론트가 이 키를 읽는다.
-    results = dict(state.get("minigames") or {})
-    if result.get("engine"):
-        results[result["engine"]] = result
-    state["minigames"] = results
+    # 게임이 여러 개여도 결과는 한 번만 온다 — 프론트(MiniGamePanel)가 게임들을 순서대로
+    # 돌린 뒤 정확도 평균 하나로 합쳐 보내기 때문. 그래서 슬롯도 하나로 충분하다.
+    # 게임별 점수를 따로 남기려면 전송 규약부터 바꿔야 하고, 그건 점수 설계라 팀 결정 사항.
     state["minigame"] = result
     simulation.state = state
     flag_modified(simulation, "state")
