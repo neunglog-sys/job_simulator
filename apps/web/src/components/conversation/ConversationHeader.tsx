@@ -121,7 +121,7 @@ export function ConversationHeader({ onCoachSettingsOpen }: ConversationHeaderPr
         {onCoachSettingsOpen ? (
           <GlassIconButton
             icon={GearSix}
-            label="직무코치 설정 열기"
+            label="진로 코치 설정 열기"
             onClick={onCoachSettingsOpen}
           />
         ) : null}

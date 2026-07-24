@@ -136,7 +136,7 @@ export function ScenarioAudioSettingsDialog({
               <div>
                 <span>SCENARIO SETTINGS</span>
                 <h2 id={titleId}>환경 설정</h2>
-                <p id={descriptionId}>사운드와 함께할 직무코치를 내게 맞게 설정해보세요.</p>
+                <p id={descriptionId}>사운드와 함께할 진로 코치를 내게 맞게 설정해보세요.</p>
               </div>
             </header>
 
@@ -176,7 +176,7 @@ export function ScenarioAudioSettingsDialog({
                     <Robot weight="fill" />
                   </span>
                   <div>
-                    <label htmlFor={coachVolumeId}>직무코치 음량</label>
+                    <label htmlFor={coachVolumeId}>진로 코치 음량</label>
                     <small>안내와 피드백 음성</small>
                   </div>
                   <output htmlFor={coachVolumeId}>{coachPercent}%</output>
@@ -202,11 +202,11 @@ export function ScenarioAudioSettingsDialog({
               <section className={styles.coachControl}>
                 <div className={styles.coachControlHeading}>
                   <div>
-                    <strong>함께할 직무코치</strong>
+                    <strong>함께할 진로 코치</strong>
                     <small>저장하면 1:1 상담과 시나리오에 함께 적용돼요.</small>
                   </div>
                 </div>
-                <div className={styles.coachChoices} role="radiogroup" aria-label="직무코치 선택">
+                <div className={styles.coachChoices} role="radiogroup" aria-label="진로 코치 선택">
                   {(["male", "female"] as const).map((candidateId) => {
                     const coach = COACH_PROFILES[candidateId];
                     const selected = coachId === candidateId;

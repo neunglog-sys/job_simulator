@@ -103,7 +103,7 @@ export function CoachSelectionDialog({
                 className={styles.closeButton}
                 type="button"
                 onClick={onCancel}
-                aria-label="직무코치 선택 닫기"
+                aria-label="진로 코치 선택 닫기"
               >
                 <X weight="bold" aria-hidden="true" />
               </button>
@@ -115,7 +115,7 @@ export function CoachSelectionDialog({
                 YOUR CAREER PARTNER
               </span>
               <h2 id={titleId}>
-                {required ? "함께할 직무코치를 선택해주세요" : "직무코치 변경"}
+                {required ? "함께할 진로 코치를 선택해주세요" : "진로 코치 변경"}
               </h2>
               <p id={descriptionId}>
                 {required
@@ -124,7 +124,7 @@ export function CoachSelectionDialog({
               </p>
             </header>
 
-            <div className={styles.coachGrid} role="radiogroup" aria-label="직무코치">
+            <div className={styles.coachGrid} role="radiogroup" aria-label="진로 코치">
               {COACH_IDS.map((coachId, index) => {
                 const coach = COACH_PROFILES[coachId];
                 const selected = draftCoachId === coachId;
@@ -167,7 +167,7 @@ export function CoachSelectionDialog({
                 </button>
               ) : null}
               <button className={styles.confirmButton} type="submit" disabled={!draftCoachId}>
-                {required ? "이 코치와 시작하기" : "직무코치 저장"}
+                {required ? "이 코치와 시작하기" : "진로 코치 저장"}
               </button>
             </div>
           </motion.form>
