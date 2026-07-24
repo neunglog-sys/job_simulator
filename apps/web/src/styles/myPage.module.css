@@ -1255,22 +1255,6 @@
   padding: 0;
   overflow-y: auto;
   list-style: none;
-  scrollbar-color: #765fc3 rgb(106 90 170 / 0.07);
-  scrollbar-width: thin;
-}
-
-.documentList::-webkit-scrollbar {
-  width: 5px;
-}
-
-.documentList::-webkit-scrollbar-track {
-  border-radius: 999px;
-  background: rgb(106 90 170 / 0.07);
-}
-
-.documentList::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: linear-gradient(#765fc3, #6487cb);
 }
 
 .documentRow {
@@ -2075,6 +2059,87 @@
   }
 }
 
+/* 마이페이지 스크롤바 단일 규칙.
+   전역 html의 scrollbar-color 상속을 끊어 Chromium 기본 화살표가 다시 나타나지 않게 한다. */
+.page,
+.documentList,
+.accountSection .settingsGrid,
+.settingsCard,
+.activityList {
+  scrollbar-color: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: auto;
+}
+
+.page::-webkit-scrollbar,
+.documentList::-webkit-scrollbar,
+.accountSection .settingsGrid::-webkit-scrollbar,
+.settingsCard::-webkit-scrollbar,
+.activityList::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.page::-webkit-scrollbar-button,
+.documentList::-webkit-scrollbar-button,
+.accountSection .settingsGrid::-webkit-scrollbar-button,
+.settingsCard::-webkit-scrollbar-button,
+.activityList::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.page::-webkit-scrollbar-track,
+.documentList::-webkit-scrollbar-track,
+.accountSection .settingsGrid::-webkit-scrollbar-track,
+.settingsCard::-webkit-scrollbar-track,
+.activityList::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgb(99 87 169 / 0.07);
+}
+
+.page::-webkit-scrollbar-thumb,
+.documentList::-webkit-scrollbar-thumb,
+.accountSection .settingsGrid::-webkit-scrollbar-thumb,
+.settingsCard::-webkit-scrollbar-thumb,
+.activityList::-webkit-scrollbar-thumb {
+  min-height: 42px;
+  border: 1px solid rgb(255 255 255 / 0.48);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #8668d7 0%, #6556c4 48%, #5b8dd5 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.38),
+    0 2px 7px rgb(87 67 168 / 0.22);
+}
+
+.page::-webkit-scrollbar-thumb:hover,
+.documentList::-webkit-scrollbar-thumb:hover,
+.accountSection .settingsGrid::-webkit-scrollbar-thumb:hover,
+.settingsCard::-webkit-scrollbar-thumb:hover,
+.activityList::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #9477e2 0%, #705ed0 48%, #64a0e2 100%);
+}
+
+.page::-webkit-scrollbar-corner,
+.documentList::-webkit-scrollbar-corner,
+.accountSection .settingsGrid::-webkit-scrollbar-corner,
+.settingsCard::-webkit-scrollbar-corner,
+.activityList::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  .page,
+  .documentList,
+  .accountSection .settingsGrid,
+  .settingsCard,
+  .activityList {
+    scrollbar-color: #675ac7 rgb(99 87 169 / 0.07);
+    scrollbar-width: thin;
+  }
+}
+
 /* 맞춤 제도 프로필은 기존 회원정보 카드 체계를 유지하면서 전체 너비로 확장한다. */
 .accountSection .settingsGrid {
   grid-auto-rows: max-content;
@@ -2082,23 +2147,6 @@
   padding-right: 5px;
   overflow-x: hidden;
   overflow-y: auto;
-  scrollbar-color: #715bc1 rgb(107 91 169 / 0.07);
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
-}
-
-.accountSection .settingsGrid::-webkit-scrollbar {
-  width: 6px;
-}
-
-.accountSection .settingsGrid::-webkit-scrollbar-track {
-  border-radius: 999px;
-  background: rgb(107 91 169 / 0.07);
-}
-
-.accountSection .settingsGrid::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: linear-gradient(#735bc4, #668ed3);
 }
 
 .policyProfileCard {
@@ -2446,52 +2494,170 @@
 
 .headerMenuPopover {
   position: absolute;
-  top: 44px;
-  right: 0;
+  top: 49px;
+  right: -12px;
   z-index: 50;
   display: grid;
-  width: 176px;
-  gap: 5px;
-  padding: 8px;
+  width: 354px;
+  gap: 6px;
+  padding: 13px;
   border: 1px solid rgb(255 255 255 / 0.72);
-  border-radius: 16px;
+  border-radius: 20px;
   background:
-    linear-gradient(145deg, rgb(250 248 255 / 0.84), rgb(229 239 255 / 0.72)),
-    rgb(241 241 255 / 0.58);
+    radial-gradient(circle at 12% 4%, rgb(142 105 221 / 0.18), transparent 34%),
+    linear-gradient(145deg, rgb(250 248 255 / 0.92), rgb(229 239 255 / 0.84)),
+    rgb(241 241 255 / 0.78);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.92),
-    0 18px 40px rgb(55 43 117 / 0.18);
+    0 24px 54px rgb(55 43 117 / 0.24);
   -webkit-backdrop-filter: blur(24px) saturate(150%);
   backdrop-filter: blur(24px) saturate(150%);
   animation: headerMenuEnter 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.headerMenuPopover button {
+.headerMenuHeading {
   display: flex;
-  min-height: 38px;
-  align-items: center;
-  gap: 9px;
-  padding: 0 11px;
-  border: 0;
-  border-radius: 11px;
-  color: #4b426f;
-  background: transparent;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 650;
-  cursor: pointer;
-  transition: color 150ms ease, background 150ms ease, transform 150ms ease;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 3px 5px 7px;
 }
 
-.headerMenuPopover button:hover {
+.headerMenuHeading span,
+.headerMenuHeading strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #71688f;
+  font-size: 10.5px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.12em;
+}
+
+.headerMenuHeading span svg {
+  width: 14px;
+  height: 14px;
+}
+
+.headerMenuGroupLabel {
+  padding: 3px 8px 1px;
+  color: #827a9d;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+button.headerMenuItem {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  min-height: 50px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 14px;
+  color: #4b426f;
+  background: rgb(255 255 255 / 0.3);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: color 150ms ease, background 150ms ease, filter 150ms ease, transform 150ms ease;
+}
+
+button.headerMenuItem:hover,
+button.headerMenuItem:focus-visible,
+button.headerMenuItemActive {
   color: #4f3e9d;
-  background: linear-gradient(110deg, rgb(120 91 211 / 0.13), rgb(92 151 220 / 0.1));
+  background:
+    linear-gradient(110deg, rgb(120 91 211 / 0.15), rgb(92 151 220 / 0.12)),
+    rgb(255 255 255 / 0.38);
+  filter: brightness(1.02);
   transform: translateX(2px);
 }
 
-.headerMenuPopover svg {
+button.headerMenuItem:focus-visible {
+  outline: 2px solid rgb(103 82 190 / 0.62);
+  outline-offset: 1px;
+}
+
+button.headerMenuItem:active {
+  transform: translateX(2px) scale(0.985);
+}
+
+button.headerMenuItem:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.headerMenuItemIcon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 0.66);
+  border-radius: 13px;
+  color: #6653b8;
+  background: linear-gradient(145deg, rgb(118 91 207 / 0.15), rgb(101 148 219 / 0.14));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.72);
+}
+
+.headerMenuItemIcon svg {
   width: 18px;
   height: 18px;
+}
+
+.headerMenuItem > span:last-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.headerMenuItem strong {
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.25;
+}
+
+.headerMenuItem small {
+  overflow: hidden;
+  color: #817a9b;
+  font-size: 10.5px;
+  font-weight: 590;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.headerMenuDivider {
+  height: 1px;
+  margin: 4px;
+  background: linear-gradient(90deg, transparent, rgb(103 87 176 / 0.2), transparent);
+}
+
+.headerMenuNotice {
+  margin: 2px 0 0;
+  padding: 9px 11px;
+  border: 1px solid rgb(104 91 181 / 0.14);
+  border-radius: 12px;
+  color: #5f53a6;
+  background: linear-gradient(110deg, rgb(121 97 205 / 0.11), rgb(91 150 216 / 0.09));
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.headerMenuNoticeError {
+  color: #9e476c;
+  border-color: rgb(180 76 118 / 0.18);
+  background: rgb(255 235 244 / 0.62);
+}
+
+.headerIconButtonActive {
+  color: var(--accent-deep);
+  border-color: rgb(126 91 183 / 0.42);
+  background: linear-gradient(145deg, rgb(255 255 255 / 0.9), rgb(230 221 255 / 0.66));
 }
 
 .profileRail {
@@ -3030,25 +3196,6 @@
   background:
     linear-gradient(145deg, rgb(255 255 255 / 0.64), rgb(243 241 255 / 0.42)),
     rgb(255 255 255 / 0.28);
-  scrollbar-color: #715bc1 rgb(107 91 169 / 0.07);
-  scrollbar-width: thin;
-}
-
-.settingsCard::-webkit-scrollbar,
-.activityList::-webkit-scrollbar {
-  width: 5px;
-}
-
-.settingsCard::-webkit-scrollbar-track,
-.activityList::-webkit-scrollbar-track {
-  border-radius: 999px;
-  background: rgb(107 91 169 / 0.07);
-}
-
-.settingsCard::-webkit-scrollbar-thumb,
-.activityList::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: linear-gradient(#735bc4, #668ed3);
 }
 
 .settingsCardHeading {
@@ -3373,8 +3520,6 @@
   padding: 0;
   overflow-y: auto;
   list-style: none;
-  scrollbar-color: #715bc1 rgb(107 91 169 / 0.07);
-  scrollbar-width: thin;
 }
 
 .activityList li {
