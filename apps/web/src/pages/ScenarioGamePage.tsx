@@ -144,6 +144,17 @@ const DEFAULT_SCENARIO_SLUG =
   import.meta.env.VITE_SCENARIO_SLUG?.trim() ||
   "kts-03";
 
+const SCENARIO_MAP_IMAGES: Readonly<Record<string, string>> = {
+  "kts-03": `${API_BASE_URL}/maps/kts-03/kts-03.png`,
+  "sns-01": `${API_BASE_URL}/maps/sns-01/sns-01.png`,
+};
+
+function mapImageForScenario(slug: string) {
+  return SCENARIO_MAP_IMAGES[slug] ?? DEFAULT_SCENARIO_MAP_IMAGE;
+}
+
+const INITIAL_SCENARIO_MAP_IMAGE = mapImageForScenario(DEFAULT_SCENARIO_SLUG);
+
 // 1:1 상담에서 "체험하기"로 진입할 때만 실려온다 — 있어야 체험 완주를 그 상담의 최종
 // 리포트에 반영할 수 있다(없으면 상담 없이 들어온 것이므로 리포트 생성을 건너뜀).
 const CONSULTATION_ID_PARAM = new URLSearchParams(window.location.search).get("consultationId");
@@ -170,7 +181,9 @@ async function resumeOrCreate(slug: string): Promise<Simulation> {
   if (saved) {
     try {
       const sim = await fetchSimulation(saved);
-      if (sim.status === "active") return sim; // 진행 중이면 이어받는다
+      // 선택한 시나리오와 같은 세션만 이어받는다. 테스트 중 저장 키가 섞여도
+      // 다른 직무의 미션·미니게임·맵을 잘못 재개하지 않게 한다.
+      if (sim.status === "active" && sim.scenario_slug === slug) return sim;
     } catch {
       /* 없거나 남의 것 → 새로 만든다 */
     }
@@ -252,7 +265,7 @@ export function ScenarioGamePage() {
   const [dialogueHistory, setDialogueHistory] = useState<DialogueHistoryEntry[]>([]);
   const dialogueSequenceRef = useRef(0);
   const [chatNpcId, setChatNpcId] = useState<string | null>(null); // 대화 상대(마커 클릭). null=미션 담당 NPC
-  const [mapImage, setMapImage] = useState<string>(DEFAULT_SCENARIO_MAP_IMAGE);
+  const [mapImage, setMapImage] = useState<string>(INITIAL_SCENARIO_MAP_IMAGE);
   // 미달할수록 깊어지는 조언 카드 — 스텝(또는 퀘스트)당 누적, 힌트 패널에 쌓인다.
   const [adviceCards, setAdviceCards] = useState<AdviceCard[]>([]);
   // 미션 통과 후 AI 코치 사후 리뷰 (근거 기반 카드)
@@ -543,6 +556,8 @@ export function ScenarioGamePage() {
       setScenarioTitle(sim.scenario_title);
       setStepIds(sim.step_ids ?? []);
       setCoachMessage(approachGuide(sim.step, sim.npcs));
+      const scenarioMapFallback = mapImageForScenario(sim.scenario_slug);
+      setMapImage(scenarioMapFallback);
       // 플레이어 시작 위치 = geometry의 player spawn(발밑 기준). geometry는 스테이지 좌표라 walkable 원점만큼 뺀다.
       const origin = sim.map?.geometry?.walkable?.[0];
       const playerSpawn = sim.map?.geometry?.spawns?.find((spot) => spot.id === "player");
@@ -552,13 +567,17 @@ export function ScenarioGamePage() {
           y: playerSpawn.y - origin.y - PLAYER_SIZE.height,
         });
       }
-      // 배경: 백엔드 맵 이미지가 실제로 로드되면 그것으로, 실패(미업로드 등)하면 기본 배경 유지
+      // 배경: 백엔드 맵 이미지가 실제로 로드되면 그것으로 교체한다.
+      // 로드 전·실패 시에도 선택한 시나리오의 고정 맵을 유지해 다른 직무 맵이 섞이지 않게 한다.
       const bg = sim.map?.background;
       if (bg) {
         const absolute = `${API_BASE_URL}${bg}`;
         const probe = new Image();
         probe.onload = () => {
           if (!cancelled) setMapImage(absolute);
+        };
+        probe.onerror = () => {
+          if (!cancelled) setMapImage(scenarioMapFallback);
         };
         probe.src = absolute;
       }
