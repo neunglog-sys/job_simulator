@@ -267,62 +267,147 @@ export function MovementArea({
     const timers: ReturnType<typeof setTimeout>[] = [];
     const intervals: ReturnType<typeof setInterval>[] = [];
 
+    // path.points는 spawns와 같은 스테이지 좌표(마커 중심) — collidesAt과 같은 규약
+    // (PLAYER_SIZE 박스 좌상단, origin 뺀 로컬)으로 오가려면 반씩 보정해야 한다.
+    const toLocal = (p: Position): Position => ({
+      x: p.x - origin.x - PLAYER_SIZE.width / 2,
+      y: p.y - origin.y - PLAYER_SIZE.height / 2,
+    });
+    // collidesAt(발밑 박스+폴리곤)과 동일 판정 — 이 effect는 그 콜백보다 먼저 선언돼 deps에
+    // 넣을 수 없다(TDZ). collisions/collisionPolys는 더 앞서 선언되어 안전하니 직접 들고 온다.
+    const collidesLocal = (p: Position) => {
+      const footX = p.x + (PLAYER_SIZE.width - FOOT_WIDTH) / 2;
+      const footY = p.y + PLAYER_SIZE.height - FOOT_HEIGHT;
+      if (
+        collisions.some(
+          (c) => footX < c.x + c.w && footX + FOOT_WIDTH > c.x && footY < c.y + c.h && footY + FOOT_HEIGHT > c.y,
+        )
+      ) {
+        return true;
+      }
+      if (collisionPolys.length === 0) return false;
+      const probes: Array<[number, number]> = [
+        [footX, footY],
+        [footX + FOOT_WIDTH, footY],
+        [footX, footY + FOOT_HEIGHT],
+        [footX + FOOT_WIDTH, footY + FOOT_HEIGHT],
+        [footX + FOOT_WIDTH / 2, footY + FOOT_HEIGHT / 2],
+      ];
+      return collisionPolys.some((poly) =>
+        probes.some(([px, py]) => {
+          let inside = false;
+          for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+            const [xi, yi] = poly[i];
+            const [xj, yj] = poly[j];
+            if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
+          }
+          return inside;
+        }),
+      );
+    };
+    // 목표까지 직선 경로 전체를 훑는다(8px 간격) — 앰비언트 로밍(NPC 상하좌우 걸음)의
+    // pathClear와 동일한 방식. 한 곳이라도 막히면 이 걸음은 못 딛는다.
+    const pathClear = (a: Position, b: Position) => {
+      const dist = Math.hypot(b.x - a.x, b.y - a.y);
+      const stepsN = Math.max(1, Math.ceil(dist / 8));
+      for (let i = 1; i <= stepsN; i++) {
+        const t = i / stepsN;
+        if (collidesLocal({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t })) return false;
+      }
+      return true;
+    };
+    // 한 걸음(hop) 거리 — 유저 이동 속도(MOVE_SPEED)와 실제 체감 속도가 같아지도록,
+    // 마커 transition 길이(ROAM_HOP_MS, 다른 로밍 NPC와 동일)만큼 그 속도로 걸을 거리로 잡는다.
+    const HOP_DIST = MOVE_SPEED * (ROAM_HOP_MS / 1000);
+
     for (const path of paths) {
       if (path.points.length < 2) continue;
       const npcId = path.npc_id;
-      const speed = path.speed ?? 60;
       const pauseMs = path.pause_ms ?? 1500;
       const from = path.points[0];
       const to = path.points[1];
       setPatrolTargets((prev) => ({ ...prev, [npcId]: from }));
 
+      const startNudge = () => {
+        // 안내 도착 — prompt가 있으면 플레이어가 안 따라오면 주기적으로 말을 건다.
+        if (!path.prompt) return;
+        const radius = path.nudge_radius ?? 240;
+        const intervalMs = path.nudge_interval_ms ?? 6000;
+        const maxNudges = path.nudge_max ?? 3;
+        const targetLocalX = to.x - origin.x;
+        const targetLocalY = to.y - origin.y;
+        let count = 0;
+        const timer = setInterval(() => {
+          if (guideNpcIdRef.current === npcId) return; // 지금 이 NPC가 투어 진행 중 — 넛지 보류
+          const p = livePositionRef.current;
+          const dist = Math.hypot(
+            p.x + PLAYER_SIZE.width / 2 - targetLocalX,
+            p.y + PLAYER_SIZE.height / 2 - targetLocalY,
+          );
+          if (dist <= radius) {
+            clearInterval(timer);
+            return;
+          }
+          count += 1;
+          onCoachMessage(path.prompt as string);
+          if (count >= maxNudges) clearInterval(timer);
+        }, intervalMs);
+        intervals.push(timer);
+      };
+
       timers.push(
         setTimeout(() => {
-          const dx = to.x - from.x;
-          const dy = to.y - from.y;
-          setPatrolFacing((prev) => ({
-            ...prev,
-            [npcId]:
-              Math.abs(dx) >= Math.abs(dy)
-                ? dx > 0
-                  ? "screen_right"
-                  : "screen_left"
-                : dy > 0
-                  ? "front"
-                  : "back",
-          }));
-          setPatrolWalking((prev) => ({ ...prev, [npcId]: true }));
-          setPatrolTargets((prev) => ({ ...prev, [npcId]: to }));
-          const travelMs = Math.max(300, (Math.hypot(dx, dy) / speed) * 1000);
-          timers.push(
-            setTimeout(() => {
-              setPatrolWalking((prev) => ({ ...prev, [npcId]: false }));
-              // 안내 도착 — prompt가 있으면 플레이어가 안 따라올 때 주기적으로 말을 건다.
-              if (!path.prompt) return;
-              const radius = path.nudge_radius ?? 240;
-              const intervalMs = path.nudge_interval_ms ?? 6000;
-              const maxNudges = path.nudge_max ?? 3;
-              const targetLocalX = to.x - origin.x;
-              const targetLocalY = to.y - origin.y;
-              let count = 0;
-              const timer = setInterval(() => {
-                if (guideNpcIdRef.current === npcId) return; // 지금 이 NPC가 투어 진행 중 — 넛지 보류
-                const p = livePositionRef.current;
-                const dist = Math.hypot(
-                  p.x + PLAYER_SIZE.width / 2 - targetLocalX,
-                  p.y + PLAYER_SIZE.height / 2 - targetLocalY,
-                );
-                if (dist <= radius) {
-                  clearInterval(timer);
-                  return;
-                }
-                count += 1;
-                onCoachMessage(path.prompt as string);
-                if (count >= maxNudges) clearInterval(timer);
-              }, intervalMs);
-              intervals.push(timer);
-            }, travelMs),
-          );
+          let last = { x: from.x, y: from.y }; // 스테이지 좌표 기준 현재 위치
+          let stuck = 0;
+          let arrived = false;
+          let hopTimer: ReturnType<typeof setInterval> | null = null;
+
+          const arrive = () => {
+            arrived = true;
+            if (hopTimer) clearInterval(hopTimer);
+            setPatrolTargets((prev) => ({ ...prev, [npcId]: to }));
+            setPatrolWalking((prev) => ({ ...prev, [npcId]: false }));
+            startNudge();
+          };
+
+          const step = () => {
+            if (arrived) return;
+            const gdx = to.x - last.x;
+            const gdy = to.y - last.y;
+            if (Math.abs(gdx) + Math.abs(gdy) < 6) {
+              arrive();
+              return;
+            }
+            // 대각선 금지: 남은 거리가 큰 축부터 시도, 막히면 다른 축(다른 로밍 NPC와 동일 규칙).
+            const toward: Array<[number, number]> =
+              Math.abs(gdx) >= Math.abs(gdy)
+                ? [[Math.sign(gdx), 0], [0, Math.sign(gdy)]]
+                : [[0, Math.sign(gdy)], [Math.sign(gdx), 0]];
+            for (const [dx0, dy0] of toward) {
+              if (dx0 === 0 && dy0 === 0) continue;
+              const rem = dx0 !== 0 ? Math.abs(gdx) : Math.abs(gdy);
+              const dist = Math.min(HOP_DIST, rem);
+              const target = { x: last.x + dx0 * dist, y: last.y + dy0 * dist };
+              if (!pathClear(toLocal(last), toLocal(target))) continue;
+              setPatrolFacing((prev) => ({
+                ...prev,
+                [npcId]: dx0 !== 0 ? (dx0 > 0 ? "screen_right" : "screen_left") : dy0 > 0 ? "front" : "back",
+              }));
+              setPatrolWalking((prev) => (prev[npcId] ? prev : { ...prev, [npcId]: true }));
+              setPatrolTargets((prev) => ({ ...prev, [npcId]: target }));
+              last = target;
+              stuck = 0;
+              return;
+            }
+            // 두 축 다 막힘 — 몇 번 재시도해도 안 되면 포기하고 그 자리에서 넛지로 안내.
+            if (++stuck > 4) arrive();
+          };
+
+          step();
+          if (!arrived) {
+            hopTimer = setInterval(step, ROAM_HOP_MS);
+            intervals.push(hopTimer);
+          }
         }, pauseMs),
       );
     }
@@ -331,7 +416,7 @@ export function MovementArea({
       timers.forEach(clearTimeout);
       intervals.forEach(clearInterval);
     };
-  }, [geometry, origin, onCoachMessage]);
+  }, [geometry, origin, collisions, collisionPolys, onCoachMessage]);
 
   // 투어 중인 사수의 진행 방향 — 좌표 변화의 지배 축으로 판정해 스프라이트가 걷는 쪽을 본다.
   // ref에 이전 좌표와 함께 저장: 좌표가 실제로 바뀐 렌더에서만 갱신 (StrictMode 이중 렌더 안전).
@@ -636,6 +721,7 @@ export function MovementArea({
         n.spawn &&
         byId.has(n.spawn) &&
         !guidedIds.has(n.npc_id) &&
+        n.npc_id !== activeNpcId && // 지금 미션을 준 NPC는 자리를 지켜야 찾아갈 수 있다(사용자: "찾아가야하고")
         (roamAll || /고객|손님|컨슈머/.test(n.role)),
     );
     if (roamers.length === 0) return;
@@ -755,7 +841,7 @@ export function MovementArea({
       timers.forEach(clearTimeout);
       intervals.forEach(clearInterval);
     };
-  }, [geometry, npcs, origin, collidesAt, clampPosition]);
+  }, [geometry, npcs, origin, activeNpcId, collidesAt, clampPosition]);
 
   // 이동 키는 window에서 받는다 — 이동영역 div에 포커스가 있어야만 동작하던 탓에
   // '맵을 한 번 클릭해야 키보드가 먹고, 채팅창에 타이핑하면 다시 먹통'이 됐다.
