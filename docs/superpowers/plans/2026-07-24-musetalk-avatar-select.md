@@ -247,7 +247,8 @@ Expected: 새 커밋 1개 생성, `git status --short`에 이 두 파일 안 보
 
 **Files:**
 - Create: `avatar/패치_아바타선택_20260724.py`
-- Test: 스크립트 자체가 assert 기반 자체 검증을 한다(아래 Step 2에서 설명). 스크래치 사본에 대해 실행해 검증하며, **이 태스크는 실제 노트북을 건드리지 않는다.**
+- Create: `avatar/_test_resolve_persona.py`
+- Test: 두 층위로 검증한다 — ① `_test_resolve_persona.py`가 결정 로직(우선순위·별칭·폴백)을 행위 테스트하고(Step 2), ② 패치 스크립트 자체는 앵커 매칭 assert + 문법 검사로 "패치가 정확히 적용됐는지"를 검증한다(Step 3-5). **이 태스크는 실제 노트북을 건드리지 않는다.**
 
 **Interfaces:**
 - Consumes: 없음(독립 실행 스크립트).
@@ -476,7 +477,74 @@ if __name__ == "__main__":
     patch_notebook(sys.argv[1])
 ```
 
-- [ ] **Step 2: 스크래치 사본에 대해 드라이런**
+- [ ] **Step 2: `resolve_persona()` 결정 로직 자체를 행위 테스트로 검증 (torch 불필요)**
+
+Step 1의 스크립트는 "패치가 정확히 적용됐는지"만 검증한다(`count(old) == 1` assert). **`resolve_persona()`가 실제로 옳은 결정을 내리는지**(우선순위, 별칭, 폴백)는 별도로 검증해야 한다. 이 함수는 `PERSONA_MAP`/`AVATAR_ALIASES`/`DEFAULT_AVATAR_ID`만 참조하고 torch/musetalk을 import하지 않으므로, Colab 없이 순수 파이썬으로 뗴어내 테스트할 수 있다.
+
+Create `avatar/_test_resolve_persona.py`:
+
+```python
+"""resolve_persona()의 결정 로직만 독립 실행해 검증한다 (torch/musetalk import 없음).
+
+노트북 셀은 GPU 런타임에서만 통째로 실행 가능해 일반적인 pytest 대상이 될 수 없다.
+대신 순수 결정 로직(우선순위·별칭·폴백)만 로직 블록으로 떼어 실행 검증한다.
+아래 LOGIC 문자열은 avatar/패치_아바타선택_20260724.py의 EDITS[0] 안 resolve_persona
+정의와 동일한 알고리즘이어야 한다 — 그 스크립트를 수정하면 여기도 같이 확인할 것.
+"""
+
+LOGIC = '''
+DEFAULT_AVATAR_ID = "male"
+AVATAR_ALIASES = {"coach": "male"}
+
+PERSONA_MAP = {
+    "male": {"video_path": "m.mp4", "voice_id": "vm", "ready": True},
+    "female": {"video_path": "f.mp4", "voice_id": "vf", "ready": False},
+}
+
+
+def resolve_persona(req):
+    raw = req.get("avatar_id") or req.get("speaker_id") or DEFAULT_AVATAR_ID
+    aid = AVATAR_ALIASES.get(raw, raw)
+    persona = PERSONA_MAP.get(aid)
+    if persona is None or not persona.get("ready"):
+        aid = DEFAULT_AVATAR_ID
+        persona = PERSONA_MAP[aid]
+    return aid, persona
+'''
+
+ns = {}
+exec(LOGIC, ns)
+resolve_persona = ns["resolve_persona"]
+PERSONA_MAP = ns["PERSONA_MAP"]
+
+CASES = [
+    ("avatar_id=male, ready", {"avatar_id": "male"}, "male"),
+    ("avatar_id=female, 미준비 -> male 폴백", {"avatar_id": "female"}, "male"),
+    ("speaker_id=coach(별칭) -> male", {"speaker_id": "coach"}, "male"),
+    ("아무 키도 없음 -> 기본 male", {}, "male"),
+    ("avatar_id=bogus -> male 폴백", {"avatar_id": "bogus"}, "male"),
+    ("avatar_id 우선, speaker_id 무시", {"avatar_id": "male", "speaker_id": "coach"}, "male"),
+]
+
+if __name__ == "__main__":
+    for name, req, expected in CASES:
+        aid, persona = resolve_persona(req)
+        assert aid == expected, f"FAIL [{name}]: got {aid}, expected {expected}"
+        assert persona is PERSONA_MAP[aid]
+        print(f"OK  {name} -> {aid}")
+
+    # female이 ready=True로 바뀌면 실제로 선택되는지 (폴백이 아니라 진짜 전환인지 확인)
+    PERSONA_MAP["female"]["ready"] = True
+    aid, persona = resolve_persona({"avatar_id": "female"})
+    assert aid == "female", f"FAIL: female ready인데 폴백됨 -> {aid}"
+    print("OK  avatar_id=female, ready -> female (실제 전환 확인)")
+    print("\n✅ 전부 통과 (7/7)")
+```
+
+Run: `python avatar/_test_resolve_persona.py`
+Expected: 7개의 `OK` 라인 + `✅ 전부 통과 (7/7)`. 하나라도 AssertionError가 나면 이후 스텝(스크래치 드라이런)으로 넘어가지 말고 로직을 다시 확인한다.
+
+- [ ] **Step 3: 스크래치 사본에 대해 드라이런**
 
 ```bash
 cd "c:/JMS/프로젝트/3_project/avatar"
@@ -504,7 +572,7 @@ Expected 출력(8개 적용 로그 + 검증 완료):
 
 만약 "패치 실패 — ... 앵커가 N번 매치됨"이 뜨면: 노트북이 이 계획 작성 시점(2026-07-24) 이후 다른 손을 탔다는 뜻이다. 실패 메시지가 가리키는 앵커 이름의 코드를 노트북에서 직접 확인하고, `EDITS`의 OLD 문자열을 실제 코드에 맞게 고친 뒤 다시 실행한다. **절대 assert를 우회하거나 old를 억지로 맞추지 말 것** — 실제 코드와 다른 곳을 바꾸는 사고를 막기 위한 안전장치다.
 
-- [ ] **Step 3: 패치된 스크래치 사본의 서버 셀 문법 검사**
+- [ ] **Step 4: 패치된 스크래치 사본의 서버 셀 문법 검사**
 
 ```bash
 python -c "
@@ -522,7 +590,7 @@ echo "exit=$?"
 
 Expected: `exit=0`, 에러 출력 없음.
 
-- [ ] **Step 4: 새 마커가 정확한 위치에 들어갔는지 확인**
+- [ ] **Step 5: 새 마커가 정확한 위치에 들어갔는지 확인**
 
 ```bash
 grep -n "resolve_persona\|AVATAR_ALIASES\|personas_missing\|DEFAULT_AVATAR_ID\|avatar_id" _dryrun_cell_body.py
@@ -530,7 +598,7 @@ grep -n "resolve_persona\|AVATAR_ALIASES\|personas_missing\|DEFAULT_AVATAR_ID\|a
 
 Expected: `resolve_persona` 정의 1곳 + 호출 3곳(총 4), `AVATAR_ALIASES` 2곳(정의+참조), `personas_missing` 1곳, `DEFAULT_AVATAR_ID` 여러 곳 — 앞서 Step 2에서 로컬로 검증했을 때와 동일한 개수(정의 1 + 참조 다수)가 나와야 한다.
 
-- [ ] **Step 5: 드라이런 산출물 정리**
+- [ ] **Step 6: 드라이런 산출물 정리**
 
 ```bash
 rm -f "./_dryrun_notebook.ipynb" "./_dryrun_notebook.ipynb".bak-* "_dryrun_cell_body.py"
@@ -558,7 +626,7 @@ cd "c:/JMS/프로젝트/3_project/avatar"
 python 패치_아바타선택_20260724.py "/g/내 드라이브/JOBIVERSE/JOBIVERSE_MuseTalk_ElevenLabs_A100_Stream_v2_2.ipynb"
 ```
 
-Expected: Task 2 Step 2와 동일한 8줄의 "적용됨:" 로그 + "검증 완료" 출력. 그리고 `G:\내 드라이브\JOBIVERSE\` 안에 `JOBIVERSE_MuseTalk_ElevenLabs_A100_Stream_v2_2.ipynb.bak-<타임스탬프>` 백업 파일이 새로 생겼는지 확인한다(이게 되돌릴 지점 — git commit이 없는 자리를 대신한다).
+Expected: Task 2 Step 3과 동일한 8줄의 "적용됨:" 로그 + "검증 완료" 출력. 그리고 `G:\내 드라이브\JOBIVERSE\` 안에 `JOBIVERSE_MuseTalk_ElevenLabs_A100_Stream_v2_2.ipynb.bak-<타임스탬프>` 백업 파일이 새로 생겼는지 확인한다(이게 되돌릴 지점 — git commit이 없는 자리를 대신한다).
 
 - [ ] **Step 2: (여성 영상 없는 상태) Colab에서 서버 기동 확인**
 
@@ -656,3 +724,4 @@ Expected: 페르소나 캐시가 1개(여성) 늘어도(+약 2.7GB) 여유 공�
 1. **스펙 커버리지**: 스펙 §1(계약)→Task1 Step1-2,6 / §2(페르소나 정의)→Task2 Edit1 / §3(관대한 등록)→Task2 Edit2 / §4(조회 헬퍼 통일)→Task2 Edit5-7 / §5(관측성)→Task2 Edit3,7(WS metrics) / §6(프론트 3곳)→Task1 / §검증계획 1-5→Task3 Step2-6. 전부 매핑됨.
 2. **플레이스홀더**: 없음 — 모든 코드 블록이 실행 가능한 완전한 코드. Step 6(여성 에셋 도착 대기)만 "나중에"이지만 이는 실제 외부 의존성이지 미완성 계획이 아님.
 3. **타입/이름 일관성**: `resolve_persona(req: dict) -> tuple[str, dict]` — Task2에서 정의, Task2/3의 3개 호출부 모두 동일 시그니처로 소비. `resolveAvatarId(): "male" | "female"` — Task1에서 정의 즉시 사용, 이름 불일치 없음.
+4. **행위 테스트 추가**(pre-flight 스캔에서 발견·보완): 원래 Task2는 "패치가 적용됐는지"만 검증했고 `resolve_persona()`의 판단 로직 자체(우선순위·별칭·미준비 폴백)는 검증하지 않았다. torch/musetalk 없이 순수 로직만 실행하는 `_test_resolve_persona.py`(Step 2)를 추가했다 — 7개 케이스로 실제 실행 검증 완료(male 우선/female 미준비 폴백/coach 별칭/키 없음/bogus 값/avatar_id 우선순위/female ready 시 실제 전환).
