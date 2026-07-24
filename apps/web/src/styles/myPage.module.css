@@ -2075,6 +2075,235 @@
   }
 }
 
+/* 맞춤 제도 프로필은 기존 회원정보 카드 체계를 유지하면서 전체 너비로 확장한다. */
+.accountSection .settingsGrid {
+  grid-auto-rows: max-content;
+  align-content: start;
+  padding-right: 5px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-color: #715bc1 rgb(107 91 169 / 0.07);
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.accountSection .settingsGrid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.accountSection .settingsGrid::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgb(107 91 169 / 0.07);
+}
+
+.accountSection .settingsGrid::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(#735bc4, #668ed3);
+}
+
+.policyProfileCard {
+  grid-column: 1 / -1;
+  min-height: 344px;
+}
+
+.policyProfileFields {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.72fr) minmax(150px, 0.72fr) minmax(210px, 1.18fr) minmax(190px, 1fr);
+  gap: 12px;
+}
+
+.formField select {
+  width: 100%;
+  height: 42px;
+  padding: 0 36px 0 13px;
+  border: 1px solid rgb(105 88 179 / 0.2);
+  border-radius: 12px;
+  outline: none;
+  color: #393267;
+  background-color: rgb(255 255 255 / 0.58);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.formField select:focus {
+  border-color: rgb(109 82 199 / 0.55);
+  background-color: rgb(255 255 255 / 0.82);
+  box-shadow: 0 0 0 3px rgb(111 82 202 / 0.09);
+}
+
+.formField input:disabled,
+.formField select:disabled {
+  color: #8e88a6;
+  background-color: rgb(237 235 247 / 0.56);
+  cursor: not-allowed;
+}
+
+.policyProfileFeedback {
+  min-height: 28px;
+  margin: -6px 0 8px;
+}
+
+.policyProfileFeedback p {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 5px 9px;
+  border: 1px solid rgb(255 255 255 / 0.66);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.42);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.policyProfileFeedback svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
+.policyProfileLoading {
+  display: flex;
+  min-height: 210px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: #665d8d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.policySensitivePanel {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.78fr) minmax(0, 2.22fr);
+  gap: 14px;
+  align-items: stretch;
+  margin-top: 1px;
+}
+
+.policySensitivePanel .formField {
+  margin-bottom: 0;
+}
+
+.policyConsent {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  min-height: 72px;
+  padding: 12px 14px;
+  border: 1px solid rgb(111 87 194 / 0.16);
+  border-radius: 14px;
+  color: #48406e;
+  background:
+    linear-gradient(130deg, rgb(255 255 255 / 0.58), rgb(235 232 255 / 0.42)),
+    rgb(255 255 255 / 0.28);
+  cursor: pointer;
+}
+
+.policyConsent input {
+  width: 17px;
+  height: 17px;
+  margin: 2px 0 0;
+  accent-color: #7056c9;
+  cursor: pointer;
+}
+
+.policyConsent > span {
+  display: grid;
+  gap: 4px;
+}
+
+.policyConsent strong {
+  color: #443b6e;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.policyConsent small {
+  color: #7d7698;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.policyConsentDisabled {
+  opacity: 0.62;
+  cursor: default;
+}
+
+.policyConsentDisabled input {
+  cursor: default;
+}
+
+.policyProfileActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.policyProfileActions > small {
+  color: #817a9c;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.policyProfileActions .primaryAction {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+
+@media (max-width: 1199px) {
+  .policyProfileFields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .formField select {
+    height: 38px;
+  }
+
+  .policySensitivePanel {
+    grid-template-columns: minmax(170px, 0.8fr) minmax(0, 2.2fr);
+  }
+}
+
+@media (max-width: 1050px) {
+  .policyProfileCard {
+    overflow: visible;
+  }
+}
+
+@media (max-width: 720px) {
+  .policyProfileFields,
+  .policySensitivePanel {
+    grid-template-columns: 1fr;
+  }
+
+  .policyProfileActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .policyProfileActions .primaryAction {
+    width: 100%;
+    align-self: stretch;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .formField select,
+  .policyConsent,
+  .policyProfileFeedback p {
+    background: #f6f6ff;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
 /* Header, profile orbit, and liquid-glass refinement */
 .topBar {
   z-index: 20;
