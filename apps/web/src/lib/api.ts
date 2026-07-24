@@ -715,6 +715,8 @@ export type MuseTalkSpeakRequest = {
   text: string;
   voice?: string | null;
   speaker_id?: string;
+  /** 남/여 아바타 선택. 미지정 시 서버 기본(male)로 진행. */
+  avatar_id?: "male" | "female";
   gesture_index?: number;
   /** 한 답변을 묶는 식별자. 문장 단위로 쪼개진 청크들이 같은 값을 공유한다. */
   session_id?: string;
@@ -768,7 +770,9 @@ export function generateMuseTalkBlob(
     socket.binaryType = "arraybuffer";
     socket.onopen = () => {
       console.info("[MuseTalk]", "prefetch_ws_open", request);
-      socket.send(JSON.stringify({ speaker_id: "coach", emotion: "neutral", ...request }));
+      socket.send(
+        JSON.stringify({ speaker_id: "coach", avatar_id: "male", emotion: "neutral", ...request })
+      );
     };
     socket.onmessage = (event) => {
       if (typeof event.data === "string") {
