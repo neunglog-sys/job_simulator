@@ -45,7 +45,7 @@ type GameObject = {
 type Rect = { x: number; y: number; w: number; h: number };
 type NpcMarker = { npc_id: string; name: string; x: number; y: number; isActive: boolean };
 
-const MOVE_STEP = 18;             // 클릭 이동의 경로 샘플링 간격
+const MOVE_STEP = 18;             // 키보드 방향키 한 번 입력의 기준 크기(부호만 프레임 루프에서 사용)
 const MOVE_SPEED = 260;           // 키보드 이동 속도 (px/초) — 프레임 루프 기준
 // 화면 확대 배율 (팀 확정 2026-07-20). 배경·NPC·플레이어가 같은 world 래퍼 안에서
 // 함께 확대되고, 카메라가 플레이어를 따라가며 맵 밖으로는 나가지 않게 clamp된다.
@@ -164,6 +164,10 @@ export function MovementArea({
   // 지금 눌려 있는 이동 키 — 누른 순서대로 보관한다(마지막 것이 유효).
   // 프레임 루프가 매 프레임 읽는다 (리렌더 유발 안 함).
   const heldKeysRef = useRef<string[]>([]);
+  // 클릭 이동 목적지 — 프레임 루프가 매 프레임 한 걸음씩 다가간다(즉시 점프하지 않는다).
+  // 대각선 클릭 이동이 예전엔 경로를 미리 계산해 한 번에 그 자리로 '점프'해서, 대각선으로
+  // 멀리 찍으면 순간이동처럼 보였다. 키보드와 같은 프레임 루프를 타면 자연히 애니메이션된다.
+  const walkTargetRef = useRef<Position | null>(null);
 
   // geometry 좌표계(스테이지 1920×1080)의 원점 = walkable 영역의 좌상단. movementArea 로컬좌표 = (x-origin).
   const origin = useMemo(() => {
@@ -547,6 +551,19 @@ export function MovementArea({
         const c = clampPosition({ x, y });
         return collidesAt(c) ? null : c;
       };
+      // 어시스트 두 다리(수직 밀기, 이어지는 전진)의 양 끝점만 비어 있는지 보면, 벽 모서리 두 개가
+      // 맞물린 자리에서 발판박스가 대각선으로 파고들어 통과할 수 있다(끝점은 둘 다 안 겹쳐도
+      // 그 사이 직선 경로는 모서리를 스친다) — 책상·기둥 안쪽에 끼여 못 나오던 원인.
+      // 경로를 잘게 훑어서(4px 간격) 진짜로 안 막힌 통로일 때만 어시스트를 허용한다.
+      const pathClear = (x0: number, y0: number, x1: number, y1: number) => {
+        const dist = Math.hypot(x1 - x0, y1 - y0);
+        const steps = Math.max(1, Math.ceil(dist / 4));
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          if (collidesAt({ x: x0 + (x1 - x0) * t, y: y0 + (y1 - y0) * t })) return false;
+        }
+        return true;
+      };
       const cur = { x: from.x, y: from.y };
       // 한 축 이동 — 막히면 진행 방향에 수직으로 살짝 밀어(코너 어시스트) 문/모서리로 미끄러진다.
       const slide = (dx: number, dy: number) => {
@@ -563,12 +580,13 @@ export function MovementArea({
             const py = dy === 0 ? s : 0;
             const shifted = freeAt(cur.x + px, cur.y + py);
             if (!shifted) continue;
+            if (!pathClear(cur.x, cur.y, shifted.x, shifted.y)) continue;
             const moved = freeAt(shifted.x + dx, shifted.y + dy);
-            if (moved) {
-              cur.x = moved.x;
-              cur.y = moved.y;
-              return;
-            }
+            if (!moved) continue;
+            if (!pathClear(shifted.x, shifted.y, moved.x, moved.y)) continue;
+            cur.x = moved.x;
+            cur.y = moved.y;
+            return;
           }
         }
       };
@@ -626,9 +644,28 @@ export function MovementArea({
       // 잔상이 두드러진다. 가장 마지막에 누른 방향 하나로만 걷는다(팀 결정).
       const held = heldKeysRef.current;
       const active = held.length ? MOVEMENT_KEYS[held[held.length - 1]] : undefined;
-      if (!active) return;
       const step = MOVE_SPEED * dt;
-      movePlayer(Math.sign(active.x) * step, Math.sign(active.y) * step);
+      if (active) {
+        walkTargetRef.current = null; // 키보드가 우선 — 클릭 이동 중이었다면 취소
+        movePlayer(Math.sign(active.x) * step, Math.sign(active.y) * step);
+        return;
+      }
+      // 클릭 이동: 목표 지점까지 매 프레임 한 걸음씩 다가간다(대각선도 자연스럽게 애니메이션됨).
+      const target = walkTargetRef.current;
+      if (!target) return;
+      const cur = positionRef.current;
+      const dx = target.x - cur.x;
+      const dy = target.y - cur.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 1) {
+        walkTargetRef.current = null;
+        return;
+      }
+      const hopStep = Math.min(dist, step);
+      movePlayer((dx / dist) * hopStep, (dy / dist) * hopStep);
+      if (positionRef.current.x === cur.x && positionRef.current.y === cur.y) {
+        walkTargetRef.current = null; // 더 못 감 — 막힌 지점까지 왔으니 멈춘다
+      }
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
@@ -653,21 +690,9 @@ export function MovementArea({
     // 클릭한 지점까지 '걸어간다' — 벽·집기를 뚫지 않되, 막혔다고 그 자리에 멈춰 서지도 않는다.
     // NPC는 책상 앞에 있어서 NPC를 누르면 목적지가 충돌 안이 되는데, 예전처럼 무시해 버리면
     // "눌러도 아무 일이 없다"가 된다(다가가려고 누른 건데). 갈 수 있는 데까지 이동한다.
-    const from = positionRef.current;
-    const steps = Math.max(1, Math.ceil(Math.hypot(target.x - from.x, target.y - from.y) / MOVE_STEP));
-    let reachable = from;
-    for (let i = 1; i <= steps; i++) {
-      const point = {
-        x: from.x + ((target.x - from.x) * i) / steps,
-        y: from.y + ((target.y - from.y) * i) / steps,
-      };
-      if (collidesAt(point)) break; // 처음 막히는 지점 직전까지만
-      reachable = point;
-    }
-    if (reachable !== from) {
-      onPositionChange(reachable);
-      notePlayerMove(reachable.x - from.x, reachable.y - from.y);
-    }
+    // 실제 이동은 프레임 루프가 매 프레임 한 걸음씩 수행한다(여기서 즉시 점프하면 대각선
+    // 클릭이 순간이동처럼 보인다 — 키보드처럼 애니메이션되도록 목표 지점만 넘겨준다).
+    walkTargetRef.current = target;
   };
 
   useEffect(() => {
