@@ -678,7 +678,8 @@ button.headerOrb:active {
 
 .playerName {
   position: absolute;
-  bottom: 0;
+  /* NPC와 마찬가지로 이름표를 머리 위에 — 발치에 두면 계산대·가구에 가려진다 */
+  bottom: calc(100% + 2px);
   left: 50%;
   min-width: 38px;
   padding: 4px 10px;
