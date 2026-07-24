@@ -106,6 +106,91 @@ def test_life_code_mapping_switches_at_midlife():
     assert codes.life_codes_for_age(47) == ["005"]
 
 
+def _youth(**over):
+    base = {
+        "plcyNm": "청년 취업지원",
+        "plcyExplnCn": "취업을 지원합니다",
+        # 시군구 정책은 기관명에 지역명이 들어간다(실측: "인천광역시 서해구 경제환경국 …")
+        "sprvsnInstCdNm": "경기도 양주시 일자리경제과",
+        "aplyUrlAddr": "https://example.test/y",
+        "sprtTrgtAgeLmtYn": "Y",
+        "sprtTrgtMinAge": "19",
+        "sprtTrgtMaxAge": "34",
+        "zipCd": "41630",
+    }
+    base.update(over)
+    return base
+
+
+def test_youth_age_outside_range_is_dropped():
+    assert _filter_youth_names(_youth(), age=47, ctpv="경기도", sgg="양주시") == []
+    assert _filter_youth_names(_youth(), age=30, ctpv="경기도", sgg="양주시") != []
+
+
+def test_youth_age_uses_values_not_the_broken_flag():
+    """sprtTrgtAgeLmtYn은 의미가 뒤집혀 있다(실측) — 플래그가 아니라 값으로 걸러야 한다.
+
+    'N'인데 15~34가 들어 있는 행이 409건이고, 'Y'인데 상한이 0인 행이 130건이다.
+    플래그를 믿으면 47세에게 청년(15~34) 정책이 그대로 나간다.
+    """
+    youth_only = _youth(sprtTrgtAgeLmtYn="N", sprtTrgtMinAge="15", sprtTrgtMaxAge="34")
+    assert _filter_youth_names(youth_only, age=47, ctpv="경기도", sgg="양주시") == []
+
+    # 상한이 0 = 값 없음 → 연령으로 거르지 않는다
+    no_upper = _youth(sprtTrgtAgeLmtYn="Y", sprtTrgtMinAge="0", sprtTrgtMaxAge="0")
+    assert _filter_youth_names(no_upper, age=47, ctpv="경기도", sgg="양주시") != []
+
+    # 15~69처럼 넓은 제도는 47세도 대상이다
+    wide = _youth(sprtTrgtAgeLmtYn="N", sprtTrgtMinAge="15", sprtTrgtMaxAge="69")
+    assert _filter_youth_names(wide, age=47, ctpv="경기도", sgg="양주시") != []
+
+
+def test_youth_other_province_is_dropped():
+    seoul = _youth(zipCd="11680")
+    assert _filter_youth_names(seoul, age=30, ctpv="경기도", sgg="양주시") == []
+
+
+def test_youth_nationwide_policy_is_kept_for_everyone():
+    """전국 정책은 빈 값이 아니라 전 지역 코드를 나열한다 — 시도 개수로 판정한다."""
+    nationwide = _youth(zipCd=",".join(f"{p}110" for p in
+                                       ("11", "12", "26", "27", "28", "30", "31", "36",
+                                        "41", "43", "44", "47")))
+    kept = service._filter_youth([nationwide], age=30, ctpv="경기도", sgg="양주시")
+    assert len(kept) == 1 and kept[0]["scope"] == "national"
+
+
+def test_youth_other_district_in_same_province_is_dropped():
+    """같은 경기도라도 과천 전용 정책이 양주 사용자에게 나가면 안 된다."""
+    gwacheon = _youth(plcyNm="(과천시) 청년 취업지원", zipCd="41290",
+                      sprvsnInstCdNm="경기도 과천시 일자리경제과")
+    assert _filter_youth_names(gwacheon, age=30, ctpv="경기도", sgg="양주시") == []
+    # 같은 정책도 과천 주민에겐 나가야 한다
+    assert _filter_youth_names(gwacheon, age=30, ctpv="경기도", sgg="과천시") != []
+
+
+def test_youth_unnamed_district_policy_is_dropped_conservatively():
+    """시군구 전용인데 이름·기관명 어디에도 지역이 안 드러나면 뺀다.
+
+    사용자 프로필엔 시군구 코드가 없어 확인할 방법이 없다. 남의 동네 제도를 신청하러
+    보내는 것보다, 확인 못 한 제도를 빼는 쪽이 낫다고 보고 보수적으로 간다.
+    """
+    unnamed = _youth(plcyNm="청년 일자리 지원", sprvsnInstCdNm="일자리경제과", zipCd="41630")
+    assert _filter_youth_names(unnamed, age=30, ctpv="경기도", sgg="양주시") == []
+    # 시군구를 모르는 사용자에겐 확인할 대상이 없으므로 남긴다
+    assert _filter_youth_names(unnamed, age=30, ctpv="경기도", sgg=None) != []
+
+
+def test_youth_province_wide_policy_kept_for_any_district():
+    """경기도 전역 정책은 시군구를 많이 나열한다 — 시군구 전용으로 오해하면 안 된다."""
+    province = _youth(plcyNm="경기청년 매치업", sprvsnInstCdNm="경기도 일자리경제정책과",
+                      zipCd="41111,41113,41115,41117,41131,41630")
+    assert _filter_youth_names(province, age=30, ctpv="경기도", sgg="양주시") != []
+
+
+def _filter_youth_names(row, **kw):
+    return [r["name"] for r in service._filter_youth([row], **kw)]
+
+
 def test_cited_policies_detects_real_and_fabricated_names():
     candidates = [
         {"name": "경기청년 매치업 플러스(북부특화형)", "link": "https://example.test/a"},
