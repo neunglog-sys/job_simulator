@@ -37,6 +37,7 @@ import {
   type SurveyItem,
   type ConsultationSummary,
   type Recommendation,
+  type MuseTalkSpeakRequest,
   type ScenarioSummary,
 } from "../lib/api";
 import styles from "../styles/oneToOneConversation.module.css";
@@ -269,8 +270,10 @@ export function OneToOneConversationPage() {
   const [avatarStatus, setAvatarStatus] = useState<AvatarStatus>("thinking");
   const [avatarHlsUrl, setAvatarHlsUrl] = useState<string | null>(null);
   const [avatarProvider, setAvatarProvider] = useState<AvatarProvider | null>(null);
+  // AiAvatarStage의 MuseTalkStageRequest와 같은 모양이어야 한다
+  // (session_id·seq를 실어 보내야 서버가 청크 순서를 강제할 수 있다).
   const [museTalkRequest, setMuseTalkRequest] =
-    useState<{ id: number; text: string } | null>(null);
+    useState<(MuseTalkSpeakRequest & { id: number }) | null>(null);
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [voiceIssue, setVoiceIssue] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<ActiveConversationPanel>("chat");
@@ -313,9 +316,21 @@ export function OneToOneConversationPage() {
   const voiceFinalTranscriptRef = useRef("");
   const avatarQueueRef = useRef<string[]>([]);
   const avatarPlayingRef = useRef(false);
+  /** 한 답변을 묶는 식별자와 청크 순번.
+   *
+   * 문장 단위로 쪼개진 청크들이 같은 session_id를 공유하고 seq로 재생 순서를 알린다.
+   * 서버가 그 순서대로 줄을 세워 앞 청크가 끝난 프레임에서 이어붙이므로,
+   * 문장이 바뀔 때 머리가 튀지 않는다(실측 이음새 22.0dB → 37.8dB).
+   * 순서를 클라이언트가 추정할 수 없어서(프리페치가 병렬로 돈다) 서버에 맡긴다. */
+  const speechSessionIdRef = useRef<string>("");
+  const speechSeqRef = useRef(0);
   const museTalkRequestIdRef = useRef(0);
   const museTalkPrefetchGenerationRef = useRef(0);
-  const museTalkPendingTextRef = useRef<string[]>([]);
+  /** 아직 생성하지 않은 청크 대기열. 텍스트만이 아니라 **순번까지** 들고 있어야
+   *  프리페치가 서버에 재생 순서를 알려줄 수 있다. */
+  const museTalkPendingTextRef = useRef<
+    Array<{ text: string; sessionId: string; seq: number }>
+  >([]);
   const museTalkPrefetchRunningRef = useRef(false);
   const museTalkBlobUrlsRef = useRef<string[]>([]);
 
@@ -362,7 +377,11 @@ export function OneToOneConversationPage() {
           if (!chunk) return;
 
         try {
-          const result = await generateMuseTalkBlob({ text: chunk });
+          const result = await generateMuseTalkBlob({
+            text: chunk.text,
+            session_id: chunk.sessionId,
+            seq: chunk.seq,
+          });
           if (generation !== museTalkPrefetchGenerationRef.current) {
             return;
           }
@@ -407,18 +426,27 @@ export function OneToOneConversationPage() {
         museTalkPendingTextRef.current.length > 0 ||
         museTalkPrefetchRunningRef.current;
 
+      // 재생 순번은 **분할 시점에** 매긴다. 이후 어느 경로(MSE·프리페치)로 가든 같은 번호를 쓴다.
+      const sessionId = speechSessionIdRef.current;
+      const seq = speechSeqRef.current++;
+
       if (!pipelineBusy) {
         avatarPlayingRef.current = true;
         if (perfTraceRef.current && !perfTraceRef.current.avatar_started_at) {
           perfTraceRef.current.avatar_started_at = window.performance.now();
         }
-        setMuseTalkRequest({ id: ++museTalkRequestIdRef.current, text: chunk });
+        setMuseTalkRequest({
+          id: ++museTalkRequestIdRef.current,
+          text: chunk,
+          session_id: sessionId,
+          seq,
+        });
         setAvatarStatus("speaking");
         return;
       }
 
       const generation = museTalkPrefetchGenerationRef.current;
-      museTalkPendingTextRef.current.push(chunk);
+      museTalkPendingTextRef.current.push({ text: chunk, sessionId, seq });
       void pumpMuseTalkPrefetch(generation);
     },
     [pumpMuseTalkPrefetch],
@@ -429,6 +457,10 @@ export function OneToOneConversationPage() {
       const chunks = splitMuseTalkSpeech(text);
       console.info("[MuseTalk]", "sentence_chunks", chunks.length, chunks);
       museTalkPrefetchGenerationRef.current += 1;
+      // 새 답변 = 새 세션. 순번도 0부터 다시 센다.
+      speechSessionIdRef.current =
+        `s${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+      speechSeqRef.current = 0;
       if (chunks.length === 0) {
         setAvatarStatus("idle");
         return;

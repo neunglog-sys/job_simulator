@@ -1586,6 +1586,18 @@
   pointer-events: none;
 }
 
+.supplyBoard[data-phase="transport"] {
+  background-image:
+    linear-gradient(rgb(13 17 31 / 0.04), rgb(13 17 31 / 0.13)),
+    var(--supply-background);
+}
+
+.supplyBoard[data-phase="transport"]::after {
+  background:
+    linear-gradient(90deg, rgb(10 13 26 / 0.1), transparent 26%, transparent 76%, rgb(10 13 26 / 0.08)),
+    linear-gradient(180deg, transparent 44%, rgb(255 236 193 / 0.05) 100%);
+}
+
 .supplyMemoryCard {
   position: absolute;
   top: 10%;
@@ -1678,7 +1690,7 @@
 
 .supplyInstruction {
   position: absolute;
-  top: 11%;
+  top: 6.5%;
   left: 50%;
   z-index: 10;
   margin: 0;
@@ -1738,38 +1750,35 @@
 .supplyPickItem:hover:not(:disabled) { background: rgb(255 255 255 / 0.04); }
 .supplyPickItem:active:not(:disabled) { background: rgb(255 255 255 / 0.16); }
 
-.supplyBoard[data-hint-visible="true"] .supplyPickItem[data-item="레드"]::before { border-color: #8a0433; box-shadow: 0 0 12px #8a0433; }
-.supplyBoard[data-hint-visible="true"] .supplyPickItem[data-item="화이트"]::before { border-color: #0bd01f; box-shadow: 0 0 12px #0bd01f; }
-.supplyBoard[data-hint-visible="true"] .supplyPickItem[data-item="스파클링"]::before { border-color: #b9e67a; box-shadow: 0 0 12px #b9e67a; }
-.supplyBoard[data-hint-visible="true"] .supplyPickItem[data-item="로제"]::before { border-color: #ff00a6; box-shadow: 0 0 12px #ff00a6; }
-.supplyBoard[data-hint-visible="true"] .supplyPickItem[data-item="스위트"]::before { border-color: #fff019; box-shadow: 0 0 12px #fff019; }
+.supplyPickItem[data-item="레드"]::before { border-color: #8a0433; box-shadow: 0 0 12px #8a0433; }
+.supplyPickItem[data-item="화이트"]::before { border-color: #0bd01f; box-shadow: 0 0 12px #0bd01f; }
+.supplyPickItem[data-item="스파클링"]::before { border-color: #b9e67a; box-shadow: 0 0 12px #b9e67a; }
+.supplyPickItem[data-item="로제"]::before { border-color: #ff00a6; box-shadow: 0 0 12px #ff00a6; }
+.supplyPickItem[data-item="스위트"]::before { border-color: #fff019; box-shadow: 0 0 12px #fff019; }
 
-.supplyBoxHint {
+.supplyBoxName,
+.supplyBoxCount {
   position: absolute;
-  top: 50%;
-  left: calc(100% + 4px);
-  display: grid;
-  justify-items: start;
+  left: 50%;
   color: #fff;
   font-family: "New Rocker", Georgia, serif;
   font-size: 10px;
   font-weight: 400;
   line-height: 1;
   text-shadow: 0 2px 2px #000, 0 0 6px #000;
-  transform: translateY(-50%);
+  transform: translateX(-50%);
   white-space: nowrap;
   pointer-events: none;
 }
 
-.supplyBoxHint strong,
-.supplyBoxHint b { font: inherit; }
-.supplyBoxHint b { margin-top: 3px; color: #ffd75c; }
+.supplyBoxName {
+  bottom: calc(50% + var(--hit-height) / 2 + 4px);
+}
 
-.supplyPickItem[data-item="화이트"] .supplyBoxHint,
-.supplyPickItem[data-item="스파클링"] .supplyBoxHint {
-  right: calc(100% + 4px);
-  left: auto;
-  justify-items: end;
+.supplyBoxCount {
+  top: calc(50% + var(--hit-height) / 2 + 4px);
+  color: #ffd75c;
+  font-size: 11px;
 }
 
 .supplyHintButton {
@@ -1799,6 +1808,14 @@
 .supplyHintButton small {
   font-size: 7px;
   font-weight: 900;
+}
+
+.supplyHintButton:focus-visible {
+  outline: none;
+}
+
+.supplyHintButton:focus-visible span {
+  text-shadow: 0 0 8px #fff4a8, 0 0 18px #ffd75c;
 }
 
 .supplyHintButton[aria-pressed="true"] {
@@ -1884,9 +1901,9 @@
   border: 3px solid var(--cartoon-ink);
   border-radius: 18px;
   background:
-    linear-gradient(90deg, rgb(24 30 47 / 0.14), rgb(24 30 47 / 0.68)),
-    repeating-linear-gradient(90deg, transparent 0 72px, rgb(255 255 255 / 0.06) 74px 76px);
-  box-shadow: inset 0 0 38px rgb(0 0 0 / 0.42);
+    linear-gradient(90deg, rgb(24 30 47 / 0.08), rgb(24 30 47 / 0.2)),
+    repeating-linear-gradient(90deg, transparent 0 72px, rgb(255 255 255 / 0.035) 74px 76px);
+  box-shadow: inset 0 0 24px rgb(0 0 0 / 0.18);
 }
 
 .supplyTransportIntro {

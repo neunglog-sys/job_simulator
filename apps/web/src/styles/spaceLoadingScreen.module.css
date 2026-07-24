@@ -26,7 +26,7 @@
   position: absolute;
   inset: -4%;
   z-index: -3;
-  background: url("/assets/space-loading-background.png") center / cover no-repeat;
+  background: url("/assets/space-loading-background.webp") center / cover no-repeat;
   animation: spaceDrift 28s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
   pointer-events: none;
   will-change: transform;

@@ -2204,7 +2204,7 @@
   inset: 0;
   background:
     linear-gradient(118deg, rgb(177 164 235 / 0.1), rgb(154 197 239 / 0.12)),
-    url("/assets/one-to-one-background.png") center / cover no-repeat;
+    url("/assets/one-to-one-background.webp") center / cover no-repeat;
   filter: saturate(0.94) brightness(1.015);
   transform: none;
 }

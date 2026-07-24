@@ -147,6 +147,62 @@ def _filter_bokjiro(rows: list[dict], *, ctpv: str | None, sgg: str | None) -> l
     return out
 
 
+def _filter_youth(
+    rows: list[dict], *, age: int | None, ctpv: str | None, sgg: str | None
+) -> list[dict]:
+    """온통청년 정책을 연령·지역으로 좁힌다.
+
+    분류는 서버에서 이미 '일자리 > 취업'으로 걸러져 있어 키워드 추측이 필요 없다.
+    지역은 zipCd(시군구 코드 목록)로 판정한다 — 전국 정책은 전 지역 코드를 나열하므로
+    시도 prefix 개수로 전국/지역을 가른다.
+    """
+    user_prefix = codes.YOUTH_CTPV_PREFIX.get(ctpv or "")
+    out = []
+    for row in rows:
+        # sprtTrgtAgeLmtYn은 쓰지 않는다. 실측(2026-07-24)상 의미가 뒤집혀 있어서,
+        # 'N'인 행에 오히려 유효한 연령대(15~34, 15~69)가 들어 있고 'Y'는 절반이 상한 0이다.
+        # 플래그 대신 값이 실제로 채워졌을 때만 그 값으로 거른다.
+        low, high = _as_int(row.get("sprtTrgtMinAge")), _as_int(row.get("sprtTrgtMaxAge"))
+        if age is not None:
+            if high and age > high:
+                continue
+            if low and age < low:
+                continue
+
+        zip_codes = [z.strip() for z in (row.get("zipCd") or "").split(",") if z.strip()]
+        prefixes = {z[:2] for z in zip_codes}
+        national = len(prefixes) >= codes.YOUTH_NATIONAL_MIN_PREFIXES
+
+        if not national and user_prefix:
+            if user_prefix not in prefixes:
+                continue  # 다른 시도 전용
+            mine = [z for z in zip_codes if z.startswith(user_prefix)]
+            # 시군구 몇 곳만 지정한 정책은 그 지역 사람에게만 의미가 있는데, 사용자
+            # 프로필엔 시군구 '이름'만 있고 코드가 없다. 정책명·기관명에 지역명이
+            # 들어가는 표기 관행에 기대 확인한다(예: "(양주시) 청년…", "경기도 양주시 …").
+            if len(mine) <= codes.YOUTH_DISTRICT_MAX_CODES and sgg:
+                blob = " ".join(
+                    str(row.get(k) or "")
+                    for k in ("plcyNm", "sprvsnInstCdNm", "operInstCdNm", "rgtrInstCdNm")
+                )
+                if sgg not in blob:
+                    continue
+
+        summary = _clean_summary(row.get("plcyExplnCn")) or _clean_summary(row.get("plcySprtCn"))
+        out.append(
+            {
+                "name": (row.get("plcyNm") or "").strip(),
+                "summary": summary,
+                "provider": (row.get("sprvsnInstCdNm") or row.get("operInstCdNm") or "").strip(),
+                "link": (row.get("aplyUrlAddr") or row.get("refUrlAddr1") or "").strip(),
+                "scope": "national" if national else "province",
+                "_rank": 2 if national else 0,  # 거주지 정책을 앞에 둔다
+            }
+        )
+    out.sort(key=lambda r: r.pop("_rank"))
+    return out
+
+
 async def collect_candidates(
     *,
     age: int | None,
@@ -156,7 +212,7 @@ async def collect_candidates(
     sgg: str | None,
 ) -> list[dict]:
     """조건에 맞는 제도 후보 — 거주지 우선, 중복 제거."""
-    if not providers.is_configured():
+    if not providers.is_configured() and not providers.youth_is_configured():
         return []
 
     life_codes = codes.life_codes_for_age(age) if age is not None else ["004", "005"]
@@ -170,9 +226,12 @@ async def collect_candidates(
         )
 
     services, conditions = await providers.gov24_snapshot()
+    youth_rows = await providers.youth_employment_policies()
 
     merged = (
-        _filter_bokjiro(local_rows, ctpv=ctpv, sgg=sgg)
+        # 온통청년을 앞에 둔다 — 분류가 서버에서 '취업'으로 확정돼 있어 가장 정확하다.
+        _filter_youth(youth_rows, age=age, ctpv=ctpv, sgg=sgg)
+        + _filter_bokjiro(local_rows, ctpv=ctpv, sgg=sgg)
         + _filter_bokjiro(central_rows, ctpv=None, sgg=None)
         + _filter_gov24(
             services, conditions, age=age, gender=gender, has_disability=has_disability
