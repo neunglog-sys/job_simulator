@@ -650,6 +650,9 @@ export function MovementArea({
         n.spawn &&
         byId.has(n.spawn) &&
         !guidedIds.has(n.npc_id) &&
+        // 현재 미션 담당 NPC는 제자리에 세운다 — 플레이어가 찾아가서 말 거는 흐름(퀴즈·업무 순차 진행).
+        // 안 그러면 담당 NPC가 플레이어 쪽으로 배회해 와서 근접/대화가 저절로 열린다(태능 피드백).
+        n.npc_id !== activeNpcId &&
         (roamAll || /고객|손님|컨슈머/.test(n.role)),
     );
     if (roamers.length === 0) return;
@@ -795,7 +798,8 @@ export function MovementArea({
       timers.forEach(clearTimeout);
       intervals.forEach(clearInterval);
     };
-  }, [geometry, npcs, origin, collidesAt, clampPosition]);
+    // activeNpcId가 바뀌면 담당 NPC가 바뀌므로 로밍 대상을 다시 잡는다(옛 담당은 다시 로밍, 새 담당은 고정).
+  }, [geometry, npcs, origin, collidesAt, clampPosition, activeNpcId]);
 
   // patrolTargets(로머의 현재 위치)를 아래 시선 효과가 deps 없이 최신값으로 읽기 위한 ref.
   const patrolTargetsRef = useRef(patrolTargets);
