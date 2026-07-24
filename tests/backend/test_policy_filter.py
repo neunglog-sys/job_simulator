@@ -99,6 +99,28 @@ def test_other_region_service_is_dropped_but_national_kept():
     assert names[0] == "양주시 청년수당"  # 거주지 제도가 먼저 온다
 
 
+def test_merged_province_matches_across_source_spellings():
+    """광주·전남 통합(전남광주통합특별시) — 소스마다 표기가 달라 이름만으로 비교하면 안 된다.
+
+    복지로는 아직 '전라남도'만 쓰고 '광주광역시'는 아예 없다. 표기를 그대로 비교하면
+    광주로 저장한 사용자가 그 지역 제도를 한 건도 못 받는다.
+    """
+    rows = [{"name": "전남 청년 취업지원", "summary": "취업 지원", "theme": "일자리",
+             "ctpv": "전라남도", "sgg": "", "provider": "", "link": ""}]
+    for saved_as in ("광주광역시", "전라남도", "전남광주통합특별시"):
+        kept = service._filter_bokjiro(rows, ctpv=saved_as, sgg=None)
+        assert len(kept) == 1, f"{saved_as}로 저장한 사용자가 이 제도를 놓친다"
+
+    # 통합과 무관한 시도까지 뭉뚱그리면 안 된다
+    assert service._filter_bokjiro(rows, ctpv="경기도", sgg=None) == []
+
+
+def test_merged_province_shares_youth_region_code():
+    assert codes.YOUTH_CTPV_PREFIX["전남광주통합특별시"] == "12"
+    assert codes.YOUTH_CTPV_PREFIX["광주광역시"] == "12"
+    assert codes.YOUTH_CTPV_PREFIX["전라남도"] == "12"
+
+
 def test_life_code_mapping_switches_at_midlife():
     """나이가 바뀌면 검색하는 생애주기가 실제로 달라져야 한다."""
     assert codes.life_codes_for_age(24) == ["004"]
@@ -189,6 +211,40 @@ def test_youth_province_wide_policy_kept_for_any_district():
 
 def _filter_youth_names(row, **kw):
     return [r["name"] for r in service._filter_youth([row], **kw)]
+
+
+def _cand(name, summary=""):
+    return {"name": name, "summary": summary, "provider": "", "link": "", "scope": "national"}
+
+
+def test_big_source_does_not_crowd_out_the_others():
+    """소스 하나가 후보 상한을 독차지하면 다른 소스에만 있는 제도가 사라진다.
+
+    실제로 온통청년 126건이 복지로 13건을 전부 밀어내 장애인 제도가 0건이 됐다.
+    """
+    big = [_cand(f"청년 일자리 {i}") for i in range(100)]
+    small = [_cand("장애인 취업성공패키지", "장애인 대상 취업 지원")]
+    out = service._merge_and_cap([big, small], has_disability=None)
+    assert "장애인 취업성공패키지" in [r["name"] for r in out]
+
+
+def test_disability_policies_survive_the_candidate_cap():
+    """민감정보 동의까지 받고 장애 여부를 저장했는데 관련 제도가 한 건도 안 실리면 안 된다."""
+    flood = [_cand(f"청년 일자리 {i}") for i in range(60)]
+    disability = [_cand(f"장애인 일자리 지원 {i}", "장애인 대상") for i in range(12)]
+    out = service._merge_and_cap([flood, disability], has_disability=True)
+    got = sum(1 for r in out if "장애" in r["name"])
+    assert got >= service.DISABILITY_MIN_SLOTS
+    # 장애 제도만으로 채우지는 않는다 — 일반 제도도 함께 보여야 한다
+    assert len(out) == service.MAX_CANDIDATES
+    assert got < len(out)
+
+
+def test_no_disability_means_no_special_ordering():
+    flood = [_cand(f"청년 일자리 {i}") for i in range(30)]
+    disability = [_cand("장애인 일자리 지원", "장애인 대상")]
+    out = service._merge_and_cap([flood, disability], has_disability=False)
+    assert out[0]["name"] != "장애인 일자리 지원"
 
 
 def test_cited_policies_detects_real_and_fabricated_names():
