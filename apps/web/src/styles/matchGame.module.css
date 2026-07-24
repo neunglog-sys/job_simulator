@@ -1603,9 +1603,9 @@
   border: 3px solid var(--cartoon-ink);
   border-radius: 14px;
   background: #fff9e9;
-  font-size: 8px;
+  font-size: 7px;
   font-weight: 800;
-  line-height: 1.35;
+  line-height: 1.28;
   box-shadow: 0 4px 0 var(--cartoon-ink);
   transition: transform 160ms ease;
 }
@@ -1849,6 +1849,7 @@
   right: 2.81%;
   bottom: 3.98%;
   z-index: 3;
+  container-type: inline-size;
   display: block;
   width: 27.34%;
   padding: 0;
@@ -1862,20 +1863,28 @@
 
 .customerFloorLegend {
   position: absolute;
-  right: 3%;
-  bottom: 100%;
+  right: 0;
+  bottom: calc(100% - 3.5cqi + 16px);
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.35em 1em;
-  width: 108%;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35em;
+  width: 100%;
   padding: 0 0 1.5%;
   color: #fffdf6;
   font-family: "New Rocker", Georgia, serif;
-  font-size: 1.05em;
+  font-size: clamp(7px, 3.8cqi, 22px);
   font-weight: 400;
   line-height: 1.1;
   text-shadow: 0 2px 2px #080713;
+}
+
+.customerFloorLegendRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1em;
+  width: 100%;
 }
 
 .customerFloorLegend span {
@@ -1918,16 +1927,19 @@
 
 .customerFloorWineGroup h3 {
   position: absolute;
-  left: 72%;
+  left: 70%;
   z-index: 2;
-  width: 25%;
+  box-sizing: border-box;
+  width: 28.5%;
   margin: 0;
+  overflow: hidden;
   color: #fffdf6;
   font-family: "New Rocker", Georgia, serif;
-  font-size: 1.52em;
+  font-size: clamp(8px, 5.2cqi, 30px);
   font-weight: 400;
   line-height: 1.14;
   text-align: center;
+  text-wrap: balance;
   text-shadow: 0 2px 2px #080713;
   transform: translateY(-50%);
   pointer-events: none;
@@ -1981,7 +1993,7 @@
   height: 100%;
   padding: 0;
   overflow: hidden;
-  border: 0.42em solid var(--wine-color, #9a0450);
+  border: 0.21em solid var(--wine-color, #9a0450);
   border-radius: 1.2em;
   background: rgb(3 5 14 / 0.18);
   color: #fff;
@@ -2095,60 +2107,66 @@
 }
 
 .customerFloorBubble {
-  top: 3%;
-  left: 4%;
+  top: calc(-5% - 10px);
+  left: 12.5%;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-content: center;
   gap: 5%;
-  width: 34%;
-  height: 31%;
+  width: 54%;
+  height: 35%;
   min-height: 0;
-  padding: 3.5%;
+  padding: clamp(10px, 1.8vw, 24px) clamp(18px, 4vw, 56px) clamp(16px, 2.4vw, 32px);
   border: 0;
-  border-radius: 4em;
-  background: #f3f3f3;
+  border-radius: 0;
+  background: transparent url("/assets/minigames/ui/kts-03-customer-speech-bubble-rounded-v1.webp") center / 100% 100% no-repeat;
   box-shadow: none;
 }
 
+.customerFloorBubble[data-linked="true"],
+.customerFloorCustomer[data-state="selected"] .customerFloorBubble,
+.customerFloorCustomer[data-state="linked"] .customerFloorBubble {
+  background: transparent url("/assets/minigames/ui/kts-03-customer-speech-bubble-rounded-v1.webp") center / 100% 100% no-repeat;
+  box-shadow: none;
+  filter: drop-shadow(0 0 0.45em rgb(56 217 180 / 0.72));
+}
+
 .customerFloorBubble::after {
-  right: 3%;
-  bottom: -13%;
-  width: 14%;
-  height: 24%;
-  border: 0;
-  background: #f3f3f3;
-  clip-path: polygon(0 0, 100% 100%, 76% 0);
-  transform: none;
+  display: none;
 }
 
 .customerFloorRequest {
+  position: relative;
+  z-index: 1;
   display: grid;
   align-content: center;
+  justify-items: start;
   gap: 0.55em;
   height: 100%;
   color: #13131a;
-  font-size: 1.2em;
-  line-height: 1.5;
+  text-align: left;
 }
 
 .customerFloorRequest strong {
-  font-size: 1.12em;
+  font-size: inherit;
+  font-weight: inherit;
 }
 
 .customerFloorWineDetail {
   position: absolute;
-  top: 13%;
-  right: 31%;
-  bottom: 5%;
+  top: 7%;
+  right: auto;
+  bottom: 1%;
+  left: 35.5%;
   z-index: 12;
   display: grid;
-  grid-template-rows: minmax(0, 48%) auto auto;
+  grid-template-rows: minmax(0, 40%) minmax(0, 1fr) auto;
+  row-gap: 0.75em;
   justify-items: center;
   width: 29%;
   padding: 2.2% 2% 1.6%;
   overflow: hidden;
-  border: 0.35em solid #fff;
+  border: 0;
   border-radius: 2.3em;
   background: rgb(8 11 24 / 0.92);
   color: #fff;
@@ -2185,7 +2203,8 @@
 
 .customerFloorWineDetailInfo {
   display: grid;
-  gap: 0.55em;
+  align-content: start;
+  gap: 0.35em;
   width: 100%;
   min-height: 0;
   text-align: center;
@@ -2199,20 +2218,20 @@
 
 .customerFloorWineDetailInfo h3 {
   margin: 0;
-  font-size: 1.38em;
+  font-size: 1.28em;
   line-height: 1.2;
 }
 
 .customerFloorWineDetailInfo dl {
   display: grid;
-  gap: 0.3em;
+  gap: 0.2em;
   margin: 0;
 }
 
 .customerFloorWineDetailInfo dl>div {
   display: grid;
   grid-template-columns: 30% 70%;
-  padding: 0.32em 0.7em;
+  padding: 0.25em 0.7em;
   border: 1px solid rgb(255 255 255 / 0.2);
   border-radius: 999px;
   background: rgb(255 255 255 / 0.08);
@@ -2237,7 +2256,8 @@
 .customerFloorWineRecommend {
   align-self: end;
   min-width: 72%;
-  padding: 0.75em 1.1em;
+  margin-top: 0.45em;
+  padding: 0.4em 1.1em;
   border: 0.24em solid #fff;
   border-radius: 999px;
   background: #ffd55c;
@@ -2284,25 +2304,37 @@
 }
 
 .customerFloorCutout {
-  right: 22%;
+  right: 2%;
   bottom: 0;
-  left: 39%;
-  height: 88%;
+  left: 48%;
+  height: 100%;
 }
 
 .customerFloorCutout img {
-  width: min(90%, 25em) !important;
-  max-height: 96%;
+  width: min(100%, 32em) !important;
+  max-height: 100%;
+}
+
+.customerFloorCutout[data-sprite="손님_와인초보_카툰"] img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+  object-position: center bottom;
+  transform: scale(1.04);
+  transform-origin: center bottom;
 }
 
 .customerFloorBrief {
   position: absolute;
   bottom: 2%;
-  left: 1%;
+  left: calc(-2.25% - 0.2em);
   z-index: 5;
   display: grid;
   gap: 0.7em;
   width: 34%;
+  height: 8.515em;
   padding: 1.4em 1.6em;
   border: 0.28em solid #fff;
   border-radius: 0 2.2em 2.2em 0;
@@ -2319,19 +2351,73 @@
   font-size: 0.94em;
 }
 
+.customerFloorBrief[data-foreign="true"] {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  gap: 0.45em;
+}
+
+.customerFloorBrief[data-foreign="true"] strong {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.customerFloorBrief[data-foreign="true"] span {
+  width: 100%;
+  padding-right: 7em;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.customerFloorBriefTranslate {
+  position: absolute;
+  right: 1.6em;
+  bottom: 1.2em;
+  padding: 0.48em 1.05em;
+  border: 0;
+  border-radius: 999px;
+  background: #f4f4f4;
+  color: #191827;
+  font: 800 0.82em/1.1 inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.customerFloorBrief[data-sudden-active="true"] {
+  display: none;
+}
+
+.customerFloorBrief[data-returning="true"] {
+  animation: customerFloorBriefReturn 480ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes customerFloorBriefReturn {
+  from {
+    opacity: 0;
+    transform: translateX(118%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .customerFloorTranslate {
   position: absolute;
-  bottom: 5%;
-  left: 2%;
+  bottom: 2%;
+  left: calc(-2.25% - 0.2em);
   z-index: 7;
   display: grid;
   grid-template-columns: 2.6em minmax(0, 1fr);
-  gap: 0.85em;
-  width: 31%;
-  padding: 1.2em;
+  align-items: center;
+  gap: 0.7em;
+  width: 34%;
+  height: 8.515em;
+  padding: 0.75em 1.6em;
   border: 0.28em solid #fff;
-  border-radius: 0 2em 2em 0;
-  background: rgb(5 9 20 / 0.82);
+  border-radius: 0 2.2em 2.2em 0;
+  background: rgb(5 9 20 / 0.7);
   color: #fff;
 }
 
@@ -2347,69 +2433,149 @@
 
 .customerFloorTranslate div {
   display: grid;
-  gap: 0.45em;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.25em 0.6em;
+  min-width: 0;
+}
+
+.customerFloorTranslate b {
+  grid-column: 1 / -1;
+  font-size: 1.05em;
 }
 
 .customerFloorTranslate span {
-  font-size: 0.86em;
-  line-height: 1.4;
+  min-width: 0;
+  font-size: 0.74em;
+  line-height: 1.28;
 }
 
 .customerFloorTranslate button {
   justify-self: start;
-  padding: 0.45em 1.2em;
+  padding: 0.38em 0.82em;
   border: 0;
   border-radius: 999px;
   background: #f4f4f4;
   color: #191827;
-  font: 800 0.9em inherit;
+  font: 800 0.74em inherit;
+  white-space: nowrap;
   cursor: pointer;
-}
-
-.customerFloorBrief[data-foreign="true"] {
-  display: none;
 }
 
 .customerFloorIncident {
   left: 1.5%;
   bottom: 3%;
   z-index: 8;
-  width: 30%;
+  flex-direction: row-reverse;
+  width: 35%;
   min-height: 48%;
   color: #fff;
 }
 
 .customerFloorIncidentTitle {
   position: absolute;
-  top: 0;
+  top: -78px;
   left: 0;
-  padding: 0.25em 0.7em;
-  border-bottom: 0.12em solid #fff;
-  font-size: 1.55em;
-  font-weight: 900;
+  z-index: 5;
+  display: grid;
+  gap: 0.7em;
+  width: 15em;
+  padding: 0;
+  color: #fff;
+  text-align: left;
+  pointer-events: none;
+}
+
+.customerFloorIncidentHeading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.45em;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.customerFloorIncidentWarning {
+  display: grid;
+  justify-items: center;
+  gap: 0.28em;
+}
+
+.customerFloorIncidentTimer {
+  color: #fff;
+  font-size: 0.72em;
+  font-weight: 950;
+  line-height: 1;
+  text-shadow: 0 0.12em 0.25em #000;
+}
+
+.customerFloorIncidentTimer[data-urgent="true"] {
+  color: #ff5160;
+}
+
+.customerFloorIncidentIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 2em;
+  height: 2em;
+  border: 0.18em solid #ff2638;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 950;
+  box-shadow: 0 0 0.9em rgb(255 38 56 / 0.38);
+}
+
+.customerFloorIncidentDescription {
+  font-size: 0.82em;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .customerFloorSpeech {
   align-self: flex-start;
-  margin-top: 15%;
+  flex: 0 0 53%;
+  z-index: 0;
+  isolation: isolate;
+  top: -4em;
+  left: calc(-1.8em + 20px);
+  margin-top: 0;
+  min-height: 11.5em;
+  padding: 2.3em 2.15em;
   border: 0;
-  border-radius: 2em;
-  background: #f2f2f2;
+  border-radius: 0;
+  background: transparent;
   color: #171722;
-  font-size: 1em;
   box-shadow: none;
 }
 
+.customerFloorSpeech::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: transparent url("/assets/minigames/ui/kts-03-customer-speech-bubble-spiky-flipped-v1.webp") center / 100% 100% no-repeat;
+  transform: translateY(-10px);
+  z-index: -1;
+  pointer-events: none;
+}
+
 .customerFloorSpeech::after {
-  border: 0;
-  background: #f2f2f2;
+  display: none;
+}
+
+.customerFloorRequest,
+.customerFloorSpeech {
+  font-size: clamp(7px, 0.72vw, 12px);
+  font-weight: 800;
+  line-height: 1.28;
 }
 
 .customerFloorPerson {
-  flex-basis: 46%;
+  flex-basis: 52%;
 }
 
 .customerFloorPerson strong {
+  position: relative;
+  left: -8px;
   border-color: #fff;
   background: #e44d66;
   color: #fff;
@@ -2418,7 +2584,7 @@
 
 .board[data-layout="customer-floor"]:has(.customerFloorIncident) .customerFloorBrief,
 .board[data-layout="customer-floor"]:has(.customerFloorIncident) .customerFloorTranslate {
-  opacity: 0.12;
+  display: none;
 }
 
 .customerResponse {
@@ -2458,13 +2624,26 @@
   top: 10%;
   left: 6%;
   width: 29%;
-  min-height: 26%;
-  padding: 2em;
+  min-height: 31%;
+  padding: 3em 3.15em 2.6em 3.35em;
   border: 0;
-  border-radius: 3.4em;
-  background: #f2f2f2;
+  border-radius: 0;
+  background: transparent;
+  color: #171722;
   font-size: 1.05em;
   box-shadow: none;
+  isolation: isolate;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.customerResponseSpeech::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: transparent url("/assets/minigames/ui/kts-03-customer-speech-bubble-spiky-flipped-v1.webp") center / 100% 100% no-repeat;
+  pointer-events: none;
 }
 
 .customerResponsePerson {
@@ -2488,11 +2667,11 @@
 
 .customerResponseGuide {
   position: absolute;
-  top: 15%;
+  top: 9%;
   right: 3%;
-  bottom: 18%;
+  bottom: 5%;
   width: 26%;
-  padding: 2.1em 2.3em;
+  padding: 1.45em 1.7em;
   border: 0.55em solid #ad7800;
   border-radius: 3em;
   background: rgb(5 8 18 / 0.67);
@@ -2501,20 +2680,23 @@
 }
 
 .customerResponseGuide h3 {
-  margin: 0 0 1em;
-  font-size: 1.62em;
+  margin: 0 0 0.55em;
+  font-size: 1.48em;
   font-weight: 400;
   text-align: center;
 }
 
 .customerResponseGuide ol {
   display: grid;
-  gap: 0.58em;
+  gap: 0.36em;
   margin: 0;
-  padding-left: 1.45em;
-  font-family: inherit;
-  font-size: 1.02em;
-  line-height: 1.25;
+  padding-left: 1.35em;
+  font-family: "Pretendard Variable", Pretendard, "Noto Sans KR", system-ui, sans-serif;
+  font-size: 0.9em;
+  font-weight: 700;
+  line-height: 1.2;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 .customerResponseGuide li[data-done="true"] {
@@ -2531,22 +2713,32 @@
 }
 
 .customerResponseActions {
-  right: 29%;
+  right: 25%;
   bottom: 5%;
-  left: 28%;
+  left: 24%;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 0.55em;
+  gap: 0.7em;
 }
 
 .customerResponseAction {
-  min-height: 4.8em;
-  padding: 0.55em;
+  justify-self: center;
+  width: 7.8em;
+  height: 7.8em;
+  min-height: 7.8em;
+  padding: 0.6em;
   border: 0.23em solid #fff;
   border-radius: 999px;
   background: rgb(7 10 21 / 0.78);
   color: #fff;
-  font-size: 0.78em;
+  font-size: 0.82em;
   box-shadow: none;
+}
+
+.customerResponseAction span {
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  letter-spacing: -0.04em;
 }
 
 .customerResponseAction img {
@@ -2554,23 +2746,26 @@
 }
 
 .customerResponseAction[data-done="true"] {
-  border-color: #55e7c6;
-  background: #116c5d;
+  border-color: rgb(255 255 255 / 0.72);
+  background: rgb(255 255 255 / 0.16);
 }
 
 .customerResponseAction[data-forbidden-pressed="true"] {
-  border-color: #ff6e75;
-  background: #8f2137;
+  border-color: rgb(255 255 255 / 0.72);
+  background: rgb(255 255 255 / 0.16);
 }
 
 .customerResponseAction[data-kind="escalate"] {
-  border-color: #ffd55c;
-  background: #8a5e00;
+  border-color: #fff;
+  background: rgb(7 10 21 / 0.78);
+}
+
+.customerResponseAction[data-kind="escalate"][data-done="true"] {
+  border-color: rgb(255 255 255 / 0.72);
+  background: rgb(255 255 255 / 0.16);
 }
 
 @media (max-width: 850px) {
-  .customerFloorLegend,
-  .customerFloorWineGroup h3,
   .customerFloorBrief span,
   .customerFloorTranslate span,
   .customerResponseGuide ol {
