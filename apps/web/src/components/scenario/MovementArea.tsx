@@ -601,16 +601,24 @@ export function MovementArea({
     [clampPosition, collidesAt, onPositionChange, notePlayerMove],
   );
 
-  // 손님 NPC 앰비언트 로밍 — 매장을 돌아다니게 한다(사용자 요청 2026-07-24).
-  // 손님(role에 고객/손님/컨슈머)만 대상. 직원(점장=계산대, 사수=바)은 자기 자리를 지킨다.
-  // 2~3초마다 스폰 주변에서 갈 수 있는 지점을 골라 옮긴다. collidesAt(가구)+clampPosition(walkable
-  // 경계)으로 검증해 벽·집기·못 가는 곳으로 새지 않는다. 마커 CSS transition(900ms)이 걷기 연출.
+  // NPC 앰비언트 로밍 — 매장/오피스를 돌아다니게 한다(사용자 요청 2026-07-24).
+  // 기본은 손님(role에 고객/손님/컨슈머)만 — 직원(점장=계산대, 사수=바)은 자기 자리를 지킨다(kts-03).
+  // roam_all이면 손님 구분 없이 전원 대상 — 오피스형 시나리오(sns-01)는 모두가 돌아다닌다.
+  // 어느 쪽이든 npc_paths(가이드/순찰) NPC는 제외 — 스크립트 경로를 따르므로 로밍과 충돌하면 안 된다.
+  // 2~3초마다 갈 수 있는 목적지로 옮긴다. collidesAt(가구)+clampPosition(walkable 경계)으로
+  // 검증해 벽·집기·못 가는 곳으로 새지 않는다. 마커 CSS transition(900ms)이 걷기 연출.
   useEffect(() => {
     const spawns = geometry?.spawns;
     if (!spawns || npcs.length === 0) return;
     const byId = new Map(spawns.map((s) => [s.id, s]));
+    const roamAll = geometry?.roam_all === true;
+    const guidedIds = new Set((geometry?.npc_paths ?? []).map((p) => p.npc_id));
     const roamers = npcs.filter(
-      (n) => n.spawn && byId.has(n.spawn) && /고객|손님|컨슈머/.test(n.role),
+      (n) =>
+        n.spawn &&
+        byId.has(n.spawn) &&
+        !guidedIds.has(n.npc_id) &&
+        (roamAll || /고객|손님|컨슈머/.test(n.role)),
     );
     if (roamers.length === 0) return;
 
