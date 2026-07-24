@@ -128,13 +128,13 @@ const DEFAULT_SCENARIO_MAP_IMAGE =
   `${import.meta.env.BASE_URL}assets/scenario/maps/modern-design-video-studio.webp`;
 
 const NPC_STANDING_ILLUSTRATIONS: Readonly<Record<string, string>> = {
-  "npc_kts-03_01": `${import.meta.env.BASE_URL}npc/standing/npc_kts-03_01.png`,
-  "npc_kts-03_02": `${import.meta.env.BASE_URL}npc/standing/npc_kts-03_02.png`,
-  "npc_kts-03_03": `${import.meta.env.BASE_URL}npc/standing/npc_kts-03_03.png`,
-  "npc_kts-03_04": `${import.meta.env.BASE_URL}npc/standing/npc_kts-03_04.png`,
-  "npc_sns-01_01": `${import.meta.env.BASE_URL}npc/standing/npc_sns-01_01.png`,
-  "npc_sns-01_02": `${import.meta.env.BASE_URL}npc/standing/npc_sns-01_02.png`,
-  "npc_sns-01_03": `${import.meta.env.BASE_URL}npc/standing/npc_sns-01_03.png`,
+  "npc_kts-03_01": `${import.meta.env.BASE_URL}npc/standing/npc_kts-03_01.webp`,
+  "npc_kts-03_02": `${import.meta.env.BASE_URL}npc/standing/npc_kts-03_02.webp`,
+  "npc_kts-03_03": `${import.meta.env.BASE_URL}npc/standing/npc_kts-03_03.webp`,
+  "npc_kts-03_04": `${import.meta.env.BASE_URL}npc/standing/npc_kts-03_04.webp`,
+  "npc_sns-01_01": `${import.meta.env.BASE_URL}npc/standing/npc_sns-01_01.webp`,
+  "npc_sns-01_02": `${import.meta.env.BASE_URL}npc/standing/npc_sns-01_02.webp`,
+  "npc_sns-01_03": `${import.meta.env.BASE_URL}npc/standing/npc_sns-01_03.webp`,
 };
 
 // 테스트 대상 시나리오 — ?slug= 쿼리로 덮어쓸 수 있다. 기본은 ms-06(농축산 현장 작업 / 작업순서_농축산현장작업 맵).

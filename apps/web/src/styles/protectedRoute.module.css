@@ -16,7 +16,7 @@
   position: absolute;
   inset: -3%;
   z-index: -2;
-  background: url("/assets/space-loading-background.png") center / cover no-repeat;
+  background: url("/assets/space-loading-background.webp") center / cover no-repeat;
   content: "";
   pointer-events: none;
 }
