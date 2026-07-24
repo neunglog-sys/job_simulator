@@ -647,14 +647,18 @@ export function MovementArea({
       if (area.clientWidth > 0) {
         setDeviceScale((rect.width / area.clientWidth) * ZOOM * (window.devicePixelRatio || 1));
       }
-      const nextPosition = clampPosition(position);
-      if (nextPosition.x !== position.x || nextPosition.y !== position.y) {
+      // 최신 위치는 ref에서 읽는다. position을 의존성에 넣으면 이동하는 동안(60fps)
+      // 매 프레임 observer를 끊고 다시 붙이는데, observe()는 붙자마자 콜백을 한 번
+      // 부르기 때문에 프레임마다 setState가 돌아 맵 전체가 다시 그려졌다.
+      const current = positionRef.current;
+      const nextPosition = clampPosition(current);
+      if (nextPosition.x !== current.x || nextPosition.y !== current.y) {
         onPositionChange(nextPosition);
       }
     });
     resizeObserver.observe(area);
     return () => resizeObserver.disconnect();
-  }, [clampPosition, onPositionChange, position]);
+  }, [clampPosition, onPositionChange]);
 
   return (
     <div

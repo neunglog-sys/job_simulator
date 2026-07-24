@@ -534,6 +534,10 @@ export function ScenarioGamePage() {
 
     const applySim = (sim: Simulation) => {
       simIdRef.current = sim.id;
+      // 새 판을 붙였으면 리포트도 다시 만들어야 한다. 이 플래그를 안 풀면 2회차 완주
+      // 결과가 리포트로 넘어가지 않는다(1회차에 true가 된 채 남아 있어서).
+      reportSyncStartedRef.current = false;
+      setReportSyncStatus("idle");
       // 서버가 저장해둔 상담 연결을 우선 사용 — 이어하기로 URL 파라미터가 없어도 복원된다.
       if (sim.consultation_id != null) consultationIdRef.current = sim.consultation_id;
       setActiveStep(sim.step);
@@ -668,15 +672,26 @@ export function ScenarioGamePage() {
           },
           onQuestResult: (questResult) => {
             if (cancelled) return;
-            setPhase("mission_result");
             if (questResult.feedback) setCoachMessage(questResult.feedback);
+            // 결과는 통과·미달 어느 쪽이든 보여준다. 예전엔 퀘스트가 끝날 때 quest와
+            // taskResult를 함께 지워서, 결과 화면인데 보여줄 결과가 없고 본편 미션
+            // 폼이 대신 떴다(activeMission이 현재 스텝으로 되돌아가므로).
+            setTaskResult(questResult);
             if (questResult.quest_status === "active") {
-              setTaskResult(questResult); // 1차 미달 — 재시도
-            } else {
-              // 통과 또는 2회 미달로 퀘스트 종료 → 본편 미션으로 복귀
-              setQuest(null);
-              setTaskResult(null);
+              setPhase("mission_result"); // 1차 미달 — 재시도
+              return;
             }
+            // 통과 또는 2회 미달로 퀘스트 종료 → 본편 미션 통과와 같은 흐름으로 복귀한다.
+            setQuest(null);
+            setPhase("exploring");
+            setFarewell({
+              name: questResult.farewell?.name || "",
+              text:
+                questResult.farewell?.text ||
+                (questResult.passed
+                  ? "급한 불은 껐네요. 고생하셨어요."
+                  : "여기까지 하죠. 원래 하던 일 마저 봅시다."),
+            });
           },
           onCoachTip: (text) => !cancelled && setCoachMessage(text),
           onTour: (frame) => {

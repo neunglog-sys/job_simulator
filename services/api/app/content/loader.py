@@ -1,6 +1,7 @@
 """data/ 폴더의 YAML 콘텐츠 로더."""
 
 import logging
+import time
 from pathlib import Path
 
 import yaml
@@ -205,9 +206,48 @@ def load_scenarios() -> tuple[list[dict], dict[str, list[dict]]]:
     return scenarios, npcs_by_slug
 
 
+# (파일명, mtime) 서명 → slug 집합. 파일이 그대로면 파싱을 건너뛴다.
+_scenario_slug_cache: tuple[tuple[tuple[str, float], ...], set[str]] | None = None
+_scenario_slug_checked_at = 0.0
+# 이 시간 안에는 파일 변경 확인(stat)도 건너뛴다. 44번의 stat 자체가 도커 바인드마운트에서
+# 요청당 수십 ms를 먹는다(실측). 콘텐츠 YAML은 배포 때나 바뀌므로 1초 지연은 무해하고,
+# 편집 중에도 1초 뒤에는 반영된다.
+_SCENARIO_SLUG_TTL_S = 1.0
+
+
+def clear_scenario_slug_cache() -> None:
+    """테스트용 — 시나리오 파일을 만들었다 지우는 테스트가 서로 간섭하지 않게."""
+    global _scenario_slug_cache, _scenario_slug_checked_at
+    _scenario_slug_cache = None
+    _scenario_slug_checked_at = 0.0
+
+
 def yaml_scenario_slugs() -> set[str]:
-    """검수용 YAML이 소유한 slug — 변환 스크립트가 덮어쓰지 않도록."""
-    return {doc["slug"] for _, doc in _load_yaml_dir("scenarios")}
+    """검수용 YAML이 소유한 slug — 변환 스크립트가 덮어쓰지 않도록.
+
+    시뮬레이션 목록·생성이 요청마다 부르는 경로다. 매번 44개 YAML을 동기 파싱하면
+    그동안 이벤트 루프가 멈춰 다른 요청까지 밀린다. 파일 목록과 mtime이 그대로면
+    파싱을 건너뛴다(stat 44번은 파싱보다 훨씬 싸다).
+    """
+    global _scenario_slug_cache, _scenario_slug_checked_at
+    cached = _scenario_slug_cache
+    now = time.monotonic()
+    if cached is not None and now - _scenario_slug_checked_at < _SCENARIO_SLUG_TTL_S:
+        return set(cached[1])  # 사본 — 호출부가 고쳐도 캐시가 오염되지 않게
+
+    base = Path(settings.data_dir) / "scenarios"
+    try:
+        signature = tuple(sorted((p.name, p.stat().st_mtime) for p in base.glob("*.yaml")))
+    except OSError:
+        signature = ()
+
+    _scenario_slug_checked_at = now
+    if cached is not None and cached[0] == signature:
+        return set(cached[1])
+
+    slugs = {doc["slug"] for _, doc in _load_yaml_dir("scenarios")}
+    _scenario_slug_cache = (signature, slugs)
+    return set(slugs)
 
 
 def load_competencies() -> list[dict]:
