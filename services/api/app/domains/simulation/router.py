@@ -267,11 +267,35 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, token: str | N
                                 session, simulation, scenario, data
                             )}
                         )
+                    elif data.get("type") == "activity_complete":
+                        # 기존 업무 이후의 미니게임·회고·NPC 인계 흐름.
+                        result = await service.complete_activity(
+                            session, simulation, scenario, data
+                        )
+                        step_changed = result.pop("step_changed")
+                        reflection_ready = result.pop("reflection_ready")
+                        completion_message = result.pop("completion_message", None)
+                        completion_name = result.pop("completion_name", None)
+                        await websocket.send_json({"type": "state_updated", **result})
+                        if completion_message:
+                            await websocket.send_json(
+                                {
+                                    "type": "activity_message",
+                                    "name": completion_name,
+                                    "text": completion_message,
+                                }
+                            )
+                        if step_changed:
+                            await websocket.send_json(
+                                {"type": "step_changed", "step": step_changed}
+                            )
+                        if reflection_ready:
+                            await websocket.send_json({"type": "reflection_ready"})
                     elif data.get("type") == "reflection":
                         # 5단계 — 체험 소감문. 채점하지 않고 리포트 재료로만 저장한다.
                         await websocket.send_json(
                             {"type": "state_updated", **await service.save_reflection(
-                                session, simulation, data.get("content", "")
+                                session, simulation, data.get("content", ""), scenario
                             )}
                         )
                     elif data.get("type") == "choice":

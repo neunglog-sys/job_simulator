@@ -47,6 +47,8 @@ class StepOut(BaseModel):
     briefing: list[str] = []  # 사수가 알려주는 업무 절차 (업무 시작 전 브리핑 + 업무 노트)
     choices: list[dict] = []
     task: TaskOut | None = None
+    # 기존 미션 뒤에 이어지는 미니게임·회고. 전이 규칙은 서버가 보관하고 표시 정보만 노출.
+    activity: dict | None = None
 
 
 class SimulationOut(BaseModel):
