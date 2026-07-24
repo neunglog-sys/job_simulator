@@ -1053,7 +1053,11 @@ export function ScenarioGamePage() {
         <MovementArea
           position={playerPosition}
           // 컷신·모달 중에는 조작을 뺏지 않는다 — 이동은 exploring에서만.
-          onPositionChange={canMove(phase) && !isMemoOpen && !isWorkflowOpen ? setPlayerPosition : NOOP}
+          // isStreaming(동료가 답변 중)도 잠가야 한다 — exploring은 대화창이 떠 있어도 유지되는
+          // 페이즈라, 안 잠그면 답변 스트리밍 중에도 캐릭터가 맵을 돌아다닐 수 있었다.
+          onPositionChange={
+            canMove(phase) && !isMemoOpen && !isWorkflowOpen && !isStreaming ? setPlayerPosition : NOOP
+          }
           onCoachMessage={setCoachMessage}
           geometry={gameMap?.geometry ?? null}
           mapImage={mapImage}

@@ -193,6 +193,8 @@ async def npc_map(session: AsyncSession, scenario_id: int) -> dict[str, dict]:
             "responsibilities": pl.responsibilities or [],
             # 맵 자리 배정용 — YAML의 appearance.location (데이터가 있으면 추론보다 우선)
             "location": (pl.appearance or {}).get("location"),
+            # 등장 조건 — 비어있지 않으면 아직 미충족 상태(예: quest_started)라 온보딩 시점엔 항상 미달성
+            "conditions": (pl.appearance or {}).get("conditions") or [],
         }
         for npc, pl in rows
     }
@@ -626,7 +628,9 @@ async def onboarding_tour(
     guide_id = (step.get("npcs") or [None])[0]
     roster = await npc_map(session, scenario.id)
     guide = roster.get(guide_id or "")
-    others = [v for k, v in roster.items() if k != guide_id]
+    # conditions가 있는 NPC(예: quest_started)는 온보딩 시점엔 조건이 충족될 수 없으므로
+    # 아직 등장할 차례가 아닌 손님·퀘스트 캐릭터 — 팀원 소개 투어에서 제외한다.
+    others = [v for k, v in roster.items() if k != guide_id and not v.get("conditions")]
     if guide is None or not others:
         return {"guide": None, "stops": [], "closing": ""}
 

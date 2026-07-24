@@ -12,7 +12,7 @@
 scenario_id: kts-03
 engine: match
 title: 니즈-상품 추천 매칭
-intro: 손님의 선물 니즈(상황 아이콘 · 예산 가격표)에 맞는 와인을 이어 주세요. 가격표 개수가 손님 예산을 넘는 와인과 재고 빗금이 붙은 와인은 잇지 말고 남겨 두세요.
+intro: 손님의 요구를 확인하고 오른쪽 진열대의 와인을 눌러 상품 정보를 살펴본 뒤 알맞은 와인을 추천하세요. 예산을 넘거나 품절된 와인은 추천하지 마세요.
 time_limit: 75
 pass_score: 70
 
@@ -29,26 +29,26 @@ data: &customer_game_data
 
   # 왼쪽 = 손님 니즈. 상황은 아이콘, 예산대는 색 + 같은 개수의 가격표 아이콘(visual_cues)으로만.
   left:
-    - { id: 니즈_승진축하, sprite: 니즈_승진_레드선호,   customer_sprite: 손님_승진축하_카툰,   budget: yellow, occasion: 승진, label: 승진 축하 · 중간 예산 · 레드 선호 }
-    - { id: 니즈_집들이,   sprite: 니즈_집들이_화이트,   customer_sprite: 손님_집들이_카툰,     budget: green,  occasion: 집들이, label: 집들이 · 낮은 예산 · 화이트 }
-    - { id: 니즈_부모님,   sprite: 니즈_부모님_레드,     customer_sprite: 손님_부모님선물_카툰, budget: red,    occasion: 부모님, label: 부모님 선물 · 높은 예산 · 레드 }
-    - { id: 니즈_와인초보, sprite: 니즈_초보_스위트,     customer_sprite: 손님_와인초보_카툰,   budget: green,  occasion: 입문, label: 와인 초보 · 낮은 예산 · 달달한 맛 }
-    - { id: 니즈_기념일,   sprite: 니즈_기념일_스파클링, customer_sprite: 손님_기념일_카툰,     budget: yellow, occasion: 기념일, label: 기념일 · 중간 예산 · 스파클링 }
+    - { id: 니즈_승진축하, sprite: 니즈_승진_레드선호,   customer_sprite: 손님_승진축하_카툰,   budget: yellow, occasion: 승진, label: 승진 축하 · 중간 예산 · 레드 선호, speech: "동료의 승진을 축하할 선물이에요. 부담스럽지 않은 레드 와인을 추천해 주세요." }
+    - { id: 니즈_집들이,   sprite: 니즈_집들이_화이트,   customer_sprite: 손님_집들이_카툰,     budget: green,  occasion: 집들이, label: 집들이 · 낮은 예산 · 화이트, speech: "친구 집들이에 가져갈 가벼운 화이트 와인을 찾고 있어요." }
+    - { id: 니즈_부모님,   sprite: 니즈_부모님_레드,     customer_sprite: 손님_부모님선물_카툰, budget: red,    occasion: 부모님, label: 부모님 선물 · 높은 예산 · 레드, speech: "부모님께 드릴 선물이라 품질 좋은 레드 와인을 원합니다." }
+    - { id: 니즈_와인초보, sprite: 니즈_초보_스위트,     customer_sprite: 손님_와인초보_카툰,   budget: green,  occasion: 입문, label: 와인 초보 · 낮은 예산 · 달달한 맛, speech: "와인은 처음이라 저렴하고 달콤하게 마시기 쉬운 와인이 좋아요." }
+    - { id: 니즈_기념일,   sprite: 니즈_기념일_스파클링, customer_sprite: 손님_기념일_카툰,     budget: yellow, occasion: 기념일, label: 기념일 · 중간 예산 · 스파클링, foreign: true, foreign_speech: "I need a sparkling wine for our anniversary. Something nice, but not too expensive.", translated_speech: "기념일에 마실 스파클링 와인을 찾고 있어요. 너무 비싸지 않은 좋은 제품이면 좋겠습니다." }
 
   # 오른쪽 = 와인 상품. 종류는 아이콘, 가격대는 색 + 가격표 개수. (12종 중 화면용 7종 발췌)
   right:
-    - { id: 상품_레드_중가,   sprite: 와인_레드_중가,   price: yellow, kind: red,       stock: ok,       label: 레드 · 중간 가격 }
-    - { id: 상품_화이트_저가, sprite: 와인_화이트_저가, price: green,  kind: white,     stock: ok,       label: 화이트 · 저가 }
-    - { id: 상품_레드_고가,   sprite: 와인_레드_고가,   price: red,    kind: red,       stock: ok,       label: 레드 · 고가 }
-    - { id: 상품_스위트_저가, sprite: 와인_스위트_저가, price: green,  kind: sweet,     stock: ok,       label: 스위트 · 저가 }
-    - { id: 상품_스파클링_중가, sprite: 와인_스파클링_중가, price: yellow, kind: sparkling, stock: ok,    label: 스파클링 · 중간 가격 }
+    - { id: 상품_레드_중가,   sprite: 와인_레드_중가,   price: yellow, kind: red,       tier: house,    slot: 2, accent: "#8A0447", stock: ok, label: 레드 · 중간 가격 }
+    - { id: 상품_화이트_저가, sprite: 와인_화이트_저가, price: green,  kind: white,     tier: favorite, slot: 2, accent: "#0BD01F", stock: ok, label: 화이트 · 저가 }
+    - { id: 상품_레드_고가,   sprite: 와인_레드_고가,   price: red,    kind: red,       tier: favorite, slot: 1, accent: "#8A0447", stock: ok, label: 레드 · 고가 }
+    - { id: 상품_스위트_저가, sprite: 와인_스위트_저가, price: green,  kind: sweet,     tier: house,    slot: 1, accent: "#FFF019", stock: ok, label: 스위트 · 저가 }
+    - { id: 상품_스파클링_중가, sprite: 와인_스파클링_중가, price: yellow, kind: sparkling, tier: favorite, slot: 3, accent: "#C3FF8A", stock: ok, label: 스파클링 · 중간 가격 }
     # 예산 초과 유도 — 짝 없음. 이으면 '비싼 상품부터 제시' 실수.
     # 판별은 가격표 4장+금박 리본(visual_cues)으로 — '(최고가)' 같은 판정 접미를
     # 라벨에 쓰지 않는다(규칙 8, 검증 지적 반영).
-    - { id: 상품_레드_프리미엄, sprite: 와인_레드_프리미엄, price: red, kind: red,     stock: ok,       label: 레드 · 프리미엄 }
+    - { id: 상품_레드_프리미엄, sprite: 와인_레드_프리미엄, price: red, kind: red, tier: premium, slot: 1, accent: "#9106A4", stock: ok, label: 레드 · 프리미엄 }
     # 품절 — 재고 현황상 없음. 이으면 없는 상품 추천. 대체 안내가 정답.
     # 판별은 병의 재고없음 빗금(visual_cues)으로 — '(품절)' 접미 금지(규칙 8, 검증 지적 반영).
-    - { id: 상품_레드_품절,   sprite: 와인_레드_품절,   price: yellow, kind: red,      stock: soldout,  label: 레드 · 중간 가격 }
+    - { id: 상품_레드_품절,   sprite: 와인_레드_품절,   price: yellow, kind: red, tier: premium, slot: 2, accent: "#8A0447", stock: soldout, label: 레드 · 중간 가격 }
 
   # 가격대·재고를 글자 없이 알아볼 시각 단서(ms-03 규약) — 가격표 아이콘 개수가 가격대다.
   # 니즈 카드의 예산도 같은 가격표 개수로 뜬다(저가 1장 · 중가 2장 · 고가 3장).
@@ -135,7 +135,7 @@ supply_game_data: &supply_game_data
   presentation: supply_run
   supply_only: true
   supply_run:
-    memory_seconds: 7
+    memory_seconds: 10
     order:
       - { id: 레드,       label: 레드 와인,       display_label: Red wine,       sprite: 와인_레드_중가,       target: 7, at: [105, 64],  hit_at: [151, 114], hit_size: [31, 63] }
       - { id: 화이트,     label: 화이트 와인,     display_label: White wine,     sprite: 와인_화이트_저가,     target: 5, at: [915, 194], hit_at: [893, 280], hit_size: [41, 80] }
@@ -144,13 +144,19 @@ supply_game_data: &supply_game_data
       - { id: 스위트,     label: 스위트 와인,     display_label: Sweet wine,     sprite: 와인_스위트_저가,     target: 4, at: [167, 231], hit_at: [212, 254], hit_size: [27, 37] }
     transport:
       duration_seconds: 24
-      overspeed_ticks: 12
       obstacles:
         - { id: 직원_통로,     label: 이동 중인 직원, sprite: 손님_갈색머리,      lane: 0, at: 24 }
+        - { id: 직원_통로_2,   label: 상품을 옮기는 직원, sprite: 손님_금발_안경,  lane: 1, at: 34 }
         - { id: 적치_상자,     label: 통로의 적치물, sprite: 적치물_상자더미,     lane: 2, at: 43 }
         - { id: 고객_횡단,     label: 지나가는 고객, sprite: 손님_금발_안경,      lane: 1, at: 61 }
+        - { id: 고객_횡단_2,   label: 매장으로 이동하는 고객, sprite: 손님_갈색머리, lane: 2, at: 70 }
+        - { id: 매장_횡단_고객, label: 매장 앞을 지나는 고객, sprite: 손님_금발_안경, lane: 0, at: 74 }
+        - { id: 출발_횡단_직원, label: 출발 통로를 지나는 직원, sprite: 손님_갈색머리, lane: 2, at: 76 }
         - { id: 작업_라바콘,   label: 작업 구역,     sprite: 장애물_라바콘,        lane: 0, at: 79 }
         - { id: 진열_상자,     label: 진열 대기 상자, sprite: 상자_별아이콘_도장별, lane: 2, at: 91 }
+        - { id: 적치_상자_2,   label: 임시 적치물,   sprite: 적치물_상자더미,      lane: 1, at: 102 }
+        - { id: 작업_라바콘_2, label: 보수 작업 구역, sprite: 장애물_라바콘,        lane: 0, at: 113 }
+        - { id: 진열_상자_2,   label: 추가 진열 상자, sprite: 상자_별아이콘_도장별, lane: 2, at: 124 }
   left: []
   right: []
   pairs: []
@@ -172,7 +178,7 @@ games:
     step: m2
     engine: match
     title: 니즈-상품 추천 매칭
-    intro: 손님의 선물 니즈에 맞는 와인을 추천하고, 예산 초과·품절 상품과 돌발 환불 요구에 올바르게 대응하세요.
+    intro: 손님의 요구를 확인하고 와인 정보를 살펴본 뒤 알맞은 상품을 추천하고, 돌발 환불 요구에도 올바르게 대응하세요.
     time_limit: 75
     pass_score: 70
     data: *customer_game_data
