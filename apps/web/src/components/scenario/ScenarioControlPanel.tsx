@@ -69,6 +69,7 @@ const VOICE_FREQUENCY_GAINS = [0.88, 0.94, 1, 1.08, 1.18, 1.3];
 type ScenarioControlPanelProps = {
   npcName: string;
   npcRole?: string;
+  npcPortraitSrc?: string;
   npcMessage: string;
   userMessage: string;
   dialogueEntries: DialogueHistoryEntry[];
@@ -90,6 +91,7 @@ type ScenarioControlPanelProps = {
 export function ScenarioControlPanel({
   npcName,
   npcRole,
+  npcPortraitSrc,
   npcMessage,
   userMessage,
   dialogueEntries,
@@ -563,7 +565,17 @@ export function ScenarioControlPanel({
                     <>
                       <div className={styles.npcIdentity}>
                         <span className={styles.speakerPortrait} aria-hidden="true">
-                          <UserCircle weight="duotone" />
+                          {npcPortraitSrc ? (
+                            <img
+                              className={styles.speakerPortraitImage}
+                              src={npcPortraitSrc}
+                              alt=""
+                              decoding="async"
+                              draggable={false}
+                            />
+                          ) : (
+                            <UserCircle weight="duotone" />
+                          )}
                         </span>
                         <strong>{message.speaker || npcName}</strong>
                         <small>{npcRole || "NPC"}</small>

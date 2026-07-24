@@ -22,6 +22,9 @@ python-multipart
 pytest
 pytest-asyncio
 cryptography
-ruff
+# 버전 고정 필수 — 핀이 없으면 CI가 이미지를 새로 빌드할 때마다 최신 ruff를 받는다.
+# 0.16.0이 기본 룰셋을 넓히면서(EXE002·B008·I001 등) 손대지도 않은 코드에서 CI가
+# 163개 에러로 깨졌다(2026-07-24). 올릴 땐 로컬에서 먼저 돌려보고 올릴 것.
+ruff==0.15.10
 openpyxl
 jsonschema
