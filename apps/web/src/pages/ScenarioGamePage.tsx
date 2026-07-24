@@ -347,6 +347,8 @@ export function ScenarioGamePage() {
   const [dialogueHistory, setDialogueHistory] = useState<DialogueHistoryEntry[]>([]);
   const dialogueSequenceRef = useRef(0);
   const [chatNpcId, setChatNpcId] = useState<string | null>(null); // 대화 상대(마커 클릭). null=미션 담당 NPC
+  // 지금 말 거는 NPC와 마지막으로 말 건 시각 — 로밍 중인 NPC를 멈춰 세우는 데 쓴다(5초 무발화면 재개).
+  const [talk, setTalk] = useState<{ id: string | null; at: number }>({ id: null, at: 0 });
   const [mapImage, setMapImage] = useState<string>(INITIAL_SCENARIO_MAP_IMAGE);
   // 미달할수록 깊어지는 조언 카드 — 스텝(또는 퀘스트)당 누적, 힌트 패널에 쌓인다.
   const [adviceCards, setAdviceCards] = useState<AdviceCard[]>([]);
@@ -959,6 +961,7 @@ export function ScenarioGamePage() {
     (message: string) => {
       const socket = socketRef.current;
       if (!socket || !chatTargetId) return;
+      setTalk({ id: chatTargetId, at: Date.now() }); // 발화할 때마다 갱신 — 대화 중엔 계속 멈춤
       if (phase === "minigame_debrief" && activeActivity?.kind === "debrief") {
         const sent = socket.sendActivityComplete({ content: message });
         if (!sent) {
@@ -991,6 +994,7 @@ export function ScenarioGamePage() {
     setNpcMessage("");
     setUserMessage("");
     setIsStreaming(false);
+    setTalk({ id: npcId, at: Date.now() }); // 말 건 NPC는 멈춘다(로밍 중이면)
   }, []);
 
   const handleMemoSave = useCallback((content: string) => {
@@ -1243,6 +1247,8 @@ export function ScenarioGamePage() {
           onNpcClick={MODAL_PHASES.has(phase) || tourActive || isMemoOpen || isWorkflowOpen ? undefined : handleNpcClick}
           guideNpcId={tour?.guide?.npc ?? null}
           guidePosition={guidePosition}
+          talkingNpcId={talk.id}
+          talkingAt={talk.at}
         />
         {showStandingIllustration && standingIllustrationSrc ? (
           <div className={styles.npcStandingStage} aria-hidden="true">
