@@ -21,6 +21,7 @@ export const ENGINES = [
   "physics",
   "place",
   "typing",
+  "research",
 ] as const;
 
 export type Engine = (typeof ENGINES)[number];
@@ -59,9 +60,12 @@ export type SpotData = {
 
 /** 서버로 보내는 결과. engine은 MiniGamePanel이 붙이므로 게임은 성적만 낸다. */
 export type MinigameResult = {
-  accuracy: number; // 0~100
+  /** 점수형 엔진만 사용한다. research처럼 원시 기록만 남기는 엔진은 생략한다. */
+  accuracy?: number; // 0~100
   time_seconds?: number;
   mistakes?: number;
+  completed?: boolean;
+  metadata?: Record<string, unknown>;
 };
 
 /** 시뮬레이션 응답의 minigame 필드 (없으면 null → '준비 중' 빈 창으로 폴백). */

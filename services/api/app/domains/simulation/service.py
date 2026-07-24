@@ -792,6 +792,71 @@ def _minigame_result(payload: dict, declared: dict | None) -> dict:
     engine = str(payload.get("engine") or "").strip()
     if not engine:
         raise HTTPException(status_code=400, detail="미니게임 engine이 필요합니다")
+    if engine == "research":
+        metadata = payload.get("metadata")
+        if not isinstance(metadata, dict):
+            raise HTTPException(status_code=400, detail="자료 수집 게임 결과 metadata가 필요합니다")
+        stage_results = metadata.get("stageResults")
+        total_wrong = metadata.get("totalWrongAttempts")
+        if (
+            metadata.get("gameId") != "sns-content-research"
+            or metadata.get("completed") is not True
+            or metadata.get("totalStages") != 5
+            or metadata.get("clearedStages") != 5
+            or not isinstance(total_wrong, int)
+            or isinstance(total_wrong, bool)
+            or total_wrong < 0
+            or not isinstance(stage_results, list)
+            or len(stage_results) != 5
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="자료 수집 게임 결과 형식이 올바르지 않습니다",
+            )
+        clean_stages = []
+        for index, stage_result in enumerate(stage_results):
+            wrong = stage_result.get("wrongAttempts") if isinstance(stage_result, dict) else None
+            if (
+                not isinstance(stage_result, dict)
+                or not isinstance(wrong, int)
+                or isinstance(wrong, bool)
+                or wrong < 0
+                or stage_result.get("completed") is not True
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail="스테이지별 오답 기록이 올바르지 않습니다",
+                )
+            clean_stages.append(
+                {
+                    "stageId": str(stage_result.get("stageId") or f"stage-{index + 1}"),
+                    "stageIndex": index,
+                    "keyword": str(stage_result.get("keyword") or ""),
+                    "wrongAttempts": wrong,
+                    "completed": True,
+                }
+            )
+        if sum(item["wrongAttempts"] for item in clean_stages) != total_wrong:
+            raise HTTPException(status_code=400, detail="전체 오답 횟수와 스테이지 합계가 다릅니다")
+        result = {
+            "engine": engine,
+            "completed": True,
+            "mistakes": total_wrong,
+            "metadata": {
+                "gameId": "sns-content-research",
+                "completed": True,
+                "totalStages": 5,
+                "clearedStages": 5,
+                "totalWrongAttempts": total_wrong,
+                "stageResults": clean_stages,
+                "completedAt": str(metadata.get("completedAt") or ""),
+            },
+        }
+        if declared and engine != declared["engine"]:
+            result["rejected"] = "engine_mismatch"
+            result["declared_engine"] = declared["engine"]
+        return result
+
     accuracy = payload.get("accuracy")
     if not isinstance(accuracy, (int, float)) or isinstance(accuracy, bool) or not 0 <= accuracy <= 100:
         raise HTTPException(status_code=400, detail="accuracy는 0~100 숫자여야 합니다")

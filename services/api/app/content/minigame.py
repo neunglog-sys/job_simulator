@@ -20,6 +20,8 @@ from app.domains.scoring.aggregate import MINIGAME_COMPETENCY
 
 logger = logging.getLogger(__name__)
 
+UNSCORED_ENGINES = {"research"}
+
 # slug → (mtime, 게임 목록). 실패는 저장하지 않아 파일을 고치면 즉시 반영된다.
 _cache: dict[str, tuple[float, list[dict]]] = {}
 
@@ -111,10 +113,11 @@ def _sanitize(doc: dict, filename: str, default_id: str | None = None) -> dict |
     버려진다(오류도 안 남). 그 침묵이 디버깅을 어렵게 하므로 로드 시점에 경고한다.
     """
     engine = str(doc.get("engine") or "").strip()
-    if engine not in MINIGAME_COMPETENCY:
+    supported_engines = set(MINIGAME_COMPETENCY) | UNSCORED_ENGINES
+    if engine not in supported_engines:
         logger.warning(
             "미니게임 engine '%s'는 등록되지 않은 키 — 건너뜀: %s (사용 가능: %s)",
-            engine, filename, ", ".join(sorted(MINIGAME_COMPETENCY)),
+            engine, filename, ", ".join(sorted(supported_engines)),
         )
         return None
 
