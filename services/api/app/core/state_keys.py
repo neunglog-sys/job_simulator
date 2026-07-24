@@ -27,6 +27,7 @@ ENGINE_STATE_KEYS = frozenset(
         "activity_progress",  # 미니게임·회고 등 후속 활동 완료 기록
         "debrief_answers",    # 미니게임 뒤 사용자가 직접 남긴 회고 답변
         "workflow_stage",     # 후속 활동 상태(exploring/reflection/completed)
+        "player_name",        # 로그인 사용자의 현재 표시 이름(NPC 호칭 개인화)
         "met_npcs",      # 만난 NPC 목록
         "tour_done",     # 투어 완료 여부
         "memo",          # 플레이어 메모

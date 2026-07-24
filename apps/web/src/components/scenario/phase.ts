@@ -21,6 +21,7 @@ export type GamePhase =
   | "tour_reply"
   | "tour_closing"
   | "exploring"
+  | "process_learning"
   | "briefing"
   | "mission"
   | "mission_grading"
@@ -66,5 +67,10 @@ export function canMove(phase: GamePhase): boolean {
 
 /** 채팅 입력을 받는가 — 자유 대화, 그리고 투어 중 '직접 인사'(화법 평가) 때. */
 export function canChat(phase: GamePhase): boolean {
-  return phase === "exploring" || phase === "tour_greet" || phase === "minigame_debrief";
+  return (
+    phase === "exploring" ||
+    phase === "tour_greet" ||
+    phase === "process_learning" ||
+    phase === "minigame_debrief"
+  );
 }

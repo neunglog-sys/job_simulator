@@ -283,6 +283,7 @@ export function ScenarioGamePage() {
   const [gameMap, setGameMap] = useState<Simulation["map"]>(null);
   const [minigame, setMinigame] = useState<Simulation["minigame"]>(null);
   const [minigames, setMinigames] = useState<Simulation["minigames"]>([]);
+  const [scenarioSlug, setScenarioSlug] = useState("");
   const [scenarioTitle, setScenarioTitle] = useState("");
   const [stepIds, setStepIds] = useState<string[]>([]); // 본편 미션 순서 (진행률 계산용)
   // 진행 페이즈 — "지금 무엇을 하는 중인지"의 단일 출처. 전이는 아래 handle*/소켓 핸들러에서만.
@@ -305,6 +306,8 @@ export function ScenarioGamePage() {
   // 미션 통과 후 AI 코치 사후 리뷰 (근거 기반 카드)
   const [coachCards, setCoachCards] = useState<CoachCardsFrame | null>(null);
   const [briefedSteps, setBriefedSteps] = useState<string[]>([]); // 브리핑을 본 스텝 id (스텝당 1회)
+  // SNS-01은 설명 모달 대신 담당 NPC와 업무 과정을 한 번 주고받은 뒤 문제를 연다.
+  const [processLearningReady, setProcessLearningReady] = useState(false);
   // 1단계 진행도 — 인사를 나눈 동료 목록(서버 state.met_npcs). 전원과 인사해야 업무가 열린다.
   const [, setMetNpcs] = useState<string[]>([]);
   // 1단계 온보딩 투어(컷신) — 사수가 데리고 다니며 팀원을 소개한다. index: 0..stops-1, stops면 마무리.
@@ -346,6 +349,8 @@ export function ScenarioGamePage() {
   const activeNpcId = activeStep?.npcs?.[0] ?? null;
   const activeNpc = npcs.find((npc) => npc.npc_id === activeNpcId) ?? null;
   const activeActivity = activeStep?.activity ?? null;
+  const usesConversationLearning =
+    scenarioSlug === "sns-01" && Boolean(activeStep?.task) && !quest;
   const activeActivityGame =
     activeActivity?.kind === "minigame"
       ? minigames.find((game) => game.id === activeActivity.game_id) ?? null
@@ -614,6 +619,7 @@ export function ScenarioGamePage() {
       setMemo(typeof sim.state?.memo === "string" ? sim.state.memo : "");
       setMemoSaveStatus("idle");
       pendingMemoRef.current = null;
+      setProcessLearningReady(false);
       // 후속 활동까지 마치고 소감문을 기다리는 세션은 그 단계 그대로 복원한다.
       // 그 외에는 자유 이동부터 — 투어는 플레이어가 사수에게 다가가 시작한다.
       setTourDone(Boolean(sim.state?.tour_done));
@@ -625,6 +631,7 @@ export function ScenarioGamePage() {
       setGameMap(sim.map);
       setMinigame(sim.minigame ?? null);
       setMinigames(sim.minigames?.length ? sim.minigames : sim.minigame ? [sim.minigame] : []);
+      setScenarioSlug(sim.scenario_slug);
       setScenarioTitle(sim.scenario_title);
       setStepIds(sim.step_ids ?? []);
       // 여기서 직접 speakCoach를 부르지 않는다 — phase/npcs/activeStep을 세팅하면
@@ -701,6 +708,7 @@ export function ScenarioGamePage() {
             if (cancelled) return;
             setNpcMessage(reply.content);
             setIsStreaming(false);
+            setProcessLearningReady(true);
             appendDialogue(reply.name || "NPC", "npc", reply.content);
             const met = reply.state?.met_npcs as string[] | undefined;
             if (met) setMetNpcs(met); // 방금 인사한 동료 반영 → 1단계 진행도 갱신
@@ -844,6 +852,7 @@ export function ScenarioGamePage() {
             setNpcMessage("");
             setUserMessage("");
             setTaskResult(null); // 다음 미션으로 넘어가며 채점 결과 초기화
+            setProcessLearningReady(false);
             setGreetSent(false); // 다음 담당 NPC 인사를 새로 요청
             setAdviceCards([]); // 조언 카드는 미션별 — 다음 미션으로 넘기지 않는다
             setCoachCards(null);
@@ -997,6 +1006,7 @@ export function ScenarioGamePage() {
     setAdviceCards([]);
     setCoachCards(null);
     setBriefedSteps([]);
+    setProcessLearningReady(false);
     setTour(null);
     setTourIndex(0);
     setTourDone(false);
@@ -1045,14 +1055,50 @@ export function ScenarioGamePage() {
     // 이 업무의 절차를 아직 안 들었으면 브리핑부터 → 들었으면 바로 과제
     const needsBriefing =
       Boolean(stepId) && !quest && !briefedSteps.includes(stepId!) && (activeStep?.briefing?.length ?? 0) > 0;
+    if (needsBriefing && usesConversationLearning) {
+      const process = activeStep?.briefing
+        ?.map((line, index) => `${index + 1}. ${line}`)
+        .join("\n");
+      const explanation = process
+        ? `이번 업무는 이런 순서로 진행해요.\n${process}\n\n설명을 듣고 궁금하거나 확인하고 싶은 점을 말해보세요.`
+        : "이번 업무에서 무엇부터 확인해야 할지 함께 이야기해 볼까요? 궁금한 점을 말해보세요.";
+      setChatNpcId(null);
+      setNpcMessage(explanation);
+      setUserMessage("");
+      setProcessLearningReady(false);
+      appendDialogue(activeNpc?.name || "NPC", "npc", explanation);
+      setPhase("process_learning");
+      return;
+    }
     setPhase(needsBriefing ? "briefing" : "mission");
-  }, [activeActivity, activeNpc, activeStep, appendDialogue, briefedSteps, quest, needsTour, tourActive]);
+  }, [
+    activeActivity,
+    activeNpc,
+    activeStep,
+    appendDialogue,
+    briefedSteps,
+    quest,
+    needsTour,
+    tourActive,
+    usesConversationLearning,
+  ]);
 
   // 브리핑을 다 들으면 그 스텝은 들은 것으로 기록하고 과제로 넘어간다.
   const handleBriefingDone = useCallback(() => {
     if (activeStep?.id) setBriefedSteps((current) => [...current, activeStep.id]);
     setPhase("mission");
   }, [activeStep]);
+
+  const handleProcessLearningDone = useCallback(() => {
+    if (!processLearningReady) return;
+    if (activeStep?.id) {
+      setBriefedSteps((current) =>
+        current.includes(activeStep.id) ? current : [...current, activeStep.id],
+      );
+    }
+    setProcessLearningReady(false);
+    setPhase("mission");
+  }, [activeStep, processLearningReady]);
 
   // 5단계 — 소감문 전송(채점 없음). 서버 저장 후 완주 화면으로.
   const handleReflectionSubmit = useCallback((content: string) => {
@@ -1270,6 +1316,25 @@ export function ScenarioGamePage() {
           </div>
         ) : null}
 
+        {phase === "process_learning" && processLearningReady && !isStreaming ? (
+          <div className={styles.encounterBanner}>
+            <span className={styles.encounterAvatar} aria-hidden="true">
+              <UserCircle weight="duotone" />
+            </span>
+            <div className={styles.encounterBody}>
+              <strong>{activeNpc?.name ?? "담당 NPC"}에게 업무 과정을 배웠어요</strong>
+              <p>대화를 더 이어가도 되고, 준비됐으면 문제로 확인해 보세요.</p>
+            </div>
+            <button
+              className={styles.encounterButton}
+              type="button"
+              onClick={handleProcessLearningDone}
+            >
+              문제 풀기 →
+            </button>
+          </div>
+        ) : null}
+
         {farewell ? (
           <div className={`${styles.encounterBanner} ${styles.farewellBanner}`}>
             <span className={styles.encounterAvatar} aria-hidden="true">
@@ -1293,12 +1358,18 @@ export function ScenarioGamePage() {
             isHistoryOpen={isHistoryOpen}
             isMemoOpen={isMemoOpen}
             isWorkflowOpen={isWorkflowOpen}
-            // 자유 대화, 그리고 투어 중 '직접 인사'(tour_greet)일 때만 입력을 받는다.
+            // 자유 대화, 투어 인사, SNS-01 업무 학습·회고 단계에서 입력을 받는다.
             disabled={connStatus !== "open" || !canChat(phase)}
-            focusInput={phase === "tour_greet" || phase === "minigame_debrief"}
+            focusInput={
+              phase === "tour_greet" ||
+              phase === "process_learning" ||
+              phase === "minigame_debrief"
+            }
             placeholder={
               phase === "minigame_debrief"
                 ? "진행하면서 느낀 점과 이유를 입력하세요"
+                : phase === "process_learning"
+                  ? "업무 과정에서 궁금하거나 확인할 점을 입력하세요"
                 : "NPC에게 보낼 답변을 입력하세요"
             }
             // 막힌 이유를 구분해서 보여준다 — 서버 문제가 아닌데 '연결 중'이라고 하면 장애로 오해한다.
@@ -1307,6 +1378,8 @@ export function ScenarioGamePage() {
                 ? "게임 서버에 연결 중이에요…"
                   : TOUR_PHASES.has(phase)
                     ? "사수가 팀을 소개하는 중이에요. 인사할 차례가 되면 여기에 입력할 수 있어요."
+                    : phase === "process_learning"
+                      ? "담당 NPC와 업무 과정을 이야기하는 중이에요."
                     : "지금은 대화할 수 없어요."
             }
             onSend={handleSendToNpc}
