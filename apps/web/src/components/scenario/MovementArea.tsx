@@ -32,6 +32,10 @@ type MovementAreaProps = {
   // 온보딩 투어(컷신) — 사수가 신입을 데리고 다니는 동안 그 마커를 이 좌표로 옮긴다.
   guideNpcId?: string | null;
   guidePosition?: Position | null;
+  // 플레이어가 지금 말 거는 NPC와 마지막으로 말 건 시각(ms) — 그 NPC는 로밍을 멈춘다.
+  // talkingAt로부터 5초가 지나면 다시 돌아다닌다(추가 발화가 있으면 시각이 갱신돼 계속 멈춤).
+  talkingNpcId?: string | null;
+  talkingAt?: number;
 };
 
 type GameObject = {
@@ -60,6 +64,12 @@ export const SLOT_SPREAD = 92;
 // 스프라이트 위치는 그대로 유지되게 .npcMarker에 padding-bottom을 줬으므로(요소 높이 123 유지),
 // 발밑은 예전과 같은 markerY+35다. 이 값·padding·이름표 배치는 함께 움직인다.
 const NPC_FEET_OFFSET = 35;
+
+// 로밍 한 걸음의 이동 애니메이션 길이(ms) — .npcMarker의 left/top transition과 맞춰야
+// 걷기 스프라이트가 이동 시간만큼만 재생된다. 짧을수록 잰걸음("뽈뽈뽈")이 된다.
+const ROAM_HOP_MS = 650;
+// 플레이어가 말을 건 뒤 이 시간 동안 그 NPC는 로밍을 멈춘다 — 이후 말이 없으면 다시 돌아다닌다.
+const ROAM_TALK_PAUSE_MS = 5000;
 
 // 걷기 애니메이션을 끄는 NPC — step 프레임이 실제 보폭 없이 옷·골반만 뒤바뀌어
 // 재생하면 파닥거려 보이는 에셋 불량 (투어 가이드 46명 중 5명). 에셋 재생성 시 제거.
@@ -153,6 +163,8 @@ export function MovementArea({
   onNpcClick,
   guideNpcId = null,
   guidePosition = null,
+  talkingNpcId = null,
+  talkingAt = 0,
 }: MovementAreaProps) {
   const areaRef = useRef<HTMLDivElement>(null);
   // NPC 마커 clamp용 컨테이너 크기 — 플레이어(clampPosition)와 달리 마커는 렌더 시점에
@@ -233,6 +245,12 @@ export function MovementArea({
   // 리셋된다(위 livePositionRef와 동일한 이유의 패턴).
   const guideNpcIdRef = useRef(guideNpcId);
   guideNpcIdRef.current = guideNpcId;
+
+  // 로밍 effect가 "지금 누구에게 말을 걸었고 언제였는지"를 최신값으로 읽기 위한 ref —
+  // props에 넣어 deps로 두면 발화마다 로밍 타이머가 리셋돼 전 NPC의 목적지·위치가 초기화된다.
+  // ref로 흘려 effect는 그대로 두고, step()이 매 틱 읽어 말 거는 NPC만 멈춘다.
+  const talkRef = useRef<{ id: string | null; at: number }>({ id: null, at: 0 });
+  talkRef.current = { id: talkingNpcId, at: talkingAt };
 
   // 사수 안내 — geometry.npc_paths의 스폰→안내 지점으로 한 번만 리드하고, 도착 후 플레이어가
   // 안 따라오면 일정 주기로 말을 건다(팀 결정 2026-07-23 갱신: 왕복 순찰 → 1회 안내+넛지).
@@ -673,6 +691,13 @@ export function MovementArea({
       let stuck = 0;
 
       const step = () => {
+        // 플레이어가 이 NPC에게 말을 걸었으면(마지막 발화 후 5초 이내) 멈춰서 대화에 응한다.
+        // 5초간 새 발화가 없으면 아래 로직으로 넘어가 다시 돌아다닌다.
+        const talk = talkRef.current;
+        if (talk.id === npc.npc_id && Date.now() - talk.at < ROAM_TALK_PAUSE_MS) {
+          setPatrolWalking((prev) => (prev[npc.npc_id] ? { ...prev, [npc.npc_id]: false } : prev));
+          return;
+        }
         // 무편향 랜덤워크는 확산이 느려 한 구역만 맴돈다(사용자: "특정 구역에서만 움직여").
         // 매장 어딘가로 '목적지'를 잡고 그쪽으로 직진 — 실제 손님처럼 플로어를 가로지른다.
         const gdx = goal.x - last.x;
@@ -705,7 +730,7 @@ export function MovementArea({
           last = { x: tx, y: ty };
           stuck = 0;
           timers.push(
-            setTimeout(() => setPatrolWalking((prev) => ({ ...prev, [npc.npc_id]: false })), 900),
+            setTimeout(() => setPatrolWalking((prev) => ({ ...prev, [npc.npc_id]: false })), ROAM_HOP_MS),
           );
           return;
         }
@@ -716,7 +741,8 @@ export function MovementArea({
         }
       };
 
-      const period = 2000 + (npc.npc_id.length % 3) * 500; // 2.0~3.0초
+      // 잰걸음으로 자주 움직이게(사용자: "더 뽈뽈뽈") — 0.9~1.4초 간격. NPC마다 살짝 어긋나게.
+      const period = 900 + (npc.npc_id.length % 3) * 250; // 0.9/1.15/1.4초
       timers.push(
         setTimeout(() => {
           step();
