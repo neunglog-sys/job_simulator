@@ -634,6 +634,9 @@ export type GameMapData = {
     collision_polys?: Array<{ points: Array<[number, number]>; id?: string }>; // 대각선 구조물 등
     overhead?: GameOccluder[];
     npc_paths?: GameNpcPath[];
+    // 손님 NPC가 자유롭게 돌아다닐 영역(스테이지 좌표) — 없으면 스폰 주변으로 제한.
+    // 와인바 안쪽·창고를 벗어난 매장 플로어만 담는다.
+    roam_area?: { x: number; y: number; w: number; h: number };
     [key: string]: unknown;
   };
 };

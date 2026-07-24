@@ -601,6 +601,128 @@ export function MovementArea({
     [clampPosition, collidesAt, onPositionChange, notePlayerMove],
   );
 
+  // 손님 NPC 앰비언트 로밍 — 매장을 돌아다니게 한다(사용자 요청 2026-07-24).
+  // 손님(role에 고객/손님/컨슈머)만 대상. 직원(점장=계산대, 사수=바)은 자기 자리를 지킨다.
+  // 2~3초마다 스폰 주변에서 갈 수 있는 지점을 골라 옮긴다. collidesAt(가구)+clampPosition(walkable
+  // 경계)으로 검증해 벽·집기·못 가는 곳으로 새지 않는다. 마커 CSS transition(900ms)이 걷기 연출.
+  useEffect(() => {
+    const spawns = geometry?.spawns;
+    if (!spawns || npcs.length === 0) return;
+    const byId = new Map(spawns.map((s) => [s.id, s]));
+    const roamers = npcs.filter(
+      (n) => n.spawn && byId.has(n.spawn) && /고객|손님|컨슈머/.test(n.role),
+    );
+    if (roamers.length === 0) return;
+
+    // roam_area가 있으면 그 안을 자유롭게(매장 플로어), 없으면 스폰 주변으로 제한(폴백).
+    // 와인바 안쪽·창고는 roam_area 밖으로 잡아 손님이 못 들어가게 한다.
+    const area = geometry?.roam_area ?? null;
+    const inArea = (x: number, y: number, spot: Position) =>
+      area
+        ? x >= area.x && x <= area.x + area.w && y >= area.y && y <= area.y + area.h
+        : Math.hypot(x - spot.x, y - spot.y) <= 120;
+    const DIRS: Array<[number, number]> = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ];
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const intervals: ReturnType<typeof setInterval>[] = [];
+
+    const toLocal = (sx: number, sy: number) => ({
+      x: sx - origin.x - PLAYER_SIZE.width / 2,
+      y: sy - origin.y - PLAYER_SIZE.height / 2,
+    });
+
+    for (const npc of roamers) {
+      const spot = byId.get(npc.spawn as string);
+      if (!spot) continue;
+      let last = { x: spot.x, y: spot.y }; // 직전 목표(스테이지 좌표)
+
+      // 목표점만이 아니라 직선 경로 전체를 훑는다 — 안 그러면 진열대·벽을 관통해 걷는다(발밑
+      // 박스로 8px 간격 충돌 판정 + walkable 경계 확인). 한 곳이라도 막히면 이 방향은 못 간다.
+      const pathClear = (dx0: number, dy0: number, dist: number) => {
+        const stepsN = Math.max(1, Math.ceil(dist / 8));
+        for (let k = 1; k <= stepsN; k++) {
+          const t = k / stepsN;
+          const p = toLocal(last.x + dx0 * dist * t, last.y + dy0 * dist * t);
+          const c = clampPosition(p);
+          if (collidesAt(p) || Math.abs(c.x - p.x) > 1 || Math.abs(c.y - p.y) > 1) return false;
+        }
+        return true;
+      };
+      // roam_area(없으면 스폰 주변) 안에서 가구에 안 걸리는 목적지 하나를 고른다.
+      const pickGoal = () => {
+        for (let i = 0; i < 40; i++) {
+          const gx = area ? area.x + Math.random() * area.w : spot.x + (Math.random() - 0.5) * 200;
+          const gy = area ? area.y + Math.random() * area.h : spot.y + (Math.random() - 0.5) * 200;
+          if (!collidesAt(toLocal(gx, gy))) return { x: gx, y: gy };
+        }
+        return { x: last.x, y: last.y };
+      };
+      let goal = pickGoal();
+      let stuck = 0;
+
+      const step = () => {
+        // 무편향 랜덤워크는 확산이 느려 한 구역만 맴돈다(사용자: "특정 구역에서만 움직여").
+        // 매장 어딘가로 '목적지'를 잡고 그쪽으로 직진 — 실제 손님처럼 플로어를 가로지른다.
+        const gdx = goal.x - last.x;
+        const gdy = goal.y - last.y;
+        if (Math.abs(gdx) + Math.abs(gdy) < 60) {
+          goal = pickGoal(); // 도착 — 다음 목적지
+          stuck = 0;
+          return;
+        }
+        // 대각선 금지: 남은 거리가 큰 축부터 한 축씩 시도, 막히면 다른 축, 그래도 막히면 랜덤 탈출.
+        const toward: Array<[number, number]> =
+          Math.abs(gdx) >= Math.abs(gdy)
+            ? [[Math.sign(gdx), 0], [0, Math.sign(gdy)]]
+            : [[0, Math.sign(gdy)], [Math.sign(gdx), 0]];
+        const candidates = [...toward, ...[...DIRS].sort(() => Math.random() - 0.5)];
+        for (const [dx0, dy0] of candidates) {
+          if (dx0 === 0 && dy0 === 0) continue; // 이미 그 축은 정렬됨
+          const rem = dx0 !== 0 ? Math.abs(gdx) : Math.abs(gdy);
+          const dist = Math.min(40 + Math.random() * 70, Math.max(40, rem)); // 40~110px, 목적지 넘지 않게
+          const tx = last.x + dx0 * dist;
+          const ty = last.y + dy0 * dist;
+          if (!inArea(tx, ty, spot)) continue;
+          if (!pathClear(dx0, dy0, dist)) continue;
+          setPatrolFacing((prev) => ({
+            ...prev,
+            [npc.npc_id]: dx0 !== 0 ? (dx0 > 0 ? "screen_right" : "screen_left") : dy0 > 0 ? "front" : "back",
+          }));
+          setPatrolWalking((prev) => ({ ...prev, [npc.npc_id]: true }));
+          setPatrolTargets((prev) => ({ ...prev, [npc.npc_id]: { x: tx, y: ty } }));
+          last = { x: tx, y: ty };
+          stuck = 0;
+          timers.push(
+            setTimeout(() => setPatrolWalking((prev) => ({ ...prev, [npc.npc_id]: false })), 900),
+          );
+          return;
+        }
+        // 사방이 막힘 — 몇 번 연속 막히면 목적지를 새로 잡아 빠져나온다.
+        if (++stuck > 2) {
+          goal = pickGoal();
+          stuck = 0;
+        }
+      };
+
+      const period = 2000 + (npc.npc_id.length % 3) * 500; // 2.0~3.0초
+      timers.push(
+        setTimeout(() => {
+          step();
+          intervals.push(setInterval(step, period));
+        }, idleSwayDelay(npc.npc_id) * 500),
+      );
+    }
+
+    return () => {
+      timers.forEach(clearTimeout);
+      intervals.forEach(clearInterval);
+    };
+  }, [geometry, npcs, origin, collidesAt, clampPosition]);
+
   // 이동 키는 window에서 받는다 — 이동영역 div에 포커스가 있어야만 동작하던 탓에
   // '맵을 한 번 클릭해야 키보드가 먹고, 채팅창에 타이핑하면 다시 먹통'이 됐다.
   // 글자 입력 중(채팅·서술형 답안)에는 무시한다.
