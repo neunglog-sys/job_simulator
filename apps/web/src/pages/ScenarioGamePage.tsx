@@ -361,6 +361,26 @@ export function ScenarioGamePage() {
   const [chatNpcId, setChatNpcId] = useState<string | null>(null); // 대화 상대(마커 클릭). null=미션 담당 NPC
   // 지금 말 거는 NPC와 마지막으로 말 건 시각 — 로밍 중인 NPC를 멈춰 세우는 데 쓴다(5초 무발화면 재개).
   const [talk, setTalk] = useState<{ id: string | null; at: number }>({ id: null, at: 0 });
+  // 타이핑 등 대화 활동 — 세션 타임아웃을 리셋해 대화 중엔 NPC가 계속 멈춰 있게 한다.
+  const bumpTalk = useCallback(() => {
+    setTalk((t) => (t.id ? { id: t.id, at: Date.now() } : t));
+  }, []);
+  // 대화 세션 자동 종료 — 마지막 활동(클릭·발화·타이핑) 후 5초간 활동이 없고 NPC 응답 중도
+  // 아니면 세션을 끝낸다: NPC 정지 해제 + 자유 대화였다면 컷신(입상 일러스트)도 함께 내린다.
+  // "대화 중엔 계속 멈춤 / 대화가 끝나 NPC가 움직이면 컷신도 같이 사라짐"을 하나로 맞춘다.
+  useEffect(() => {
+    if (!talk.id || isStreaming) return;
+    const wasFreeChat = chatNpcId !== null;
+    const timer = setTimeout(() => {
+      setTalk({ id: null, at: 0 });
+      if (wasFreeChat) {
+        setChatNpcId(null);
+        setNpcMessage("");
+        setUserMessage("");
+      }
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [talk, isStreaming, chatNpcId]);
   const [mapImage, setMapImage] = useState<string>(INITIAL_SCENARIO_MAP_IMAGE);
   // 미달할수록 깊어지는 조언 카드 — 스텝(또는 퀘스트)당 누적, 힌트 패널에 쌓인다.
   const [adviceCards, setAdviceCards] = useState<AdviceCard[]>([]);
@@ -1330,7 +1350,7 @@ export function ScenarioGamePage() {
           guideNpcId={tour?.guide?.npc ?? null}
           guidePosition={guidePosition}
           talkingNpcId={talk.id}
-          talkingAt={talk.at}
+          roamingPaused={tourActive}
         />
         {showStandingIllustration && standingIllustrationSrc ? (
           <div className={styles.npcStandingStage} aria-hidden="true">
@@ -1534,6 +1554,7 @@ export function ScenarioGamePage() {
                     : "지금은 대화할 수 없어요."
             }
             onSend={handleSendToNpc}
+            onActivity={bumpTalk}
             onHistoryToggle={handleHistoryToggle}
             onMemoOpen={handleMemoToggle}
             onWorkflowOpen={handleWorkflowToggle}
