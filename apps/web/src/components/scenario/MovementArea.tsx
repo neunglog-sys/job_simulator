@@ -702,6 +702,14 @@ export function MovementArea({
       };
       let goal = pickGoal();
       let stuck = 0;
+      let bestDist = Infinity; // 이 목적지까지 도달한 최소 맨해튼 거리 — 우회 실패(맴돌기) 감지
+      let noProgress = 0; // 목적지에 더 못 가까워진 연속 스텝 수
+      const nextGoal = () => {
+        goal = pickGoal();
+        stuck = 0;
+        bestDist = Infinity;
+        noProgress = 0;
+      };
 
       const step = () => {
         // 플레이어가 이 NPC에게 말을 걸었으면(마지막 발화 후 5초 이내) 멈춰서 대화에 응한다.
@@ -716,8 +724,7 @@ export function MovementArea({
         const gdx = goal.x - last.x;
         const gdy = goal.y - last.y;
         if (Math.abs(gdx) + Math.abs(gdy) < 60) {
-          goal = pickGoal(); // 도착 — 다음 목적지
-          stuck = 0;
+          nextGoal(); // 도착 — 다음 목적지
           return;
         }
         // 대각선 금지: 남은 거리가 큰 축부터 한 축씩 시도, 막히면 다른 축, 그래도 막히면 랜덤 탈출.
@@ -742,16 +749,22 @@ export function MovementArea({
           setPatrolTargets((prev) => ({ ...prev, [npc.npc_id]: { x: tx, y: ty } }));
           last = { x: tx, y: ty };
           stuck = 0;
+          // 장애물에 막혀 목적지 쪽으로 못 가고 옆에서 맴돌면(경로탐색이 없어 생기는 지역최소)
+          // 몇 스텝 안에 목적지를 포기한다 — 안 그러면 진열대 옆에서 위아래로만 튕긴다(영상 오건우).
+          const nd = Math.abs(goal.x - tx) + Math.abs(goal.y - ty);
+          if (nd < bestDist - 8) {
+            bestDist = nd;
+            noProgress = 0;
+          } else if (++noProgress > 3) {
+            nextGoal();
+          }
           timers.push(
             setTimeout(() => setPatrolWalking((prev) => ({ ...prev, [npc.npc_id]: false })), ROAM_HOP_MS),
           );
           return;
         }
         // 사방이 막힘 — 몇 번 연속 막히면 목적지를 새로 잡아 빠져나온다.
-        if (++stuck > 2) {
-          goal = pickGoal();
-          stuck = 0;
-        }
+        if (++stuck > 2) nextGoal();
       };
 
       // 잰걸음으로 자주 움직이게(사용자: "더 뽈뽈뽈") — 0.9~1.4초 간격. NPC마다 살짝 어긋나게.
