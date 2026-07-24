@@ -593,7 +593,14 @@ export function ScenarioGamePage() {
       setMinigames(sim.minigames?.length ? sim.minigames : sim.minigame ? [sim.minigame] : []);
       setScenarioTitle(sim.scenario_title);
       setStepIds(sim.step_ids ?? []);
-      speakCoach(approachGuide(sim.step, sim.npcs));
+      // 여기서 직접 speakCoach를 부르지 않는다 — phase/npcs/activeStep을 세팅하면
+      // 아래 반응형 useEffect(520-527행 부근)가 이어서 실행되며 같은 안내를 speakCoach로
+      // 내보낸다. 예전엔 여기서도 직접 불러 **같은 접속에 두 번** 발화가 발동됐는데,
+      // 이 함수 안에서 읽는 needsTour는 방금 세팅 중인 tourDone을 반영하지 못한 stale
+      // 값이라 항상 approachGuide만 나갔다. 반면 아래 effect는 커밋된 새 값으로
+      // introGuide/approachGuide를 정확히 분기한다 — 첫 출근(needsTour=true) 유저는
+      // 두 호출이 서로 다른 문장을 발화해 중복방지에 안 걸리고, 두 번째 발화 요청이
+      // 첫 번째 WS 연결을 끊어버렸다(2026-07-24 관측: ws_error 반복).
       const scenarioMapFallback = mapImageForScenario(sim.scenario_slug);
       setMapImage(scenarioMapFallback);
       // 플레이어 시작 위치 = geometry의 player spawn(발밑 기준). geometry는 스테이지 좌표라 walkable 원점만큼 뺀다.
