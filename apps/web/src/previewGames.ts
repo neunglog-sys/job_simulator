@@ -1405,9 +1405,9 @@ export const PREVIEW_GAMES = {
           "sprite": "니즈_부모님_레드",
           "customer_sprite": "손님_부모님선물_카툰",
           "budget": "red",
-          "occasion": "부모님",
-          "label": "부모님 선물 · 높은 예산 · 레드",
-          "speech": "부모님께 드릴 선물이라 품질 좋은 레드 와인을 원합니다."
+          "occasion": "자식",
+          "label": "자식 선물 · 높은 예산 · 레드",
+          "speech": "자식에게 줄 선물이라 품질 좋은 레드 와인을 원합니다."
         },
         {
           "id": "니즈_와인초보",
@@ -1580,33 +1580,35 @@ export const PREVIEW_GAMES = {
           {
             "id": "경청_사실확인",
             "sprite": "구매이력_조회",
-            "label": "경청하고 구매 이력 조회로 사실 확인"
+            "label": "사실안내"
           },
           {
             "id": "규정안내",
             "sprite": "환불규정_안내",
-            "label": "개봉·무영수증 환불 규정 근거 안내"
+            "label": "규정안내"
           },
           {
             "id": "대안제시",
             "sprite": "교환_적립_안내",
-            "label": "가능한 대안(교환·적립) 확인·제시"
+            "label": "확인제시"
           }
         ],
         "persists_after_stages": true,
         "forbidden_actions": [
           {
             "id": "맞대응_언쟁",
+            "label": "언쟁",
             "reason": "언쟁으로 맞대응"
           },
           {
             "id": "규정밖_환불",
+            "label": "환불",
             "reason": "조용히 시키려 규정 밖 환불 승인"
           }
         ]
       },
       "escalate": {
-        "label": "매니저 호출",
+        "label": "호출",
         "when": "고성_지속",
         "requires": [
           "경청_사실확인",
@@ -1620,7 +1622,7 @@ export const PREVIEW_GAMES = {
       "wrong_pair_penalty": 14,
       "forbidden_penalty": 40,
       "matched_unmatched_penalty": 15,
-      "early_escalate_penalty": 25,
+      "early_escalate_penalty": 0,
       "stage_skip_penalty": 15,
       "ignore_sudden_penalty": 40,
       "missed_escalate_penalty": 40
