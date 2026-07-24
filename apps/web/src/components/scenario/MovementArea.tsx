@@ -55,6 +55,12 @@ const MAP_SIZE = { width: 1920, height: 1080 };
 // 투어 앵커 계산(ScenarioGamePage)도 같은 값을 써야 마커와 어긋나지 않는다.
 export const SLOT_SPREAD = 92;
 
+// 마커 앵커(marker.y = 요소 중심)에서 스프라이트 발밑까지의 로컬 px (실측).
+// 오클루전 z는 '발밑'으로 비교해야 가구 뒤에 서면 가려진다. 이름표를 머리 위로 올려도
+// 스프라이트 위치는 그대로 유지되게 .npcMarker에 padding-bottom을 줬으므로(요소 높이 123 유지),
+// 발밑은 예전과 같은 markerY+35다. 이 값·padding·이름표 배치는 함께 움직인다.
+const NPC_FEET_OFFSET = 35;
+
 // 걷기 애니메이션을 끄는 NPC — step 프레임이 실제 보폭 없이 옷·골반만 뒤바뀌어
 // 재생하면 파닥거려 보이는 에셋 불량 (투어 가이드 46명 중 5명). 에셋 재생성 시 제거.
 const WALK_DISABLED_NPCS = new Set([
@@ -746,7 +752,7 @@ export function MovementArea({
                   left: marker.x,
                   top: marker.y,
                   // 오클루전 맵에서는 NPC도 y-정렬에 참여 — 가구 뒤 자리면 하반신이 가려진다
-                  zIndex: occluders.length > 0 ? Math.round(marker.y + NPC_FRAME.height / 2) : undefined,
+                  zIndex: occluders.length > 0 ? Math.round(marker.y + NPC_FEET_OFFSET) : undefined,
                   animationDelay: isWalking ? undefined : `${idleSwayDelay(marker.npc_id)}s`,
                 }}
                 onClick={() => onNpcClick?.(marker.npc_id)}
