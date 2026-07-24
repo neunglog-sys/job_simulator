@@ -2,6 +2,14 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **2026-07-24 갱신 — Task 3는 superseded.** 실제 노트북(`v2_3`, 태수님이 `v2_2`에서 직접 구현해 전달)에
+> 이미 동등한 기능이 있음이 확인됨 (`persona_for()`/`AVATAR_TO_PERSONA` — 이 계획의 `resolve_persona()`/
+> `AVATAR_ALIASES`와 이름만 다르고 설계 의도 동일). Task 2 산출물(패치 스크립트 2개)은 옛 1개짜리
+> `PERSONA_MAP` 구조를 가정해 v2_3엔 안 맞아 삭제함. **Task 1(프론트 계약)은 v2_3와 호환 확인됨** —
+> `avatar_id="male"→coach`, `avatar_id="female"→coach_female` 매핑이 그대로 들어맞는다. 이 기능은
+> Task 1만으로 완료 상태이며, Task 3/최종 리뷰는 수행하지 않는다. 상세 근거는
+> `.superpowers/sdd/progress.md`의 ledger 참고.
+
 **Goal:** MuseTalk WebSocket 아바타 경로가 `avatar_id`("male"/"female")를 받아 해당 페르소나(영상+목소리)로 발화하게 하고, 여성 영상이 아직 없어도 서버가 정상 기동하도록 만든다.
 
 **Architecture:** 프론트가 WS 요청에 `avatar_id`를 실어 보낸다(백엔드는 투명 릴레이라 변경 없음). Colab 노트북의 MuseTalk 서버 셀에 `resolve_persona()` 헬퍼를 추가해 3개 핸들러의 중복 조회 로직을 통일하고, startup 루프를 "없으면 건너뛰고 기본으로 폴백"하는 관대한 방식으로 바꾼다.
