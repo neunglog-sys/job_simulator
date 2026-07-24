@@ -71,6 +71,10 @@ const NPC_FEET_OFFSET = 35;
 // 걷기 스프라이트가 이동 시간만큼만 재생된다. 짧을수록 잰걸음("뽈뽈뽈")이 된다.
 const ROAM_HOP_MS = 650;
 
+// NPC와 이 거리(로컬 px) 안이어야 대화할 수 있다. 멀리서 마커를 클릭하면 바로 대화하지 않고
+// 이 거리까지 걸어간 뒤 대화를 연다(가까이 가서 말 걸기).
+const TALK_RADIUS = 140;
+
 // 걷기 애니메이션을 끄는 NPC — step 프레임이 실제 보폭 없이 옷·골반만 뒤바뀌어
 // 재생하면 파닥거려 보이는 에셋 불량 (투어 가이드 46명 중 5명). 에셋 재생성 시 제거.
 const WALK_DISABLED_NPCS = new Set([
@@ -181,6 +185,16 @@ export function MovementArea({
   // 대각선 클릭 이동이 예전엔 경로를 미리 계산해 한 번에 그 자리로 '점프'해서, 대각선으로
   // 멀리 찍으면 순간이동처럼 보였다. 키보드와 같은 프레임 루프를 타면 자연히 애니메이션된다.
   const walkTargetRef = useRef<Position | null>(null);
+  // 멀리서 클릭한 NPC에게 '다가가서 대화하기'용 — 이 NPC를 쫓아 걸어가고(RAF 루프), 근처(TALK_RADIUS)에
+  // 도착하면 onNpcClick으로 대화를 연다. 걸어가는 동안 이 NPC는 로밍을 멈춘다(도망 방지).
+  const approachRef = useRef<string | null>(null);
+  const approachBestRef = useRef(Infinity); // 접근 중 대상까지 최소 도달 거리 — 정체(막힘) 감지용
+  const approachStallRef = useRef(0); // 더 못 가까워진 시간(초) — 일정 이상이면 접근 포기
+  // NPC들의 현재 로컬 중심 좌표(마커 위치) — RAF 루프가 접근 대상의 최신 위치를 읽는 데 쓴다.
+  const npcPosRef = useRef<Record<string, { x: number; y: number }>>({});
+  // 최신 onNpcClick을 RAF 루프에서 부르기 위한 ref.
+  const onNpcClickRef = useRef(onNpcClick);
+  onNpcClickRef.current = onNpcClick;
 
   // geometry 좌표계(스테이지 1920×1080)의 원점 = walkable 영역의 좌상단. movementArea 로컬좌표 = (x-origin).
   const origin = useMemo(() => {
@@ -472,6 +486,8 @@ export function MovementArea({
     }
     return markers;
   }, [geometry, npcs, origin, activeNpcId, guideNpcId, guidePosition, patrolTargets, areaSize]);
+  // RAF 루프(접근 이동)가 대상 NPC의 최신 위치를 deps 없이 읽도록 ref로 흘려둔다.
+  npcPosRef.current = Object.fromEntries(npcMarkers.map((m) => [m.npc_id, { x: m.x, y: m.y }]));
 
   const collidesAt = useCallback(
     (pos: Position) => {
@@ -650,6 +666,9 @@ export function MovementArea({
         n.spawn &&
         byId.has(n.spawn) &&
         !guidedIds.has(n.npc_id) &&
+        // 현재 미션 담당 NPC는 제자리에 세운다 — 플레이어가 찾아가서 말 거는 흐름(퀴즈·업무 순차 진행).
+        // 안 그러면 담당 NPC가 플레이어 쪽으로 배회해 와서 근접/대화가 저절로 열린다(태능 피드백).
+        n.npc_id !== activeNpcId &&
         (roamAll || /고객|손님|컨슈머/.test(n.role)),
     );
     if (roamers.length === 0) return;
@@ -729,7 +748,12 @@ export function MovementArea({
         // 정지 조건 두 가지: (1) 투어 등 컷신 중(전 로머 정지) (2) 이 NPC가 지금 대화 중.
         // 세션은 부모가 관리(5초 무활동 시 종료) — 여기선 상태만 읽어 멈춘다. 플레이어를 바라보는 건
         // 아래 '대화 중 NPC 시선' 효과가 로머·직원 공통으로 처리한다.
-        if (roamingPausedRef.current || talkingNpcIdRef.current === npc.npc_id) {
+        // (3) 플레이어가 다가오는 중인 대상(approachRef)도 멈춘다 — 안 그러면 도망가는 표적이 된다.
+        if (
+          roamingPausedRef.current ||
+          talkingNpcIdRef.current === npc.npc_id ||
+          approachRef.current === npc.npc_id
+        ) {
           setPatrolWalking((prev) => (prev[npc.npc_id] ? { ...prev, [npc.npc_id]: false } : prev));
           return;
         }
@@ -795,7 +819,8 @@ export function MovementArea({
       timers.forEach(clearTimeout);
       intervals.forEach(clearInterval);
     };
-  }, [geometry, npcs, origin, collidesAt, clampPosition]);
+    // activeNpcId가 바뀌면 담당 NPC가 바뀌므로 로밍 대상을 다시 잡는다(옛 담당은 다시 로밍, 새 담당은 고정).
+  }, [geometry, npcs, origin, collidesAt, clampPosition, activeNpcId]);
 
   // patrolTargets(로머의 현재 위치)를 아래 시선 효과가 deps 없이 최신값으로 읽기 위한 ref.
   const patrolTargetsRef = useRef(patrolTargets);
@@ -864,8 +889,41 @@ export function MovementArea({
       const step = MOVE_SPEED * dt;
       if (active) {
         walkTargetRef.current = null; // 키보드가 우선 — 클릭 이동 중이었다면 취소
+        approachRef.current = null; // 키보드로 직접 움직이면 접근 이동도 취소
         movePlayer(Math.sign(active.x) * step, Math.sign(active.y) * step);
         return;
+      }
+      // NPC 접근 이동: 멀리서 클릭한 NPC의 '현재' 위치를 매 프레임 쫓아 걸어가고(로밍으로 살짝
+      // 움직였어도 따라감), TALK_RADIUS 안에 들면 그때 대화를 연다. 좌표·정지를 한 곳에서 다뤄 어긋남이 없다.
+      const approaching = approachRef.current;
+      if (approaching) {
+        const np = npcPosRef.current[approaching];
+        if (!np) {
+          approachRef.current = null; // 대상이 사라짐 — 취소
+        } else {
+          const c = positionRef.current;
+          const d = Math.hypot(c.x + PLAYER_SIZE.width / 2 - np.x, c.y + PLAYER_SIZE.height / 2 - np.y);
+          if (d < TALK_RADIUS) {
+            approachRef.current = null;
+            walkTargetRef.current = null;
+            onNpcClickRef.current?.(approaching); // 도착 — 대화 시작
+            return;
+          }
+          // 계속 가까워지면 정체 타이머 리셋, 아니면(가구에 막힘 등) 누적 — 0.8초 넘게 못 가까워지면 포기.
+          // 경로탐색이 없어 직선이 막히면 못 가는데, 무한정 밀지 않고 멈춘다(플레이어가 직접 돌아가서 다시 클릭).
+          if (d < approachBestRef.current - 2) {
+            approachBestRef.current = d;
+            approachStallRef.current = 0;
+          } else {
+            approachStallRef.current += dt;
+            if (approachStallRef.current > 0.8) {
+              approachRef.current = null;
+              walkTargetRef.current = null;
+              return;
+            }
+          }
+          walkTargetRef.current = { x: np.x - PLAYER_SIZE.width / 2, y: np.y - PLAYER_SIZE.height / 2 };
+        }
       }
       // 클릭 이동: 목표 지점까지 매 프레임 한 걸음씩 다가간다(대각선도 자연스럽게 애니메이션됨).
       const target = walkTargetRef.current;
@@ -904,6 +962,7 @@ export function MovementArea({
       x: worldX - PLAYER_SIZE.width / 2,
       y: worldY - PLAYER_SIZE.height / 2,
     });
+    approachRef.current = null; // 지도를 직접 클릭해 이동하면 NPC 접근 이동은 취소
     // 클릭한 지점까지 '걸어간다' — 벽·집기를 뚫지 않되, 막혔다고 그 자리에 멈춰 서지도 않는다.
     // NPC는 책상 앞에 있어서 NPC를 누르면 목적지가 충돌 안이 되는데, 예전처럼 무시해 버리면
     // "눌러도 아무 일이 없다"가 된다(다가가려고 누른 건데). 갈 수 있는 데까지 이동한다.
@@ -1026,7 +1085,24 @@ export function MovementArea({
                   transitionDuration:
                     guideNpcId === marker.npc_id ? `${guideHopMsRef.current}ms` : undefined,
                 }}
-                onClick={() => onNpcClick?.(marker.npc_id)}
+                onClick={() => {
+                  if (!onNpcClick) return; // 대화 불가 상태(온보딩·모달 등)면 다가가지도 않는다
+                  // 가까우면 바로 대화. 멀면 그 자리서 대화하지 않고 그 NPC에게 걸어간 뒤(RAF 루프가
+                  // 도착하면 onNpcClick 호출) 대화한다 — "가까이 가서 말 걸기".
+                  const c = positionRef.current;
+                  const d = Math.hypot(
+                    c.x + PLAYER_SIZE.width / 2 - marker.x,
+                    c.y + PLAYER_SIZE.height / 2 - marker.y,
+                  );
+                  if (d < TALK_RADIUS) {
+                    approachRef.current = null;
+                    onNpcClick?.(marker.npc_id);
+                  } else {
+                    approachRef.current = marker.npc_id;
+                    approachBestRef.current = d; // 정체 감지 초기화
+                    approachStallRef.current = 0;
+                  }
+                }}
                 aria-label={`${marker.name}와 대화하기`}
               >
                 {marker.isActive ? (
