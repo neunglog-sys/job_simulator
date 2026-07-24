@@ -49,8 +49,9 @@ npcs:
   - 핵심부터 봅시다.
   responsibilities: []
   appearance:
-    location: sasu
-    available_steps: []
+    location: bujang
+    available_steps:
+    - m2
 - npc_id: npc_kts-03_03
   name: 유선우
   role: 까다로운 단골 고객
@@ -72,9 +73,8 @@ npcs:
   - 니즈 파악 메모
   - 후보 상품 목록
   appearance:
-    location: bujang
-    available_steps:
-    - m2
+    location: npc4
+    available_steps: []
 - npc_id: npc_kts-03_04
   name: 오건우
   role: 블랙컨슈머
@@ -96,7 +96,7 @@ npcs:
   - 민원 대응 기록
   - 인계 보고
   appearance:
-    location: npc4
+    location: npc5
     available_steps:
     - quest
     conditions:
