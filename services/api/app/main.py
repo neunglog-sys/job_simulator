@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import mimetypes
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -33,6 +34,11 @@ logger = logging.getLogger(__name__)
 # httpx가 요청 URL을 통째로 INFO 로그에 남긴다 — 쿼리스트링으로 인증키를 보내는 외부
 # API(커리어넷 등) 호출 시 키가 컨테이너 로그에 평문으로 찍히는 걸 막는다.
 logging.getLogger("httpx").setLevel(logging.WARNING)
+
+# Debian slim의 MIME DB에는 WebP가 빠진 경우가 있어 StaticFiles가
+# application/octet-stream으로 응답할 수 있다. 브라우저가 맵을 이미지로
+# 확실히 해석하도록 확장자 MIME을 명시한다.
+mimetypes.add_type("image/webp", ".webp")
 
 
 @asynccontextmanager
