@@ -32,7 +32,7 @@
 .background {
   position: fixed;
   inset: 0;
-  background: url("/assets/mypage-space-background.png") center / cover no-repeat;
+  background: url("/assets/mypage-space-background.webp") center / cover no-repeat;
 }
 
 .background::before,
