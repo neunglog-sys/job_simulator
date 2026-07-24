@@ -637,6 +637,9 @@ export type GameMapData = {
     // 손님 NPC가 자유롭게 돌아다닐 영역(스테이지 좌표) — 없으면 스폰 주변으로 제한.
     // 와인바 안쪽·창고를 벗어난 매장 플로어만 담는다.
     roam_area?: { x: number; y: number; w: number; h: number };
+    // true면 손님뿐 아니라 (가이드/순찰 NPC를 뺀) 모든 NPC가 로밍한다 — 손님 구분이 없는
+    // 오피스형 시나리오(sns-01)처럼 전원이 돌아다녀야 하는 맵용. 기본은 손님만.
+    roam_all?: boolean;
     [key: string]: unknown;
   };
 };
