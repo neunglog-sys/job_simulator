@@ -3,6 +3,7 @@ import { AnimatePresence } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { LogoutConfirmDialog } from "../components/LogoutConfirmDialog";
 import { SpaceLoadingScreen } from "../components/SpaceLoadingScreen";
+import { AiAvatarStage } from "../components/conversation/AiAvatarStage";
 import { AiCoachPanel } from "../components/scenario/AiCoachPanel";
 import { BriefingPanel } from "../components/scenario/BriefingPanel";
 import { DashboardHeader } from "../components/scenario/DashboardHeader";
@@ -35,6 +36,7 @@ import {
   type GameNpc,
   type GameStep,
   type GameTask,
+  type MuseTalkSpeakRequest,
   type Simulation,
 } from "../lib/api";
 import { logout } from "../lib/auth";
@@ -45,6 +47,7 @@ import {
   type TaskResultFrame,
   type TourFrame,
 } from "../lib/simulationSocket";
+import type { AvatarStatus } from "../types/conversation";
 import styles from "../styles/scenarioGame.module.css";
 
 // 힌트는 백엔드가 주는 것만 쓴다 — 정답은 클라이언트로 내려오지 않는다(대화로 알아내는 게 게임).
@@ -239,6 +242,37 @@ export function ScenarioGamePage() {
   });
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [coachMessage, setCoachMessage] = useState(DEFAULT_COACH_MESSAGE);
+
+  // ── AI 아바타 발화 (LIVE 패널) ──────────────────────────────────────────
+  // coachMessage는 연결상태·에러 문구까지 포함해 18곳에서 갱신되지만, 그중
+  // "코치가 실제로 하는 말"(안내·팁·피드백)만 아바타가 말해야 한다. speakCoach는
+  // 그 구분을 위한 래퍼 — 시스템 문구는 지금처럼 setCoachMessage를 그대로 쓴다.
+  const museTalkRequestIdRef = useRef(0);
+  const lastSpokenRef = useRef<string | null>(null);
+  const [avatarStatus, setAvatarStatus] = useState<AvatarStatus>("idle");
+  const [museTalkRequest, setMuseTalkRequest] =
+    useState<(MuseTalkSpeakRequest & { id: number }) | null>(null);
+
+  const speakCoach = useCallback((text: string) => {
+    setCoachMessage(text);
+    const trimmed = text.trim();
+    // 같은 문장이 effect 재실행 등으로 다시 들어와도 중복 재생하지 않는다.
+    if (!trimmed || trimmed === lastSpokenRef.current) return;
+    lastSpokenRef.current = trimmed;
+    setMuseTalkRequest({ id: ++museTalkRequestIdRef.current, text: trimmed });
+    setAvatarStatus("speaking");
+  }, []);
+
+  const handleAvatarSpeakingEnd = useCallback(() => {
+    setMuseTalkRequest(null);
+    setAvatarStatus("idle");
+  }, []);
+
+  const handleAvatarSpeakingError = useCallback(() => {
+    setMuseTalkRequest(null);
+    setAvatarStatus("idle");
+  }, []);
+
   const [playerPosition, setPlayerPosition] = useState<Position>({ x: 420, y: 290 });
   const [stageScale, setStageScale] = useState(getStageScale);
 
@@ -487,7 +521,7 @@ export function ScenarioGamePage() {
   // (대화 중 코치 TIP·리뷰가 떠 있을 때 덮어쓰지 않도록 스트리밍 중에는 건드리지 않는다)
   useEffect(() => {
     if (phase !== "exploring" || isStreaming || npcs.length === 0) return;
-    setCoachMessage(
+    speakCoach(
       needsTour ? introGuide(activeStep, npcsRef.current) : approachGuide(activeStep, npcsRef.current),
     );
   }, [phase, needsTour, npcs.length, isStreaming, activeStep]);
@@ -559,7 +593,7 @@ export function ScenarioGamePage() {
       setMinigames(sim.minigames?.length ? sim.minigames : sim.minigame ? [sim.minigame] : []);
       setScenarioTitle(sim.scenario_title);
       setStepIds(sim.step_ids ?? []);
-      setCoachMessage(approachGuide(sim.step, sim.npcs));
+      speakCoach(approachGuide(sim.step, sim.npcs));
       const scenarioMapFallback = mapImageForScenario(sim.scenario_slug);
       setMapImage(scenarioMapFallback);
       // 플레이어 시작 위치 = geometry의 player spawn(발밑 기준). geometry는 스테이지 좌표라 walkable 원점만큼 뺀다.
@@ -672,7 +706,7 @@ export function ScenarioGamePage() {
           },
           onQuestResult: (questResult) => {
             if (cancelled) return;
-            if (questResult.feedback) setCoachMessage(questResult.feedback);
+            if (questResult.feedback) speakCoach(questResult.feedback);
             // 결과는 통과·미달 어느 쪽이든 보여준다. 예전엔 퀘스트가 끝날 때 quest와
             // taskResult를 함께 지워서, 결과 화면인데 보여줄 결과가 없고 본편 미션
             // 폼이 대신 떴다(activeMission이 현재 스텝으로 되돌아가므로).
@@ -693,7 +727,7 @@ export function ScenarioGamePage() {
                   : "여기까지 하죠. 원래 하던 일 마저 봅시다."),
             });
           },
-          onCoachTip: (text) => !cancelled && setCoachMessage(text),
+          onCoachTip: (text) => !cancelled && speakCoach(text),
           onTour: (frame) => {
             if (cancelled) return;
             // 같은 요청이 여러 번 큐에 쌓였더라도 첫 응답만 사용한다.
@@ -755,7 +789,7 @@ export function ScenarioGamePage() {
             if (cancelled) return;
             // 통과한 제출물에 대한 AI 코치 사후 리뷰 (근거 기반 카드 최대 3장)
             setCoachCards(frame);
-            if (frame.coach_message) setCoachMessage(frame.coach_message);
+            if (frame.coach_message) speakCoach(frame.coach_message);
             if (frame.cards?.length) setIsHintOpen(true); // 리뷰가 왔음을 바로 보이게
           },
           onStepChanged: (step) => {
@@ -769,7 +803,7 @@ export function ScenarioGamePage() {
             setGreetSent(false); // 다음 담당 NPC 인사를 새로 요청
             setAdviceCards([]); // 조언 카드는 미션별 — 다음 미션으로 넘기지 않는다
             setCoachCards(null);
-            setCoachMessage(approachGuide(step, npcsRef.current));
+            speakCoach(approachGuide(step, npcsRef.current));
           },
           onCompleted: () => {
             if (cancelled) return;
@@ -1009,7 +1043,7 @@ export function ScenarioGamePage() {
           position={playerPosition}
           // 컷신·모달 중에는 조작을 뺏지 않는다 — 이동은 exploring에서만.
           onPositionChange={canMove(phase) && !isMemoOpen && !isWorkflowOpen ? setPlayerPosition : NOOP}
-          onCoachMessage={setCoachMessage}
+          onCoachMessage={speakCoach}
           geometry={gameMap?.geometry ?? null}
           mapImage={mapImage}
           npcs={npcs}
@@ -1177,7 +1211,16 @@ export function ScenarioGamePage() {
             onMemoOpen={handleMemoToggle}
             onWorkflowOpen={handleWorkflowToggle}
           />
-          <AiCoachPanel message={coachMessage} />
+          <AiCoachPanel message={coachMessage}>
+            {museTalkRequest ? (
+              <AiAvatarStage
+                status={avatarStatus}
+                museTalkRequest={museTalkRequest}
+                onSpeakingEnd={handleAvatarSpeakingEnd}
+                onSpeakingError={handleAvatarSpeakingError}
+              />
+            ) : null}
+          </AiCoachPanel>
         </div>
         <span className={styles.keyboardGuide} aria-hidden="true">
           <kbd>WASD</kbd>

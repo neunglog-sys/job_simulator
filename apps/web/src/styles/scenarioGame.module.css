@@ -1836,6 +1836,15 @@ button.headerOrb:active {
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.12),
     0 18px 36px rgb(32 22 81 / 0.24);
+  /* AiAvatarStage(1:1 상담 페이지 전용 컴포넌트)는 --avatar-top/left/width/height
+     CSS 변수로 절대좌표를 잡는다. 그 변수는 원래 oneToOneConversation.module.css의
+     .stage에서만 정의되는데, 이 페이지 DOM에는 .stage가 없어 값이 비어 top/left가
+     auto로 계산돼버린다. 여기서 이 박스를 꽉 채우도록 지역 재정의한다.
+     CSS 커스텀 프로퍼티는 DOM 상속이라 어느 모듈이 선언했는지와 무관하게 적용된다. */
+  --avatar-top: 0px;
+  --avatar-left: 0px;
+  --avatar-width: 100%;
+  --avatar-height: 100%;
 }
 
 .avatarPlaceholder {
