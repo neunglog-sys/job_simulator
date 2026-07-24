@@ -12,6 +12,9 @@ type PlayerSpriteProps = {
   zIndex?: number;
   // 컷신(투어)처럼 좌표가 뚝뚝 떨어질 때만 보간 — 조작 중엔 꺼야 카메라와 어긋나지 않는다
   smooth?: boolean;
+  // smooth일 때의 transition 시간(ms) — 사수 쪽 guideHopMsRef와 맞춰써야 먼 거리 첫 이동이
+  // 고정 900ms로 순간이동처럼 보이지 않는다(팀 확인 2026-07-24, 사수 쪽과 동일한 원인).
+  transitionMs?: number;
 };
 
 export const PLAYER_SIZE = {
@@ -40,6 +43,7 @@ export function PlayerSprite({
   walking = false,
   zIndex,
   smooth = false,
+  transitionMs = 900,
 }: PlayerSpriteProps) {
   const [missing, setMissing] = useState(false);
   const sheet = heroSheet();
@@ -50,7 +54,7 @@ export function PlayerSprite({
       style={{
         transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
         zIndex,
-        transition: smooth ? "transform 900ms ease-in-out" : undefined,
+        transition: smooth ? `transform ${transitionMs}ms ease-in-out` : undefined,
       }}
       role="img"
       aria-label="플레이어 캐릭터"

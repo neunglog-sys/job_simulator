@@ -230,6 +230,53 @@ function introGuide(step: GameStep | null, roster: GameNpc[]): string {
     : "첫 출근이에요. '!' 표시된 사수에게 다가가 인사해보세요.";
 }
 
+// 투어 컷신은 사수·플레이어 자리를 좌표 산수(고정 오프셋)로 정하는데, 이 위치는 MovementArea의
+// 평소 이동(slide)을 거치지 않아 충돌 박스를 그대로 뚫고 배치될 수 있다 — 옆 동료 책상이 가까우면
+// 그 오프셋이 책상 위에 놓여 플레이어가 "책상에 갇힌" 채로 컷신을 시작하게 된다(2026-07-24 확인).
+// FOOT_WIDTH/FOOT_HEIGHT는 MovementArea의 collidesAt과 반드시 같은 값이어야 판정이 어긋나지 않는다.
+const TOUR_FOOT_WIDTH = 46;
+const TOUR_FOOT_HEIGHT = 26;
+
+function tourCollidesAt(
+  pos: Position,
+  collisions: Array<{ x: number; y: number; w: number; h: number }>,
+): boolean {
+  const footX = pos.x + (PLAYER_SIZE.width - TOUR_FOOT_WIDTH) / 2;
+  const footY = pos.y + PLAYER_SIZE.height - TOUR_FOOT_HEIGHT;
+  return collisions.some(
+    (c) => footX < c.x + c.w && footX + TOUR_FOOT_WIDTH > c.x && footY < c.y + c.h && footY + TOUR_FOOT_HEIGHT > c.y,
+  );
+}
+
+// desired 지점이 충돌이면 8방향 링으로 반경을 넓혀가며 가장 가까운 빈 자리를 찾는다.
+// 다 막혀 있으면(사실상 없음) target(동료 스폰 지점 — NPC가 서 있는 자리라 항상 비어있다)으로 돌아간다.
+function findSafeSpot(
+  desired: Position,
+  target: Position,
+  collisions: Array<{ x: number; y: number; w: number; h: number }>,
+): Position {
+  if (collisions.length === 0 || !tourCollidesAt(desired, collisions)) return desired;
+  const STEP = 12;
+  const MAX_RADIUS = 168;
+  for (let radius = STEP; radius <= MAX_RADIUS; radius += STEP) {
+    const offsets: Array<[number, number]> = [
+      [radius, 0],
+      [-radius, 0],
+      [0, radius],
+      [0, -radius],
+      [radius, radius],
+      [-radius, radius],
+      [radius, -radius],
+      [-radius, -radius],
+    ];
+    for (const [dx, dy] of offsets) {
+      const candidate = { x: desired.x + dx, y: desired.y + dy };
+      if (!tourCollidesAt(candidate, collisions)) return candidate;
+    }
+  }
+  return target;
+}
+
 export function ScenarioGamePage() {
   const [isHintOpen, setIsHintOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -498,25 +545,37 @@ export function ScenarioGamePage() {
     }
   }, [appendDialogue, phase, tour, tourStop]);
 
+  // 투어 컷신 자리 배치가 책상 위에 놓이지 않게 검증할 충돌 박스(로컬 좌표) — MovementArea와 같은
+  // origin(walkable[0]) 기준으로 옮겨야 tourAnchor(=spawnPos, 이미 로컬 좌표)와 좌표계가 맞는다.
+  const tourCollisions = useMemo(() => {
+    const geo = gameMap?.geometry;
+    const origin = geo?.walkable?.[0];
+    if (!geo?.collision || !origin) return [];
+    return geo.collision.map((c) => ({ x: c.x - origin.x, y: c.y - origin.y, w: c.w, h: c.h }));
+  }, [gameMap]);
+
   // 투어 중 사수·플레이어가 서 있을 자리 — 소개 대상 옆(마무리 때는 사수 자리로 돌아온다).
   const tourAnchor = useMemo(() => {
     if (!tour) return null;
     const target = tourStop?.npc ?? tour.guide?.npc;
     return target ? spawnPos(target) : null;
   }, [tour, tourStop, spawnPos]);
-  const guidePosition = useMemo(
-    () => (tourActive && tourAnchor ? { x: tourAnchor.x - 70, y: tourAnchor.y } : null),
-    [tourActive, tourAnchor],
-  );
+  const guidePosition = useMemo(() => {
+    if (!tourActive || !tourAnchor) return null;
+    return findSafeSpot({ x: tourAnchor.x - 70, y: tourAnchor.y }, tourAnchor, tourCollisions);
+  }, [tourActive, tourAnchor, tourCollisions]);
 
   // 사수가 이동하면 신입은 자동으로 따라붙는다(컷신 — 플레이어 조작 없음).
   useEffect(() => {
     if (!tourActive || !tourAnchor) return;
-    setPlayerPosition({
-      x: tourAnchor.x - 140 - PLAYER_SIZE.width / 2,
-      y: tourAnchor.y - PLAYER_SIZE.height,
-    });
-  }, [tourActive, tourAnchor]);
+    setPlayerPosition(
+      findSafeSpot(
+        { x: tourAnchor.x - 140 - PLAYER_SIZE.width / 2, y: tourAnchor.y - PLAYER_SIZE.height },
+        { x: tourAnchor.x - PLAYER_SIZE.width / 2, y: tourAnchor.y - PLAYER_SIZE.height },
+        tourCollisions,
+      ),
+    );
+  }, [tourActive, tourAnchor, tourCollisions]);
 
   // 투어 전이: 사수 소개(tour_intro) → 신입이 직접 인사(tour_greet) → 동료 응답(tour_reply)
   //          → 다음 동료 / 마지막이면 사수 마무리(tour_closing) → exploring
@@ -711,6 +770,9 @@ export function ScenarioGamePage() {
             if (cancelled) return;
             setTaskResult(taskResultFrame);
             setPhase("mission_result");
+            // 돌발 퀘스트(onQuestResult)는 결과 피드백을 코치 패널에도 띄우는데 본편 미션은 안 그래서
+            // "퀴즈 풀었는데 코치가 조언을 안 해준다"는 오인을 낳았다 — 같은 방식으로 맞춘다(2026-07-24).
+            if (taskResultFrame.feedback) speakCoach(taskResultFrame.feedback);
             // 미달 → 조언 카드 누적 (같은 단계는 한 번만). 힌트 패널에서 계속 볼 수 있게.
             const advice = taskResultFrame.advice_card;
             if (advice) {
