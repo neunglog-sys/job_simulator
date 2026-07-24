@@ -26,6 +26,13 @@ MAX_CANDIDATES = 24  # LLM에 넘길 후보 상한 — 프롬프트가 너무 �
 # 후보 상한에서 밀려 한 건도 안 실리면 카드가 그 조건을 무시한 것처럼 보인다.
 DISABILITY_MIN_SLOTS = 8
 CARD_TIMEOUT_S = 12.0
+# 앞부분만으로 제도를 맞출 때 요구하는 최소 길이 — 짧은 이름이 우연히 겹치는 것을 막는다.
+_MIN_PREFIX_MATCH = 6
+
+
+def _squash(text: str | None) -> str:
+    """제도명 비교용 — 표기 흔들림(공백·따옴표)을 지운다."""
+    return "".join((text or "").split()).strip("'\"“”‘’")
 
 
 def _clean_summary(text: str | None) -> str:
@@ -275,6 +282,49 @@ def _merge_and_cap(groups: list[list[dict]], *, has_disability: bool | None) -> 
     return unique[:MAX_CANDIDATES]
 
 
+def _split_output(raw: str) -> tuple[str, list[str]]:
+    """LLM 출력을 '카드 문단'과 '더 알아보기 목록'으로 나눈다.
+
+    구분자(---)가 없거나 목록이 비어 있어도 문단만 살려서 진행한다 — 목록은 부가 정보라,
+    형식이 어긋났다고 카드 자체를 없앨 이유가 없다.
+    """
+    head, _, tail = (raw or "").partition("---")
+    names = []
+    for line in tail.splitlines():
+        name = line.strip().lstrip("-•*").strip()
+        if name:
+            names.append(name)
+    return head.strip(), names
+
+
+def _named_policies(names: list[str], candidates: list[dict], exclude: list[dict]) -> list[dict]:
+    """LLM이 고른 제도명을 후보와 대조해 실재하는 것만 남긴다.
+
+    본문 인용과 같은 이유로 검증한다 — 지어낸 이름이 목록에 실리면 사용자가 존재하지 않는
+    제도를 신청하러 간다. 이름이 아니라 후보 쪽 객체를 돌려주므로 링크·기관도 함께 간다.
+
+    정확히 일치할 때만 인정하면 실제로는 거의 못 건진다(실측). 모델이 이름 뒤에 기관명을
+    덧붙이거나('… (고용노동부)') 끝을 조금 흘려 쓰기 때문에, 괄호 앞부분으로 한 번 더
+    맞춰 본다. 다만 후보가 둘 이상 걸리면 어느 쪽인지 확신할 수 없으므로 버린다.
+    """
+    taken = {c["name"] for c in exclude}
+    pool = [(c, _squash(c["name"])) for c in candidates if c["name"] not in taken]
+
+    picked, seen = [], set()
+    for raw in names:
+        key = _squash(raw)
+        row = next((c for c, k in pool if k == key), None)
+        if row is None:
+            head = key.split("(")[0]
+            if len(head) >= _MIN_PREFIX_MATCH:
+                hits = [c for c, k in pool if k.startswith(head) or head.startswith(k)]
+                row = hits[0] if len(hits) == 1 else None
+        if row and row["name"] not in seen:
+            seen.add(row["name"])
+            picked.append(row)
+    return picked
+
+
 def _cited_policies(body: str, candidates: list[dict]) -> list[dict]:
     """생성된 문구가 실제로 언급한 후보 제도들.
 
@@ -315,8 +365,11 @@ async def build_card(
         has_disability=has_disability,
         region=" ".join(x for x in (ctpv, sgg) if x) or None,
     )
+    # 제도명을 한 줄에 단독으로 둔다 — 이름 옆에 기관명을 붙여 두면 모델이 목록을 낼 때
+    # '이름 (기관)' 형태를 그대로 따라 써서 후보와 대조가 안 된다(실측).
     listing = "\n".join(
-        f"- {c['name']} ({c['provider']}): {c['summary'][:120]}" for c in candidates
+        f"- {c['name']}\n  기관: {c['provider']} / 내용: {c['summary'][:120]}"
+        for c in candidates
     )
 
     try:
@@ -333,7 +386,7 @@ async def build_card(
         logger.warning("정책 카드 생성 실패 — 카드 생략", exc_info=True)
         return None
 
-    body = body.strip()
+    body, extra_names = _split_output(body)
     if not body:
         return None
 
@@ -352,15 +405,20 @@ async def build_card(
             (c["link"] for c in cited if c.get("link")),
             "https://www.gov.kr/portal/rcvfvrSvc/main",
         ),
-        # 카드에서 '더 알아보기'로 열리는 목록 — 본문이 실제로 언급한 제도만 담는다.
-        "cited": [
-            {
-                "name": c["name"],
-                "summary": c.get("summary", ""),
-                "provider": c.get("provider", ""),
-                "link": c.get("link", ""),
-            }
-            for c in cited
-        ],
+        # 카드 문단이 실제로 언급한 제도.
+        "cited": [_policy_out(c) for c in cited],
+        # '더 알아보기'에서 함께 보여줄 제도. 후보를 그대로 펼치지 않는다 — 규칙 필터만
+        # 통과한 목록에는 취업과 무관한 것(돌봄·행정 발급·기업 지원 등)이 섞여 있어서,
+        # 문단을 쓰면서 LLM이 함께 고른 것만 담고 이름을 후보와 대조해 검증한다.
+        "more": [_policy_out(c) for c in _named_policies(extra_names, candidates, cited)],
         "source_count": len(candidates),
+    }
+
+
+def _policy_out(row: dict) -> dict:
+    return {
+        "name": row["name"],
+        "summary": row.get("summary", ""),
+        "provider": row.get("provider", ""),
+        "link": row.get("link", ""),
     }

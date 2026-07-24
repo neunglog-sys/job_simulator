@@ -282,6 +282,68 @@ def test_summary_strips_source_formatting():
     assert out[0]["summary"] == "청년 취업 지원 일 경험 기회 제공"
 
 
+def test_split_output_separates_body_and_extra_list():
+    raw = "취업을 준비하는 청년이라면…\n\n---\n- 국민취업지원제도\n- 취업날개 서비스 지원\n"
+    body, names = service._split_output(raw)
+    assert body == "취업을 준비하는 청년이라면…"
+    assert names == ["국민취업지원제도", "취업날개 서비스 지원"]
+
+
+def test_split_output_survives_missing_separator():
+    """목록은 부가 정보다 — 형식이 어긋났다고 카드까지 없애면 안 된다."""
+    body, names = service._split_output("문단만 왔다")
+    assert body == "문단만 왔다"
+    assert names == []
+
+
+def test_extra_list_drops_fabricated_and_duplicate_names():
+    """목록에도 인용 검증을 건다 — 지어낸 제도를 신청하러 가면 안 된다."""
+    candidates = [
+        {"name": "국민취업지원제도", "link": "a"},
+        {"name": "취업날개 서비스 지원", "link": "b"},
+        {"name": "서울시 일자리카페 운영", "link": "c"},
+    ]
+    cited = [candidates[0]]
+    out = service._named_policies(
+        ["청년만능지원금", "취업날개서비스지원", "국민취업지원제도", "서울시 일자리카페 운영"],
+        candidates,
+        cited,
+    )
+    names = [r["name"] for r in out]
+    assert "청년만능지원금" not in names        # 지어낸 이름
+    assert "국민취업지원제도" not in names      # 본문에 이미 나온 제도는 중복 제외
+    assert names == ["취업날개 서비스 지원", "서울시 일자리카페 운영"]  # 띄어쓰기 차이 허용
+
+
+def test_extra_list_matches_despite_appended_provider():
+    """모델이 이름 뒤에 기관명을 덧붙이거나 끝을 흘려 쓴다(실측) — 그래도 찾아내야 한다."""
+    candidates = [
+        {"name": "참 괜찮은 강소기업 선정 및 취업연계", "link": "a"},
+        {"name": "벤처기업 공동채용 지원사업", "link": "b"},
+    ]
+    out = service._named_policies(
+        [
+            "참 괜찮은 강소기업 선정 및 취업연계 (중소벤처기업부)",  # 기관명이 붙음
+            "벤처기업 공동채용 지원사 (중소벤처기업부)",             # 이름 끝이 잘림
+        ],
+        candidates,
+        [],
+    )
+    assert [r["name"] for r in out] == [
+        "참 괜찮은 강소기업 선정 및 취업연계",
+        "벤처기업 공동채용 지원사업",
+    ]
+
+
+def test_extra_list_drops_ambiguous_prefix_match():
+    """앞부분이 여러 제도에 걸리면 어느 쪽인지 알 수 없다 — 찍지 말고 버린다."""
+    candidates = [
+        {"name": "청년 취업지원 사업 A형", "link": "a"},
+        {"name": "청년 취업지원 사업 B형", "link": "b"},
+    ]
+    assert service._named_policies(["청년 취업지원 사업"], candidates, []) == []
+
+
 def test_cited_policies_tolerates_spacing_difference():
     """제도명 표기가 띄어쓰기만 다른 경우도 인용으로 인정한다."""
     candidates = [{"name": "부산 4050 채용 촉진 지원사업", "link": ""}]
