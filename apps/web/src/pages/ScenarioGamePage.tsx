@@ -673,7 +673,8 @@ export function ScenarioGamePage() {
     let unlockArmed = false;
     const audio = new Audio();
     audio.preload = "auto";
-    audio.volume = 0.22;
+    // 코치 TTS가 항상 전면에 들리도록 BGM은 기존(0.22)의 약 40%로 유지한다.
+    audio.volume = 0.09;
 
     const disarmUnlock = () => {
       if (!unlockArmed) return;
