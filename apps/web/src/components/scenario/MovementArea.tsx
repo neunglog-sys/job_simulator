@@ -32,10 +32,11 @@ type MovementAreaProps = {
   // 온보딩 투어(컷신) — 사수가 신입을 데리고 다니는 동안 그 마커를 이 좌표로 옮긴다.
   guideNpcId?: string | null;
   guidePosition?: Position | null;
-  // 플레이어가 지금 말 거는 NPC와 마지막으로 말 건 시각(ms) — 그 NPC는 로밍을 멈춘다.
-  // talkingAt로부터 5초가 지나면 다시 돌아다닌다(추가 발화가 있으면 시각이 갱신돼 계속 멈춤).
+  // 지금 대화 중인 NPC — 대화 세션이 살아있는 동안 로밍을 멈추고 플레이어를 바라본다.
+  // 세션 종료(부모의 5초 무활동 타임아웃)로 null이 되면 다시 돌아다닌다.
   talkingNpcId?: string | null;
-  talkingAt?: number;
+  // 투어(사수의 팀 소개) 등 컷신 중엔 모든 로머를 멈춘다.
+  roamingPaused?: boolean;
 };
 
 type GameObject = {
@@ -68,8 +69,6 @@ const NPC_FEET_OFFSET = 35;
 // 로밍 한 걸음의 이동 애니메이션 길이(ms) — .npcMarker의 left/top transition과 맞춰야
 // 걷기 스프라이트가 이동 시간만큼만 재생된다. 짧을수록 잰걸음("뽈뽈뽈")이 된다.
 const ROAM_HOP_MS = 650;
-// 플레이어가 말을 건 뒤 이 시간 동안 그 NPC는 로밍을 멈춘다 — 이후 말이 없으면 다시 돌아다닌다.
-const ROAM_TALK_PAUSE_MS = 5000;
 
 // 걷기 애니메이션을 끄는 NPC — step 프레임이 실제 보폭 없이 옷·골반만 뒤바뀌어
 // 재생하면 파닥거려 보이는 에셋 불량 (투어 가이드 46명 중 5명). 에셋 재생성 시 제거.
@@ -164,7 +163,7 @@ export function MovementArea({
   guideNpcId = null,
   guidePosition = null,
   talkingNpcId = null,
-  talkingAt = 0,
+  roamingPaused = false,
 }: MovementAreaProps) {
   const areaRef = useRef<HTMLDivElement>(null);
   // NPC 마커 clamp용 컨테이너 크기 — 플레이어(clampPosition)와 달리 마커는 렌더 시점에
@@ -246,11 +245,13 @@ export function MovementArea({
   const guideNpcIdRef = useRef(guideNpcId);
   guideNpcIdRef.current = guideNpcId;
 
-  // 로밍 effect가 "지금 누구에게 말을 걸었고 언제였는지"를 최신값으로 읽기 위한 ref —
-  // props에 넣어 deps로 두면 발화마다 로밍 타이머가 리셋돼 전 NPC의 목적지·위치가 초기화된다.
-  // ref로 흘려 effect는 그대로 두고, step()이 매 틱 읽어 말 거는 NPC만 멈춘다.
-  const talkRef = useRef<{ id: string | null; at: number }>({ id: null, at: 0 });
-  talkRef.current = { id: talkingNpcId, at: talkingAt };
+  // 로밍 effect가 "지금 대화 중인 NPC"와 "컷신으로 로밍 정지 여부"를 최신값으로 읽기 위한 ref —
+  // props를 deps로 두면 매 갱신마다 로밍 타이머가 리셋돼 전 NPC 목적지·위치가 초기화된다.
+  // ref로 흘려 effect는 그대로 두고, step()이 매 틱 읽어 정지 대상을 판단한다.
+  const talkingNpcIdRef = useRef<string | null>(talkingNpcId);
+  talkingNpcIdRef.current = talkingNpcId;
+  const roamingPausedRef = useRef(roamingPaused);
+  roamingPausedRef.current = roamingPaused;
 
   // 사수 안내 — geometry.npc_paths의 스폰→안내 지점으로 한 번만 리드하고, 도착 후 플레이어가
   // 안 따라오면 일정 주기로 말을 건다(팀 결정 2026-07-23 갱신: 왕복 순찰 → 1회 안내+넛지).
@@ -712,11 +713,10 @@ export function MovementArea({
       };
 
       const step = () => {
-        // 플레이어가 이 NPC에게 말을 걸었으면(마지막 발화 후 5초 이내) 멈춰서 대화에 응한다.
-        // 5초간 새 발화가 없으면 아래 로직으로 넘어가 다시 돌아다닌다.
-        const talk = talkRef.current;
-        if (talk.id === npc.npc_id && Date.now() - talk.at < ROAM_TALK_PAUSE_MS) {
-          // 멈춘다. 플레이어를 바라보는 건 아래 '말 거는 NPC 시선' 효과가 로머·직원 공통으로 처리.
+        // 정지 조건 두 가지: (1) 투어 등 컷신 중(전 로머 정지) (2) 이 NPC가 지금 대화 중.
+        // 세션은 부모가 관리(5초 무활동 시 종료) — 여기선 상태만 읽어 멈춘다. 플레이어를 바라보는 건
+        // 아래 '대화 중 NPC 시선' 효과가 로머·직원 공통으로 처리한다.
+        if (roamingPausedRef.current || talkingNpcIdRef.current === npc.npc_id) {
           setPatrolWalking((prev) => (prev[npc.npc_id] ? { ...prev, [npc.npc_id]: false } : prev));
           return;
         }
@@ -788,12 +788,11 @@ export function MovementArea({
   const patrolTargetsRef = useRef(patrolTargets);
   patrolTargetsRef.current = patrolTargets;
 
-  // 말 거는 NPC는 플레이어를 바라본다(사용자 요청) — 돌아다니는 손님이든 자리 지키는 직원이든 공통.
-  // 클릭(대화 시작)·플레이어 이동마다 그 NPC의 위치에서 플레이어 쪽으로 방향을 다시 잡는다.
-  // position을 deps로 두어 플레이어가 움직이면 시선이 따라간다. 5초(발화 없음)가 지나면 갱신을 멈춰,
-  // 로머는 다시 로밍하고 직원은 마지막 방향을 유지한다.
+  // 대화 중인 NPC는 플레이어를 바라본다(사용자 요청) — 돌아다니는 손님이든 자리 지키는 직원이든 공통.
+  // 대화 시작·플레이어 이동마다 그 NPC의 위치에서 플레이어 쪽으로 방향을 다시 잡는다(position deps).
+  // 세션이 끝나 talkingNpcId가 null이 되면 갱신을 멈춰, 로머는 다시 로밍·직원은 마지막 방향을 유지.
   useEffect(() => {
-    if (!talkingNpcId || Date.now() - talkingAt >= ROAM_TALK_PAUSE_MS) return;
+    if (!talkingNpcId) return;
     const npc = npcs.find((n) => n.npc_id === talkingNpcId);
     const pt = patrolTargetsRef.current[talkingNpcId];
     const spot = npc?.spawn ? geometry?.spawns?.find((s) => s.id === npc.spawn) : null;
@@ -804,7 +803,7 @@ export function MovementArea({
     const facing: NpcFacing =
       Math.abs(fdx) >= Math.abs(fdy) ? (fdx > 0 ? "screen_right" : "screen_left") : fdy > 0 ? "front" : "back";
     setPatrolFacing((prev) => (prev[talkingNpcId] === facing ? prev : { ...prev, [talkingNpcId]: facing }));
-  }, [position, talkingNpcId, talkingAt, npcs, geometry, origin]);
+  }, [position, talkingNpcId, npcs, geometry, origin]);
 
   // 이동 키는 window에서 받는다 — 이동영역 div에 포커스가 있어야만 동작하던 탓에
   // '맵을 한 번 클릭해야 키보드가 먹고, 채팅창에 타이핑하면 다시 먹통'이 됐다.
@@ -1025,7 +1024,9 @@ export function MovementArea({
                 <NpcSprite
                   npcId={marker.npc_id}
                   facing={
-                    guideNpcId === marker.npc_id
+                    // 가이드 컷신이 '실제로 진행 중'(guidePosition 있음)일 때만 컷신 방향을 쓴다.
+                    // 컷신이 아닐 땐 patrolFacing을 써야 클릭 시 플레이어를 바라보는 게 가이드에게도 먹는다.
+                    guideNpcId === marker.npc_id && guidePosition
                       ? guideTrack.current.facing
                       : (patrolFacing[marker.npc_id] ?? "front")
                   }
