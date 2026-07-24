@@ -145,8 +145,8 @@ const DEFAULT_SCENARIO_SLUG =
   "kts-03";
 
 const SCENARIO_MAP_IMAGES: Readonly<Record<string, string>> = {
-  "kts-03": `${API_BASE_URL}/maps/kts-03/kts-03.png`,
-  "sns-01": `${API_BASE_URL}/maps/sns-01/sns-01.png`,
+  "kts-03": `${API_BASE_URL}/maps/kts-03/kts-03.webp`,
+  "sns-01": `${API_BASE_URL}/maps/sns-01/sns-01.webp`,
 };
 
 function mapImageForScenario(slug: string) {
