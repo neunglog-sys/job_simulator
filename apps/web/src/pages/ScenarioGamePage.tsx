@@ -137,11 +137,12 @@ const NPC_STANDING_ILLUSTRATIONS: Readonly<Record<string, string>> = {
   "npc_sns-01_03": `${import.meta.env.BASE_URL}npc/standing/npc_sns-01_03.webp`,
 };
 
-// 테스트 대상 시나리오 — ?slug= 쿼리로 덮어쓸 수 있다. 기본은 ms-06(농축산 현장 작업 / 작업순서_농축산현장작업 맵).
+// 직접 진입 시 시연 대상인 영업·판매 시나리오를 시작한다.
+// 상담 추천·마이페이지에서 slug를 전달하면 해당 사용자의 시나리오를 그대로 이어 간다.
 const DEFAULT_SCENARIO_SLUG =
   new URLSearchParams(window.location.search).get("slug") ||
   import.meta.env.VITE_SCENARIO_SLUG?.trim() ||
-  "ms-06";
+  "kts-03";
 
 // 1:1 상담에서 "체험하기"로 진입할 때만 실려온다 — 있어야 체험 완주를 그 상담의 최종
 // 리포트에 반영할 수 있다(없으면 상담 없이 들어온 것이므로 리포트 생성을 건너뜀).

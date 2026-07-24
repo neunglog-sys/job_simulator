@@ -1,5 +1,13 @@
-import { ArrowLeft, GameController, House, SignOut, UserCircle } from "@phosphor-icons/react";
-import { useState } from "react";
+import {
+  ArrowLeft,
+  GameController,
+  House,
+  Megaphone,
+  SignOut,
+  Storefront,
+  UserCircle,
+} from "@phosphor-icons/react";
+import { useEffect, useRef, useState } from "react";
 import { FRONTEND_ENDPOINTS } from "../../config/endpoints";
 import { logout } from "../../lib/auth";
 import styles from "../../styles/oneToOneConversation.module.css";
@@ -11,9 +19,9 @@ function goHome() {
   window.location.assign("/");
 }
 
-// 테스트 단계: 상담 화면에서 곧바로 시나리오 게임으로 진입 (화면 연결용).
-function goToScenario() {
-  window.location.assign(FRONTEND_ENDPOINTS.scenario);
+function goToScenario(slug: "kts-03" | "sns-01") {
+  const params = new URLSearchParams({ slug });
+  window.location.assign(`${FRONTEND_ENDPOINTS.scenario}?${params.toString()}`);
 }
 
 function goBack() {
@@ -27,6 +35,28 @@ function goBack() {
 
 export function ConversationHeader() {
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+  const [isScenarioPickerOpen, setIsScenarioPickerOpen] = useState(false);
+  const scenarioPickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isScenarioPickerOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!scenarioPickerRef.current?.contains(event.target as Node)) {
+        setIsScenarioPickerOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsScenarioPickerOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isScenarioPickerOpen]);
 
   return (
     <>
@@ -48,11 +78,41 @@ export function ConversationHeader() {
           <SignOut aria-hidden="true" />
           로그아웃
         </button>
-        <GlassIconButton
-          icon={GameController}
-          label="시나리오 화면으로 이동"
-          onClick={goToScenario}
-        />
+        <div className={styles.scenarioPicker} ref={scenarioPickerRef}>
+          <button
+            className={styles.glassIconButton}
+            type="button"
+            onClick={() => setIsScenarioPickerOpen((current) => !current)}
+            aria-label="테스트할 시나리오 선택"
+            aria-haspopup="menu"
+            aria-expanded={isScenarioPickerOpen}
+          >
+            <GameController aria-hidden="true" weight="regular" />
+          </button>
+          {isScenarioPickerOpen ? (
+            <div className={styles.scenarioPickerMenu} role="menu" aria-label="테스트 시나리오">
+              <p>테스트할 시나리오 선택</p>
+              <button type="button" role="menuitem" onClick={() => goToScenario("kts-03")}>
+                <span className={styles.scenarioPickerIcon} aria-hidden="true">
+                  <Storefront weight="duotone" />
+                </span>
+                <span>
+                  <strong>영업·판매</strong>
+                  <small>kts-03 · 매장응대</small>
+                </span>
+              </button>
+              <button type="button" role="menuitem" onClick={() => goToScenario("sns-01")}>
+                <span className={styles.scenarioPickerIcon} aria-hidden="true">
+                  <Megaphone weight="duotone" />
+                </span>
+                <span>
+                  <strong>SNS 콘텐츠 운영</strong>
+                  <small>sns-01 · 돌발상황 대처</small>
+                </span>
+              </button>
+            </div>
+          ) : null}
+        </div>
         <GlassIconButton
           icon={UserCircle}
           label="내 정보 열기"
