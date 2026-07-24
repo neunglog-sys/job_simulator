@@ -1351,14 +1351,14 @@ export const PREVIEW_GAMES = {
   "kts-03": {
     "engine": "match",
     "title": "니즈-상품 추천 매칭",
-    "intro": "손님의 선물 니즈(상황 아이콘 · 예산 가격표)에 맞는 와인을 이어 주세요. 가격표 개수가 손님 예산을 넘는 와인과 재고 빗금이 붙은 와인은 잇지 말고 남겨 두세요.",
+    "intro": "손님의 요구를 확인하고 오른쪽 진열대의 와인을 눌러 상품 정보를 살펴본 뒤 알맞은 와인을 추천하세요. 예산을 넘거나 품절된 와인은 추천하지 마세요.",
     "time_limit": 75,
     "pass_score": 70,
     "data": {
       "background_id": "kts-03",
       "presentation": "customer_floor",
       "supply_run": {
-        "memory_seconds": 7,
+        "memory_seconds": 10,
         "order": [
           { "id": "레드", "label": "레드 와인", "display_label": "Red wine", "sprite": "와인_레드_중가", "target": 7, "at": [105, 64], "hit_at": [151, 114], "hit_size": [31, 63] },
           { "id": "화이트", "label": "화이트 와인", "display_label": "White wine", "sprite": "와인_화이트_저가", "target": 5, "at": [915, 194], "hit_at": [893, 280], "hit_size": [41, 80] },
@@ -1387,7 +1387,8 @@ export const PREVIEW_GAMES = {
           "customer_sprite": "손님_승진축하_카툰",
           "budget": "yellow",
           "occasion": "승진",
-          "label": "승진 축하 · 중간 예산 · 레드 선호"
+          "label": "승진 축하 · 중간 예산 · 레드 선호",
+          "speech": "동료의 승진을 축하할 선물이에요. 부담스럽지 않은 레드 와인을 추천해 주세요."
         },
         {
           "id": "니즈_집들이",
@@ -1395,7 +1396,8 @@ export const PREVIEW_GAMES = {
           "customer_sprite": "손님_집들이_카툰",
           "budget": "green",
           "occasion": "집들이",
-          "label": "집들이 · 낮은 예산 · 화이트"
+          "label": "집들이 · 낮은 예산 · 화이트",
+          "speech": "친구 집들이에 가져갈 가벼운 화이트 와인을 찾고 있어요."
         },
         {
           "id": "니즈_부모님",
@@ -1403,7 +1405,8 @@ export const PREVIEW_GAMES = {
           "customer_sprite": "손님_부모님선물_카툰",
           "budget": "red",
           "occasion": "부모님",
-          "label": "부모님 선물 · 높은 예산 · 레드"
+          "label": "부모님 선물 · 높은 예산 · 레드",
+          "speech": "부모님께 드릴 선물이라 품질 좋은 레드 와인을 원합니다."
         },
         {
           "id": "니즈_와인초보",
@@ -1411,7 +1414,8 @@ export const PREVIEW_GAMES = {
           "customer_sprite": "손님_와인초보_카툰",
           "budget": "green",
           "occasion": "입문",
-          "label": "와인 초보 · 낮은 예산 · 달달한 맛"
+          "label": "와인 초보 · 낮은 예산 · 달달한 맛",
+          "speech": "와인은 처음이라 저렴하고 달콤하게 마시기 쉬운 와인이 좋아요."
         },
         {
           "id": "니즈_기념일",
@@ -1419,7 +1423,10 @@ export const PREVIEW_GAMES = {
           "customer_sprite": "손님_기념일_카툰",
           "budget": "yellow",
           "occasion": "기념일",
-          "label": "기념일 · 중간 예산 · 스파클링"
+          "label": "기념일 · 중간 예산 · 스파클링",
+          "foreign": true,
+          "foreign_speech": "I need a sparkling wine for our anniversary. Something nice, but not too expensive.",
+          "translated_speech": "기념일에 마실 스파클링 와인을 찾고 있어요. 너무 비싸지 않은 좋은 제품이면 좋겠습니다."
         }
       ],
       "right": [
@@ -1428,6 +1435,9 @@ export const PREVIEW_GAMES = {
           "sprite": "와인_레드_중가",
           "price": "yellow",
           "kind": "red",
+          "tier": "house",
+          "slot": 2,
+          "accent": "#8A0447",
           "stock": "ok",
           "label": "레드 · 중간 가격"
         },
@@ -1436,6 +1446,9 @@ export const PREVIEW_GAMES = {
           "sprite": "와인_화이트_저가",
           "price": "green",
           "kind": "white",
+          "tier": "favorite",
+          "slot": 2,
+          "accent": "#0BD01F",
           "stock": "ok",
           "label": "화이트 · 저가"
         },
@@ -1444,6 +1457,9 @@ export const PREVIEW_GAMES = {
           "sprite": "와인_레드_고가",
           "price": "red",
           "kind": "red",
+          "tier": "favorite",
+          "slot": 1,
+          "accent": "#8A0447",
           "stock": "ok",
           "label": "레드 · 고가"
         },
@@ -1452,6 +1468,9 @@ export const PREVIEW_GAMES = {
           "sprite": "와인_스위트_저가",
           "price": "green",
           "kind": "sweet",
+          "tier": "house",
+          "slot": 1,
+          "accent": "#FFF019",
           "stock": "ok",
           "label": "스위트 · 저가"
         },
@@ -1460,6 +1479,9 @@ export const PREVIEW_GAMES = {
           "sprite": "와인_스파클링_중가",
           "price": "yellow",
           "kind": "sparkling",
+          "tier": "favorite",
+          "slot": 3,
+          "accent": "#C3FF8A",
           "stock": "ok",
           "label": "스파클링 · 중간 가격"
         },
@@ -1468,6 +1490,9 @@ export const PREVIEW_GAMES = {
           "sprite": "와인_레드_프리미엄",
           "price": "red",
           "kind": "red",
+          "tier": "premium",
+          "slot": 1,
+          "accent": "#9106A4",
           "stock": "ok",
           "label": "레드 · 프리미엄"
         },
@@ -1476,6 +1501,9 @@ export const PREVIEW_GAMES = {
           "sprite": "와인_레드_품절",
           "price": "yellow",
           "kind": "red",
+          "tier": "premium",
+          "slot": 2,
+          "accent": "#8A0447",
           "stock": "soldout",
           "label": "레드 · 중간 가격"
         }
