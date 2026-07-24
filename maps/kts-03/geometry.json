@@ -1783,7 +1783,7 @@
       ],
       "speed": 60,
       "pause_ms": 1800,
-      "prompt": "이쪽으로 와서 인사부터 나눠볼까요.",
+      "prompt": "사수를 찾아가서 인사를 나눠보세요.",
       "nudge_radius": 240,
       "nudge_interval_ms": 6000,
       "nudge_max": 3

@@ -978,6 +978,7 @@ export function MovementArea({
             walking={playerWalking}
             zIndex={Math.round(position.y + PLAYER_SIZE.height)}
             smooth={guidePosition != null}
+            transitionMs={guideHopMsRef.current}
           />
         ) : null}
       </div>
@@ -987,6 +988,7 @@ export function MovementArea({
           facing={playerFacing}
           walking={playerWalking}
           smooth={guidePosition != null}
+          transitionMs={guideHopMsRef.current}
         />
       ) : null}
       </div>
