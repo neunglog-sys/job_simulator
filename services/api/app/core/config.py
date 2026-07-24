@@ -105,6 +105,9 @@ class Settings(BaseSettings):
     # 공공데이터포털 인증키 — 보조금24(odcloud)·복지로(apis.data.go.kr) 공용.
     # 없으면 정책 카드만 생략되고 상담 흐름은 그대로 진행된다.
     data_go_kr_api_key: str = ""
+    # 온통청년 청년정책API(youthcenter.go.kr) — 발급처·키 형식이 위와 다르다(UUID).
+    # 없으면 이 소스만 빠지고 나머지 제도는 그대로 나온다.
+    youth_policy_api_key: str = ""
 
     # CORS — 프론트 개발 서버 주소 (콤마 구분)
     cors_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost"

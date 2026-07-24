@@ -29,6 +29,10 @@ BOKJIRO_CENTRAL = (
 BOKJIRO_LOCAL = (
     "https://apis.data.go.kr/B554287/LocalGovernmentWelfareInformations/LcgvWelfarelist"
 )
+# 온통청년 — 위 둘과 발급처가 다르다(youthcenter.go.kr 자체 발급, 키는 UUID).
+YOUTH_BASE = "https://www.youthcenter.go.kr/go/ythip/getPlcy"
+_YOUTH_PAGE_SIZE = 100  # 서버 상한
+_YOUTH_MAX_PAGES = 12   # 취업 분류가 686건(실측)이라 여유값. 무한 루프 방지용 상한.
 
 _PAGE_SIZE = 1000
 _TIMEOUT = 30.0
@@ -37,6 +41,10 @@ _CACHE_TTL_S = 60 * 60 * 24  # 제도 정보는 하루 단위로 바뀌어도 �
 
 def is_configured() -> bool:
     return bool(settings.data_go_kr_api_key)
+
+
+def youth_is_configured() -> bool:
+    return bool(settings.youth_policy_api_key)
 
 
 async def _cached(key: str, loader):
@@ -163,4 +171,45 @@ async def bokjiro(url: str, *, life: str, target: str | None) -> list[dict]:
         return await _cached(cache_key, load)
     except Exception:  # noqa: BLE001
         logger.warning("복지로 조회 실패 — 건너뜀 (%s)", cache_key, exc_info=True)
+        return []
+
+
+async def youth_employment_policies() -> list[dict]:
+    """온통청년 '일자리 > 취업' 정책 전량.
+
+    이 API는 분류(lclsfNm/mclsfNm)를 서버에서 걸러 주기 때문에 취업 정책만 정확히 받을 수
+    있다 — 다른 두 소스처럼 키워드로 취업 여부를 추측하지 않아도 된다. 지역 필터도 있지만
+    5자리 시군구 코드로만 동작하고(2자리는 조용히 무시됨) 사용자 프로필엔 지역명만 있어서,
+    전량을 받아 캐싱해 두고 지역·연령은 우리가 맞춘다.
+    """
+    if not youth_is_configured():
+        return []
+
+    async def load():
+        rows: list[dict] = []
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            for page in range(1, _YOUTH_MAX_PAGES + 1):
+                res = await client.get(
+                    YOUTH_BASE,
+                    params={
+                        "apiKeyNm": settings.youth_policy_api_key,
+                        "pageNum": page,
+                        "pageSize": _YOUTH_PAGE_SIZE,
+                        "rtnType": "json",
+                        "lclsfNm": "일자리",
+                        "mclsfNm": "취업",
+                    },
+                    headers={"User-Agent": "Mozilla/5.0"},
+                )
+                res.raise_for_status()
+                got = (res.json().get("result") or {}).get("youthPolicyList") or []
+                rows += got
+                if len(got) < _YOUTH_PAGE_SIZE:
+                    break
+        return rows
+
+    try:
+        return await _cached("policy:youth:employment", load)
+    except Exception:  # noqa: BLE001 — 한 소스가 죽어도 나머지로 카드를 만든다
+        logger.warning("온통청년 조회 실패 — 건너뜀", exc_info=True)
         return []
