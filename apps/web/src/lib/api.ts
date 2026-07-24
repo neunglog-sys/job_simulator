@@ -827,10 +827,18 @@ export function generateMuseTalkBlob(
  * ⚠️ 첫 URL까지 약 7초(Gradio 큐/SSE 오버헤드). 호출부는 그동안 avatarStatus를 "thinking" 유지.
  * 아바타 미설정(Colab 세션 없음)이면 503 → idle 유지로 폴백.
  */
-export function speakAvatar(text: string, voice?: string): Promise<AvatarSpeakOut> {
+export function speakAvatar(
+  text: string,
+  voice?: string,
+  avatarId?: "male" | "female",
+): Promise<AvatarSpeakOut> {
   return request(API_ENDPOINTS.avatar.speak, {
     method: "POST",
-    body: JSON.stringify(voice ? { text, voice } : { text }),
+    body: JSON.stringify({
+      text,
+      ...(voice ? { voice } : {}),
+      ...(avatarId ? { avatar_id: avatarId } : {}),
+    }),
   });
 }
 
@@ -839,6 +847,7 @@ export async function streamAvatarSpeakChunks(
   onChunk: (chunk: AvatarChunkOut) => void,
   options: {
     voice?: string;
+    avatarId?: "male" | "female";
     onPlan?: (plan: AvatarChunkPlan) => void;
   } = {},
 ): Promise<void> {
@@ -850,7 +859,11 @@ export async function streamAvatarSpeakChunks(
     res = await fetch(API_ENDPOINTS.avatar.speakChunks, {
       method: "POST",
       headers,
-      body: JSON.stringify(options.voice ? { text, voice: options.voice } : { text }),
+      body: JSON.stringify({
+        text,
+        ...(options.voice ? { voice: options.voice } : {}),
+        ...(options.avatarId ? { avatar_id: options.avatarId } : {}),
+      }),
     });
   } catch {
     throw new ApiError(0, null, "서버에 연결할 수 없어요. 백엔드가 켜져 있는지 확인해주세요.");
