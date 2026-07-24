@@ -79,6 +79,8 @@ export type SimulationSocketHandlers = {
   onSuddenQuest?: (quest: SuddenQuestFrame) => void;
   onQuestResult?: (result: QuestResultFrame) => void;
   onStepChanged?: (step: GameStep) => void;
+  onActivityMessage?: (message: { name: string; text: string }) => void;
+  onReflectionReady?: () => void;
   onCompleted?: () => void;
   onError?: (detail: string) => void;
   onOpen?: () => void;
@@ -151,6 +153,15 @@ export class SimulationSocket {
       case "step_changed":
         this.handlers.onStepChanged?.(msg.step as GameStep);
         break;
+      case "activity_message":
+        this.handlers.onActivityMessage?.({
+          name: String(msg.name ?? ""),
+          text: String(msg.text ?? ""),
+        });
+        break;
+      case "reflection_ready":
+        this.handlers.onReflectionReady?.();
+        break;
       case "simulation_completed":
         this.handlers.onCompleted?.();
         break;
@@ -208,6 +219,13 @@ export class SimulationSocket {
   }): boolean {
     if (this.ws?.readyState !== WebSocket.OPEN) return false;
     this.ws.send(JSON.stringify({ type: "minigame_result", ...result }));
+    return true;
+  }
+
+  /** 기존 미션 뒤에 이어지는 미니게임·회고 활동 완료. */
+  sendActivityComplete(payload: { game_id?: string; content?: string }): boolean {
+    if (this.ws?.readyState !== WebSocket.OPEN) return false;
+    this.ws.send(JSON.stringify({ type: "activity_complete", ...payload }));
     return true;
   }
 

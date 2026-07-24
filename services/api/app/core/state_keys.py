@@ -24,6 +24,9 @@ ENGINE_STATE_KEYS = frozenset(
         "coach_streak",  # 진전 없이 이어진 대화 턴 수 (점수가 아니라 카운터)
         "minigame",      # 마지막 미니게임 결과
         "minigames",     # (예약) 게임별 결과를 따로 남기게 되면 쓸 자리
+        "activity_progress",  # 미니게임·회고 등 후속 활동 완료 기록
+        "debrief_answers",    # 미니게임 뒤 사용자가 직접 남긴 회고 답변
+        "workflow_stage",     # 후속 활동 상태(exploring/reflection/completed)
         "met_npcs",      # 만난 NPC 목록
         "tour_done",     # 투어 완료 여부
         "memo",          # 플레이어 메모

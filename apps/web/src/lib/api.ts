@@ -569,6 +569,13 @@ export type GameTask = {
   answer?: { key?: string; keys?: string[] } | null; // ⚠️ 테스트용 정답 공개
   answer_guide?: string | null; // ⚠️ 테스트용 정답 해설
 };
+export type GameActivity = {
+  kind: "minigame" | "debrief";
+  game_id?: string | null;
+  label: string;
+  prompt?: string | null;
+  completion_message?: string | null;
+};
 export type GameStep = {
   id: string;
   title: string;
@@ -580,6 +587,7 @@ export type GameStep = {
   briefing: string[];
   choices: Array<Record<string, unknown>>;
   task: GameTask | null;
+  activity: GameActivity | null;
 };
 export type GameNpc = {
   npc_id: string;

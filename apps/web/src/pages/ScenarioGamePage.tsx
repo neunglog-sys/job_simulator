@@ -212,7 +212,7 @@ function getStageScale() {
 
 // 코치 안내 — 지도에서 담당 NPC에게 다가가라고 유도(첫 유저가 헤매지 않게).
 function approachGuide(step: GameStep | null, roster: GameNpc[]): string {
-  if (!step?.task) return DEFAULT_COACH_MESSAGE;
+  if (!step?.task && !step?.activity) return DEFAULT_COACH_MESSAGE;
   const name = roster.find((npc) => npc.npc_id === step.npcs?.[0])?.name;
   return name
     ? `지도에서 '!' 표시된 ${name} 님에게 다가가면 업무를 받을 수 있어요.`
@@ -311,6 +311,11 @@ export function ScenarioGamePage() {
   // 현재 스텝의 대화 상대 NPC (step.npcs[0]) — 표시정보는 npcs 로스터에서 조회
   const activeNpcId = activeStep?.npcs?.[0] ?? null;
   const activeNpc = npcs.find((npc) => npc.npc_id === activeNpcId) ?? null;
+  const activeActivity = activeStep?.activity ?? null;
+  const activeActivityGame =
+    activeActivity?.kind === "minigame"
+      ? minigames.find((game) => game.id === activeActivity.game_id) ?? null
+      : null;
   // 대화 상대 = 마커로 선택한 NPC(chatNpcId), 없으면 미션 담당 NPC.
   const chatTargetId = chatNpcId ?? activeNpcId;
   const chatNpc = npcs.find((npc) => npc.npc_id === chatTargetId) ?? activeNpc;
@@ -360,7 +365,7 @@ export function ScenarioGamePage() {
     !tourRequestPending &&
     isNearActiveNpc &&
     !farewell && // 격려 배너가 떠 있는 동안은 업무 배너 숨김
-    Boolean(activeStep?.task);
+    Boolean(activeStep?.task || activeActivity);
 
   // ── 1단계 온보딩 투어(컷신) ──
   // 사수가 앞장서고 신입이 따라붙는다. 각 동료의 spawn 옆에 멈춰 사수가 소개하고, 마지막에
@@ -547,12 +552,13 @@ export function ScenarioGamePage() {
       setMemo(typeof sim.state?.memo === "string" ? sim.state.memo : "");
       setMemoSaveStatus("idle");
       pendingMemoRef.current = null;
-      // 접속하면 언제나 자유 이동부터 — 투어는 플레이어가 사수에게 다가가 시작한다.
+      // 후속 활동까지 마치고 소감문을 기다리는 세션은 그 단계 그대로 복원한다.
+      // 그 외에는 자유 이동부터 — 투어는 플레이어가 사수에게 다가가 시작한다.
       setTourDone(Boolean(sim.state?.tour_done));
       tourRequestPendingRef.current = false;
       setTourRequestPending(false);
       tourStartedRef.current = Boolean(sim.state?.tour_done);
-      setPhase("exploring");
+      setPhase(sim.state?.workflow_stage === "reflection" ? "reflection" : "exploring");
       npcsRef.current = sim.npcs;
       setGameMap(sim.map);
       setMinigame(sim.minigame ?? null);
@@ -728,6 +734,9 @@ export function ScenarioGamePage() {
             }
             if (state.tour_done) setTourDone(true);
             if (state.tour_done) tourStartedRef.current = true;
+            if (state.workflow_stage === "reflection" && !state.reflection) {
+              setPhase("reflection");
+            }
             if (state.reflection) {
               // 5단계 소감문 저장 완료 → 완주 화면 (점수는 게임에서 공개하지 않는다)
               setReflectionSending(false);
@@ -770,6 +779,16 @@ export function ScenarioGamePage() {
             setAdviceCards([]); // 조언 카드는 미션별 — 다음 미션으로 넘기지 않는다
             setCoachCards(null);
             setCoachMessage(approachGuide(step, npcsRef.current));
+            setPhase((current) => (current === "minigame_debrief" ? "exploring" : current));
+          },
+          onActivityMessage: (message) => {
+            if (cancelled || !message.text) return;
+            setFarewell({ name: message.name, text: message.text });
+            appendDialogue(message.name || "NPC", "npc", message.text);
+          },
+          onReflectionReady: () => {
+            if (cancelled) return;
+            setPhase("reflection");
           },
           onCompleted: () => {
             if (cancelled) return;
@@ -800,6 +819,18 @@ export function ScenarioGamePage() {
     (message: string) => {
       const socket = socketRef.current;
       if (!socket || !chatTargetId) return;
+      if (phase === "minigame_debrief" && activeActivity?.kind === "debrief") {
+        const sent = socket.sendActivityComplete({ content: message });
+        if (!sent) {
+          setCoachMessage("게임 서버에 연결 중이에요. 잠시 후 다시 보내주세요.");
+          return;
+        }
+        setUserMessage(message);
+        setNpcMessage("");
+        appendDialogue("나", "user", message);
+        setPhase("exploring");
+        return;
+      }
       const sent = socket.sendChat(chatTargetId, message);
       if (!sent) {
         setIsStreaming(false);
@@ -811,7 +842,7 @@ export function ScenarioGamePage() {
       setIsStreaming(true);
       appendDialogue("나", "user", message);
     },
-    [chatTargetId, appendDialogue],
+    [activeActivity, appendDialogue, chatTargetId, phase],
   );
 
   // NPC 마커 클릭 → 그 NPC와 대화 (미션 진행과 무관한 자유 대화). 대화창 초기화.
@@ -926,13 +957,27 @@ export function ScenarioGamePage() {
       }
       return;
     }
+    if (activeActivity?.kind === "minigame") {
+      setTaskResult(null);
+      setPhase("minigame");
+      return;
+    }
+    if (activeActivity?.kind === "debrief") {
+      const prompt = activeActivity.prompt || "진행하면서 느낀 점을 이야기해 주세요.";
+      setChatNpcId(null);
+      setNpcMessage(prompt);
+      setUserMessage("");
+      appendDialogue(activeNpc?.name || "NPC", "npc", prompt);
+      setPhase("minigame_debrief");
+      return;
+    }
     setTaskResult(null);
     const stepId = activeStep?.id;
     // 이 업무의 절차를 아직 안 들었으면 브리핑부터 → 들었으면 바로 과제
     const needsBriefing =
       Boolean(stepId) && !quest && !briefedSteps.includes(stepId!) && (activeStep?.briefing?.length ?? 0) > 0;
     setPhase(needsBriefing ? "briefing" : "mission");
-  }, [activeStep, briefedSteps, quest, needsTour, tourActive]);
+  }, [activeActivity, activeNpc, activeStep, appendDialogue, briefedSteps, quest, needsTour, tourActive]);
 
   // 브리핑을 다 들으면 그 스텝은 들은 것으로 기록하고 과제로 넘어간다.
   const handleBriefingDone = useCallback(() => {
@@ -1128,7 +1173,11 @@ export function ScenarioGamePage() {
                 {activeNpc?.role ? ` · ${activeNpc.role}` : ""}
               </strong>
               {/* 첫 출근이면 업무 대신 팀 소개부터 — 사수가 데리고 다니며 인사시켜 준다 */}
-              <p>{needsTour ? "첫 출근 — 팀 소개받기" : "오늘의 업무"}</p>
+              <p>
+                {needsTour
+                  ? "첫 출근 — 팀 소개받기"
+                  : activeActivity?.label || "오늘의 업무"}
+              </p>
             </div>
             <button
               className={styles.encounterButton}
@@ -1137,7 +1186,13 @@ export function ScenarioGamePage() {
               disabled={tourRequestPending}
               aria-busy={tourRequestPending}
             >
-              {tourRequestPending ? "준비 중…" : needsTour ? "인사하러 가기 →" : "업무 받기 →"}
+              {tourRequestPending
+                ? "준비 중…"
+                : needsTour
+                  ? "인사하러 가기 →"
+                  : activeActivity?.kind === "debrief"
+                    ? "이야기하기 →"
+                    : "업무 받기 →"}
             </button>
           </div>
         ) : null}
@@ -1167,14 +1222,19 @@ export function ScenarioGamePage() {
             isWorkflowOpen={isWorkflowOpen}
             // 자유 대화, 그리고 투어 중 '직접 인사'(tour_greet)일 때만 입력을 받는다.
             disabled={connStatus !== "open" || !canChat(phase)}
-            focusInput={phase === "tour_greet"}
+            focusInput={phase === "tour_greet" || phase === "minigame_debrief"}
+            placeholder={
+              phase === "minigame_debrief"
+                ? "진행하면서 느낀 점과 이유를 입력하세요"
+                : "NPC에게 보낼 답변을 입력하세요"
+            }
             // 막힌 이유를 구분해서 보여준다 — 서버 문제가 아닌데 '연결 중'이라고 하면 장애로 오해한다.
             disabledHint={
               connStatus !== "open"
                 ? "게임 서버에 연결 중이에요…"
-                : TOUR_PHASES.has(phase)
-                  ? "사수가 팀을 소개하는 중이에요. 인사할 차례가 되면 여기에 입력할 수 있어요."
-                  : "지금은 대화할 수 없어요."
+                  : TOUR_PHASES.has(phase)
+                    ? "사수가 팀을 소개하는 중이에요. 인사할 차례가 되면 여기에 입력할 수 있어요."
+                    : "지금은 대화할 수 없어요."
             }
             onSend={handleSendToNpc}
             onHistoryToggle={handleHistoryToggle}
@@ -1232,10 +1292,30 @@ export function ScenarioGamePage() {
           스텁은 engine:"stub"로 보내 파이프라인만 태우고 점수엔 반영되지 않는다. */}
       {phase === "minigame" ? (
         <MiniGamePanel
-          missionTitle="신입의 주 업무"
-          game={minigame}
-          games={minigames}
+          missionTitle={activeActivity?.label || "신입의 주 업무"}
+          placeholderDescription={
+            activeActivity?.kind === "minigame" ? activeStep?.mission : undefined
+          }
+          game={activeActivity?.kind === "minigame" ? activeActivityGame : minigame}
+          games={
+            activeActivity?.kind === "minigame"
+              ? activeActivityGame
+                ? [activeActivityGame]
+                : []
+              : minigames
+          }
           onClear={(result) => {
+            if (activeActivity?.kind === "minigame" && activeActivity.game_id) {
+              // 게임 정의가 붙기 전에는 준비 중 화면의 완료 버튼만으로 흐름을 검수한다.
+              // 실제 게임이 붙으면 결과도 기존 점수 파이프라인에 함께 전달한다.
+              if (result) socketRef.current?.sendMinigameResult(result);
+              if (!socketRef.current?.sendActivityComplete({ game_id: activeActivity.game_id })) {
+                setCoachMessage("게임 서버에 연결 중이에요. 잠시 후 다시 시도해주세요.");
+                return;
+              }
+              setPhase("exploring");
+              return;
+            }
             // 실제 엔진이면 성적을 그대로, 게임 데이터가 없는 시나리오는 스텁으로.
             // 스텁의 engine:"stub"은 백엔드 aggregate가 걸러내 점수를 오염시키지 않는다.
             socketRef.current?.sendMinigameResult(result ?? { engine: "stub", accuracy: 0 });
