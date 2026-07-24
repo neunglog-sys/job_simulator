@@ -1,3 +1,5 @@
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -98,13 +100,16 @@ async def avatar_ws(
     - 프론트가 발화 요청(JSON)을 올리면 그대로 코랩에 전달, 코랩의 status(JSON)+fMP4 프레임(바이너리)을
       그대로 프론트에 내린다. 프론트는 바이너리를 MediaSource로 append해 스트리밍 재생.
     """
+    entered_at = time.monotonic()
     await websocket.accept()
     try:
         await resolve_user(session, token=token)
     except HTTPException:
         await websocket.close(code=1008, reason="인증 실패")
         return
-    await service.relay_musetalk_ws(websocket)
+    # 업스트림 다이얼(코랩 핸드셰이크)이 첫 프레임 크리티컬 패스에 직렬로 들어가는데
+    # 코랩 t0가 `ws.accept()` 직후라 서버 지표에 안 잡힌다 → 여기서만 관측 가능.
+    await service.relay_musetalk_ws(websocket, entered_at=entered_at)
 
 
 @router.get("/fastapi-stream/{stream_id}")

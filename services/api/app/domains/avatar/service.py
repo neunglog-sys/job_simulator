@@ -568,12 +568,35 @@ async def proxy_fastapi_stream(stream_id: str):
 # ngrok interstitial은 **서버 사이드 핸드셰이크**에서 skip 헤더로 회피(브라우저는 헤더 못 붙임).
 
 
-async def _pump_bidirectional(client_ws, upstream) -> None:
+async def _pump_bidirectional(
+    client_ws,
+    upstream,
+    marks: dict[str, float] | None = None,
+    epoch: float | None = None,
+    rid: str = "-",
+) -> None:
     """client_ws(스타렛 WebSocket) ↔ upstream(websockets 연결)을 양방향으로 편다.
 
     한쪽이 닫히면 반대쪽도 닫아 두 태스크가 같이 끝나게 한다.
+
+    계측(옵션): `epoch`은 라우터 진입 시각이고 모든 mark가 **이 하나의 원점**으로 기록된다.
+    다이얼 완료를 원점으로 삼으면 `first_up_ms`가 구조적으로 항상 ≈0이 된다 —
+    프론트가 보낸 텍스트는 다이얼에 막혀 큐에 있다가 펌프 시작 즉시 나가기 때문이다.
+    원점을 통일해야 `setup → dial → first_up → first_binary`를 한 축에서 읽을 수 있다.
+
+    ⚠️ `first_binary_ms - first_up_ms`는 **릴레이 지연이 아니다.** 코랩 생성 시간
+    (TTS + 추론 + ffmpeg)에 상하행 전송을 더한 값이다.
     """
     from fastapi import WebSocketDisconnect
+
+    def mark(key: str) -> None:
+        if marks is None or epoch is None or key in marks:
+            return
+        marks[key] = (time.monotonic() - epoch) * 1000
+
+    def bump(key: str) -> None:
+        if marks is not None:
+            marks[key] = marks.get(key, 0.0) + 1.0
 
     async def client_to_upstream() -> None:
         try:
@@ -582,8 +605,10 @@ async def _pump_bidirectional(client_ws, upstream) -> None:
                 if msg.get("type") == "websocket.disconnect":
                     break
                 if (txt := msg.get("text")) is not None:
+                    mark("first_up_ms")
                     await upstream.send(txt)
                 elif (data := msg.get("bytes")) is not None:
+                    mark("first_up_ms")
                     await upstream.send(data)
         except WebSocketDisconnect:
             pass
@@ -596,9 +621,50 @@ async def _pump_bidirectional(client_ws, upstream) -> None:
     async def upstream_to_client() -> None:
         try:
             async for msg in upstream:
+                mark("first_down_ms")
                 if isinstance(msg, (bytes, bytearray)):
+                    is_first_binary = marks is not None and "first_binary_ms" not in marks
+                    mark("first_binary_ms")
+                    bump("down_binary")
                     await client_ws.send_bytes(bytes(msg))
+                    if is_first_binary and marks is not None:
+                        # 첫 바이너리 = 관심 지표가 확정되는 순간. 한 줄로 묶어 즉시 남기고,
+                        # **같은 값을 프론트로도 주입**한다. 브라우저/백엔드/코랩이 서로 다른
+                        # 시계라 로그 대조로는 접합이 불가능하고, 프리페치 소켓이 동시에 열려
+                        # 출력 순서로도 짝을 못 가리기 때문이다. 프론트 metrics 한 객체에
+                        # 3계층이 모이면 대조 자체가 필요 없어진다.
+                        logger.info(
+                            "[RELAY-TIMING] rid=%s first_binary setup_ms=%.1f dial_ms=%.1f "
+                            "first_up_ms=%.1f first_down_ms=%.1f first_binary_ms=%.1f",
+                            rid,
+                            marks.get("setup_ms", -1.0),
+                            marks.get("dial_ms", -1.0),
+                            marks.get("first_up_ms", -1.0),
+                            marks.get("first_down_ms", -1.0),
+                            marks.get("first_binary_ms", -1.0),
+                        )
+                        with contextlib.suppress(Exception):
+                            await client_ws.send_text(
+                                json.dumps(
+                                    {
+                                        "type": "relay_timing",
+                                        "rid": rid,
+                                        **{
+                                            key: round(marks[key], 1)
+                                            for key in (
+                                                "setup_ms",
+                                                "dial_ms",
+                                                "first_up_ms",
+                                                "first_down_ms",
+                                                "first_binary_ms",
+                                            )
+                                            if key in marks
+                                        },
+                                    }
+                                )
+                            )
                 else:
+                    bump("down_text")
                     await client_ws.send_text(msg)
         except Exception:  # noqa: BLE001 — 코랩 끊김 등
             logger.debug("upstream→client 종료", exc_info=True)
@@ -609,10 +675,15 @@ async def _pump_bidirectional(client_ws, upstream) -> None:
     await asyncio.gather(client_to_upstream(), upstream_to_client())
 
 
-async def relay_musetalk_ws(client_ws) -> None:
+async def relay_musetalk_ws(client_ws, entered_at: float | None = None) -> None:
     """프론트 WS를 코랩 MuseTalk WS로 투명 릴레이. `client_ws`는 이미 accept된 상태.
 
     `AVATAR_MUSETALK_WS_URL` 미설정이면 정책 코드로 닫는다.
+
+    `entered_at`은 라우터 진입 시각(`time.monotonic()`)이며 계측 전용이다.
+    업스트림 다이얼은 프론트가 보낸 텍스트를 **막고 있는** 구간이라(다이얼이 끝나야
+    `_pump_bidirectional`이 시작됨) TTS조차 그 뒤에 시작된다. 그런데 코랩의 t0는
+    `ws.accept()` 직후라 이 시간이 서버 지표에 원천적으로 안 잡힌다 → 여기서만 볼 수 있다.
     """
     ws_url = settings.avatar_musetalk_ws_url.strip()
     if not ws_url:
@@ -622,6 +693,12 @@ async def relay_musetalk_ws(client_ws) -> None:
 
     import websockets
 
+    # 프리페치 소켓이 스트리밍 소켓과 동시에 열리므로, 상관키 없이는 로그 두 줄의
+    # 짝을 순서로도 시각으로도 가릴 수 없다.
+    rid = uuid.uuid4().hex[:8]
+    t_ready = time.monotonic()
+    epoch = entered_at if entered_at is not None else t_ready
+    marks: dict[str, float] = {}
     try:
         async with websockets.connect(
             ws_url,
@@ -631,12 +708,33 @@ async def relay_musetalk_ws(client_ws) -> None:
             ping_timeout=20,
             open_timeout=15,
         ) as upstream:
-            logger.info("MuseTalk WS 연결: %s", ws_url)
-            await _pump_bidirectional(client_ws, upstream)
+            t_dialed = time.monotonic()
+            marks["setup_ms"] = (t_ready - epoch) * 1000
+            marks["dial_ms"] = (t_dialed - t_ready) * 1000
+            logger.info(
+                "[RELAY-TIMING] rid=%s connected setup_ms=%.1f dial_ms=%.1f url=%s",
+                rid,
+                marks["setup_ms"],
+                marks["dial_ms"],
+                ws_url,
+            )
+            await _pump_bidirectional(
+                client_ws, upstream, marks=marks, epoch=epoch, rid=rid
+            )
     except Exception:  # noqa: BLE001 — 코랩 미기동/URL오류/핸드셰이크 실패
-        logger.exception("MuseTalk WS 릴레이 실패: %s", ws_url)
+        logger.exception("MuseTalk WS 릴레이 실패(rid=%s): %s", rid, ws_url)
         with contextlib.suppress(Exception):
             await client_ws.close(code=1011, reason="코랩 서버 연결 실패")
+    finally:
+        if marks:
+            logger.info(
+                "[RELAY-TIMING] rid=%s closed first_binary_ms=%.1f "
+                "down_text=%d down_binary=%d",
+                rid,
+                marks.get("first_binary_ms", -1.0),
+                int(marks.get("down_text", 0.0)),
+                int(marks.get("down_binary", 0.0)),
+            )
 
 
 # ── MuseTalk 워밍업 (콜드스타트 제거) ────────────────────────────────────────

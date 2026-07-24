@@ -699,6 +699,14 @@ export type MuseTalkSpeakRequest = {
   voice?: string | null;
   speaker_id?: string;
   gesture_index?: number;
+  /** 한 답변을 묶는 식별자. 문장 단위로 쪼개진 청크들이 같은 값을 공유한다. */
+  session_id?: string;
+  /** 이 답변 안에서의 **재생 순번**(0부터).
+   *
+   * 서버는 이 번호로 줄을 세워 앞 청크가 끝난 프레임에서 이어붙인다.
+   * 도착 순서·TTS 완료 순서는 재생 순서와 다르기 때문에 반드시 명시해야 한다
+   * (짧은 문장이 TTS를 먼저 끝내 추론 순서가 뒤집힌다). */
+  seq?: number;
 };
 
 export type MuseTalkBlobOut = {
