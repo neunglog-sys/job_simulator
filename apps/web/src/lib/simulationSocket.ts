@@ -173,10 +173,14 @@ export class SimulationSocket {
     }
   }
 
-  /** NPC에게 발화 전송. 소켓이 아직 안 열렸으면 false. */
-  sendChat(npc: string, content: string): boolean {
+  /** NPC에게 발화 전송. 업무 설명 중에는 서버도 같은 대화 모드를 사용한다. */
+  sendChat(
+    npc: string,
+    content: string,
+    mode: "work" | "process_learning" = "work",
+  ): boolean {
     if (this.ws?.readyState !== WebSocket.OPEN) return false;
-    this.ws.send(JSON.stringify({ type: "chat", npc, content }));
+    this.ws.send(JSON.stringify({ type: "chat", npc, content, mode }));
     return true;
   }
 
