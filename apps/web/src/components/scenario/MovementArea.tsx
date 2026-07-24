@@ -29,6 +29,7 @@ type MovementAreaProps = {
   npcs?: GameNpc[];
   activeNpcId?: string | null; // 현재 미션 담당 NPC — 마커를 그 이름으로 강조
   onNpcClick?: (npcId: string) => void; // NPC 마커 클릭 → 그 NPC와 대화
+  onNpcPositionsChange?: (positions: Record<string, Position>) => void;
   // 온보딩 투어(컷신) — 사수가 신입을 데리고 다니는 동안 그 마커를 이 좌표로 옮긴다.
   guideNpcId?: string | null;
   guidePosition?: Position | null;
@@ -161,6 +162,7 @@ export function MovementArea({
   npcs = [],
   activeNpcId = null,
   onNpcClick,
+  onNpcPositionsChange,
   guideNpcId = null,
   guidePosition = null,
   talkingNpcId = null,
@@ -261,6 +263,17 @@ export function MovementArea({
   const [patrolTargets, setPatrolTargets] = useState<Record<string, Position>>({});
   const [patrolFacing, setPatrolFacing] = useState<Record<string, NpcFacing>>({});
   const [patrolWalking, setPatrolWalking] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    if (!onNpcPositionsChange) return;
+    onNpcPositionsChange(
+      Object.fromEntries(
+        Object.entries(patrolTargets).map(([npcId, target]) => [
+          npcId,
+          { x: target.x - origin.x, y: target.y - origin.y },
+        ]),
+      ),
+    );
+  }, [patrolTargets, origin.x, origin.y, onNpcPositionsChange]);
   useEffect(() => {
     const paths = geometry?.npc_paths ?? [];
     if (paths.length === 0) return;

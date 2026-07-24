@@ -984,7 +984,11 @@ async def save_reflection(
 
 
 async def npc_farewell(
-    session: AsyncSession, simulation: Simulation, scenario: Scenario, step: dict
+    session: AsyncSession,
+    simulation: Simulation,
+    scenario: Scenario,
+    step: dict,
+    next_step: dict | None = None,
 ) -> dict | None:
     """방금 이 업무(step)를 마친 신입에게 담당 NPC가 건네는 짧은 격려('고생했다').
 
@@ -995,16 +999,44 @@ async def npc_farewell(
     persona = roster.get(npc_id or "")
     if persona is None:
         return None
-    prompt = (
-        "신입이 방금 이 업무를 마쳤습니다. 당신 성격대로 짧게 '수고했다'고 격려하며 "
-        "마무리하세요. 1~2문장, 정답·다음 지시는 언급하지 말 것."
-    )
+
+    next_npc_id = ((next_step or {}).get("npcs") or [None])[0]
+    next_persona = roster.get(next_npc_id or "")
+    should_handoff = next_persona is not None and next_npc_id != npc_id
+    handoff_name = next_persona["name"] if should_handoff else None
+    if handoff_name:
+        player_address = _player_address(simulation.state)
+        next_address = (
+            handoff_name
+            if handoff_name.endswith(("님", "씨"))
+            else f"{handoff_name}님"
+        )
+        handoff = f"{player_address}, {next_address}이 찾던데요? 한번 찾아가 봐요."
+        prompt = (
+            "신입이 방금 퀴즈와 업무를 마쳤습니다. 다음 담당자가 찾는다는 사실을 "
+            f"현재 담당자인 당신이 알려주세요. 반드시 '{player_address}' 호칭과 "
+            f"'{next_address}' 호칭을 모두 포함하고, '{handoff}'와 같은 흐름의 "
+            "짧고 자연스러운 한두 문장으로 말하세요. 다음 업무의 정답이나 내용은 "
+            "설명하지 말고, 다음 담당자 대신 먼저 업무를 건네지도 마세요."
+        )
+        fallback = handoff
+    else:
+        prompt = (
+            "신입이 방금 이 업무를 마쳤습니다. 당신 성격대로 짧게 '수고했다'고 격려하며 "
+            "마무리하세요. 1~2문장, 정답·다음 지시는 언급하지 말 것."
+        )
+        fallback = "고생했어요."
     try:
         text = await _persona_line(simulation, scenario, step, persona, prompt, temperature=0.6)
     except Exception:  # noqa: BLE001 — 격려 생성 실패가 통과를 막지 않게
         logger.warning("NPC 격려 생성 실패 (simulation=%d)", simulation.id)
-        return None
-    return {"npc": npc_id, "name": persona["name"], "text": text or "고생했어요."}
+        text = fallback
+    text = text or fallback
+    if handoff_name and (
+        _player_address(simulation.state) not in text or handoff_name not in text
+    ):
+        text = fallback
+    return {"npc": npc_id, "name": persona["name"], "text": text}
 
 
 async def submit_choice(
@@ -1138,6 +1170,7 @@ async def submit_task(
     step_changed = None
     completed = False
     quest_fired = None
+    next_step = None
 
     if result["passed"]:
         if task["on_pass"] == sm.END:
@@ -1197,7 +1230,17 @@ async def submit_task(
         ))
 
     # 통과 시 담당 NPC의 격려('고생했다') 문구 — 방금 마친 step 기준
-    farewell = await npc_farewell(session, simulation, scenario, step) if result["passed"] else None
+    farewell = (
+        await npc_farewell(
+            session,
+            simulation,
+            scenario,
+            step,
+            next_step if quest_fired is None else None,
+        )
+        if result["passed"]
+        else None
+    )
 
     return _envelope(
         result,

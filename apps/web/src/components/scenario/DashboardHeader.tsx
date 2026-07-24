@@ -1,4 +1,5 @@
 import {
+  ArrowCounterClockwise,
   ArrowLeft,
   CornersIn,
   CornersOut,
@@ -45,7 +46,9 @@ type DashboardHeaderProps = {
   onSettingsOpen: () => void;
   onHome: () => void;
   onBack: () => void;
+  onRestart: () => void;
   onMission: () => void;
+  restartDisabled?: boolean;
   missionDisabled?: boolean;
   missionPending?: boolean;
 };
@@ -62,7 +65,9 @@ export function DashboardHeader({
   onSettingsOpen,
   onHome,
   onBack,
+  onRestart,
   onMission,
+  restartDisabled = false,
   missionDisabled = false,
   missionPending = false,
 }: DashboardHeaderProps) {
@@ -128,6 +133,16 @@ export function DashboardHeader({
       </div>
 
       <div className={styles.headerActions}>
+        <button
+          className={`${styles.headerActionButton} ${styles.restartCtaButton}`}
+          type="button"
+          onClick={onRestart}
+          disabled={restartDisabled}
+          title="테스트용: 시나리오를 처음부터 다시 시작"
+        >
+          <ArrowCounterClockwise weight="bold" aria-hidden="true" />
+          <span>처음부터</span>
+        </button>
         <button
           className={`${styles.headerActionButton} ${styles.missionCtaButton}`}
           type="button"

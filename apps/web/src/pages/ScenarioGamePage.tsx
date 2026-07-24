@@ -332,6 +332,7 @@ export function ScenarioGamePage() {
   }, []);
 
   const [playerPosition, setPlayerPosition] = useState<Position>({ x: 420, y: 290 });
+  const [npcLivePositions, setNpcLivePositions] = useState<Record<string, Position>>({});
   const [stageScale, setStageScale] = useState(getStageScale);
 
   // 시뮬레이션(게임) 연결 상태
@@ -438,12 +439,18 @@ export function ScenarioGamePage() {
 
   // 현재 미션 담당 NPC의 맵 좌표(로컬) — 근접 판정·마커 강조에 사용.
   const activeNpcMarker = useMemo(() => {
+    if (activeNpc?.npc_id && npcLivePositions[activeNpc.npc_id]) {
+      return npcLivePositions[activeNpc.npc_id];
+    }
     const geo = gameMap?.geometry;
     const origin = geo?.walkable?.[0];
     const spot = geo?.spawns?.find((spawn) => spawn.id === activeNpc?.spawn);
     if (!geo || !origin || !spot) return null;
-    return { x: spot.x - origin.x, y: spot.y - origin.y };
-  }, [gameMap, activeNpc]);
+    const members = npcs.filter((npc) => npc.spawn === activeNpc?.spawn);
+    const index = members.findIndex((npc) => npc.npc_id === activeNpc?.npc_id);
+    const spread = Math.ceil(index / 2) * SLOT_SPREAD * (index % 2 === 1 ? 1 : -1);
+    return { x: spot.x - origin.x + spread, y: spot.y - origin.y };
+  }, [gameMap, activeNpc, npcs, npcLivePositions]);
 
   const isNearActiveNpc =
     activeNpcMarker != null &&
@@ -640,10 +647,11 @@ export function ScenarioGamePage() {
   // 담당 NPC 인사는 업무를 건네는 대사다 — 팀 소개(투어)를 받기 전에 다가갔다고 해서
   // "왔어? 이것부터 점검해 줘"가 튀어나오면 안 된다. 투어를 마친 뒤부터 요청한다.
   useEffect(() => {
+    if (scenarioSlug === "sns-01") return;
     if (showEncounter && !needsTour && !greetSent && socketRef.current?.sendGreet()) {
       setGreetSent(true);
     }
-  }, [showEncounter, needsTour, greetSent]);
+  }, [scenarioSlug, showEncounter, needsTour, greetSent]);
 
   // 격려('고생했다') 배너는 약 3초 뒤 자동으로 닫힌다.
   useEffect(() => {
@@ -1149,6 +1157,7 @@ export function ScenarioGamePage() {
     setTourIndex(0);
     setTourDone(false);
     setTourRequestPending(false);
+    setNpcLivePositions({});
     tourRequestPendingRef.current = false;
     tourStartedRef.current = false;
     setMetNpcs([]);
@@ -1317,6 +1326,7 @@ export function ScenarioGamePage() {
           npcs={npcs}
           activeNpcId={activeNpcId}
           onNpcClick={MODAL_PHASES.has(phase) || tourActive || isMemoOpen || isWorkflowOpen ? undefined : handleNpcClick}
+          onNpcPositionsChange={setNpcLivePositions}
           guideNpcId={tour?.guide?.npc ?? null}
           guidePosition={guidePosition}
           talkingNpcId={talk.id}
@@ -1351,6 +1361,7 @@ export function ScenarioGamePage() {
             if (window.history.length > 1) window.history.back();
             else window.location.assign("/");
           }}
+          onRestart={handleRetry}
           onMission={handleOpenMission}
           missionDisabled={connStatus !== "open" || tourRequestPending || tourActive}
           missionPending={tourRequestPending}
