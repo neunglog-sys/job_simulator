@@ -1212,14 +1212,16 @@ export function ScenarioGamePage() {
             onWorkflowOpen={handleWorkflowToggle}
           />
           <AiCoachPanel message={coachMessage}>
-            {museTalkRequest ? (
-              <AiAvatarStage
-                status={avatarStatus}
-                museTalkRequest={museTalkRequest}
-                onSpeakingEnd={handleAvatarSpeakingEnd}
-                onSpeakingError={handleAvatarSpeakingError}
-              />
-            ) : null}
+            {/* museTalkRequest가 없을 때도 항상 마운트한다 — AiAvatarStage는 idle 영상을
+                내부적으로 상시 재생하고(536-546행), 조언이 있을 때만 발화 오버레이를
+                올린다(speaking = status==="speaking" && museTalkRequest 존재).
+                조건부로 마운트하면(옛 코드) 안 말할 때 컴포넌트 자체가 없어 idle도 안 보였다. */}
+            <AiAvatarStage
+              status={avatarStatus}
+              museTalkRequest={museTalkRequest}
+              onSpeakingEnd={handleAvatarSpeakingEnd}
+              onSpeakingError={handleAvatarSpeakingError}
+            />
           </AiCoachPanel>
         </div>
         <span className={styles.keyboardGuide} aria-hidden="true">
