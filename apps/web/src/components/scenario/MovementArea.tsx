@@ -716,6 +716,7 @@ export function MovementArea({
         // 5초간 새 발화가 없으면 아래 로직으로 넘어가 다시 돌아다닌다.
         const talk = talkRef.current;
         if (talk.id === npc.npc_id && Date.now() - talk.at < ROAM_TALK_PAUSE_MS) {
+          // 멈춘다. 플레이어를 바라보는 건 아래 '말 거는 NPC 시선' 효과가 로머·직원 공통으로 처리.
           setPatrolWalking((prev) => (prev[npc.npc_id] ? { ...prev, [npc.npc_id]: false } : prev));
           return;
         }
@@ -782,6 +783,28 @@ export function MovementArea({
       intervals.forEach(clearInterval);
     };
   }, [geometry, npcs, origin, collidesAt, clampPosition]);
+
+  // patrolTargets(로머의 현재 위치)를 아래 시선 효과가 deps 없이 최신값으로 읽기 위한 ref.
+  const patrolTargetsRef = useRef(patrolTargets);
+  patrolTargetsRef.current = patrolTargets;
+
+  // 말 거는 NPC는 플레이어를 바라본다(사용자 요청) — 돌아다니는 손님이든 자리 지키는 직원이든 공통.
+  // 클릭(대화 시작)·플레이어 이동마다 그 NPC의 위치에서 플레이어 쪽으로 방향을 다시 잡는다.
+  // position을 deps로 두어 플레이어가 움직이면 시선이 따라간다. 5초(발화 없음)가 지나면 갱신을 멈춰,
+  // 로머는 다시 로밍하고 직원은 마지막 방향을 유지한다.
+  useEffect(() => {
+    if (!talkingNpcId || Date.now() - talkingAt >= ROAM_TALK_PAUSE_MS) return;
+    const npc = npcs.find((n) => n.npc_id === talkingNpcId);
+    const pt = patrolTargetsRef.current[talkingNpcId];
+    const spot = npc?.spawn ? geometry?.spawns?.find((s) => s.id === npc.spawn) : null;
+    const stage = pt ?? (spot ? { x: spot.x, y: spot.y } : null);
+    if (!stage) return;
+    const fdx = position.x + PLAYER_SIZE.width / 2 - (stage.x - origin.x);
+    const fdy = position.y + PLAYER_SIZE.height / 2 - (stage.y - origin.y);
+    const facing: NpcFacing =
+      Math.abs(fdx) >= Math.abs(fdy) ? (fdx > 0 ? "screen_right" : "screen_left") : fdy > 0 ? "front" : "back";
+    setPatrolFacing((prev) => (prev[talkingNpcId] === facing ? prev : { ...prev, [talkingNpcId]: facing }));
+  }, [position, talkingNpcId, talkingAt, npcs, geometry, origin]);
 
   // 이동 키는 window에서 받는다 — 이동영역 div에 포커스가 있어야만 동작하던 탓에
   // '맵을 한 번 클릭해야 키보드가 먹고, 채팅창에 타이핑하면 다시 먹통'이 됐다.
