@@ -99,9 +99,23 @@ async def evaluate_task(
     return {
         "scores": result.get("scores", []),
         "total": total,
-        "feedback": result.get("feedback", ""),
+        "feedback": _truncate_feedback(result.get("feedback", "")),
         "passed": total >= task.get("pass_score", 70),
     }
+
+
+FEEDBACK_MAX_CHARS = 200
+
+
+def _truncate_feedback(text: str) -> str:
+    """AI 코치가 음성으로 말하는 문구 — 프롬프트로 200자를 유도해도 LLM이 넘길 수 있어 코드에서 강제."""
+    if len(text) <= FEEDBACK_MAX_CHARS:
+        return text
+    cut = text[:FEEDBACK_MAX_CHARS]
+    last_sentence_end = max(cut.rfind("."), cut.rfind("!"), cut.rfind("?"), cut.rfind("다."))
+    if last_sentence_end >= FEEDBACK_MAX_CHARS // 2:
+        return cut[: last_sentence_end + 1]
+    return cut.rstrip() + "…"
 
 
 CHECKLIST_WRONG_PENALTY = 30  # 오답 1개 선택당 감점
