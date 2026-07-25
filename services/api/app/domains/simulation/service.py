@@ -113,13 +113,20 @@ _PEER_KW = ("동료", "동기", "선배", "후배", "팀원", "파트너")
 
 
 def npc_kind(role: str, rank: str) -> str:
-    """NPC 역할 → '고객' | '동료' | '사수'(기본)."""
+    """NPC 역할 → '고객' | '동료' | '사수' | '상급자'(기본).
+
+    사수는 직책이 아니라 신입의 '직속 지도 담당'이므로 role에 '사수'가 명시된 NPC만 사수로 본다.
+    고객·동료·사수 어디에도 해당하지 않으면 상급자(점장·팀장 등 더 높은 상관)로 분류한다.
+    상급자는 화법·프롬프트에서 사수와 동일하게 취급한다(지시·질문 응대 방식이 같음).
+    """
     blob = f"{role or ''} {rank or ''}"
     if any(k in blob for k in _CUST_KW):
         return "고객"
     if any(k in blob for k in _PEER_KW):
         return "동료"
-    return "사수"
+    if "사수" in blob:
+        return "사수"
+    return "상급자"
 
 
 def register_for_npc(slug: str, kind: str) -> str:
