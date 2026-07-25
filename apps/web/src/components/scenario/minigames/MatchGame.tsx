@@ -1954,9 +1954,13 @@ export function MatchGame({ game, onComplete }: EngineProps) {
         {customerFloor && sudden && suddenVisible && suddenFocused ? (
           <div className={styles.customerResponse} role="dialog" aria-modal="true" aria-label="진상 손님 대응 선택">
             <div className={styles.customerResponsePanel}>
-              <h2 className={styles.customerResponseTitle}>! 돌발상황</h2>
+              <h2 className={styles.customerResponseTitle}>
+                <span className={styles.customerResponseTitleIcon} aria-hidden>
+                  !
+                </span>
+                돌발상황
+              </h2>
               <div className={styles.customerResponseSpeech}>
-                <strong>손님</strong>
                 <span>
                   야 너 내가 그지인줄 알아??
                   <br />
