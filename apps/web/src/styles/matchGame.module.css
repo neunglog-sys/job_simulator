@@ -1371,10 +1371,17 @@
 }
 
 .customerFloorCutout img {
-  width: min(92%, 238px) !important;
+  /* 전체 손님 축소 (원본 92%,238 → 60%,154 : 누적 약 35%↓) */
+  width: min(60%, 154px) !important;
   max-height: 100%;
   object-fit: contain;
   object-position: center bottom;
+}
+
+/* 손님_와인초보만 가로형(1506×1044, AR 1.44)이라 인물이 확대돼 다른 세로형 손님보다 커 보인다.
+   폭을 줄여 눈높이를 맞춘다. (값은 시각 기준 — 필요 시 이 한 줄만 조정) */
+.customerFloorCutout[data-sprite="손님_와인초보_카툰"] img {
+  width: min(54%, 130px) !important;
 }
 
 .customerFloorCustomer[data-state="selected"] .customerFloorBubble,
@@ -2145,6 +2152,11 @@
   height: 100%;
   color: #13131a;
   text-align: left;
+  /* 손님 대사가 '마시기'처럼 단어 중간에서 쪼개지고 자간이 들쭉날쭉했다.
+     단어 단위 줄바꿈 + 일관된 자간으로 통일 (전체 손님 공통). */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  letter-spacing: -0.02em;
 }
 
 .customerFloorRequest strong {
@@ -2334,7 +2346,9 @@
   display: grid;
   gap: 0.7em;
   width: 34%;
-  height: 8.515em;
+  /* 고정 height는 좁은 폭에서 안내문이 여러 줄이 되면 박스를 뚫는다(일반·외국인 손님 공통).
+     bottom 앵커라 min-height로 두면 짧을 땐 그대로, 길면 위로 자라 내용이 다 들어간다. */
+  min-height: 8.515em;
   padding: 1.4em 1.6em;
   border: 0.28em solid #fff;
   border-radius: 0 2.2em 2.2em 0;
@@ -2349,6 +2363,7 @@
 
 .customerFloorBrief span {
   font-size: 0.94em;
+  overflow-wrap: break-word;
 }
 
 .customerFloorBrief[data-foreign="true"] {
@@ -2364,7 +2379,8 @@
 
 .customerFloorBrief[data-foreign="true"] span {
   width: 100%;
-  padding-right: 7em;
+  /* padding-right:7em(버튼 자리 확보)이 좁은 폭에서 텍스트 폭을 0 이하로 만들어 글자단위로
+     쪼개졌다. 버튼을 흐름 배치(아래 규칙)로 내려 예약폭을 없앤다. */
   word-break: keep-all;
   overflow-wrap: break-word;
 }
@@ -2381,6 +2397,14 @@
   font: 800 0.82em/1.1 inherit;
   white-space: nowrap;
   cursor: pointer;
+}
+
+/* 외국인 안내에서는 절대배치를 풀고 텍스트 아래 흐름에 둔다 — 텍스트가 전체 폭을 쓰고
+   버튼과 겹치지 않아 카드 안에 전부 들어간다. */
+.customerFloorBrief[data-foreign="true"] .customerFloorBriefTranslate {
+  position: static;
+  justify-self: start;
+  margin-top: 0.15em;
 }
 
 .customerFloorBrief[data-sudden-active="true"] {
@@ -2614,25 +2638,50 @@
   top: 4%;
   left: 50%;
   margin: 0;
+  /* 도착 배지(customerFloorIncidentHeading)와 같은 폰트 굵기·"!" 빨간원 아이콘으로 통일 */
+  display: flex;
+  align-items: center;
+  gap: 0.32em;
   color: #fff;
   font-size: 2.15em;
+  font-weight: 800;
   transform: translateX(-50%);
   text-shadow: 0 3px 3px #070610;
 }
 
+/* 스크린샷2 도착 배지의 빨간 원 "!" 아이콘과 동일 스타일 */
+.customerResponseTitleIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 1.5em;
+  height: 1.5em;
+  border: 0.1em solid #ff2638;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.6em;
+  font-weight: 950;
+  text-shadow: none;
+}
+
 .customerResponseSpeech {
-  top: 10%;
-  left: 6%;
+  /* 캐릭터(left 37%) 쪽으로 위·오른쪽 이동. 우측끝(left+width=37%)은 유지해 캐릭터 침범 방지. */
+  top: 4%;
+  left: 8%;
   width: 29%;
   min-height: 31%;
-  padding: 3em 3.15em 2.6em 3.35em;
+  padding: 3em 3.25em 2.6em;
   border: 0;
   border-radius: 0;
   background: transparent;
   color: #171722;
   font-size: 1.05em;
+  font-weight: 800;
   box-shadow: none;
   isolation: isolate;
+  /* 멘트를 말풍선 안에서 상하·좌우 중앙 정렬 */
+  display: grid;
+  place-content: center;
+  text-align: center;
   word-break: keep-all;
   overflow-wrap: break-word;
 }
@@ -2643,6 +2692,8 @@
   inset: 0;
   z-index: -1;
   background: transparent url("/assets/minigames/ui/kts-03-customer-speech-bubble-spiky-flipped-v1.webp") center / 100% 100% no-repeat;
+  /* 말풍선 좌우반전 (텍스트는 부모라 영향 없음 — 배경만 미러) */
+  transform: scaleX(-1);
   pointer-events: none;
 }
 
@@ -2660,8 +2711,14 @@
 }
 
 .customerResponsePerson>strong {
+  display: block;
   color: #fff;
   font-size: 1.25em;
+  text-align: center;
+  /* keep-all이 없어 '요구'가 '요/구'로 쪼개졌다. 단어 단위로만 줄바꿈 + 자간 살짝 조임. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  letter-spacing: -0.02em;
   text-shadow: 0 2px 2px #050611;
 }
 
@@ -2713,19 +2770,26 @@
 }
 
 .customerResponseActions {
-  right: 25%;
+  /* 우측 가이드(customerResponseGuide)가 좌측 71%에서 시작 → 기존 right:25%(우측끝 75%)면
+     마지막 원(호출)이 가이드와 겹쳤다. right:31%(우측끝 69%)로 당겨 가이드 앞에서 끝나게. */
+  right: 31%;
   bottom: 5%;
-  left: 24%;
+  left: 8%;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.7em;
 }
 
 .customerResponseAction {
   justify-self: center;
-  width: 7.8em;
-  height: 7.8em;
-  min-height: 7.8em;
-  padding: 0.6em;
+  /* 고정 7.8em이 큰 화면에서 그리드 칸(1fr)보다 커져 가운데정렬로 양옆과 겹쳤다.
+     칸을 채우되(width:100%) 7.8em로 상한을 두고, aspect-ratio로 원형을 유지한다.
+     이러면 원은 항상 칸 폭 이하 → 어느 브라우저 크기에서도 겹치지 않는다. */
+  width: 100%;
+  max-width: 7.8em;
+  aspect-ratio: 1 / 1;
+  height: auto;
+  min-height: 0;
+  padding: 0.5em;
   border: 0.23em solid #fff;
   border-radius: 999px;
   background: rgb(7 10 21 / 0.78);
@@ -2738,7 +2802,8 @@
   white-space: nowrap;
   word-break: keep-all;
   overflow-wrap: normal;
-  letter-spacing: -0.04em;
+  /* 원이 칸에 맞춰 작아져도 4글자 라벨(규정안내 등)이 넘치지 않게 자간을 조인다. */
+  letter-spacing: -0.06em;
 }
 
 .customerResponseAction img {
