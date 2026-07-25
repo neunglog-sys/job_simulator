@@ -29,16 +29,19 @@ type MovementAreaProps = {
   npcs?: GameNpc[];
   activeNpcId?: string | null; // 현재 미션 담당 NPC — 마커를 그 이름으로 강조
   onNpcClick?: (npcId: string) => void; // NPC 마커 클릭 → 그 NPC와 대화
+  onNpcPositionsChange?: (positions: Record<string, Position>) => void;
   // 온보딩 투어(컷신) — 사수가 신입을 데리고 다니는 동안 그 마커를 이 좌표로 옮긴다.
   guideNpcId?: string | null;
   guidePosition?: Position | null;
-  // 투어(컷신)가 진행 중인가 — 이 동안엔 동료(담당자) 앰비언트 로밍을 멈춰 자기 자리를 지키게 한다.
-  // (사수가 "이쪽은 부장님이에요" 하고 데려갔는데 정작 부장님이 딴 데로 걸어가 버리면 안 되니까.)
+  // 투어(컷신) 진행 중 — 동료(담당자)를 자기 자리(spawn)에 '고정해 그린다'(npcMarkers 렌더).
+  // (사수가 "이쪽은 부장님이에요" 하고 데려갔는데 정작 부장님이 딴 데로 가 있으면 빈자리 소개가 되니까.)
+  // 로밍 정지 자체는 roamingPaused가 담당 — 역할 분리.
   tourActive?: boolean;
-  // 플레이어가 지금 말 거는 NPC와 마지막으로 말 건 시각(ms) — 그 NPC는 로밍을 멈춘다.
-  // talkingAt로부터 5초가 지나면 다시 돌아다닌다(추가 발화가 있으면 시각이 갱신돼 계속 멈춤).
+  // 지금 대화 중인 NPC — 대화 세션이 살아있는 동안 로밍을 멈추고 플레이어를 바라본다.
+  // 세션 종료(부모의 5초 무활동 타임아웃)로 null이 되면 다시 돌아다닌다.
   talkingNpcId?: string | null;
-  talkingAt?: number;
+  // 투어(사수의 팀 소개) 등 컷신 중엔 모든 로머를 멈춘다.
+  roamingPaused?: boolean;
 };
 
 type GameObject = {
@@ -71,8 +74,10 @@ const NPC_FEET_OFFSET = 35;
 // 로밍 한 걸음의 이동 애니메이션 길이(ms) — .npcMarker의 left/top transition과 맞춰야
 // 걷기 스프라이트가 이동 시간만큼만 재생된다. 짧을수록 잰걸음("뽈뽈뽈")이 된다.
 const ROAM_HOP_MS = 650;
-// 플레이어가 말을 건 뒤 이 시간 동안 그 NPC는 로밍을 멈춘다 — 이후 말이 없으면 다시 돌아다닌다.
-const ROAM_TALK_PAUSE_MS = 5000;
+
+// NPC와 이 거리(로컬 px) 안이어야 대화할 수 있다. 멀리서 마커를 클릭하면 바로 대화하지 않고
+// 이 거리까지 걸어간 뒤 대화를 연다(가까이 가서 말 걸기).
+const TALK_RADIUS = 140;
 
 // 걷기 애니메이션을 끄는 NPC — step 프레임이 실제 보폭 없이 옷·골반만 뒤바뀌어
 // 재생하면 파닥거려 보이는 에셋 불량 (투어 가이드 46명 중 5명). 에셋 재생성 시 제거.
@@ -164,11 +169,12 @@ export function MovementArea({
   npcs = [],
   activeNpcId = null,
   onNpcClick,
+  onNpcPositionsChange,
   guideNpcId = null,
   guidePosition = null,
   tourActive = false,
   talkingNpcId = null,
-  talkingAt = 0,
+  roamingPaused = false,
 }: MovementAreaProps) {
   const areaRef = useRef<HTMLDivElement>(null);
   // NPC 마커 clamp용 컨테이너 크기 — 플레이어(clampPosition)와 달리 마커는 렌더 시점에
@@ -184,6 +190,16 @@ export function MovementArea({
   // 대각선 클릭 이동이 예전엔 경로를 미리 계산해 한 번에 그 자리로 '점프'해서, 대각선으로
   // 멀리 찍으면 순간이동처럼 보였다. 키보드와 같은 프레임 루프를 타면 자연히 애니메이션된다.
   const walkTargetRef = useRef<Position | null>(null);
+  // 멀리서 클릭한 NPC에게 '다가가서 대화하기'용 — 이 NPC를 쫓아 걸어가고(RAF 루프), 근처(TALK_RADIUS)에
+  // 도착하면 onNpcClick으로 대화를 연다. 걸어가는 동안 이 NPC는 로밍을 멈춘다(도망 방지).
+  const approachRef = useRef<string | null>(null);
+  const approachBestRef = useRef(Infinity); // 접근 중 대상까지 최소 도달 거리 — 정체(막힘) 감지용
+  const approachStallRef = useRef(0); // 더 못 가까워진 시간(초) — 일정 이상이면 접근 포기
+  // NPC들의 현재 로컬 중심 좌표(마커 위치) — RAF 루프가 접근 대상의 최신 위치를 읽는 데 쓴다.
+  const npcPosRef = useRef<Record<string, { x: number; y: number }>>({});
+  // 최신 onNpcClick을 RAF 루프에서 부르기 위한 ref.
+  const onNpcClickRef = useRef(onNpcClick);
+  onNpcClickRef.current = onNpcClick;
 
   // geometry 좌표계(스테이지 1920×1080)의 원점 = walkable 영역의 좌상단. movementArea 로컬좌표 = (x-origin).
   const origin = useMemo(() => {
@@ -250,11 +266,13 @@ export function MovementArea({
   const guideNpcIdRef = useRef(guideNpcId);
   guideNpcIdRef.current = guideNpcId;
 
-  // 로밍 effect가 "지금 누구에게 말을 걸었고 언제였는지"를 최신값으로 읽기 위한 ref —
-  // props에 넣어 deps로 두면 발화마다 로밍 타이머가 리셋돼 전 NPC의 목적지·위치가 초기화된다.
-  // ref로 흘려 effect는 그대로 두고, step()이 매 틱 읽어 말 거는 NPC만 멈춘다.
-  const talkRef = useRef<{ id: string | null; at: number }>({ id: null, at: 0 });
-  talkRef.current = { id: talkingNpcId, at: talkingAt };
+  // 로밍 effect가 "지금 대화 중인 NPC"와 "컷신으로 로밍 정지 여부"를 최신값으로 읽기 위한 ref —
+  // props를 deps로 두면 매 갱신마다 로밍 타이머가 리셋돼 전 NPC 목적지·위치가 초기화된다.
+  // ref로 흘려 effect는 그대로 두고, step()이 매 틱 읽어 정지 대상을 판단한다.
+  const talkingNpcIdRef = useRef<string | null>(talkingNpcId);
+  talkingNpcIdRef.current = talkingNpcId;
+  const roamingPausedRef = useRef(roamingPaused);
+  roamingPausedRef.current = roamingPaused;
 
   // 사수 안내 — geometry.npc_paths의 스폰→안내 지점으로 한 번만 리드하고, 도착 후 플레이어가
   // 안 따라오면 일정 주기로 말을 건다(팀 결정 2026-07-23 갱신: 왕복 순찰 → 1회 안내+넛지).
@@ -265,6 +283,17 @@ export function MovementArea({
   const [patrolTargets, setPatrolTargets] = useState<Record<string, Position>>({});
   const [patrolFacing, setPatrolFacing] = useState<Record<string, NpcFacing>>({});
   const [patrolWalking, setPatrolWalking] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    if (!onNpcPositionsChange) return;
+    onNpcPositionsChange(
+      Object.fromEntries(
+        Object.entries(patrolTargets).map(([npcId, target]) => [
+          npcId,
+          { x: target.x - origin.x, y: target.y - origin.y },
+        ]),
+      ),
+    );
+  }, [patrolTargets, origin.x, origin.y, onNpcPositionsChange]);
   useEffect(() => {
     const paths = geometry?.npc_paths ?? [];
     if (paths.length === 0) return;
@@ -601,6 +630,8 @@ export function MovementArea({
     }
     return markers;
   }, [geometry, npcs, origin, activeNpcId, guideNpcId, guidePosition, patrolTargets, tourActive, areaSize]);
+  // RAF 루프(접근 이동)가 대상 NPC의 최신 위치를 deps 없이 읽도록 ref로 흘려둔다.
+  npcPosRef.current = Object.fromEntries(npcMarkers.map((m) => [m.npc_id, { x: m.x, y: m.y }]));
 
   const collidesAt = useCallback(
     (pos: Position) => {
@@ -771,9 +802,8 @@ export function MovementArea({
   useEffect(() => {
     const spawns = geometry?.spawns;
     if (!spawns || npcs.length === 0) return;
-    // 투어(컷신) 중에는 로밍을 아예 시작하지 않는다 — 동료들이 자기 spawn에 가만히 서 있어야
-    // 사수가 데려가 소개할 수 있다. 투어가 끝나면(tourActive=false) 이 effect가 재실행돼 로밍 재개.
-    if (tourActive) return;
+    // 투어 등 컷신 중 로밍 정지는 roamingPaused(아래 step에서 per-tick 확인)가 담당한다.
+    // 동료를 자기 자리(spawn)에 '보이게' 고정하는 건 별개로 tourActive가 npcMarkers 렌더에서 처리.
     const byId = new Map(spawns.map((s) => [s.id, s]));
     const roamAll = geometry?.roam_all === true;
     const guidedIds = new Set((geometry?.npc_paths ?? []).map((p) => p.npc_id));
@@ -782,7 +812,9 @@ export function MovementArea({
         n.spawn &&
         byId.has(n.spawn) &&
         !guidedIds.has(n.npc_id) &&
-        n.npc_id !== activeNpcId && // 지금 미션을 준 NPC는 자리를 지켜야 찾아갈 수 있다(사용자: "찾아가야하고")
+        // 현재 미션 담당 NPC는 제자리에 세운다 — 플레이어가 찾아가서 말 거는 흐름(퀴즈·업무 순차 진행).
+        // 안 그러면 담당 NPC가 플레이어 쪽으로 배회해 와서 근접/대화가 저절로 열린다(태능 피드백).
+        n.npc_id !== activeNpcId &&
         (roamAll || /고객|손님|컨슈머/.test(n.role)),
     );
     if (roamers.length === 0) return;
@@ -849,12 +881,25 @@ export function MovementArea({
       };
       let goal = pickGoal();
       let stuck = 0;
+      let bestDist = Infinity; // 이 목적지까지 도달한 최소 맨해튼 거리 — 우회 실패(맴돌기) 감지
+      let noProgress = 0; // 목적지에 더 못 가까워진 연속 스텝 수
+      const nextGoal = () => {
+        goal = pickGoal();
+        stuck = 0;
+        bestDist = Infinity;
+        noProgress = 0;
+      };
 
       const step = () => {
-        // 플레이어가 이 NPC에게 말을 걸었으면(마지막 발화 후 5초 이내) 멈춰서 대화에 응한다.
-        // 5초간 새 발화가 없으면 아래 로직으로 넘어가 다시 돌아다닌다.
-        const talk = talkRef.current;
-        if (talk.id === npc.npc_id && Date.now() - talk.at < ROAM_TALK_PAUSE_MS) {
+        // 정지 조건 두 가지: (1) 투어 등 컷신 중(전 로머 정지) (2) 이 NPC가 지금 대화 중.
+        // 세션은 부모가 관리(5초 무활동 시 종료) — 여기선 상태만 읽어 멈춘다. 플레이어를 바라보는 건
+        // 아래 '대화 중 NPC 시선' 효과가 로머·직원 공통으로 처리한다.
+        // (3) 플레이어가 다가오는 중인 대상(approachRef)도 멈춘다 — 안 그러면 도망가는 표적이 된다.
+        if (
+          roamingPausedRef.current ||
+          talkingNpcIdRef.current === npc.npc_id ||
+          approachRef.current === npc.npc_id
+        ) {
           setPatrolWalking((prev) => (prev[npc.npc_id] ? { ...prev, [npc.npc_id]: false } : prev));
           return;
         }
@@ -863,8 +908,7 @@ export function MovementArea({
         const gdx = goal.x - last.x;
         const gdy = goal.y - last.y;
         if (Math.abs(gdx) + Math.abs(gdy) < 60) {
-          goal = pickGoal(); // 도착 — 다음 목적지
-          stuck = 0;
+          nextGoal(); // 도착 — 다음 목적지
           return;
         }
         // 대각선 금지: 남은 거리가 큰 축부터 한 축씩 시도, 막히면 다른 축, 그래도 막히면 랜덤 탈출.
@@ -889,16 +933,22 @@ export function MovementArea({
           setPatrolTargets((prev) => ({ ...prev, [npc.npc_id]: { x: tx, y: ty } }));
           last = { x: tx, y: ty };
           stuck = 0;
+          // 장애물에 막혀 목적지 쪽으로 못 가고 옆에서 맴돌면(경로탐색이 없어 생기는 지역최소)
+          // 몇 스텝 안에 목적지를 포기한다 — 안 그러면 진열대 옆에서 위아래로만 튕긴다(영상 오건우).
+          const nd = Math.abs(goal.x - tx) + Math.abs(goal.y - ty);
+          if (nd < bestDist - 8) {
+            bestDist = nd;
+            noProgress = 0;
+          } else if (++noProgress > 3) {
+            nextGoal();
+          }
           timers.push(
             setTimeout(() => setPatrolWalking((prev) => ({ ...prev, [npc.npc_id]: false })), ROAM_HOP_MS),
           );
           return;
         }
         // 사방이 막힘 — 몇 번 연속 막히면 목적지를 새로 잡아 빠져나온다.
-        if (++stuck > 2) {
-          goal = pickGoal();
-          stuck = 0;
-        }
+        if (++stuck > 2) nextGoal();
       };
 
       // 잰걸음으로 자주 움직이게(사용자: "더 뽈뽈뽈") — 0.9~1.4초 간격. NPC마다 살짝 어긋나게.
@@ -915,7 +965,29 @@ export function MovementArea({
       timers.forEach(clearTimeout);
       intervals.forEach(clearInterval);
     };
-  }, [geometry, npcs, origin, activeNpcId, collidesAt, clampPosition, tourActive]);
+    // activeNpcId가 바뀌면 담당 NPC가 바뀌므로 로밍 대상을 다시 잡는다(옛 담당은 다시 로밍, 새 담당은 고정).
+  }, [geometry, npcs, origin, collidesAt, clampPosition, activeNpcId]);
+
+  // patrolTargets(로머의 현재 위치)를 아래 시선 효과가 deps 없이 최신값으로 읽기 위한 ref.
+  const patrolTargetsRef = useRef(patrolTargets);
+  patrolTargetsRef.current = patrolTargets;
+
+  // 대화 중인 NPC는 플레이어를 바라본다(사용자 요청) — 돌아다니는 손님이든 자리 지키는 직원이든 공통.
+  // 대화 시작·플레이어 이동마다 그 NPC의 위치에서 플레이어 쪽으로 방향을 다시 잡는다(position deps).
+  // 세션이 끝나 talkingNpcId가 null이 되면 갱신을 멈춰, 로머는 다시 로밍·직원은 마지막 방향을 유지.
+  useEffect(() => {
+    if (!talkingNpcId) return;
+    const npc = npcs.find((n) => n.npc_id === talkingNpcId);
+    const pt = patrolTargetsRef.current[talkingNpcId];
+    const spot = npc?.spawn ? geometry?.spawns?.find((s) => s.id === npc.spawn) : null;
+    const stage = pt ?? (spot ? { x: spot.x, y: spot.y } : null);
+    if (!stage) return;
+    const fdx = position.x + PLAYER_SIZE.width / 2 - (stage.x - origin.x);
+    const fdy = position.y + PLAYER_SIZE.height / 2 - (stage.y - origin.y);
+    const facing: NpcFacing =
+      Math.abs(fdx) >= Math.abs(fdy) ? (fdx > 0 ? "screen_right" : "screen_left") : fdy > 0 ? "front" : "back";
+    setPatrolFacing((prev) => (prev[talkingNpcId] === facing ? prev : { ...prev, [talkingNpcId]: facing }));
+  }, [position, talkingNpcId, npcs, geometry, origin]);
 
   // 이동 키는 window에서 받는다 — 이동영역 div에 포커스가 있어야만 동작하던 탓에
   // '맵을 한 번 클릭해야 키보드가 먹고, 채팅창에 타이핑하면 다시 먹통'이 됐다.
@@ -963,8 +1035,41 @@ export function MovementArea({
       const step = MOVE_SPEED * dt;
       if (active) {
         walkTargetRef.current = null; // 키보드가 우선 — 클릭 이동 중이었다면 취소
+        approachRef.current = null; // 키보드로 직접 움직이면 접근 이동도 취소
         movePlayer(Math.sign(active.x) * step, Math.sign(active.y) * step);
         return;
+      }
+      // NPC 접근 이동: 멀리서 클릭한 NPC의 '현재' 위치를 매 프레임 쫓아 걸어가고(로밍으로 살짝
+      // 움직였어도 따라감), TALK_RADIUS 안에 들면 그때 대화를 연다. 좌표·정지를 한 곳에서 다뤄 어긋남이 없다.
+      const approaching = approachRef.current;
+      if (approaching) {
+        const np = npcPosRef.current[approaching];
+        if (!np) {
+          approachRef.current = null; // 대상이 사라짐 — 취소
+        } else {
+          const c = positionRef.current;
+          const d = Math.hypot(c.x + PLAYER_SIZE.width / 2 - np.x, c.y + PLAYER_SIZE.height / 2 - np.y);
+          if (d < TALK_RADIUS) {
+            approachRef.current = null;
+            walkTargetRef.current = null;
+            onNpcClickRef.current?.(approaching); // 도착 — 대화 시작
+            return;
+          }
+          // 계속 가까워지면 정체 타이머 리셋, 아니면(가구에 막힘 등) 누적 — 0.8초 넘게 못 가까워지면 포기.
+          // 경로탐색이 없어 직선이 막히면 못 가는데, 무한정 밀지 않고 멈춘다(플레이어가 직접 돌아가서 다시 클릭).
+          if (d < approachBestRef.current - 2) {
+            approachBestRef.current = d;
+            approachStallRef.current = 0;
+          } else {
+            approachStallRef.current += dt;
+            if (approachStallRef.current > 0.8) {
+              approachRef.current = null;
+              walkTargetRef.current = null;
+              return;
+            }
+          }
+          walkTargetRef.current = { x: np.x - PLAYER_SIZE.width / 2, y: np.y - PLAYER_SIZE.height / 2 };
+        }
       }
       // 클릭 이동: 목표 지점까지 매 프레임 한 걸음씩 다가간다(대각선도 자연스럽게 애니메이션됨).
       const target = walkTargetRef.current;
@@ -1003,6 +1108,7 @@ export function MovementArea({
       x: worldX - PLAYER_SIZE.width / 2,
       y: worldY - PLAYER_SIZE.height / 2,
     });
+    approachRef.current = null; // 지도를 직접 클릭해 이동하면 NPC 접근 이동은 취소
     // 클릭한 지점까지 '걸어간다' — 벽·집기를 뚫지 않되, 막혔다고 그 자리에 멈춰 서지도 않는다.
     // NPC는 책상 앞에 있어서 NPC를 누르면 목적지가 충돌 안이 되는데, 예전처럼 무시해 버리면
     // "눌러도 아무 일이 없다"가 된다(다가가려고 누른 건데). 갈 수 있는 데까지 이동한다.
@@ -1138,7 +1244,24 @@ export function MovementArea({
                         ? "0ms"
                         : undefined,
                 }}
-                onClick={() => onNpcClick?.(marker.npc_id)}
+                onClick={() => {
+                  if (!onNpcClick) return; // 대화 불가 상태(온보딩·모달 등)면 다가가지도 않는다
+                  // 가까우면 바로 대화. 멀면 그 자리서 대화하지 않고 그 NPC에게 걸어간 뒤(RAF 루프가
+                  // 도착하면 onNpcClick 호출) 대화한다 — "가까이 가서 말 걸기".
+                  const c = positionRef.current;
+                  const d = Math.hypot(
+                    c.x + PLAYER_SIZE.width / 2 - marker.x,
+                    c.y + PLAYER_SIZE.height / 2 - marker.y,
+                  );
+                  if (d < TALK_RADIUS) {
+                    approachRef.current = null;
+                    onNpcClick?.(marker.npc_id);
+                  } else {
+                    approachRef.current = marker.npc_id;
+                    approachBestRef.current = d; // 정체 감지 초기화
+                    approachStallRef.current = 0;
+                  }
+                }}
                 aria-label={`${marker.name}와 대화하기`}
               >
                 {marker.isActive ? (
@@ -1149,7 +1272,9 @@ export function MovementArea({
                 <NpcSprite
                   npcId={marker.npc_id}
                   facing={
-                    guideNpcId === marker.npc_id
+                    // 가이드 컷신이 '실제로 진행 중'(guidePosition 있음)일 때만 컷신 방향을 쓴다.
+                    // 컷신이 아닐 땐 patrolFacing을 써야 클릭 시 플레이어를 바라보는 게 가이드에게도 먹는다.
+                    guideNpcId === marker.npc_id && guidePosition
                       ? guideTrack.current.facing
                       : (patrolFacing[marker.npc_id] ?? "front")
                   }

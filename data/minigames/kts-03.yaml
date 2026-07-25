@@ -31,7 +31,7 @@ data: &customer_game_data
   left:
     - { id: 니즈_승진축하, sprite: 니즈_승진_레드선호,   customer_sprite: 손님_승진축하_카툰,   budget: yellow, occasion: 승진, label: 승진 축하 · 중간 예산 · 레드 선호, speech: "동료의 승진을 축하할 선물이에요. 부담스럽지 않은 레드 와인을 추천해 주세요." }
     - { id: 니즈_집들이,   sprite: 니즈_집들이_화이트,   customer_sprite: 손님_집들이_카툰,     budget: green,  occasion: 집들이, label: 집들이 · 낮은 예산 · 화이트, speech: "친구 집들이에 가져갈 가벼운 화이트 와인을 찾고 있어요." }
-    - { id: 니즈_부모님,   sprite: 니즈_부모님_레드,     customer_sprite: 손님_부모님선물_카툰, budget: red,    occasion: 부모님, label: 부모님 선물 · 높은 예산 · 레드, speech: "부모님께 드릴 선물이라 품질 좋은 레드 와인을 원합니다." }
+    - { id: 니즈_부모님,   sprite: 니즈_부모님_레드,     customer_sprite: 손님_부모님선물_카툰, budget: red,    occasion: 자식, label: 자식 선물 · 높은 예산 · 레드, speech: "자식에게 줄 선물이라 품질 좋은 레드 와인을 원합니다." }
     - { id: 니즈_와인초보, sprite: 니즈_초보_스위트,     customer_sprite: 손님_와인초보_카툰,   budget: green,  occasion: 입문, label: 와인 초보 · 낮은 예산 · 달달한 맛, speech: "와인은 처음이라 저렴하고 달콤하게 마시기 쉬운 와인이 좋아요." }
     - { id: 니즈_기념일,   sprite: 니즈_기념일_스파클링, customer_sprite: 손님_기념일_카툰,     budget: yellow, occasion: 기념일, label: 기념일 · 중간 예산 · 스파클링, foreign: true, foreign_speech: "I need a sparkling wine for our anniversary. Something nice, but not too expensive.", translated_speech: "기념일에 마실 스파클링 와인을 찾고 있어요. 너무 비싸지 않은 좋은 제품이면 좋겠습니다." }
 
@@ -71,7 +71,7 @@ data: &customer_game_data
 
   # 정답 짝 — 가격표 개수(예산대)와 취향(종류 아이콘)이 맞고 재고 빗금이 없는 상품끼리.
   # 프리미엄(4장)은 어떤 니즈의 예산(최대 3장)과도 맞지 않아 유효한 짝이 없다 —
-  # '부모님(red)→프리미엄도 규칙상 성립'하던 모순 제거(검증 지적 반영).
+  # '자식(red)→프리미엄도 규칙상 성립'하던 모순 제거(검증 지적 반영).
   pairs:
     - [니즈_승진축하, 상품_레드_중가]
     - [니즈_집들이,   상품_화이트_저가]
@@ -90,26 +90,26 @@ data: &customer_game_data
     - { left: 니즈_승진축하, right: 상품_레드_품절,     reason: 품절 상품 추천 — 재고 현황 미확인 }
 
   # 돌발 — 오건우가 영수증 없는 개봉 상품 환불을 요구하며 고성. 매칭 판 위로 난입한다.
-  # 매뉴얼 순서를 밟은 뒤에만 '매니저 호출'이 정답이 된다(성급히 부르면 감점).
+  # 순서와 무관하게 6개 행동 중 4개를 고르면 응대가 끝나며, 선택한 오답과 누락한 정답은 점수에 반영한다.
   sudden:
     id: 손님_오건우_환불
     sprite: 손님_개봉상품_고성
     appears_at: 7
     label: 영수증 없는 개봉 상품 환불 요구 · 고성
     stages:
-      - { id: 경청_사실확인, sprite: 구매이력_조회,   label: 경청하고 구매 이력 조회로 사실 확인 }
-      - { id: 규정안내,     sprite: 환불규정_안내,   label: 개봉·무영수증 환불 규정 근거 안내 }
-      - { id: 대안제시,     sprite: 교환_적립_안내,  label: 가능한 대안(교환·적립) 확인·제시 }
+      - { id: 경청_사실확인, sprite: 구매이력_조회,   label: 사실안내 }
+      - { id: 규정안내,     sprite: 환불규정_안내,   label: 규정안내 }
+      - { id: 대안제시,     sprite: 교환_적립_안내,  label: 확인제시 }
     persists_after_stages: true   # 대안을 안내해도 고성이 계속되는 상황
     # 금지행동(원문 오답) — 하면 감점.
     forbidden_actions:
-      - { id: 맞대응_언쟁,   reason: 언쟁으로 맞대응 }
-      - { id: 규정밖_환불,   reason: 조용히 시키려 규정 밖 환불 승인 }
+      - { id: 맞대응_언쟁,   label: 언쟁, reason: 언쟁으로 맞대응 }
+      - { id: 규정밖_환불,   label: 환불, reason: 조용히 시키려 규정 밖 환불 승인 }
 
   # 금지행동 대응 버튼 — 직접 처리 대신 호출(_SCHEMA.md 규칙 2). 경비원 아님 → 매니저.
   # 성급 호출 감점은 scoring.early_escalate_penalty 로만 정의(표준 채점 키 — 중복 정의 금지).
   escalate:
-    label: 매니저 호출
+    label: 호출
     when: 고성_지속
     requires: [경청_사실확인, 규정안내, 대안제시]
 
@@ -122,7 +122,7 @@ scoring: &customer_game_scoring
   wrong_pair_penalty: 14
   forbidden_penalty: 40        # 표준 키 — 금기 페어·행동 공통(변형 금지)     # 예산 초과·품절 상품을 이은 선 — 합격선을 뚫는다(규칙 7)
   matched_unmatched_penalty: 15  # 남겨야 할 프리미엄·품절을 억지로 이은 경우(금기 조합이면 40 쪽 하나만)
-  early_escalate_penalty: 25    # 단계 없이 매니저부터 부른 경우(표준 권장값)
+  early_escalate_penalty: 0     # 고객 응대 화면은 선택 순서를 채점하지 않는다.
   # (금지행동 감점은 위 forbidden_penalty 하나로 통합 — 중복 키 제거)   # 맞대응·규정 밖 환불 — 원문 오답, 위반하고 합격 불가(규칙 7)
   stage_skip_penalty: 15         # 돌발 단계(경청→규정→대안) 생략·순서 위반 — 건당
   ignore_sudden_penalty: 40      # 돌발(오건우)을 아예 응대하지 않고 종료 — 방치가 최적 전략이 되지 않게

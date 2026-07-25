@@ -83,6 +83,8 @@ type ScenarioControlPanelProps = {
   /** 입력이 막힌 이유 — 서버 문제인지 '지금은 입력할 때가 아닌지'를 구분해 보여준다. */
   disabledHint?: string;
   onSend: (message: string) => void;
+  /** 입력창에 타이핑하는 등 대화 활동이 있을 때 — 대화 세션(NPC 정지·컷신) 타임아웃을 리셋한다. */
+  onActivity?: () => void;
   onHistoryToggle: () => void;
   onMemoOpen: () => void;
   onWorkflowOpen: () => void;
@@ -104,6 +106,7 @@ export function ScenarioControlPanel({
   placeholder = "NPC에게 보낼 답변을 입력하세요",
   disabledHint = "게임 서버에 연결 중이에요…",
   onSend,
+  onActivity,
   onHistoryToggle,
   onMemoOpen,
   onWorkflowOpen,
@@ -666,7 +669,10 @@ export function ScenarioControlPanel({
             ref={inputRef}
             type="text"
             value={draft}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              onActivity?.(); // 타이핑 중엔 대화 세션이 안 끊기게(NPC 정지 유지)
+            }}
             placeholder={disabled ? disabledHint : placeholder}
             aria-label="NPC에게 보낼 답변"
             disabled={disabled}

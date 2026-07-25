@@ -217,9 +217,11 @@ export class SimulationSocket {
    *  스텁 등 모르는 engine은 저장만 되고 점수에 반영되지 않는다. */
   sendMinigameResult(result: {
     engine: string;
-    accuracy: number; // 0~100
+    accuracy?: number; // 점수형 엔진만 0~100
     time_seconds?: number;
     mistakes?: number;
+    completed?: boolean;
+    metadata?: Record<string, unknown>;
   }): boolean {
     if (this.ws?.readyState !== WebSocket.OPEN) return false;
     this.ws.send(JSON.stringify({ type: "minigame_result", ...result }));

@@ -78,7 +78,7 @@ type SuddenDef = {
   label?: string;
   stages?: StageDef[];
   persists_after_stages?: boolean;
-  forbidden_actions?: Array<{ id: string; reason?: string }>;
+  forbidden_actions?: Array<{ id: string; label?: string; reason?: string }>;
 };
 
 type SupplyOrderItem = {
@@ -466,6 +466,9 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const [suddenVisible, setSuddenVisible] = useState(false);
   const [suddenArrived, setSuddenArrived] = useState(false);
   const [suddenFocused, setSuddenFocused] = useState(false);
+  const [suddenResponseRemaining, setSuddenResponseRemaining] = useState(30);
+  const [suddenTimedOut, setSuddenTimedOut] = useState(false);
+  const [suddenDismissed, setSuddenDismissed] = useState(false);
   const [floorCustomerIndex, setFloorCustomerIndex] = useState(0);
   const [floorMatchFlash, setFloorMatchFlash] = useState(false);
   const [floorTranslated, setFloorTranslated] = useState(false);
@@ -818,14 +821,18 @@ export function MatchGame({ game, onComplete }: EngineProps) {
     // 5) 돌발(kts-03) — 응대가 전무하면 ignore 사건 하나로만 채점(중첩 금지).
     //    appears_at 전에 제출해 돌발을 피하는 것도 '응대하지 않고 종료'다.
     if (sudden) {
-      const interacted = stagesDone.length > 0 || escalated;
-      if (!interacted) {
+      if (suddenTimedOut) {
         addIncident(ignoreSuddenP);
       } else {
-        for (const stage of stages) if (!stagesDone.includes(stage.id)) addIncident(stageSkipP); // 생략 — 건당
-        for (let i = 0; i < stageViolations; i += 1) addIncident(stageSkipP); // 순서 위반 — 건당
-        if (earlyEscalate) addIncident(earlyEscalateP);
-        if (Boolean(sudden.persists_after_stages) && !escalated) addIncident(missedEscalateP);
+        const interacted = stagesDone.length > 0 || escalated;
+        if (!interacted) {
+          addIncident(ignoreSuddenP);
+        } else {
+          for (const stage of stages) if (!stagesDone.includes(stage.id)) addIncident(stageSkipP); // 생략 — 건당
+          for (let i = 0; i < stageViolations; i += 1) addIncident(stageSkipP); // 순서 위반 — 건당
+          if (earlyEscalate) addIncident(earlyEscalateP);
+          if (Boolean(sudden.persists_after_stages) && !escalated) addIncident(missedEscalateP);
+        }
       }
     }
 
@@ -888,12 +895,15 @@ export function MatchGame({ game, onComplete }: EngineProps) {
     const delay = Math.max(0, (sudden.appears_at ?? 0) * 1000);
     const timer = window.setTimeout(() => {
       setFloorWineDetailId(null);
+      setSuddenResponseRemaining(30);
+      setSuddenTimedOut(false);
+      setSuddenDismissed(false);
       setSuddenVisible(true);
     }, delay);
     return () => window.clearTimeout(timer);
   }, [sudden, done, flowPhase]);
 
-  // kts-03 돌발 손님은 7초 뒤 왼쪽에서 들어온 다음, 도착 모션이 끝난 뒤에만 말풍선이 뜬다.
+  // kts-03 돌발 손님은 최종 배치 전체가 함께 들어오며, 도착 모션이 끝난 뒤에만 클릭할 수 있다.
   useEffect(() => {
     if (!customerFloor || !suddenVisible) {
       setSuddenArrived(false);
@@ -913,12 +923,46 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const caughtCount = outliers.filter((o) => beadClicks[o.id] === "caught").length;
   const streamDone = outliers.length === 0 || caughtCount === outliers.length;
   const stagesAllDone = stages.every((s) => stagesDone.includes(s.id));
-  const suddenSettled = stagesAllDone && (!sudden?.persists_after_stages || escalated);
-  const suddenGate =
-    !sudden || (suddenVisible && stagesAllDone && (!sudden.persists_after_stages || escalated));
+  const suddenChoiceCount = stagesDone.length + pressedForbidden.length + (escalated ? 1 : 0);
+  const customerSuddenChoiceComplete = customerFloor && suddenChoiceCount >= 4;
+  const suddenSettled =
+    suddenTimedOut ||
+    customerSuddenChoiceComplete ||
+    (stagesAllDone && (!sudden?.persists_after_stages || escalated));
+  const suddenGate = !sudden || (suddenVisible && suddenSettled);
   const keysDone =
     keyDefs.length === 0 || left.every((card) => !linkedSet.has(card.id) || Boolean(keysGiven[card.id]));
   const readyToSubmit = !done && allResolved && streamDone && suddenGate && keysDone;
+
+  useEffect(() => {
+    if (!customerFloor || !suddenVisible || !suddenSettled || suddenFocused) {
+      setSuddenDismissed(false);
+      return;
+    }
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    const timer = window.setTimeout(() => setSuddenDismissed(true), reduceMotion ? 0 : 680);
+    return () => window.clearTimeout(timer);
+  }, [customerFloor, suddenFocused, suddenSettled, suddenVisible]);
+
+  useEffect(() => {
+    if (!customerFloor || !suddenVisible || done || suddenSettled) return;
+    if (suddenResponseRemaining <= 0) {
+      setSuddenTimedOut(true);
+      setSuddenFocused(false);
+      return;
+    }
+    const timer = window.setTimeout(
+      () => setSuddenResponseRemaining((value) => Math.max(0, value - 1)),
+      1000,
+    );
+    return () => window.clearTimeout(timer);
+  }, [customerFloor, done, suddenResponseRemaining, suddenSettled, suddenVisible]);
+
+  useEffect(() => {
+    if (!customerFloor || !suddenFocused || suddenChoiceCount < 4) return;
+    const timer = window.setTimeout(() => setSuddenFocused(false), 420);
+    return () => window.clearTimeout(timer);
+  }, [customerFloor, suddenChoiceCount, suddenFocused]);
 
   // ── 선 좌표 측정 — 카드 버튼의 모서리 중앙을 보드 기준 픽셀로 잰다 ──
   const boardRef = useRef<HTMLDivElement | null>(null);
@@ -1044,16 +1088,20 @@ export function MatchGame({ game, onComplete }: EngineProps) {
 
   const pressStage = (stageId: string) => {
     if (done || stagesDone.includes(stageId)) return;
-    const idx = stages.findIndex((s) => s.id === stageId);
-    const prevOk = stages.slice(0, Math.max(0, idx)).every((s) => stagesDone.includes(s.id));
-    if (!prevOk) setStageViolations((v) => v + 1); // 순서 위반 — 누른 시점에 확정
+    if (!customerFloor) {
+      const idx = stages.findIndex((s) => s.id === stageId);
+      const prevOk = stages.slice(0, Math.max(0, idx)).every((s) => stagesDone.includes(s.id));
+      if (!prevOk) setStageViolations((v) => v + 1);
+    }
     setStagesDone((prev) => [...prev, stageId]);
   };
 
   const pressStateEscalate = () => {
     if (done || escalated) return;
-    const requires = data.escalate?.requires ?? stages.map((s) => s.id);
-    if (requires.some((id) => !stagesDone.includes(id))) setEarlyEscalate(true); // 성급 호출
+    if (!customerFloor) {
+      const requires = data.escalate?.requires ?? stages.map((s) => s.id);
+      if (requires.some((id) => !stagesDone.includes(id))) setEarlyEscalate(true);
+    }
     setEscalated(true);
   };
 
@@ -1066,7 +1114,9 @@ export function MatchGame({ game, onComplete }: EngineProps) {
     const src =
       (data.forbidden ?? []).find((f) => f.id === id) ??
       (sudden?.forbidden_actions ?? []).find((f) => f.id === id);
-    setForbiddenWarning({ id, reason: src?.reason ?? "지금 해서는 안 되는 행동입니다", tick: Date.now() });
+    if (!customerFloor) {
+      setForbiddenWarning({ id, reason: src?.reason ?? "지금 해서는 안 되는 행동입니다", tick: Date.now() });
+    }
   };
 
   const clickBead = (id: string, kind: "normal" | "outlier" | "decoy") => {
@@ -1272,11 +1322,13 @@ export function MatchGame({ game, onComplete }: EngineProps) {
       >
         <span className={styles.customerFloorBubble} data-linked={linkedWine ? "true" : undefined}>
           <span className={styles.customerFloorRequest}>
-            <strong>{card.foreign ? (floorTranslated ? "번역된 요청" : "Customer") : "손님 요청"}</strong>
             <span>{customerSpeech ?? card.label ?? pretty(card.id)}</span>
           </span>
         </span>
-        <span className={styles.customerFloorCutout}>
+        <span
+          className={styles.customerFloorCutout}
+          data-sprite={card.customer_sprite ?? card.sprite}
+        >
           <PixelSprite
             id={card.customer_sprite ?? card.sprite}
             label={`${card.label ?? pretty(card.id)} 손님`}
@@ -1284,22 +1336,6 @@ export function MatchGame({ game, onComplete }: EngineProps) {
             smooth
           />
         </span>
-        {card.foreign ? (
-          <aside className={styles.customerFloorTranslate}>
-            <strong>?</strong>
-            <div>
-              <b>외국인 고객 응대</b>
-              <span>고객의 언어를 이해하기 어렵다면 번역 기능으로 요청을 확인하세요.</span>
-              <button
-                type="button"
-                onClick={() => setFloorTranslated((value) => !value)}
-                aria-pressed={floorTranslated}
-              >
-                {floorTranslated ? "원문 보기" : "번역하기"}
-              </button>
-            </div>
-          </aside>
-        ) : null}
         {verdict ? (
           <span className={common.mark} data-kind={verdict === "ok" ? "hit" : undefined} aria-hidden="true">
             {verdict === "ok" ? "✓" : "✕"}
@@ -1353,11 +1389,6 @@ export function MatchGame({ game, onComplete }: EngineProps) {
           {cue ? <small>{pretty(cue)}</small> : null}
         </span>
         {mark === "stamped" ? <em>{stampLabel}</em> : null}
-        {verdict ? (
-          <span className={common.mark} data-kind={verdict === "ok" ? "hit" : undefined} aria-hidden="true">
-            {verdict === "ok" ? "✓" : "✕"}
-          </span>
-        ) : null}
       </button>
     );
   };
@@ -1724,16 +1755,24 @@ export function MatchGame({ game, onComplete }: EngineProps) {
             <section className={styles.customerFloorWineShelf} aria-label={`${rightHead} 우측 진열대`}>
               <div className={styles.customerFloorLegend} aria-label="와인 색상 범례">
                 {[
-                  ["red", "Red wine"],
-                  ["white", "White wine"],
-                  ["sweet", "Sweet wine"],
-                  ["rose", "Rose wine"],
-                  ["sparkling", "Sparkling wine"],
-                ].map(([kind, label]) => (
-                  <span key={kind} data-kind={kind}>
-                    <i aria-hidden="true" />
-                    {label}
-                  </span>
+                  [
+                    ["red", "Red wine"],
+                    ["white", "White wine"],
+                    ["sweet", "Sweet wine"],
+                  ],
+                  [
+                    ["rose", "Rose wine"],
+                    ["sparkling", "Sparkling wine"],
+                  ],
+                ].map((row, rowIndex) => (
+                  <div className={styles.customerFloorLegendRow} key={`legend-row-${rowIndex}`}>
+                    {row.map(([kind, label]) => (
+                      <span key={kind} data-kind={kind}>
+                        <i aria-hidden="true" />
+                        {label}
+                      </span>
+                    ))}
+                  </div>
                 ))}
               </div>
               {[
@@ -1753,33 +1792,29 @@ export function MatchGame({ game, onComplete }: EngineProps) {
               ))}
             </section>
             <section className={styles.customerFloorCast} aria-label={`${leftHead} 손님 한 명씩 응대`}>
-              <nav className={styles.customerFloorProgress} aria-label="일반 손님 응대 순서">
-                {displayLeft.map((customer, index) => (
-                  <button
-                    key={customer.id}
-                    type="button"
-                    data-active={index === floorCustomerIndex || undefined}
-                    data-complete={lines.some((line) => line.left === customer.id) || undefined}
-                    aria-label={`${index + 1}번 손님 보기${lines.some((line) => line.left === customer.id) ? " — 연결 완료" : ""}`}
-                    aria-current={index === floorCustomerIndex ? "step" : undefined}
-                    disabled={done || floorMatchFlash}
-                    onClick={() => {
-                      setFloorCustomerIndex(index);
-                      setSelected(null);
-                    }}
-                  >
-                    {index + 1}
-                  </button>
-                ))}
-              </nav>
               {activeFloorCustomer ? renderFloorCustomer(activeFloorCustomer) : null}
-              <aside className={styles.customerFloorBrief} data-foreign={activeFloorForeign || undefined}>
-                <strong>{activeFloorForeign ? "? 외국인 고객이 방문했습니다." : "손님 응대"}</strong>
+              <aside
+                className={styles.customerFloorBrief}
+                data-foreign={activeFloorForeign || undefined}
+                data-sudden-active={(suddenVisible && !suddenDismissed) || undefined}
+                data-returning={suddenDismissed || undefined}
+              >
+                <strong>{activeFloorForeign ? "외국인 고객 응대" : "손님 응대"}</strong>
                 <span>
                   {activeFloorForeign
-                    ? "다양한 언어와 국적의 고객 의도를 파악해 적절한 와인을 선택하세요."
+                    ? "고객의 언어를 이해하기 어렵다면 번역 기능으로 요청을 확인하세요."
                     : "말풍선의 상황·예산·취향을 확인하고 우측 진열대에서 와인을 추천하세요."}
                 </span>
+                {activeFloorForeign ? (
+                  <button
+                    type="button"
+                    className={styles.customerFloorBriefTranslate}
+                    onClick={() => setFloorTranslated((value) => !value)}
+                    aria-pressed={floorTranslated}
+                  >
+                    {floorTranslated ? "원문 보기" : "번역하기"}
+                  </button>
+                ) : null}
               </aside>
             </section>
             {floorWineDetail ? (
@@ -1837,9 +1872,6 @@ export function MatchGame({ game, onComplete }: EngineProps) {
                       <dd>{floorWineDetail.stock === "soldout" ? "품절" : "구매 가능"}</dd>
                     </div>
                   </dl>
-                  {data.visual_cues?.[floorWineDetail.id] ? (
-                    <small>{pretty(data.visual_cues[floorWineDetail.id])}</small>
-                  ) : null}
                 </div>
                 <button
                   type="button"
@@ -1874,7 +1906,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
           </>
         )}
 
-        {customerFloor && sudden && suddenVisible && !suddenFocused ? (
+        {customerFloor && sudden && suddenVisible && !suddenFocused && !suddenDismissed ? (
           <button
             type="button"
             className={styles.customerFloorIncident}
@@ -1884,23 +1916,38 @@ export function MatchGame({ game, onComplete }: EngineProps) {
             onClick={() => setSuddenFocused(true)}
             aria-label={`진상 손님 대응 열기 — ${sudden.label ?? "돌발 상황"}`}
           >
-            <span className={styles.customerFloorIncidentTitle}>! 돌발상황</span>
-            {suddenArrived ? (
-              <span className={styles.customerFloorSpeech}>
-                아니, 여기서 샀다니까요!<br />영수증 없어도 당장 환불해요!
+            <span className={styles.customerFloorIncidentTitle}>
+              <span className={styles.customerFloorIncidentHeading}>
+                <span className={styles.customerFloorIncidentWarning}>
+                  <span
+                    className={styles.customerFloorIncidentTimer}
+                    data-urgent={suddenResponseRemaining <= 10 || undefined}
+                  >
+                    {suddenResponseRemaining}초
+                  </span>
+                  <span className={styles.customerFloorIncidentIcon}>!</span>
+                </span>
+                <span>돌발상황</span>
               </span>
-            ) : null}
+              <span className={styles.customerFloorIncidentDescription}>
+                컴플레인이 들어왔습니다.<br />
+                30초내 진상손님을 대응하세요.
+              </span>
+            </span>
+            <span className={styles.customerFloorSpeech}>
+              야 너 내가 그지인줄 알아??<br />건방지게 잔말 말고 당장 환불해!!
+            </span>
             <span className={styles.customerFloorPerson}>
               {sudden.sprite ? (
-                <PixelSprite id={sudden.sprite} label="진상 손님" size={96} smooth />
+                <PixelSprite
+                  id={sudden.sprite === "손님_개봉상품_고성" ? "kts-03-irate-customer-flipped-v1" : sudden.sprite}
+                  label="진상 손님"
+                  size={sudden.sprite === "손님_개봉상품_고성" ? 144 : 96}
+                  smooth
+                />
               ) : null}
               <strong>{suddenSettled ? "조치 완료" : "진상 손님"}</strong>
             </span>
-            {!suddenSettled ? (
-              <span className={styles.customerFloorHoverCue} aria-hidden="true">
-                대응하기
-              </span>
-            ) : null}
           </button>
         ) : null}
 
@@ -1910,7 +1957,11 @@ export function MatchGame({ game, onComplete }: EngineProps) {
               <h2 className={styles.customerResponseTitle}>! 돌발상황</h2>
               <div className={styles.customerResponseSpeech}>
                 <strong>손님</strong>
-                <span>영수증은 없지만 여기서 샀어요. 개봉했어도 지금 바로 환불해 주세요!</span>
+                <span>
+                  야 너 내가 그지인줄 알아??
+                  <br />
+                  건방지게 잔말 말고 당장 환불해!!
+                </span>
               </div>
               <div className={styles.customerResponsePerson}>
                 {sudden.sprite ? <PixelSprite id={sudden.sprite} label="진상 손님" size={176} smooth /> : null}
@@ -1919,11 +1970,11 @@ export function MatchGame({ game, onComplete }: EngineProps) {
               <aside className={styles.customerResponseGuide}>
                 <h3>Service Guidelines</h3>
                 <ol>
-                  <li data-done={stagesDone.includes("경청_사실확인") || undefined}>고객의 말을 차분히 경청합니다.</li>
-                  <li data-done={stagesDone.includes("경청_사실확인") || undefined}>구매 이력과 상품 상태를 확인합니다.</li>
-                  <li data-done={stagesDone.includes("규정안내") || undefined}>환불 규정을 근거와 함께 안내합니다.</li>
-                  <li data-done={stagesDone.includes("대안제시") || undefined}>교환·적립 등 가능한 대안을 제시합니다.</li>
-                  <li data-done={escalated || undefined}>고성이 지속되면 매니저에게 인계합니다.</li>
+                  <li>고객의 말을 차분히 경청합니다.</li>
+                  <li>구매 이력과 상품 상태를 확인합니다.</li>
+                  <li>환불 규정을 근거와 함께 안내합니다.</li>
+                  <li>교환·적립 등 가능한 대안을 제시합니다.</li>
+                  <li>고성이 지속되면 매니저에게 인계합니다.</li>
                 </ol>
               </aside>
               <button type="button" className={styles.customerResponseBack} onClick={() => setSuddenFocused(false)}>
@@ -1956,7 +2007,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
                       pressForbiddenButton(action.id);
                     }}
                   >
-                    <span>{pretty(action.id)}</span>
+                    <span>{action.label ?? pretty(action.id)}</span>
                   </button>
                 ))}
                 {!isItemEscalate && data.escalate ? (
@@ -1968,7 +2019,6 @@ export function MatchGame({ game, onComplete }: EngineProps) {
                     disabled={done || escalated}
                     onClick={() => {
                       pressStateEscalate();
-                      window.setTimeout(() => setSuddenFocused(false), 420);
                     }}
                   >
                     <span>{data.escalate.label ?? "호출"}</span>
@@ -2064,7 +2114,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
                 data-done={pressedForbidden.includes(action.id)}
                 onClick={() => pressForbiddenButton(action.id)}
               >
-                <span>{pretty(action.id)}</span>
+                <span>{action.label ?? pretty(action.id)}</span>
               </button>
             ))}
             {!isItemEscalate && data.escalate ? (
@@ -2085,15 +2135,17 @@ export function MatchGame({ game, onComplete }: EngineProps) {
 
       {!done ? (
         <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.actionBtn}
-            disabled={!selected}
-            onClick={() => markSelected("stamped")}
-            aria-label={`선택한 카드에 ${stampLabel} 도장`}
-          >
-            {stampLabel} 도장
-          </button>
+          {!customerFloor ? (
+            <button
+              type="button"
+              className={styles.actionBtn}
+              disabled={!selected}
+              onClick={() => markSelected("stamped")}
+              aria-label={`선택한 카드에 ${stampLabel} 도장`}
+            >
+              {stampLabel} 도장
+            </button>
+          ) : null}
           {data.discard ? (
             <button
               type="button"

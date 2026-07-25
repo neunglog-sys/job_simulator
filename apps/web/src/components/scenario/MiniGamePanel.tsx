@@ -13,6 +13,7 @@ import { SortGame } from "./minigames/SortGame";
 import { SpotGame } from "./minigames/SpotGame";
 import { TraceGame } from "./minigames/TraceGame";
 import { TypingGame } from "./minigames/TypingGame";
+import { SnsResearchGame } from "./minigames/SnsResearchGame";
 import type { EngineProps } from "./minigames/shared";
 import type { Engine, MinigameDef, MinigameResult } from "./minigames/types";
 
@@ -46,6 +47,7 @@ const ENGINE_COMPONENTS: Partial<Record<Engine, React.ComponentType<EngineProps>
   physics: PhysicsGame,
   trace: TraceGame,
   typing: TypingGame,
+  research: SnsResearchGame,
 };
 
 /**
@@ -61,7 +63,7 @@ function reflectedResult(attempts: MinigameResult[]): MinigameResult {
   attempts.forEach((r, i) => {
     const w = 0.5 ** i;
     weightSum += w;
-    accSum += w * r.accuracy;
+    accSum += w * (r.accuracy ?? 0);
   });
   return {
     accuracy: Math.round(accSum / weightSum),
@@ -110,6 +112,10 @@ export function MiniGamePanel({
   }, [queueKey]);
 
   const handleAttempt = (result: MinigameResult) => {
+    if (activeGame?.engine === "research") {
+      onClear({ ...result, engine: activeGame.engine });
+      return;
+    }
     setAttempts((prev) => [...prev, result]);
     setLastResult(result);
   };
@@ -133,7 +139,9 @@ export function MiniGamePanel({
     }
     const results = [...completedGames, current];
     const combined: MinigameResult = {
-      accuracy: Math.round(results.reduce((sum, result) => sum + result.accuracy, 0) / results.length),
+      accuracy: Math.round(
+        results.reduce((sum, result) => sum + (result.accuracy ?? 0), 0) / results.length,
+      ),
       time_seconds: results.reduce((sum, result) => sum + (result.time_seconds ?? 0), 0),
       mistakes: results.reduce((sum, result) => sum + (result.mistakes ?? 0), 0),
     };
@@ -148,7 +156,10 @@ export function MiniGamePanel({
       aria-modal="true"
       aria-label="실무 미니게임"
     >
-      <div className={`${styles.missionModal} ${styles.miniGameModal}`}>
+      <div
+        className={`${styles.missionModal} ${styles.miniGameModal}`}
+        data-minigame-engine={activeGame?.engine}
+      >
         <div className={styles.missionHeader}>
           <div className={styles.missionHeadingText}>
             <span className={styles.missionKindBadge}>실무 미니게임</span>
@@ -182,7 +193,7 @@ export function MiniGamePanel({
             {lastResult ? (
               <div className={styles.missionRetryBar} role="status">
                 <span className={styles.missionRetryScore}>
-                  이번 <b>{lastResult.accuracy}점</b>
+                  이번 <b>{lastResult.accuracy ?? 0}점</b>
                   {attempts.length > 1 ? (
                     <>
                       {" · "}반영 <b>{reflected.accuracy}점</b>
