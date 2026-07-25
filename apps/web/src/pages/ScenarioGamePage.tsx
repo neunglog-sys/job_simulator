@@ -778,11 +778,13 @@ export function ScenarioGamePage() {
       ? tour?.guide ?? tourStop
       : tourStop ?? tour?.guide;
   const tourDialogueMessage =
-    phase === "tour_closing"
-      ? tour?.closing ?? ""
-      : tourReplyStarted
-        ? npcMessage
-        : tourStop?.line ?? "";
+    phase === "tour_opening"
+      ? tour?.opening ?? "" // 사수 자기소개
+      : phase === "tour_closing"
+        ? tour?.closing ?? ""
+        : tourReplyStarted
+          ? npcMessage
+          : tourStop?.line ?? "";
   const visibleChatNpc = tourActive ? tourDialogueSpeaker ?? chatNpc : chatNpc;
   const visibleNpcMessage = tourActive ? tourDialogueMessage : npcMessage;
   const visibleChatNpcId = tourActive
@@ -834,7 +836,9 @@ export function ScenarioGamePage() {
   // 동료 답변은 onNpcReply에서 완성된 문장으로 별도 기록한다.
   useEffect(() => {
     if (!tour?.guide) return;
-    if (phase === "tour_intro" && tourStop?.line) {
+    if (phase === "tour_opening" && tour.opening) {
+      appendDialogue(tour.guide.name || "사수", "npc", tour.opening);
+    } else if (phase === "tour_intro" && tourStop?.line) {
       appendDialogue(tour.guide.name || "사수", "npc", tourStop.line);
     } else if (phase === "tour_closing" && tour.closing) {
       appendDialogue(tour.guide.name || "사수", "npc", tour.closing);
@@ -853,9 +857,10 @@ export function ScenarioGamePage() {
   // 투어 중 사수·플레이어가 서 있을 자리 — 소개 대상 옆(마무리 때는 사수 자리로 돌아온다).
   const tourAnchor = useMemo(() => {
     if (!tour) return null;
-    const target = tourStop?.npc ?? tour.guide?.npc;
+    // 자기소개(tour_opening) 동안엔 사수가 첫 동료에게 걸어가지 않고 제 자리에 머문다.
+    const target = phase === "tour_opening" ? tour.guide?.npc : tourStop?.npc ?? tour.guide?.npc;
     return target ? spawnPos(target) : null;
-  }, [tour, tourStop, spawnPos]);
+  }, [tour, tourStop, spawnPos, phase]);
   // 다음 스톱으로 넘어갈 때 사수는 로밍 NPC처럼 상하좌우로 걸어간다(대각선 금지).
   // planGuideHops가 만든 걸음 목록(코너 단위)을 순서대로 setTimeout으로 재생 — 걸음(코너~코너 직선)
   // 하나가 CSS transition 한 번(= MovementArea guideHopMsRef, 같은 공식)이라 예약 간격을 그 시간과 맞춘다.
@@ -988,6 +993,11 @@ export function ScenarioGamePage() {
   //          → 다음 동료 / 마지막이면 사수 마무리(tour_closing) → exploring
   const handleTourNext = useCallback(() => {
     if (!tour) return;
+    if (phase === "tour_opening") {
+      // 사수 자기소개를 들었으면 이제 동료 소개로 넘어간다.
+      setPhase("tour_intro");
+      return;
+    }
     if (phase === "tour_intro") {
       // 소개를 들었으면 이제 신입이 직접 인사한다 — 여기서 화법(호감도)이 평가된다.
       setChatNpcId(tour.stops[tourIndex]?.npc ?? null);
@@ -1421,7 +1431,8 @@ export function ScenarioGamePage() {
               setTourDone(true);
               setPhase("exploring");
             } else {
-              setPhase("tour_intro");
+              // 팀 소개 전에 사수가 먼저 자기소개(tour_opening) → 이후 동료 소개(tour_intro).
+              setPhase(frame.opening ? "tour_opening" : "tour_intro");
             }
           },
           onStateUpdated: (state) => {
@@ -1916,22 +1927,30 @@ export function ScenarioGamePage() {
         ) : tourActive && tour ? (
           <TourBanner
             speakerName={
-              phase === "tour_closing" || phase === "tour_intro"
+              phase === "tour_opening" || phase === "tour_closing" || phase === "tour_intro"
                 ? tour.guide?.name ?? "사수"
                 : tourStop?.name ?? ""
             }
             line={
-              phase === "tour_closing"
-                ? tour.closing
-                : phase === "tour_intro"
-                  ? tourStop?.line ?? ""
-                  : phase === "tour_greet"
-                    ? `${tourStop?.name ?? "동료"} 님에게 직접 인사를 건네보세요. (아래 채팅창)`
-                    : npcMessage || "…"
+              phase === "tour_opening"
+                ? tour.opening
+                : phase === "tour_closing"
+                  ? tour.closing
+                  : phase === "tour_intro"
+                    ? tourStop?.line ?? ""
+                    : phase === "tour_greet"
+                      ? `${tourStop?.name ?? "동료"} 님에게 직접 인사를 건네보세요. (아래 채팅창)`
+                      : npcMessage || "…"
             }
-            stepLabel={phase === "tour_closing" ? "마무리" : `${tourIndex + 1}/${tour.stops.length}`}
+            stepLabel={
+              phase === "tour_opening"
+                ? "자기소개"
+                : phase === "tour_closing"
+                  ? "마무리"
+                  : `${tourIndex + 1}/${tour.stops.length}`
+            }
             mode={
-              phase === "tour_intro"
+              phase === "tour_opening" || phase === "tour_intro"
                 ? "intro"
                 : phase === "tour_greet"
                   ? "greet"

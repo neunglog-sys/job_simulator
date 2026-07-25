@@ -16,6 +16,7 @@
  */
 export type GamePhase =
   | "loading"
+  | "tour_opening"
   | "tour_intro"
   | "tour_greet"
   | "tour_reply"
@@ -38,6 +39,7 @@ export type GamePhase =
 
 /** 온보딩 투어(1단계) 진행 중 — 사수가 인솔하므로 자유 이동·업무를 막는다. */
 export const TOUR_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
+  "tour_opening",
   "tour_intro",
   "tour_greet",
   "tour_reply",

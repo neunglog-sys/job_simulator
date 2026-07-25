@@ -55,6 +55,7 @@ export type QuestResultFrame = TaskResultFrame & {
 // 1단계 온보딩 투어 — 사수가 신입을 데리고 다니며 팀원을 한 명씩 소개한다(컷신 재료).
 export type TourFrame = {
   guide: { npc: string; name: string; role: string } | null;
+  opening: string; // 팀 소개 전에 사수가 먼저 자기소개하는 말
   stops: Array<{ npc: string; name: string; role: string; line: string }>;
   closing: string; // 소개를 마치고 오늘 업무 흐름을 짚는 말
 };
