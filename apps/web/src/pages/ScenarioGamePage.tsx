@@ -313,10 +313,6 @@ function tourHopDurationMs(from: Position, to: Position): number {
   const dist = Math.hypot(to.x - from.x, to.y - from.y);
   return Math.min(TOUR_HOP_MAX_MS, Math.max(TOUR_HOP_MIN_MS, (dist / TOUR_HOP_SPEED_PX_S) * 1000));
 }
-// 신입은 사수보다 이만큼 늦게 출발한다 — 둘이 t=0에 동시에 움직이면 나란히 걷는 것처럼 보여서
-// '따라간다' 느낌이 안 산다. 260px/s에서 이 지연이면 약 한 몸 길이 뒤에서 사수를 뒤따르게 된다.
-const TOUR_FOLLOW_LAG_MS = 500;
-
 const GUIDE_GRID = 16; // BFS 격자 간격(px) — 집기(수십 px)보다 촘촘해 그 사이 틈으로 새지 않는다
 const GUIDE_ROUTE_MARGIN = 168; // 집기 바깥으로 이만큼 여유 바닥을 탐색에 포함(돌아갈 통로 확보)
 
@@ -954,40 +950,11 @@ export function ScenarioGamePage() {
     };
   }, [tourActive, tourAnchor, tourCollisions, tour, spawnPos]);
 
-  // 사수가 이동하면 신입은 사수 뒤를 자동으로 따라붙는다(컷신 — 플레이어 조작 없음).
-  // 예전엔 tourWaypoint 단일 L(막히면 목표로 직행=대각선)이라 신입이 책상을 가로질러 '날아갔다'.
-  // 이제 사수와 똑같이 planGuideHops로 상하좌우 걸음 목록(코너 단위)을 만들어 한 걸음씩 예약 — 직교로 따라간다.
-  const playerPosRef = useRef<Position>(playerPosition);
-  playerPosRef.current = playerPosition;
-  const playerHopTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  useEffect(() => {
-    playerHopTimersRef.current.forEach(clearTimeout);
-    playerHopTimersRef.current = [];
-    if (!tourActive || !tourAnchor) return;
-    const target = findSafeSpot(
-      { x: tourAnchor.x - 140 - PLAYER_SIZE.width / 2, y: tourAnchor.y - PLAYER_SIZE.height },
-      { x: tourAnchor.x - PLAYER_SIZE.width / 2, y: tourAnchor.y - PLAYER_SIZE.height },
-      tourCollisions,
-    );
-    const start = playerPosRef.current;
-    const hops = planGuideHops(start, target, tourCollisions);
-    // 사수와 같은 순차 예약(타이머 밀림에 강함) — 단, 첫 걸음만 사수보다 늦게 떼서 뒤따르게 한다.
-    let prev = start;
-    let i = 0;
-    const walk = () => {
-      if (i >= hops.length) return;
-      const hop = hops[i];
-      const d = tourHopDurationMs(prev, hop);
-      setPlayerPosition(hop);
-      prev = hop;
-      i += 1;
-      if (i < hops.length) playerHopTimersRef.current = [setTimeout(walk, d)];
-    };
-    playerHopTimersRef.current = [setTimeout(walk, TOUR_FOLLOW_LAG_MS)];
-    return () => {
-      playerHopTimersRef.current.forEach(clearTimeout);
-    };
-  }, [tourActive, tourAnchor, tourCollisions]);
+  // 투어(컷신) 동안 신입은 사수를 자동으로 따라가지 않는다 — 사수만 팀원에게 걸어가 소개하고
+  // 신입은 제자리(개방된 시작 자리)에 머문다. 대사는 배너·버튼으로 진행한다.
+  // (예전엔 신입을 사수 옆으로 자동 이동시켰는데, 마지막 스톱이 계산대-바 사이 좁은 자리면
+  //  거기 처박혀 '끼여서 안 움직이는' 문제가 있었다.) 투어 중엔 카메라가 사수를 비추고
+  //  (아래 MovementArea cameraFocus), 투어가 끝나면 신입이 직접 걸어 미션 NPC에게 간다.
 
   // 투어 전이: 사수 소개(tour_intro) → 신입이 직접 인사(tour_greet) → 동료 응답(tour_reply)
   //          → 다음 동료 / 마지막이면 사수 마무리(tour_closing) → exploring
@@ -1835,6 +1802,8 @@ export function ScenarioGamePage() {
           onNpcPositionsChange={setNpcLivePositions}
           guideNpcId={tour?.guide?.npc ?? null}
           guidePosition={guidePosition}
+          // 투어 중엔 신입이 제자리에 머무므로 카메라가 사수를 비춰 팀원 소개를 보여준다.
+          cameraFocus={tourActive ? guidePosition : null}
           tourActive={tourActive}
           talkingNpcId={talk.id}
           roamingPaused={tourActive}

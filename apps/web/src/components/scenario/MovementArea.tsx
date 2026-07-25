@@ -33,6 +33,9 @@ type MovementAreaProps = {
   // 온보딩 투어(컷신) — 사수가 신입을 데리고 다니는 동안 그 마커를 이 좌표로 옮긴다.
   guideNpcId?: string | null;
   guidePosition?: Position | null;
+  // 투어 중 카메라가 신입 대신 이 지점(사수)을 비추게 한다 — 신입은 제자리에 머무므로,
+  // 이걸 넘겨야 사수가 팀원에게 걸어가 소개하는 장면이 화면에 보인다. null이면 평소대로 신입을 따라간다.
+  cameraFocus?: Position | null;
   // 투어(컷신) 진행 중 — 동료(담당자)를 자기 자리(spawn)에 '고정해 그린다'(npcMarkers 렌더).
   // (사수가 "이쪽은 부장님이에요" 하고 데려갔는데 정작 부장님이 딴 데로 가 있으면 빈자리 소개가 되니까.)
   // 로밍 정지 자체는 roamingPaused가 담당 — 역할 분리.
@@ -172,6 +175,7 @@ export function MovementArea({
   onNpcPositionsChange,
   guideNpcId = null,
   guidePosition = null,
+  cameraFocus = null,
   tourActive = false,
   talkingNpcId = null,
   roamingPaused = false,
@@ -716,8 +720,11 @@ export function MovementArea({
     if (!geometry || !areaSize) return { x: 0, y: 0 };
     const viewW = areaSize.width / ZOOM;
     const viewH = areaSize.height / ZOOM;
-    const focusX = position.x + PLAYER_SIZE.width / 2;
-    const focusY = position.y + PLAYER_SIZE.height / 2;
+    // 투어 중엔 신입이 제자리에 머무므로 카메라가 사수(cameraFocus)를 비춘다 — 그래야 팀원 소개가
+    // 화면에 잡힌다. 평소엔 신입(position)을 따라간다.
+    const focus = cameraFocus ?? position;
+    const focusX = focus.x + PLAYER_SIZE.width / 2;
+    const focusY = focus.y + PLAYER_SIZE.height / 2;
     const spanX = worldBounds.maxX - worldBounds.minX;
     const spanY = worldBounds.maxY - worldBounds.minY;
     return {
@@ -729,7 +736,7 @@ export function MovementArea({
         ? worldBounds.minY - (viewH - spanY) / 2
         : clamp(focusY - viewH / 2, worldBounds.minY, worldBounds.maxY - viewH),
     };
-  }, [geometry, areaSize, position, worldBounds]);
+  }, [geometry, areaSize, position, cameraFocus, worldBounds]);
 
   // 최신 좌표를 ref로 들고 간다 — 키를 꾹 누르면 키 리피트가 리렌더보다 빨라서, 클로저의
   // position으로 계산하면 그 사이 입력들이 같은 낡은 좌표를 읽고 마지막 것만 남는다(이동 유실).
@@ -1083,9 +1090,26 @@ export function MovementArea({
         return;
       }
       const hopStep = Math.min(dist, step);
-      movePlayer((dx / dist) * hopStep, (dy / dist) * hopStep);
-      if (positionRef.current.x === cur.x && positionRef.current.y === cur.y) {
-        walkTargetRef.current = null; // 더 못 감 — 막힌 지점까지 왔으니 멈춘다
+      // 직교 이동만 — 대각선(두 축 동시)으로 가면 확대 화면에서 잔상이 생기고, 집기 모서리에
+      // 발판박스가 파고들어 이상하게 막힌다. 키보드·로밍과 같은 규칙: 남은 거리가 큰 축부터
+      // 한 축씩 시도하고, 그 축이 막히면 다른 축으로 돌아 벽을 따라 미끄러진다.
+      const stepX = Math.sign(dx) * Math.min(Math.abs(dx), hopStep);
+      const stepY = Math.sign(dy) * Math.min(Math.abs(dy), hopStep);
+      const axes: Array<[number, number]> =
+        Math.abs(dx) >= Math.abs(dy)
+          ? [[stepX, 0], [0, stepY]]
+          : [[0, stepY], [stepX, 0]];
+      let moved = false;
+      for (const [ax, ay] of axes) {
+        if (ax === 0 && ay === 0) continue;
+        movePlayer(ax, ay);
+        if (positionRef.current.x !== cur.x || positionRef.current.y !== cur.y) {
+          moved = true;
+          break;
+        }
+      }
+      if (!moved) {
+        walkTargetRef.current = null; // 두 축 다 막힘 — 막힌 지점까지 왔으니 멈춘다
       }
     };
     raf = requestAnimationFrame(loop);
