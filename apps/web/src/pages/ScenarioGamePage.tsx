@@ -792,8 +792,12 @@ export function ScenarioGamePage() {
   const tourStopMarker = useMemo(() => {
     const npcId = tourStop?.npc;
     if (!npcId) return null;
-    return npcLivePositions[npcId] ?? spawnPos(npcId);
-  }, [tourStop, npcLivePositions, spawnPos]);
+    // 투어 중 동료는 로밍 좌표를 무시하고 전부 자기 자리(spawn)에 고정돼 그려진다(MovementArea).
+    // 그래서 여기서도 spawn을 써야 한다 — 로밍 좌표(npcLivePositions)는 투어 진입 직전 값이라
+    // 실제로 서 있는 자리와 어긋나고, 그러면 카메라가 빈 곳을 비추고 옆에 가도 인사가 안 열린다.
+    // 사수가 서는 기준점(tourAnchor)도 같은 spawn이라 셋(사수 위치·카메라·근접 판정)이 일치한다.
+    return spawnPos(npcId);
+  }, [tourStop, spawnPos]);
   const isNearTourStop =
     tourStopMarker != null &&
     Math.hypot(
