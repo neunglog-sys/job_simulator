@@ -62,6 +62,37 @@ function resolveAvatarId(preferredAvatarId?: CoachAvatarId): CoachAvatarId {
   }
 }
 
+/** leadEstimate(요청→첫 재생 예측 지연, 초)의 저장/시드.
+ *
+ * 매 발화 첫 재생 실측치로 EMA 갱신하되, 그 결과를 localStorage에 저장해 **새로고침·재마운트
+ * 후에도** 워밍업된 값에서 시작한다. 옛 하드코딩 2.4는 실제(~7.5s)보다 훨씬 짧아 세션 초반
+ * 8발화쯤까지 머리가 튀는 원인이었다 — 시드를 실측 p50 근처로 두면 첫 발화부터 위상이 맞는다. */
+const LEAD_ESTIMATE_KEY = "jobiverse-avatar-lead-estimate";
+const LEAD_ESTIMATE_DEFAULT = 6.5; // 실측 첫재생 7.5~9.7s의 보수적 하단(과대추정 위험을 줄임)
+const LEAD_ESTIMATE_MIN = 1;
+const LEAD_ESTIMATE_MAX = 12;
+
+function readStoredLeadEstimate(): number {
+  if (typeof window === "undefined") return LEAD_ESTIMATE_DEFAULT;
+  try {
+    const raw = window.localStorage.getItem(LEAD_ESTIMATE_KEY);
+    const parsed = raw === null ? NaN : Number(raw);
+    if (!Number.isFinite(parsed)) return LEAD_ESTIMATE_DEFAULT;
+    return Math.min(LEAD_ESTIMATE_MAX, Math.max(LEAD_ESTIMATE_MIN, parsed));
+  } catch {
+    return LEAD_ESTIMATE_DEFAULT;
+  }
+}
+
+function writeStoredLeadEstimate(value: number): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(LEAD_ESTIMATE_KEY, String(value));
+  } catch {
+    // 저장소가 차단된 환경에서도 현재 세션의 갱신은 그대로 동작한다.
+  }
+}
+
 export function AiAvatarStage({
   children,
   status = "idle",
@@ -81,9 +112,10 @@ export function AiAvatarStage({
    * 요청 시점의 idle 위치를 그대로 보내면, 재생이 시작될 즈음 idle은 이미 그만큼 앞서 있다.
    * 그때 되감으면 되감기 자체가 점프로 보이므로(문제를 옮기는 것뿐), **미래 위치를 예측해서**
    * 보낸다 → 재생 시점에 idle이 자연스럽게 그 프레임에 도달해 되감을 필요가 없다.
-   * 발화마다 관측값으로 갱신한다(EMA). 초깃값은 실측 첫프레임 p50 ≈ 2.4s.
+   * 발화마다 관측값으로 갱신한다(EMA). 시드는 localStorage에 저장된 직전 추정치(없으면
+   * 실측 근처 기본값), 그래서 새로고침 후에도 워밍업된 값에서 시작한다. [[readStoredLeadEstimate]]
    */
-  const leadEstimateRef = useRef(2.4);
+  const leadEstimateRef = useRef(readStoredLeadEstimate());
   /** 서버가 알려준 이 발화의 시작 프레임·사이클 정보. 예측 오차를 로그로 남기는 데만 쓴다.
    *
    * 2026-07-23 감사: idle을 seek·pause 해서 위상을 "맞추려던" 시도는 오히려 튐을 만들었다.
@@ -155,6 +187,9 @@ export function AiAvatarStage({
     const startBufferSeconds = resolveStartBufferSeconds();
     let firstBinaryAt: number | null = null;
     let firstPlayAt: number | null = null;
+    // socket.onopen 시각(sinceStart). 첫 재생까지 실제 걸린 시간(firstPlay-wsOpen)이 이번
+    // 발화의 실측 lead이고, 이 값으로 leadEstimateRef를 EMA 갱신한다(아래 handlePlaying).
+    let wsOpenAt: number | null = null;
     let lastDonePayload: Record<string, unknown> | null = null;
     let relayTiming: Record<string, unknown> | null = null;
     let doneTotalS: number | null = null;
@@ -271,6 +306,28 @@ export function AiAvatarStage({
             drift_s: Number(drift.toFixed(3)),
             first_play_at: firstPlayAt,
           });
+        }
+        // leadEstimate 보정(위상 동기화 핵심): 이번 발화의 실측 lead = 첫 재생 − onopen.
+        // EMA로 수렴시켜 다음 발화의 idle 위치 예측을 실제 첫재생 지연(현재 ~5–9s)에 맞춘다.
+        // 고정값 2.4는 실제보다 훨씬 짧아 idle이 5–7s 앞서 흘러 발화 시작 때 머리가 튀는
+        // 원인이었다(주석엔 EMA 갱신이라 돼 있었으나 실제 갱신 코드가 없었음).
+        if (wsOpenAt !== null) {
+          const observedLead = firstPlayAt - wsOpenAt;
+          if (Number.isFinite(observedLead) && observedLead > 0) {
+            const EMA_ALPHA = 0.3;
+            const next =
+              EMA_ALPHA * observedLead + (1 - EMA_ALPHA) * leadEstimateRef.current;
+            // 콜드/이상치 폭주 방지 클램프. 결과를 저장해 다음 세션도 워밍업 상태로 시작한다.
+            leadEstimateRef.current = Math.min(
+              LEAD_ESTIMATE_MAX,
+              Math.max(LEAD_ESTIMATE_MIN, next)
+            );
+            writeStoredLeadEstimate(leadEstimateRef.current);
+            console.info("[MuseTalk]", "lead_estimate_update", {
+              observed_lead: Number(observedLead.toFixed(3)),
+              lead_estimate: Number(leadEstimateRef.current.toFixed(3)),
+            });
+          }
         }
         if (metricsEmitted) emitMetrics("first_play");
         return;
@@ -407,6 +464,8 @@ export function AiAvatarStage({
       // idle의 **재생 시작 시점 예상 위치**를 보낸다. 지금 위치를 그대로 보내면 생성·전송에
       // 걸리는 시간만큼 idle이 앞서가 어긋나고, 그걸 되감으면 그 되감기가 점프로 보인다.
       const idle = idleRef.current;
+      // 예측 기준 시각을 기록: 첫 재생 때 (firstPlay - wsOpen)이 곧 이번 발화의 실측 lead다.
+      wsOpenAt = sinceStart();
       const idleTime =
         idle && Number.isFinite(idle.currentTime)
           ? Number((idle.currentTime + leadEstimateRef.current).toFixed(3))

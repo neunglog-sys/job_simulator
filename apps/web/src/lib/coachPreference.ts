@@ -26,7 +26,7 @@ export const COACH_PROFILES: Record<CoachAvatarId, CoachProfile> = {
     role: "AI 진로 코치",
     description: "세심하게 이야기를 듣고 강점과 가능성을 함께 찾아요.",
     portraitSrc: "/coach/im-yewon.webp",
-    idleVideoSrc: null,
+    idleVideoSrc: "/avatar-idle-female-720p.mp4",
   },
 };
 
