@@ -471,6 +471,15 @@ async def stream_npc_chat(
     )
     # 프롬프트는 코드 템플릿이 구조화 필드를 조립 (system_prompt 통짜 저장 안 함)
     kind = npc_kind(persona["role"], persona["rank"])  # 사수/동료/고객 → 화법·톡식 범위
+    # 손님에게는 직원 미션(현재 스텝 과제)을 주입하지 않는다 — 안 그러면 손님이 그 업무의
+    # '담당 업무/현재 업무'인 줄 알고 신입에게 업무를 지시하는 직원처럼 군다(손님≠직원).
+    # 대신 '손님으로서의 상황'을 줘서 손님답게(용건·문의·요청·불만) 말하게 한다.
+    persona_mission = (
+        grading_mission
+        if kind != "고객"
+        else "이 매장을 이용하러 온 손님이다. 신입 직원에게 업무를 지시하지 말고, "
+        "손님으로서 자신의 용건(구매·문의·요청·불만·반응)만 현실적으로 말한다."
+    )
     system = render_prompt(
         "npc/system.md",
         scenario_title=scenario.title,
@@ -480,7 +489,7 @@ async def stream_npc_chat(
         learning_briefing=learning_briefing,
         register=register_for_npc(scenario.slug, kind),
         npc_kind=kind,
-        mission=grading_mission,
+        mission=persona_mission,
         name=persona["name"], role=persona["role"], rank=persona["rank"],
         personality=persona["personality"], likes=persona["likes"],
         dislikes=persona["dislikes"], speech_habits=persona["speech_habits"],
@@ -655,6 +664,7 @@ _TOUR_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
     "properties": {
+        "opening": {"type": "string", "minLength": 1, "maxLength": 200},
         "stops": {
             "type": "array",
             "items": {
@@ -669,7 +679,7 @@ _TOUR_SCHEMA = {
         },
         "closing": {"type": "string", "minLength": 1, "maxLength": 260},
     },
-    "required": ["stops", "closing"],
+    "required": ["opening", "stops", "closing"],
 }
 
 
@@ -690,12 +700,21 @@ async def onboarding_tour(
     guide = roster.get(guide_id or "")
     # conditions가 있는 NPC(예: quest_started)는 온보딩 시점엔 조건이 충족될 수 없으므로
     # 아직 등장할 차례가 아닌 손님·퀘스트 캐릭터 — 팀원 소개 투어에서 제외한다.
-    others = [v for k, v in roster.items() if k != guide_id and not v.get("conditions")]
+    # 팀원 소개 투어에는 '직원'만 넣는다 — 손님(고객)은 동료가 아니므로 사수가 소개하지 않는다.
+    # (conditions 있는 NPC는 아직 등장 차례가 아니라 별도로 제외)
+    others = [
+        v
+        for k, v in roster.items()
+        if k != guide_id
+        and not v.get("conditions")
+        and npc_kind(v["role"], v["rank"]) != "고객"
+    ]
     if guide is None or not others:
         return {"guide": None, "stops": [], "closing": ""}
 
     def fallback() -> dict:
         return {
+            "opening": f"반가워. 나는 {guide['name']}, {guide['role']} 맡고 있어. 오늘 팀 한 바퀴 소개해 줄게.",
             "stops": [
                 {
                     "npc": o["npc_id"],
@@ -733,6 +752,8 @@ async def onboarding_tour(
     user = (
         "오늘 첫 출근한 신입을 데리고 팀을 한 바퀴 돌며 동료들을 소개하는 중입니다.\n"
         f"[동료 명단]\n{listing}\n\n"
+        "opening에는 팀을 돌기 전에, 사수인 당신이 신입에게 먼저 자신의 이름과 직책·담당을 밝히며 "
+        "가볍게 자기소개하는 말을 1~2문장으로 만드세요(동료 소개는 아직 하지 않습니다).\n"
         "각 동료 앞에 멈출 때마다 신입에게 그 사람을 소개하는 말을 1~2문장으로 만드세요. "
         "이름과 무슨 일을 하는 사람인지가 드러나야 합니다. 명단에 없는 사실은 지어내지 마세요.\n"
         "stops의 npc는 위 명단의 id를 그대로 씁니다.\n"
@@ -747,7 +768,7 @@ async def onboarding_tour(
         stops = [s for s in out["stops"] if s["npc"] in valid]
         if len(stops) != len(others):  # 빠뜨린 동료가 있으면 통째로 폴백 (전원 소개가 계약)
             raise ValueError("투어 대사가 일부 동료를 빠뜨림")
-        out = {"stops": stops, "closing": out["closing"]}
+        out = {"opening": out["opening"], "stops": stops, "closing": out["closing"]}
     except Exception:  # noqa: BLE001 — 투어 생성 실패가 게임을 막지 않게
         logger.warning("투어 대사 생성 실패 (simulation=%d) — 페르소나 문구로 폴백", simulation.id)
         out = fallback()
@@ -755,6 +776,7 @@ async def onboarding_tour(
     by_id = {o["npc_id"]: o for o in others}
     return {
         "guide": {"npc": guide["npc_id"], "name": guide["name"], "role": guide["role"]},
+        "opening": _clean_npc(out["opening"]),
         "stops": [
             {**s, "name": by_id[s["npc"]]["name"], "role": by_id[s["npc"]]["role"]}
             for s in out["stops"]
