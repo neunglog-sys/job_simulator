@@ -604,10 +604,11 @@ export function MovementArea({
         const isTourGuide = guideNpcId != null && guideNpcId === npc.npc_id;
         const touring = isTourGuide && guidePosition;
         // 그 외 NPC는 순찰 경로(geometry.npc_paths)가 있으면 자기 자리 대신 순찰 목표점에 그린다.
-        // 단 투어(컷신) 중엔 앰비언트 로밍이 남긴 좌표를 무시하고 전부 자기 자리(spawn)에 고정한다 —
-        // 로밍은 loading 단계(투어 진입 전)에 잠깐 돌아 동료를 자리 밖으로 흩어놓는데, 그 상태로
-        // 얼어붙으면 사수가 원래 자리로 가서 '빈자리 소개'를 하게 된다. 투어 동안은 다들 제 데스크에.
-        const patrolTarget = isTourGuide || tourActive ? null : patrolTargets[npc.npc_id];
+        // 투어(컷신)가 시작되면 roamingPaused로 이동이 멈추므로, 마지막 좌표에 '그 자리에서' 선다 —
+        // 자기 자리(spawn)로 되돌리지 않는다. 돌아다니던 동료가 갑자기 제 데스크로 순간이동하면
+        // 어색하고, 인사도 실제로 서 있는 자리에서 해야 하기 때문. 사수가 찾아갈 목표·카메라·근접
+        // 판정도 모두 이 좌표(onNpcPositionsChange로 올려보내는 값)를 함께 쓴다.
+        const patrolTarget = isTourGuide ? null : patrolTargets[npc.npc_id];
         const rawX = touring
           ? guidePosition.x
           : patrolTarget
@@ -727,6 +728,13 @@ export function MovementArea({
     const focusY = focus.y + PLAYER_SIZE.height / 2;
     const spanX = worldBounds.maxX - worldBounds.minX;
     const spanY = worldBounds.maxY - worldBounds.minY;
+    // 동료를 잠깐 비추는 컷신(cameraFocus)에서는 맵 경계 clamp를 풀어 대상을 화면 한가운데 둔다 —
+    // 맵 가장자리에 서 있는 동료는 clamp에 걸려 구석에 치우쳐 보이거나 UI에 가려서, 정작 소개받는
+    // 사람이 안 보였다. 잠깐 맵 밖 여백이 보이더라도 대상을 확실히 보여주는 쪽이 낫다.
+    // 신입을 따라가는 평소 카메라는 그대로 맵 안으로 여며 빈 여백이 보이지 않게 한다.
+    if (cameraFocus) {
+      return { x: focusX - viewW / 2, y: focusY - viewH / 2 };
+    }
     return {
       // 맵이 화면보다 작으면 가운데 정렬 (가장자리에 빈 공간이 생기지 않게)
       x: spanX <= viewW

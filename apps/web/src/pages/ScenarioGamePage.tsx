@@ -792,12 +792,11 @@ export function ScenarioGamePage() {
   const tourStopMarker = useMemo(() => {
     const npcId = tourStop?.npc;
     if (!npcId) return null;
-    // 투어 중 동료는 로밍 좌표를 무시하고 전부 자기 자리(spawn)에 고정돼 그려진다(MovementArea).
-    // 그래서 여기서도 spawn을 써야 한다 — 로밍 좌표(npcLivePositions)는 투어 진입 직전 값이라
-    // 실제로 서 있는 자리와 어긋나고, 그러면 카메라가 빈 곳을 비추고 옆에 가도 인사가 안 열린다.
-    // 사수가 서는 기준점(tourAnchor)도 같은 spawn이라 셋(사수 위치·카메라·근접 판정)이 일치한다.
-    return spawnPos(npcId);
-  }, [tourStop, spawnPos]);
+    // 동료는 투어가 시작되면 '그 자리에서' 멈춘다(MovementArea) — 그 좌표가 npcLivePositions로
+    // 올라오므로 여기서도 그걸 쓴다. 사수가 찾아갈 목표(tourAnchor)·카메라·근접 판정이 모두 같은
+    // 좌표를 봐야 실제로 서 있는 사람 옆에서 소개하고 인사할 수 있다(로밍 경로가 없으면 spawn).
+    return npcLivePositions[npcId] ?? spawnPos(npcId);
+  }, [tourStop, npcLivePositions, spawnPos]);
   const isNearTourStop =
     tourStopMarker != null &&
     Math.hypot(
@@ -906,9 +905,13 @@ export function ScenarioGamePage() {
   const tourAnchor = useMemo(() => {
     if (!tour) return null;
     // 자기소개(tour_opening) 동안엔 사수가 첫 동료에게 걸어가지 않고 제 자리에 머문다.
-    const target = phase === "tour_opening" ? tour.guide?.npc : tourStop?.npc ?? tour.guide?.npc;
-    return target ? spawnPos(target) : null;
-  }, [tour, tourStop, spawnPos, phase]);
+    if (phase === "tour_opening") {
+      const guideNpc = tour.guide?.npc;
+      return guideNpc ? spawnPos(guideNpc) : null; // 사수 본인은 컷신 좌표가 권한이라 제 자리 기준
+    }
+    // 소개 대상은 투어가 시작될 때 '그 자리에서' 멈춘 좌표로 찾아간다(로밍 경로가 없으면 spawn).
+    return tourStopMarker ?? (tour.guide?.npc ? spawnPos(tour.guide.npc) : null);
+  }, [tour, tourStopMarker, spawnPos, phase]);
   // 다음 스톱으로 넘어갈 때 사수는 로밍 NPC처럼 상하좌우로 걸어간다(대각선 금지).
   // planGuideHops가 만든 걸음 목록(코너 단위)을 순서대로 setTimeout으로 재생 — 걸음(코너~코너 직선)
   // 하나가 CSS transition 한 번(= MovementArea guideHopMsRef, 같은 공식)이라 예약 간격을 그 시간과 맞춘다.
