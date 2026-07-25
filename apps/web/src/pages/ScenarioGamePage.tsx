@@ -616,6 +616,9 @@ export function ScenarioGamePage() {
   const [taskResult, setTaskResult] = useState<TaskResultFrame | null>(null);
   const [quest, setQuest] = useState<{ title: string; task: GameTask; banner?: string } | null>(null);
   const [greetSent, setGreetSent] = useState(false);
+  // 투어 인사에서 '그 동료를 눌러 대화를 연' 상태 — 근처에 갔다고 채팅창이 저절로 열리면
+  // 입력창이 방향키를 가져가 캐릭터가 멈춘다. 마우스로 누르기 전까지는 열지 않는다.
+  const [tourGreetOpened, setTourGreetOpened] = useState(false);
   const [farewell, setFarewell] = useState<{ name: string; text: string } | null>(null); // 통과 격려 배너
   const npcsRef = useRef<GameNpc[]>([]); // 코치 안내 문구용 로스터(핸들러 클로저의 stale 방지)
   const [npcMessage, setNpcMessage] = useState("");
@@ -1026,6 +1029,7 @@ export function ScenarioGamePage() {
       setChatNpcId(tour.stops[tourIndex]?.npc ?? null);
       setNpcMessage("");
       setUserMessage("");
+      setTourGreetOpened(false); // 아직 안 눌렀다 — 그 동료를 눌러야 채팅창이 열린다
       setPhase("tour_greet");
       return;
     }
@@ -1602,13 +1606,18 @@ export function ScenarioGamePage() {
   );
 
   // NPC 마커 클릭 → 그 NPC와 대화 (미션 진행과 무관한 자유 대화). 대화창 초기화.
-  const handleNpcClick = useCallback((npcId: string) => {
-    setChatNpcId(npcId);
-    setNpcMessage("");
-    setUserMessage("");
-    setIsStreaming(false);
-    setTalk({ id: npcId, at: Date.now() }); // 말 건 NPC는 멈춘다(로밍 중이면)
-  }, []);
+  const handleNpcClick = useCallback(
+    (npcId: string) => {
+      // 투어 인사: 이 클릭(=그 동료에게 도착)으로 비로소 채팅창을 연다.
+      if (phase === "tour_greet") setTourGreetOpened(true);
+      setChatNpcId(npcId);
+      setNpcMessage("");
+      setUserMessage("");
+      setIsStreaming(false);
+      setTalk({ id: npcId, at: Date.now() }); // 말 건 NPC는 멈춘다(로밍 중이면)
+    },
+    [phase],
+  );
 
   const handleMemoSave = useCallback((content: string) => {
     const nextMemo = content.slice(0, 4000);
@@ -1854,7 +1863,16 @@ export function ScenarioGamePage() {
           mapImage={mapImage}
           npcs={npcs}
           activeNpcId={activeNpcId}
-          onNpcClick={MODAL_PHASES.has(phase) || tourActive || isMemoOpen || isWorkflowOpen ? undefined : handleNpcClick}
+          // 컷신 중엔 마커 클릭을 막지만, 인사(tour_greet)만은 예외 — 신입이 그 동료를 눌러
+          // 다가가서 대화를 여는 단계라 클릭이 필요하다.
+          onNpcClick={
+            MODAL_PHASES.has(phase) ||
+            (tourActive && phase !== "tour_greet") ||
+            isMemoOpen ||
+            isWorkflowOpen
+              ? undefined
+              : handleNpcClick
+          }
           onNpcPositionsChange={setNpcLivePositions}
           guideNpcId={tour?.guide?.npc ?? null}
           guidePosition={guidePosition}
@@ -1974,9 +1992,9 @@ export function ScenarioGamePage() {
                   : phase === "tour_intro"
                     ? tourStop?.line ?? ""
                     : phase === "tour_greet"
-                      ? isNearTourStop
+                      ? tourGreetOpened
                         ? `${tourStop?.name ?? "동료"} 님에게 직접 인사를 건네보세요. (아래 채팅창)`
-                        : `${tourStop?.name ?? "동료"} 님 옆으로 걸어가서 인사하세요. (WASD·방향키로 이동)`
+                        : `${tourStop?.name ?? "동료"} 님에게 걸어가서(WASD) 클릭하면 대화가 열려요.`
                       : npcMessage || "…"
             }
             stepLabel={
@@ -2081,10 +2099,13 @@ export function ScenarioGamePage() {
             disabled={
               connStatus !== "open" ||
               !canChat(phase) ||
-              (phase === "tour_greet" && !isNearTourStop)
+              (phase === "tour_greet" && !(isNearTourStop && tourGreetOpened))
             }
+            // 투어 인사(tour_greet)에서는 자동 포커스하지 않는다 — 동료 근처에 가는 순간 입력창이
+            // 포커스를 가져가면 방향키가 채팅으로 먹혀 캐릭터가 멈춘다. 마우스로 그 동료를 눌러
+            // 대화를 열었을 때만 포커스한다.
             focusInput={
-              phase === "tour_greet" ||
+              (phase === "tour_greet" && tourGreetOpened) ||
               phase === "process_learning" ||
               phase === "minigame_debrief"
             }
