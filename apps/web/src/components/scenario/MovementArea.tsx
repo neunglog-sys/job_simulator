@@ -32,6 +32,9 @@ type MovementAreaProps = {
   // 온보딩 투어(컷신) — 사수가 신입을 데리고 다니는 동안 그 마커를 이 좌표로 옮긴다.
   guideNpcId?: string | null;
   guidePosition?: Position | null;
+  // 투어(컷신)가 진행 중인가 — 이 동안엔 동료(담당자) 앰비언트 로밍을 멈춰 자기 자리를 지키게 한다.
+  // (사수가 "이쪽은 부장님이에요" 하고 데려갔는데 정작 부장님이 딴 데로 걸어가 버리면 안 되니까.)
+  tourActive?: boolean;
   // 플레이어가 지금 말 거는 NPC와 마지막으로 말 건 시각(ms) — 그 NPC는 로밍을 멈춘다.
   // talkingAt로부터 5초가 지나면 다시 돌아다닌다(추가 발화가 있으면 시각이 갱신돼 계속 멈춤).
   talkingNpcId?: string | null;
@@ -163,6 +166,7 @@ export function MovementArea({
   onNpcClick,
   guideNpcId = null,
   guidePosition = null,
+  tourActive = false,
   talkingNpcId = null,
   talkingAt = 0,
 }: MovementAreaProps) {
@@ -424,12 +428,14 @@ export function MovementArea({
     pos: null,
     facing: "front",
   });
-  // 사수 컷신 한 걸음의 소요 시간 — 고정 900ms만 쓰면 스폰이 먼 동료(예: 맵 반대편)로
-  // 첫 이동할 때 거리 대비 너무 빨라 "순간이동"처럼 보인다(팀 확인 2026-07-24). 짧은 이동은
-  // 기존 900ms 느낌을 그대로 유지하고, 먼 이동만 거리 비례로 늘린다.
-  const GUIDE_HOP_MIN_MS = 900;
-  const GUIDE_HOP_MAX_MS = 2200;
-  const GUIDE_HOP_SPEED_PX_S = 500; // patrol(60px/s)보다 빠른 컷신용 체감 속도
+  // 사수 컷신 한 걸음(코너~코너 직선)의 소요 시간 = 이 marker CSS transition 길이. ScenarioGamePage가
+  // 걸음마다 guidePosition을 코너 좌표로 바꿔 넣는데, 그쪽 예약 간격(tourHopDurationMs)과 반드시 같은
+  // 공식·같은 상·하한이어야 걸음이 어긋나지 않는다. MAX는 가장 긴 직선 구간(≈720px, 3273ms)을 등속으로
+  // 활공하도록 3600ms(ScenarioGamePage TOUR_HOP_MAX_MS와 동일) — 캡에 걸리면 그 직선만 빨라 보여 속도 낮춤에 맞춰 함께 올림.
+  const GUIDE_HOP_MIN_MS = 150;
+  const GUIDE_HOP_MAX_MS = 3600;
+  const GUIDE_HOP_SPEED_PX_S = 220; // 사용자 피드백 "직진 시 너무 빠름" → 260→220으로 살짝 낮춤(사수·따라가는 신입 공통)
+  // (ScenarioGamePage TOUR_HOP_SPEED_PX_S와 반드시 같은 값이어야 걸음 예약과 CSS 전이가 어긋나지 않는다)
   const guideHopMsRef = useRef(GUIDE_HOP_MIN_MS);
   if (guidePosition) {
     // 투어가 막 시작된 첫 이동은 guideTrack.current.pos가 아직 null이라 거리 계산이 빠진다 —
@@ -464,7 +470,10 @@ export function MovementArea({
   // 마커 이동은 CSS transition(가변 길이)이라, 좌표가 바뀔 때마다 그 시간만큼만 걷기 애니메이션을 켠다.
   const [guideWalking, setGuideWalking] = useState(false);
   useEffect(() => {
-    if (!guidePosition) return;
+    if (!guidePosition) {
+      setGuideWalking(false); // 투어 종료 — 원위치로 돌아온 사수가 제자리에서 걷기 애니메이션이 남지 않게 끈다
+      return;
+    }
     setGuideWalking(true);
     const timer = setTimeout(() => setGuideWalking(false), guideHopMsRef.current);
     return () => clearTimeout(timer);
@@ -475,7 +484,10 @@ export function MovementArea({
   const [playerFacing, setPlayerFacing] = useState<NpcFacing>("front");
   const [playerWalking, setPlayerWalking] = useState(false);
   const playerWalkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const notePlayerMove = useCallback((dx: number, dy: number) => {
+  // holdMs = 이번 이동 뒤 걷기 애니메이션을 유지할 시간. 키보드는 매 프레임 호출되니 120ms면
+  // 충분하지만, 투어(컷신)는 걸음(leg)당 한 번만 호출되므로 그 leg 소요시간만큼 길게 잡아야
+  // 걷는 도중 다리가 멈추지 않는다.
+  const notePlayerMove = useCallback((dx: number, dy: number, holdMs = 120) => {
     if (dx === 0 && dy === 0) return;
     setPlayerFacing(
       Math.abs(dx) >= Math.abs(dy)
@@ -488,8 +500,47 @@ export function MovementArea({
     );
     setPlayerWalking(true);
     if (playerWalkTimer.current) clearTimeout(playerWalkTimer.current);
-    playerWalkTimer.current = setTimeout(() => setPlayerWalking(false), 120);
+    playerWalkTimer.current = setTimeout(() => setPlayerWalking(false), holdMs);
   }, []);
+
+  // 투어(컷신) 중 신입은 키보드가 아니라 position prop으로 사수 뒤를 따라 걷는다. 이번 걸음(leg)
+  // 소요시간은 사수 마커(guideHopMsRef)와 "똑같이 렌더 중 동기 계산"한다 — 예전엔 useEffect(렌더 뒤)
+  // 에서 계산해, PlayerSprite가 늘 직전 걸음 값(첫 걸음은 초기 150ms)으로 그려져 첫 이동이 확 튀었다.
+  const playerHopMsRef = useRef(GUIDE_HOP_MIN_MS);
+  const tourPlayerTrack = useRef<Position | null>(null);
+  const playerHopDeltaRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
+  if (guidePosition != null) {
+    const prev = tourPlayerTrack.current;
+    if (prev && (prev.x !== position.x || prev.y !== position.y)) {
+      const dx = position.x - prev.x;
+      const dy = position.y - prev.y;
+      const dist = Math.hypot(dx, dy);
+      playerHopMsRef.current = Math.min(
+        GUIDE_HOP_MAX_MS,
+        Math.max(GUIDE_HOP_MIN_MS, (dist / GUIDE_HOP_SPEED_PX_S) * 1000),
+      );
+      playerHopDeltaRef.current = { dx, dy }; // 방향·걷기 애니메이션은 아래 effect가 이 delta로 켠다
+    }
+    tourPlayerTrack.current = position;
+  } else {
+    tourPlayerTrack.current = null; // 투어 아닐 때는 관여하지 않는다(키보드가 애니메이션 담당)
+  }
+
+  // 방향(facing)·걷기(walking)는 state라 렌더 중 setState가 불가 — position이 실제로 바뀐 뒤 effect
+  // 에서 위 동기 블록이 심어둔 이번 걸음 delta를 소비해 켠다(사수 guideWalking effect와 같은 결).
+  // 사수만 움직인 렌더(guidePosition 변화, position 동일)에는 좌표 동일성으로 재실행을 막는다.
+  const playerAnimAppliedRef = useRef<Position | null>(null);
+  useEffect(() => {
+    if (guidePosition == null) {
+      playerAnimAppliedRef.current = null;
+      return;
+    }
+    if (playerAnimAppliedRef.current === position) return; // 신입은 안 움직였다 → 애니메이션 유지
+    playerAnimAppliedRef.current = position;
+    const { dx, dy } = playerHopDeltaRef.current;
+    if (dx === 0 && dy === 0) return;
+    notePlayerMove(dx, dy, playerHopMsRef.current + 60); // 이 leg 동안 걷기 유지
+  }, [position, guidePosition, notePlayerMove]);
 
   const npcMarkers = useMemo<NpcMarker[]>(() => {
     if (!geometry?.spawns) return [];
@@ -513,10 +564,17 @@ export function MovementArea({
       for (const [index, npc] of members.entries()) {
         // 같은 자리 인원은 좌우로 번갈아 벌린다: 0 → 0, 1 → +90, 2 → -90, 3 → +180 …
         const step = Math.ceil(index / 2) * SLOT_SPREAD * (index % 2 === 1 ? 1 : -1);
-        // 투어 중인 사수는 자기 자리가 아니라 지금 안내하는 위치에 그린다(걸어다니는 연출).
-        const touring = guideNpcId === npc.npc_id && guidePosition;
-        // 순찰 중인 사수(geometry.npc_paths)도 마찬가지로 자기 자리 대신 순찰 목표점을 그린다.
-        const patrolTarget = touring ? null : patrolTargets[npc.npc_id];
+        // 투어 사수: 컷신(guidePosition)이 위치의 유일한 권한이다. 투어 중엔 안내 위치에 그리고,
+        // 투어가 끝나면 자기 자리(원위치)로 돌려놓는다. 예전엔 컷신이 끝나는 순간 guidePosition이
+        // null이 되면서 레거시 npc_paths 리드(patrolTargets)로 넘어가 사수가 딴 자리로 흘러가고
+        // (드리프트), 그 직선 이동이 가구를 가로질러 '뚫고 가는' 것처럼 보였다 → 리드 자체를 안 탄다.
+        const isTourGuide = guideNpcId != null && guideNpcId === npc.npc_id;
+        const touring = isTourGuide && guidePosition;
+        // 그 외 NPC는 순찰 경로(geometry.npc_paths)가 있으면 자기 자리 대신 순찰 목표점에 그린다.
+        // 단 투어(컷신) 중엔 앰비언트 로밍이 남긴 좌표를 무시하고 전부 자기 자리(spawn)에 고정한다 —
+        // 로밍은 loading 단계(투어 진입 전)에 잠깐 돌아 동료를 자리 밖으로 흩어놓는데, 그 상태로
+        // 얼어붙으면 사수가 원래 자리로 가서 '빈자리 소개'를 하게 된다. 투어 동안은 다들 제 데스크에.
+        const patrolTarget = isTourGuide || tourActive ? null : patrolTargets[npc.npc_id];
         const rawX = touring
           ? guidePosition.x
           : patrolTarget
@@ -542,7 +600,7 @@ export function MovementArea({
       }
     }
     return markers;
-  }, [geometry, npcs, origin, activeNpcId, guideNpcId, guidePosition, patrolTargets, areaSize]);
+  }, [geometry, npcs, origin, activeNpcId, guideNpcId, guidePosition, patrolTargets, tourActive, areaSize]);
 
   const collidesAt = useCallback(
     (pos: Position) => {
@@ -713,6 +771,9 @@ export function MovementArea({
   useEffect(() => {
     const spawns = geometry?.spawns;
     if (!spawns || npcs.length === 0) return;
+    // 투어(컷신) 중에는 로밍을 아예 시작하지 않는다 — 동료들이 자기 spawn에 가만히 서 있어야
+    // 사수가 데려가 소개할 수 있다. 투어가 끝나면(tourActive=false) 이 effect가 재실행돼 로밍 재개.
+    if (tourActive) return;
     const byId = new Map(spawns.map((s) => [s.id, s]));
     const roamAll = geometry?.roam_all === true;
     const guidedIds = new Set((geometry?.npc_paths ?? []).map((p) => p.npc_id));
@@ -854,7 +915,7 @@ export function MovementArea({
       timers.forEach(clearTimeout);
       intervals.forEach(clearInterval);
     };
-  }, [geometry, npcs, origin, activeNpcId, collidesAt, clampPosition]);
+  }, [geometry, npcs, origin, activeNpcId, collidesAt, clampPosition, tourActive]);
 
   // 이동 키는 window에서 받는다 — 이동영역 div에 포커스가 있어야만 동작하던 탓에
   // '맵을 한 번 클릭해야 키보드가 먹고, 채팅창에 타이핑하면 다시 먹통'이 됐다.
@@ -1047,7 +1108,9 @@ export function MovementArea({
             const isWalking =
               !WALK_DISABLED_NPCS.has(marker.npc_id) &&
               ((guideNpcId === marker.npc_id && guideWalking) ||
-                Boolean(patrolWalking[marker.npc_id]));
+                // 투어 중 동료는 자기 자리에서 idle(흔들림)만 — 로밍 중이던 걷기 상태가 남아
+                // 제자리에서 걷는 것처럼 보이지 않게 한다.
+                (!tourActive && Boolean(patrolWalking[marker.npc_id])));
             return (
               <button
                 className={`${styles.npcMarker} ${marker.isActive ? styles.npcMarkerActive : ""} ${
@@ -1061,8 +1124,19 @@ export function MovementArea({
                   // 오클루전 맵에서는 NPC도 y-정렬에 참여 — 가구 뒤 자리면 하반신이 가려진다
                   zIndex: occluders.length > 0 ? Math.round(marker.y + NPC_FEET_OFFSET) : undefined,
                   animationDelay: isWalking ? undefined : `${idleSwayDelay(marker.npc_id)}s`,
+                  // 투어 중엔(원위치 복귀 걸음 포함) guidePosition이 set이라 걸음(leg) 소요시간만큼 활공한다.
+                  // 복귀는 ScenarioGamePage가 planGuideHops로 걸어서 마치고, 도착해서야 guidePosition=null이
+                  // 되므로 이때의 0ms는 이미 spawn 좌표에 도착한 마커의 잔여(<16px) 스냅일 뿐 — 크로스맵 활공 아님.
                   transitionDuration:
-                    guideNpcId === marker.npc_id ? `${guideHopMsRef.current}ms` : undefined,
+                    guideNpcId === marker.npc_id
+                      ? guidePosition != null
+                        ? `${guideHopMsRef.current}ms`
+                        : "0ms"
+                      : // 투어 시작 순간, 로밍으로 흩어졌던 동료를 자기 자리로 되돌릴 때 650ms
+                        // CSS 전이로 맵을 가로질러 '대각선 활공'하지 않도록 즉시 스냅한다.
+                        tourActive
+                        ? "0ms"
+                        : undefined,
                 }}
                 onClick={() => onNpcClick?.(marker.npc_id)}
                 aria-label={`${marker.name}와 대화하기`}
@@ -1111,7 +1185,7 @@ export function MovementArea({
             walking={playerWalking}
             zIndex={Math.round(position.y + PLAYER_SIZE.height)}
             smooth={guidePosition != null}
-            transitionMs={guideHopMsRef.current}
+            transitionMs={playerHopMsRef.current}
           />
         ) : null}
       </div>
@@ -1121,7 +1195,7 @@ export function MovementArea({
           facing={playerFacing}
           walking={playerWalking}
           smooth={guidePosition != null}
-          transitionMs={guideHopMsRef.current}
+          transitionMs={playerHopMsRef.current}
         />
       ) : null}
       </div>

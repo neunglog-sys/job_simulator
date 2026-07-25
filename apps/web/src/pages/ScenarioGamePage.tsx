@@ -288,58 +288,213 @@ function findSafeSpot(
   return target;
 }
 
-// findSafeSpot은 두 지점(시작/끝)만 충돌 검증해서, 그 사이 직선이 책상을 가로지르면 그대로
-// 뚫고 지나가는 것처럼 보인다(2026-07-24, "가로질러가는데" 재현 확인). 대각선 한 번이 아니라
-// 상하좌우 두 구간(L자)으로 나눠 이동시키면 자연히 책상을 피해간다.
-function tourPathClear(
-  from: Position,
-  to: Position,
-  collisions: Array<{ x: number; y: number; w: number; h: number }>,
-): boolean {
-  if (collisions.length === 0) return true;
-  const dist = Math.hypot(to.x - from.x, to.y - from.y);
-  const steps = Math.max(1, Math.ceil(dist / 4));
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    if (tourCollidesAt({ x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t }, collisions)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-// 직선이 막혔을 때만 L자 코너(수평 우선 또는 수직 우선)로 우회 지점을 계산한다. 두 코너 다
-// 막혀 있으면 null — 호출부가 직선 이동으로 폴백한다(좁은 통로에 낀 극단적 케이스).
-function tourWaypoint(
-  from: Position,
-  to: Position,
-  collisions: Array<{ x: number; y: number; w: number; h: number }>,
-): Position | null {
-  if (tourPathClear(from, to, collisions)) return null;
-  const corners: Position[] = [
-    { x: to.x, y: from.y },
-    { x: from.x, y: to.y },
-  ];
-  for (const corner of corners) {
-    if (
-      !tourCollidesAt(corner, collisions) &&
-      tourPathClear(from, corner, collisions) &&
-      tourPathClear(corner, to, collisions)
-    ) {
-      return corner;
-    }
-  }
-  return null;
-}
-
-// MovementArea의 guideHopMsRef(900~2200ms, 거리비례)와 동일한 공식 — 두 번째 구간을
-// setTimeout으로 예약할 때 그쪽 CSS transition 종료 시점과 맞추기 위해 값을 그대로 복제했다.
-const TOUR_HOP_MIN_MS = 900;
-const TOUR_HOP_MAX_MS = 2200;
-const TOUR_HOP_SPEED_PX_S = 500;
+// MovementArea의 guideHopMsRef와 동일한 공식 — 걸음(코너)마다 setTimeout으로 예약할 때 그쪽 CSS
+// transition 종료 시점과 맞추기 위해 값을 그대로 복제했다(GUIDE_HOP_MIN/MAX/SPEED와 반드시 동일).
+// MAX는 코너~코너 한 직선 구간을 등속(220px/s)으로 활공할 수 있어야 하므로 가장 긴 구간(≈720px,
+// 3273ms)을 담게 3600ms로 둔다 — 캡에 걸리면 그 긴 직선만 오히려 빨라져 보이므로 속도에 맞춰 함께 올림.
+const TOUR_HOP_MIN_MS = 150;
+const TOUR_HOP_MAX_MS = 3600;
+// 사수·신입 컷신 이동 체감 속도(px/s). 사용자 피드백 "직진 시 사수가 너무 빠르다" → 260→220으로 살짝 낮춤.
+// MovementArea GUIDE_HOP_SPEED_PX_S와 반드시 동일해야 한다(걸음 예약 간격 == CSS 전이시간, 어긋나면 대각선).
+const TOUR_HOP_SPEED_PX_S = 220;
 function tourHopDurationMs(from: Position, to: Position): number {
   const dist = Math.hypot(to.x - from.x, to.y - from.y);
   return Math.min(TOUR_HOP_MAX_MS, Math.max(TOUR_HOP_MIN_MS, (dist / TOUR_HOP_SPEED_PX_S) * 1000));
+}
+// 신입은 사수보다 이만큼 늦게 출발한다 — 둘이 t=0에 동시에 움직이면 나란히 걷는 것처럼 보여서
+// '따라간다' 느낌이 안 산다. 260px/s에서 이 지연이면 약 한 몸 길이 뒤에서 사수를 뒤따르게 된다.
+const TOUR_FOLLOW_LAG_MS = 500;
+
+const GUIDE_GRID = 16; // BFS 격자 간격(px) — 집기(수십 px)보다 촘촘해 그 사이 틈으로 새지 않는다
+const GUIDE_ROUTE_MARGIN = 168; // 집기 바깥으로 이만큼 여유 바닥을 탐색에 포함(돌아갈 통로 확보)
+
+// 임의의 점을 '전역 격자(GUIDE_GRID 배수)에 맞춘 가장 가까운 빈 셀'로 스냅한다. 사수 위치를
+// 항상 이 격자 위에 두면(첫 배치·매 걸음 끝점) 다음 걸음의 시작점도 격자 위라, 걸음 이음매에
+// 비스듬한 오차(≤8px)가 안 생겨 걸음이 딱 상하좌우로만 떨어진다.
+function guideSnap(
+  p: Position,
+  collisions: Array<{ x: number; y: number; w: number; h: number }>,
+): Position {
+  const x0 = Math.round(p.x / GUIDE_GRID) * GUIDE_GRID;
+  const y0 = Math.round(p.y / GUIDE_GRID) * GUIDE_GRID;
+  if (collisions.length === 0 || !tourCollidesAt({ x: x0, y: y0 }, collisions)) return { x: x0, y: y0 };
+  for (let rad = 1; rad <= 10; rad++)
+    for (let dc = -rad; dc <= rad; dc++)
+      for (let dr = -rad; dr <= rad; dr++) {
+        if (Math.max(Math.abs(dc), Math.abs(dr)) !== rad) continue;
+        const cand = { x: x0 + dc * GUIDE_GRID, y: y0 + dr * GUIDE_GRID };
+        if (!tourCollidesAt(cand, collisions)) return cand;
+      }
+  return { x: x0, y: y0 };
+}
+
+// 사수가 책상·집기를 '상하좌우로 돌아서' 가는 우회 경로를 격자 BFS로 찾는다(꺾는 점 목록).
+// 로밍 NPC가 한 축씩만 걸어 절대 대각선으로 관통하지 않는 성질을, 컷신 이동에도 그대로 준다.
+// 단순 L자 한 번으론 사무실처럼 집기 많은 맵에서 두 자리 사이가 자주 막혀(sim_guide_hops.py로
+// 확인) 여러 번 꺾어야 한다. 격자에 스냅해 항상 상하좌우로만 잇고, 경로가 없으면 null.
+// 격자 원점은 GUIDE_GRID 배수로 고정(맵 전역 정렬) — 걸음마다 target을 셀 중심에 맞춰 끝내므로
+// 다음 걸음의 start도 같은 격자 위라 이음매에 대각선 오차가 생기지 않는다.
+function guideRoute(
+  start: Position,
+  target: Position,
+  collisions: Array<{ x: number; y: number; w: number; h: number }>,
+): Position[] {
+  if (collisions.length === 0) return [start, target];
+  // 탐색 창 = 모든 집기 + 시작/목표를 감싼 사각형에 여유를 더한 것. 창을 넉넉히 잡아야
+  // 맵을 크게 우회해야 하는 경로도 찾는다. 원점(minX/minY)은 격자 배수로 내려 전역 정렬.
+  let minX = Math.min(start.x, target.x);
+  let minY = Math.min(start.y, target.y);
+  let maxX = Math.max(start.x, target.x);
+  let maxY = Math.max(start.y, target.y);
+  for (const c of collisions) {
+    if (c.x < minX) minX = c.x;
+    if (c.y < minY) minY = c.y;
+    if (c.x + c.w > maxX) maxX = c.x + c.w;
+    if (c.y + c.h > maxY) maxY = c.y + c.h;
+  }
+  minX = Math.floor((minX - GUIDE_ROUTE_MARGIN) / GUIDE_GRID) * GUIDE_GRID;
+  minY = Math.floor((minY - GUIDE_ROUTE_MARGIN) / GUIDE_GRID) * GUIDE_GRID;
+  const cols = Math.ceil((maxX + GUIDE_ROUTE_MARGIN - minX) / GUIDE_GRID) + 1;
+  const rows = Math.ceil((maxY + GUIDE_ROUTE_MARGIN - minY) / GUIDE_GRID) + 1;
+  const cxOf = (c: number) => minX + c * GUIDE_GRID;
+  const cyOf = (r: number) => minY + r * GUIDE_GRID;
+  const walkable = (c: number, r: number) =>
+    c >= 0 && r >= 0 && c < cols && r < rows && !tourCollidesAt({ x: cxOf(c), y: cyOf(r) }, collisions);
+  // 시작/목표는 guideSnap이 이미 '전역 격자 위의 빈 셀'로 맞춰준다 — 창 안 셀 인덱스로 변환.
+  const snapStart = guideSnap(start, collisions);
+  const snapTarget = guideSnap(target, collisions);
+  const sc = Math.round((snapStart.x - minX) / GUIDE_GRID);
+  const sr = Math.round((snapStart.y - minY) / GUIDE_GRID);
+  const tc = Math.round((snapTarget.x - minX) / GUIDE_GRID);
+  const tr = Math.round((snapTarget.y - minY) / GUIDE_GRID);
+  const idx = (c: number, r: number) => r * cols + c;
+  const seen = new Uint8Array(cols * rows);
+  const goal = idx(tc, tr);
+  const startIdx = idx(sc, sr);
+  let best = startIdx; // 목표에 못 닿을 때를 대비해 '가장 가까이 도달한 셀'을 기억
+  let bestD = Math.abs(sc - tc) + Math.abs(sr - tr);
+  const queue = [startIdx];
+  seen[startIdx] = 1;
+  let found = false;
+  for (let h = 0; h < queue.length && !found; h++) {
+    const cur = queue[h];
+    if (cur === goal) {
+      found = true;
+      break;
+    }
+    const c = cur % cols;
+    const r = (cur - c) / cols;
+    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as Array<[number, number]>) {
+      const nc = c + dc;
+      const nr = r + dr;
+      const ni = idx(nc, nr);
+      if (nc < 0 || nr < 0 || nc >= cols || nr >= rows || seen[ni] || !walkable(nc, nr)) continue;
+      seen[ni] = 1;
+      queue.push(ni);
+      const d = Math.abs(nc - tc) + Math.abs(nr - tr);
+      if (d < bestD) {
+        bestD = d;
+        best = ni;
+      }
+    }
+  }
+  // 목표가 집기로 둘러싸여 못 닿으면(kts-03 카운터 뒤 자리 등) 폴백으로 가로지르지 말고,
+  // 도달 가능한 셀 중 목표에 가장 가까운 곳까지만 걸어가 멈춘다 — 절대 집기 관통 없음.
+  const end = found ? goal : best;
+  // end 지점에서 역방향 BFS로 gdist[셀] = end까지의 최단 걸음 수를 구한다(도달 가능한 셀 위에서만).
+  const INF = 1 << 30;
+  const gdist = new Int32Array(cols * rows).fill(INF);
+  gdist[end] = 0;
+  const bq = [end];
+  for (let h = 0; h < bq.length; h++) {
+    const cur = bq[h];
+    const c = cur % cols;
+    const r = (cur - c) / cols;
+    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as Array<[number, number]>) {
+      const nc = c + dc;
+      const nr = r + dr;
+      if (nc < 0 || nr < 0 || nc >= cols || nr >= rows) continue;
+      const ni = idx(nc, nr);
+      if (gdist[ni] !== INF || !walkable(nc, nr)) continue;
+      gdist[ni] = gdist[cur] + 1;
+      bq.push(ni);
+    }
+  }
+  // 직진 우선 greedy: end에 가까워지는(gdist가 줄어드는) 한 같은 방향으로 계속 직진하고, 막힐 때만
+  // 꺾는다. 로밍 NPC처럼 긴 L자(꺾임 최소) 경로가 되어, 잔톱니 계단이 대각선으로 뭉쳐 보이던 문제를 없앤다.
+  const cells: number[] = [startIdx];
+  {
+    const dirs: Array<[number, number]> = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    let cur = startIdx;
+    let curDir = -1;
+    let guard = 0;
+    while (cur !== end && guard < cols * rows) {
+      guard++;
+      const c = cur % cols;
+      const r = (cur - c) / cols;
+      let nxt = -1;
+      let nxtDir = -1;
+      if (curDir !== -1) {
+        const [dc, dr] = dirs[curDir];
+        const nc = c + dc;
+        const nr = r + dr;
+        if (nc >= 0 && nr >= 0 && nc < cols && nr < rows) {
+          const ni = idx(nc, nr);
+          if (walkable(nc, nr) && gdist[ni] === gdist[cur] - 1) {
+            nxt = ni;
+            nxtDir = curDir;
+          }
+        }
+      }
+      if (nxt === -1) {
+        for (let di = 0; di < 4; di++) {
+          const [dc, dr] = dirs[di];
+          const nc = c + dc;
+          const nr = r + dr;
+          if (nc < 0 || nr < 0 || nc >= cols || nr >= rows) continue;
+          const ni = idx(nc, nr);
+          if (walkable(nc, nr) && gdist[ni] === gdist[cur] - 1) {
+            nxt = ni;
+            nxtDir = di;
+            break;
+          }
+        }
+      }
+      if (nxt === -1) break;
+      cells.push(nxt);
+      cur = nxt;
+      curDir = nxtDir;
+    }
+  }
+  // 격자 셀 경로에서 '방향이 바뀌는 점'만 남긴다 — 그 사이는 한 축 직선이라 걸음으로 쪼개기 좋다.
+  const route: Position[] = [{ x: cxOf(sc), y: cyOf(sr) }];
+  for (let i = 1; i < cells.length - 1; i++) {
+    const pc = cells[i - 1] % cols;
+    const qc = cells[i] % cols;
+    const nc = cells[i + 1] % cols;
+    const pr = (cells[i - 1] - pc) / cols;
+    const qr = (cells[i] - qc) / cols;
+    const nr = (cells[i + 1] - nc) / cols;
+    if (qc - pc !== nc - qc || qr - pr !== nr - qr) route.push({ x: cxOf(qc), y: cyOf(qr) });
+  }
+  const ec = end % cols;
+  const er = (end - ec) / cols;
+  route.push({ x: cxOf(ec), y: cyOf(er) }); // 도달점 격자 셀(목표 or 그에 가장 가까운 열린 자리)
+  return route;
+}
+
+// 사수·신입이 걸어갈 '걸음(=CSS transition 한 번)' 목록(시작점 제외, 각 코너와 목표점 포함).
+// guideRoute의 꺾는 점(코너)들을 그대로 한 걸음씩 쓴다. 예전엔 코너 사이 직선을 96px씩 잘게
+// 쪼갰는데, 각 조각이 독립된 ease-in-out이라 96px마다 속도가 0으로 떨어져(가속-감속 반복) 직진
+// 중에도 로봇처럼 '멈칫멈칫' 걸었다(leg당 8~19회, .localtest/sim으로 계측). 코너 단위로 이으면
+// 직선 한 구간을 한 번의 ease-in-out으로 활공 — 로밍 NPC와 같은 자연스러운 걸음이 된다.
+// guideRoute는 항상 직교 경로를 돌려주므로(목표가 막혔으면 가장 가까운 바닥까지) 대각선 폴백은 없다.
+function planGuideHops(
+  start: Position,
+  target: Position,
+  collisions: Array<{ x: number; y: number; w: number; h: number }>,
+): Position[] {
+  return guideRoute(start, target, collisions).slice(1);
 }
 
 export function ScenarioGamePage() {
@@ -632,46 +787,131 @@ export function ScenarioGamePage() {
     const target = tourStop?.npc ?? tour.guide?.npc;
     return target ? spawnPos(target) : null;
   }, [tour, tourStop, spawnPos]);
-  // 다음 스톱으로 넘어갈 때 직선이 책상을 가로지르면 L자 코너를 거쳐 두 구간으로 나눠 이동한다.
-  // useMemo로는 "먼저 코너로, 시간차를 두고 target으로" 같은 갱신을 표현할 수 없어 state+setTimeout으로 둔다.
+  // 다음 스톱으로 넘어갈 때 사수는 로밍 NPC처럼 상하좌우로 걸어간다(대각선 금지).
+  // planGuideHops가 만든 걸음 목록(코너 단위)을 순서대로 setTimeout으로 재생 — 걸음(코너~코너 직선)
+  // 하나가 CSS transition 한 번(= MovementArea guideHopMsRef, 같은 공식)이라 예약 간격을 그 시간과 맞춘다.
   const [guidePosition, setGuidePosition] = useState<Position | null>(null);
-  const guideHopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const guidePosRef = useRef<Position | null>(null);
+  guidePosRef.current = guidePosition;
+  const guideHopTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => {
-    if (guideHopTimerRef.current) clearTimeout(guideHopTimerRef.current);
-    if (!tourActive || !tourAnchor) {
+    guideHopTimersRef.current.forEach(clearTimeout);
+    guideHopTimersRef.current = [];
+    if (!tourActive) {
+      // 투어 종료 — 사수는 자기 자리(원위치)로 '걸어서' 복귀한 뒤에야 컷신 좌표를 해제한다.
+      // 예전엔 여기서 곧장 setGuidePosition(null)이라, 마커가 마지막 스톱에서 자기 책상까지
+      // (최대 ~1320px) 순식간에 튀어 텔레포트처럼 보였다. 이제 planGuideHops 직교 경로를 걸어
+      // 복귀하고(로밍 NPC와 동일 활공), 도착 후 좌표를 해제해 spawn 렌더로 매끄럽게 이어붙인다.
+      const start = guidePosRef.current;
+      const guideNpc = tour?.guide?.npc;
+      const home = guideNpc ? spawnPos(guideNpc) : null;
+      if (!start || !home) {
+        setGuidePosition(null);
+        return;
+      }
+      const hops = planGuideHops(start, home, tourCollisions);
+      let prev = start;
+      let i = 0;
+      const walkHome = () => {
+        if (i >= hops.length) {
+          // 도착 — 마지막 hop은 격자 스냅이라 home(=spawn 렌더 좌표)과 오차 <16px. 여기서 컷신
+          // 좌표를 풀면 마커는 같은 좌표의 spawn 렌더로 이어져 순간이동 없이 자연스럽게 정지한다.
+          setGuidePosition(null);
+          return;
+        }
+        const hop = hops[i];
+        const d = tourHopDurationMs(prev, hop);
+        setGuidePosition(hop);
+        prev = hop;
+        i += 1;
+        guideHopTimersRef.current = [setTimeout(walkHome, d)];
+      };
+      walkHome();
+      return () => {
+        guideHopTimersRef.current.forEach(clearTimeout);
+      };
+    }
+    if (!tourAnchor) {
       setGuidePosition(null);
       return;
     }
     const target = findSafeSpot({ x: tourAnchor.x - 70, y: tourAnchor.y }, tourAnchor, tourCollisions);
-    setGuidePosition((prev) => {
-      const corner = prev ? tourWaypoint(prev, target, tourCollisions) : null;
-      if (!corner || !prev) return target;
-      guideHopTimerRef.current = setTimeout(() => setGuidePosition(target), tourHopDurationMs(prev, corner));
-      return corner;
-    });
-    return () => {
-      if (guideHopTimerRef.current) clearTimeout(guideHopTimerRef.current);
+    // 첫 등장(guidePosition이 아직 null)엔 좌표만 콕 찍어 두면 안 된다 — 마커가 직전 렌더 위치
+    // (자기 spawn)에서 이 좌표까지 CSS transition으로 '대각선 활공'하며 맵을 가로지른다(사수 대각선의
+    // 진짜 원인). 대신 자기 spawn을 출발점으로 삼아 planGuideHops로 상하좌우로 '걸어서' 첫 동료에게
+    // 간다 — 첫 걸음도 한 축(직교)이라 대각선이 사라지고, 순간이동 없이 자연스럽게 등장한다.
+    const guideNpc = tour?.guide?.npc;
+    const firstAppearance = !guidePosRef.current;
+    const start = guidePosRef.current ?? (guideNpc ? spawnPos(guideNpc) : null);
+    if (!start) {
+      setGuidePosition(guideSnap(target, tourCollisions));
+      return;
+    }
+    const hops = planGuideHops(start, target, tourCollisions);
+    if (firstAppearance && hops.length > 0) {
+      // spawn은 격자(16px)에 안 맞을 수 있어, 격자 코너인 첫 hop으로 곧장 가면 첫 걸음이 미세하게
+      // 비스듬(≤8px)해진다. 그 대신 '한 축만' 먼저 맞추는 정렬 걸음을 앞에 끼운다 — spawn의 실제
+      // 좌표 하나를 유지한 채 다른 축만 코너로 옮기면, 남은 잔차는 바로 다음(역시 한 축) 걸음에서
+      // 흡수돼, 모든 걸음이 정확히 상하좌우가 된다(sim first-appear leg가 이 불변식을 강제 검증).
+      const f = hops[0];
+      const aligned =
+        Math.abs(f.x - start.x) >= Math.abs(f.y - start.y)
+          ? { x: f.x, y: start.y } // 첫 코너가 주로 가로 이동 → 세로(y)는 spawn 값 유지 = 순수 가로 걸음
+          : { x: start.x, y: f.y }; // 첫 코너가 주로 세로 이동 → 가로(x)는 spawn 값 유지 = 순수 세로 걸음
+      hops.unshift(aligned);
+    }
+    // 걸음을 미리 절대시각으로 몽땅 예약하지 않고 "이 걸음이 끝나면 다음 걸음"으로 이어 예약한다.
+    // 미리 예약하면 스레드가 잠깐 멈춰 타이머가 밀릴 때 밀린 걸음들이 한꺼번에 실행돼 여러 코너를
+    // 건너뛰며 순간이동처럼 튄다 — 순차 예약이면 각 걸음이 실제 시작 시점 기준으로 제 시간을 받는다.
+    let prev = start;
+    let i = 0;
+    const walk = () => {
+      if (i >= hops.length) return;
+      const hop = hops[i];
+      const d = tourHopDurationMs(prev, hop);
+      setGuidePosition(hop);
+      prev = hop;
+      i += 1;
+      if (i < hops.length) guideHopTimersRef.current = [setTimeout(walk, d)];
     };
-  }, [tourActive, tourAnchor, tourCollisions]);
+    walk();
+    return () => {
+      guideHopTimersRef.current.forEach(clearTimeout);
+    };
+  }, [tourActive, tourAnchor, tourCollisions, tour, spawnPos]);
 
-  // 사수가 이동하면 신입은 자동으로 따라붙는다(컷신 — 플레이어 조작 없음). 같은 L자 두 구간 방식.
-  const playerHopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 사수가 이동하면 신입은 사수 뒤를 자동으로 따라붙는다(컷신 — 플레이어 조작 없음).
+  // 예전엔 tourWaypoint 단일 L(막히면 목표로 직행=대각선)이라 신입이 책상을 가로질러 '날아갔다'.
+  // 이제 사수와 똑같이 planGuideHops로 상하좌우 걸음 목록(코너 단위)을 만들어 한 걸음씩 예약 — 직교로 따라간다.
+  const playerPosRef = useRef<Position>(playerPosition);
+  playerPosRef.current = playerPosition;
+  const playerHopTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => {
-    if (playerHopTimerRef.current) clearTimeout(playerHopTimerRef.current);
+    playerHopTimersRef.current.forEach(clearTimeout);
+    playerHopTimersRef.current = [];
     if (!tourActive || !tourAnchor) return;
     const target = findSafeSpot(
       { x: tourAnchor.x - 140 - PLAYER_SIZE.width / 2, y: tourAnchor.y - PLAYER_SIZE.height },
       { x: tourAnchor.x - PLAYER_SIZE.width / 2, y: tourAnchor.y - PLAYER_SIZE.height },
       tourCollisions,
     );
-    setPlayerPosition((prev) => {
-      const corner = tourWaypoint(prev, target, tourCollisions);
-      if (!corner) return target;
-      playerHopTimerRef.current = setTimeout(() => setPlayerPosition(target), tourHopDurationMs(prev, corner));
-      return corner;
-    });
+    const start = playerPosRef.current;
+    const hops = planGuideHops(start, target, tourCollisions);
+    // 사수와 같은 순차 예약(타이머 밀림에 강함) — 단, 첫 걸음만 사수보다 늦게 떼서 뒤따르게 한다.
+    let prev = start;
+    let i = 0;
+    const walk = () => {
+      if (i >= hops.length) return;
+      const hop = hops[i];
+      const d = tourHopDurationMs(prev, hop);
+      setPlayerPosition(hop);
+      prev = hop;
+      i += 1;
+      if (i < hops.length) playerHopTimersRef.current = [setTimeout(walk, d)];
+    };
+    playerHopTimersRef.current = [setTimeout(walk, TOUR_FOLLOW_LAG_MS)];
     return () => {
-      if (playerHopTimerRef.current) clearTimeout(playerHopTimerRef.current);
+      playerHopTimersRef.current.forEach(clearTimeout);
     };
   }, [tourActive, tourAnchor, tourCollisions]);
 
@@ -1399,6 +1639,7 @@ export function ScenarioGamePage() {
           onNpcClick={MODAL_PHASES.has(phase) || tourActive || isMemoOpen || isWorkflowOpen ? undefined : handleNpcClick}
           guideNpcId={tour?.guide?.npc ?? null}
           guidePosition={guidePosition}
+          tourActive={tourActive}
           talkingNpcId={talk.id}
           talkingAt={talk.at}
         />
