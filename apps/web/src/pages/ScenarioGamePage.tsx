@@ -259,6 +259,10 @@ function introGuide(step: GameStep | null, roster: GameNpc[]): string {
 // FOOT_WIDTH/FOOT_HEIGHT는 MovementArea의 collidesAt과 반드시 같은 값이어야 판정이 어긋나지 않는다.
 const TOUR_FOOT_WIDTH = 46;
 const TOUR_FOOT_HEIGHT = 26;
+// tourCollidesAt이 검사하는 발판박스의 '중심'이 넘겨준 좌표에서 얼마나 떨어져 있는지 —
+// 사수 좌표는 마커 중심이라 이 차이만큼 집기를 옮겨(tourCollisions) 판정 기준을 맞춘다.
+const GUIDE_MARKER_DX = (PLAYER_SIZE.width - TOUR_FOOT_WIDTH) / 2 + TOUR_FOOT_WIDTH / 2; // 38
+const GUIDE_MARKER_DY = PLAYER_SIZE.height - TOUR_FOOT_HEIGHT + TOUR_FOOT_HEIGHT / 2; // 83
 
 function tourCollidesAt(
   pos: Position,
@@ -298,6 +302,26 @@ function findSafeSpot(
     }
   }
   return target;
+}
+
+// 사수가 소개 대상 '바로 옆'에 서는 자리 — 좌·우·아래·위 순으로 한 몸 거리(옆자리)를 먼저 보고,
+// 네 자리가 다 막혔을 때만 findSafeSpot의 링 탐색으로 넘어간다. 예전엔 곧장 링 탐색이라
+// 옆이 막히면 최대 168px 밖(딴 데)에 서서 "소개는 하는데 정작 멀리 떨어져 있는" 그림이 됐다.
+const SIDE_BY_SIDE_GAP = 64;
+function besideSpot(
+  anchor: Position,
+  collisions: Array<{ x: number; y: number; w: number; h: number }>,
+): Position {
+  const candidates: Position[] = [
+    { x: anchor.x - SIDE_BY_SIDE_GAP, y: anchor.y },
+    { x: anchor.x + SIDE_BY_SIDE_GAP, y: anchor.y },
+    { x: anchor.x, y: anchor.y + SIDE_BY_SIDE_GAP },
+    { x: anchor.x, y: anchor.y - SIDE_BY_SIDE_GAP },
+  ];
+  for (const spot of candidates) {
+    if (!tourCollidesAt(spot, collisions)) return spot;
+  }
+  return findSafeSpot(candidates[0], anchor, collisions);
 }
 
 // MovementArea의 guideHopMsRef와 동일한 공식 — 걸음(코너)마다 setTimeout으로 예약할 때 그쪽 CSS
@@ -762,6 +786,20 @@ export function ScenarioGamePage() {
 
   const tourStop = tour && tourIndex < tour.stops.length ? tour.stops[tourIndex] : null;
   const tourActive = TOUR_PHASES.has(phase);
+
+  // 투어 인사(tour_greet) — 신입이 그 동료 '옆까지 걸어가야' 인사를 보낼 수 있다.
+  // (멀리 떨어진 자리에서 인사가 성립하면 소개 장면 자체가 성립하지 않는다.)
+  const tourStopMarker = useMemo(() => {
+    const npcId = tourStop?.npc;
+    if (!npcId) return null;
+    return npcLivePositions[npcId] ?? spawnPos(npcId);
+  }, [tourStop, npcLivePositions, spawnPos]);
+  const isNearTourStop =
+    tourStopMarker != null &&
+    Math.hypot(
+      playerPosition.x + PLAYER_SIZE.width / 2 - tourStopMarker.x,
+      playerPosition.y + PLAYER_SIZE.height / 2 - tourStopMarker.y,
+    ) < ENCOUNTER_RADIUS;
   // 투어 자막과 하단 대화창이 서로 다른 상태를 보지 않도록 현재 발화자와 대사를 한곳에서 계산한다.
   // 인사를 입력하기 전까지는 직전에 말한 사수의 소개를 유지하고, 전송한 순간부터
   // 작성 중 말풍선과 스탠딩의 화자를 인사받는 동료로 전환한다.
@@ -847,7 +885,17 @@ export function ScenarioGamePage() {
     const geo = gameMap?.geometry;
     const origin = geo?.walkable?.[0];
     if (!geo?.collision || !origin) return [];
-    return geo.collision.map((c) => ({ x: c.x - origin.x, y: c.y - origin.y, w: c.w, h: c.h }));
+    // 좌표계 보정: 사수 컷신 좌표(guidePosition)는 '마커 중심'인데 tourCollidesAt은 좌표를
+    // '플레이어 박스 좌상단'으로 보고 발판박스를 (+38,+83) 위치에서 검사한다. 그대로 두면 사수의
+    // 실제 발밑이 아니라 그보다 83px 아래를 판정해, 옆자리가 비었는데도 막힌 줄 알고 엉뚱한 데
+    // (예: 바 건너편) 가서 서는 문제가 생긴다. 집기를 같은 벡터만큼 옮겨 두면 겹침 판정이
+    // 정확히 마커 중심 기준이 된다(두 사각형을 같은 방향으로 옮기면 겹침 여부는 그대로).
+    return geo.collision.map((c) => ({
+      x: c.x - origin.x + GUIDE_MARKER_DX,
+      y: c.y - origin.y + GUIDE_MARKER_DY,
+      w: c.w,
+      h: c.h,
+    }));
   }, [gameMap]);
 
   // 투어 중 사수·플레이어가 서 있을 자리 — 소개 대상 옆(마무리 때는 사수 자리로 돌아온다).
@@ -905,7 +953,8 @@ export function ScenarioGamePage() {
       setGuidePosition(null);
       return;
     }
-    const target = findSafeSpot({ x: tourAnchor.x - 70, y: tourAnchor.y }, tourAnchor, tourCollisions);
+    // 소개 대상 바로 옆에 선다 — 옆자리가 막혔을 때만 근처 빈자리로 물러난다.
+    const target = besideSpot(tourAnchor, tourCollisions);
     // 첫 등장(guidePosition이 아직 null)엔 좌표만 콕 찍어 두면 안 된다 — 마커가 직전 렌더 위치
     // (자기 spawn)에서 이 좌표까지 CSS transition으로 '대각선 활공'하며 맵을 가로지른다(사수 대각선의
     // 진짜 원인). 대신 자기 spawn을 출발점으로 삼아 planGuideHops로 상하좌우로 '걸어서' 첫 동료에게
@@ -1803,7 +1852,8 @@ export function ScenarioGamePage() {
           guideNpcId={tour?.guide?.npc ?? null}
           guidePosition={guidePosition}
           // 투어 중엔 신입이 제자리에 머무므로 카메라가 사수를 비춰 팀원 소개를 보여준다.
-          cameraFocus={tourActive ? guidePosition : null}
+          // 단 인사(tour_greet) 때는 신입이 직접 걸어가므로 카메라가 신입을 따라간다.
+          cameraFocus={tourActive && phase !== "tour_greet" ? guidePosition : null}
           tourActive={tourActive}
           talkingNpcId={talk.id}
           roamingPaused={tourActive}
@@ -1908,7 +1958,9 @@ export function ScenarioGamePage() {
                   : phase === "tour_intro"
                     ? tourStop?.line ?? ""
                     : phase === "tour_greet"
-                      ? `${tourStop?.name ?? "동료"} 님에게 직접 인사를 건네보세요. (아래 채팅창)`
+                      ? isNearTourStop
+                        ? `${tourStop?.name ?? "동료"} 님에게 직접 인사를 건네보세요. (아래 채팅창)`
+                        : `${tourStop?.name ?? "동료"} 님 옆으로 걸어가서 인사하세요. (WASD·방향키로 이동)`
                       : npcMessage || "…"
             }
             stepLabel={
@@ -2009,7 +2061,12 @@ export function ScenarioGamePage() {
             isMemoOpen={isMemoOpen}
             isWorkflowOpen={isWorkflowOpen}
             // 자유 대화, 투어 인사, SNS-01 업무 학습·회고 단계에서 입력을 받는다.
-            disabled={connStatus !== "open" || !canChat(phase)}
+            // 투어 인사는 그 동료 옆까지 걸어가야 보낼 수 있다 — 멀리서 인사가 성립하지 않게.
+            disabled={
+              connStatus !== "open" ||
+              !canChat(phase) ||
+              (phase === "tour_greet" && !isNearTourStop)
+            }
             focusInput={
               phase === "tour_greet" ||
               phase === "process_learning" ||
