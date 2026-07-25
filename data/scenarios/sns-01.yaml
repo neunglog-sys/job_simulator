@@ -187,7 +187,7 @@ steps:
     on_complete: __reflection__
 sudden_quest:
   npc: npc_sns-01_03
-  intro: 오후 4시, 공식 인스타그램 다이렉트 메시지(DM)로 한 고객의 격양된 메시지가 도착합니다. 알림창에 빨간 불이 들어옵니다.
+  intro: '박민우: "지수 씨, 방금 공식 인스타그램 DM으로 고객 항의가 하나 들어왔어요. 이벤트 경품을 못 받으셨다고 크게 화가 나셨는데, 어떻게 대응할지 같이 봐요."'
   task:
     kind: choice
     prompt: '이벤트 경품을 받지 못해 화가 난 고객의 DM을 확인했습니다.
