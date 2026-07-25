@@ -1182,15 +1182,10 @@ export function MovementArea({
                 transformOrigin: "0 0",
                 // 실제 화면 픽셀 격자에 맞춰 반올림 — 어긋난 채로 두면 확대된 픽셀아트가 일렁인다
         transform: `scale(${ZOOM}) translate(${-snap(camera.x)}px, ${-snap(camera.y)}px)`,
-                // 투어(컷신)에서 카메라가 사수를 따라갈 때, 맵만 툭 스냅하지 않고 사수와 함께
-                // 부드럽게 팬하도록 사수 걸음(guideHopMsRef)과 같은 timing·easing으로 트랜지션한다.
-                // (신입은 투어 중 제자리에 머물므로 playerHopMs가 아니라 사수 쪽 값을 따라야 한다 —
-                //  안 그러면 카메라가 초기값 150ms로 먼저 도착해 걷는 사수를 화면에서 놓친다.)
-                // 키보드 이동(guidePosition=null) 땐 스텝이 잘아 즉시 추적한다(트랜지션 지연이 거슬리지 않게).
-                transition:
-                  guidePosition != null
-                    ? `transform ${guideHopMsRef.current}ms ease-in-out`
-                    : undefined,
+                // 소개 대상을 잠깐 비출 때(cameraFocus)만 부드럽게 팬한다 — 시선이 툭 끊기지 않게.
+                // 신입을 따라갈 때는 트랜지션을 걸지 않는다. 신입은 매 프레임 몇 px씩 걷는데 여기에
+                // 트랜지션이 걸리면 맵이 뒤늦게 미끄러져 걸음이 붕 뜬 것처럼 보인다(걷기 이상 증상의 원인).
+                transition: cameraFocus != null ? "transform 450ms ease-in-out" : undefined,
                 willChange: "transform",
               }
             : undefined
@@ -1342,8 +1337,6 @@ export function MovementArea({
             facing={playerFacing}
             walking={playerWalking}
             zIndex={Math.round(position.y + PLAYER_SIZE.height)}
-            smooth={guidePosition != null}
-            transitionMs={playerHopMsRef.current}
           />
         ) : null}
       </div>
@@ -1352,8 +1345,6 @@ export function MovementArea({
           position={{ x: snap(position.x), y: snap(position.y) }}
           facing={playerFacing}
           walking={playerWalking}
-          smooth={guidePosition != null}
-          transitionMs={playerHopMsRef.current}
         />
       ) : null}
       </div>

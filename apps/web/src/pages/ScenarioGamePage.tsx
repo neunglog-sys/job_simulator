@@ -1851,9 +1851,18 @@ export function ScenarioGamePage() {
           onNpcPositionsChange={setNpcLivePositions}
           guideNpcId={tour?.guide?.npc ?? null}
           guidePosition={guidePosition}
-          // 투어 중엔 신입이 제자리에 머무므로 카메라가 사수를 비춰 팀원 소개를 보여준다.
-          // 단 인사(tour_greet) 때는 신입이 직접 걸어가므로 카메라가 신입을 따라간다.
-          cameraFocus={tourActive && phase !== "tour_greet" ? guidePosition : null}
+          // 카메라는 기본적으로 신입에게 고정한다. 사수가 소개하는 동안(tour_intro)만 '소개받는
+          // 그 동료'를 잠깐 비추고(걷는 사수를 쫓아다니지 않는다), 소개가 끝나면 다시 신입에게
+          // 돌아온다 — 이후 인사·응답·마무리는 신입이 직접 걸어가서 진행하기 때문.
+          // 마커 좌표를 화면 중앙에 두려면 cameraFocus가 기대하는 '플레이어 박스 좌상단'으로 바꿔 넘긴다.
+          cameraFocus={
+            phase === "tour_intro" && tourStopMarker
+              ? {
+                  x: tourStopMarker.x - PLAYER_SIZE.width / 2,
+                  y: tourStopMarker.y - PLAYER_SIZE.height / 2,
+                }
+              : null
+          }
           tourActive={tourActive}
           talkingNpcId={talk.id}
           roamingPaused={tourActive}
