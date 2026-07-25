@@ -1182,12 +1182,14 @@ export function MovementArea({
                 transformOrigin: "0 0",
                 // 실제 화면 픽셀 격자에 맞춰 반올림 — 어긋난 채로 두면 확대된 픽셀아트가 일렁인다
         transform: `scale(${ZOOM}) translate(${-snap(camera.x)}px, ${-snap(camera.y)}px)`,
-                // 투어(컷신)에서 사수를 따라 뷰가 이동할 때, 맵만 툭 스냅하지 않고 캐릭터와 함께
-                // 부드럽게 팬하도록 플레이어 스프라이트와 같은 timing·easing으로 트랜지션한다.
+                // 투어(컷신)에서 카메라가 사수를 따라갈 때, 맵만 툭 스냅하지 않고 사수와 함께
+                // 부드럽게 팬하도록 사수 걸음(guideHopMsRef)과 같은 timing·easing으로 트랜지션한다.
+                // (신입은 투어 중 제자리에 머물므로 playerHopMs가 아니라 사수 쪽 값을 따라야 한다 —
+                //  안 그러면 카메라가 초기값 150ms로 먼저 도착해 걷는 사수를 화면에서 놓친다.)
                 // 키보드 이동(guidePosition=null) 땐 스텝이 잘아 즉시 추적한다(트랜지션 지연이 거슬리지 않게).
                 transition:
                   guidePosition != null
-                    ? `transform ${playerHopMsRef.current}ms ease-in-out`
+                    ? `transform ${guideHopMsRef.current}ms ease-in-out`
                     : undefined,
                 willChange: "transform",
               }
