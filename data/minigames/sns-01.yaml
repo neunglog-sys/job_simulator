@@ -15,50 +15,16 @@ games:
       auto_complete: true
     scoring: {}
 
-  # 기존 카드뉴스 검수 게임은 두 번째 시안 제작 단계용으로 그대로 보존한다.
+  # 두 번째 게임은 샘플 구조를 참고해 10개 요소를 제작판에 배치하는 시안 제작 퍼즐이다.
   - id: sns-01-design
     step: m7
-    engine: spot
-    title: 카드뉴스 시각 결함 검수
-    intro: 업로드 전 카드뉴스 5장을 훑어 시각 결함을 찾아 표시하세요. 정상인 곳을 표시하면 감점입니다.
-    time_limit: 60
+    engine: design
+    title: 게시물 시안 제작
+    intro: 샘플을 참고하여 진로 시뮬레이터 플랫폼을 홍보하는 게시물 이미지를 완성해 주세요.
+    time_limit: null
     pass_score: 70
     data:
-      scene: 카드뉴스_5장_검수보드
-      mark: tag
-      reference:
-        sprite: 견본_표준_카드뉴스
-        label: 브랜드 기준에 맞는 표준 카드뉴스 예시 (견본)
-      targets:
-        - id: 카드3_로고부
-          sprite: 카드3_로고영역
-          at: [470, 150]
-          size: 60
-          label: 타사 로고 노출(3페이지)
-        - id: 카드1_타이틀부
-          sprite: 카드1_타이틀블록
-          at: [110, 150]
-          size: 120
-          label: 메인 타이틀 색면이 어긋나 찢김(오타)
-        - id: 카드2_본문서체부
-          sprite: 카드2_본문글자블록
-          at: [290, 230]
-          size: 110
-          label: 권장 서체와 다른 이질적 글자 모양
-        - id: 카드4_이미지부
-          sprite: 카드4_이미지영역
-          at: [650, 240]
-          size: 96
-          label: 이미지 잘림(1:1 규격 벗어남)
-        - id: 카드5_하단문구부
-          sprite: 카드5_하단문구블록
-          at: [830, 310]
-          size: 120
-          label: 유의사항 문구 블록 과도하게 작음
-      decoys:
-        - { id: 카드5_로고부, sprite: 카드5_로고영역, at: [830, 150], size: 60 }
-        - { id: 카드2_이미지부, sprite: 카드2_이미지영역, at: [290, 340], size: 96 }
-        - { id: 카드4_색면부, sprite: 카드4_상단색면, at: [650, 140], size: 120 }
-    scoring:
-      target_count: 5
-      decoy_penalty: 15
+      presentation: sns_post_design
+      background_id: sns-01-background-duck-cartoon-monitor-v4
+      auto_complete: true
+    scoring: {}

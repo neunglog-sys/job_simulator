@@ -1,6 +1,7 @@
 // 미니게임 미리보기 데이터.
 import type { MinigameDef } from "./components/scenario/minigames/types";
 import { SNS_RESEARCH_PREVIEW_GAME } from "./data/snsResearchStages";
+import { SNS_POST_DESIGN_PREVIEW_GAME } from "./data/snsPostDesignPuzzle";
 
 export const PREVIEW_GAMES = {
   "cln-01": {
@@ -5073,3 +5074,4 @@ PREVIEW_GAMES["kts-03-supply"] = {
 };
 
 PREVIEW_GAMES["sns-01-research"] = SNS_RESEARCH_PREVIEW_GAME;
+PREVIEW_GAMES["sns-01-design"] = SNS_POST_DESIGN_PREVIEW_GAME;

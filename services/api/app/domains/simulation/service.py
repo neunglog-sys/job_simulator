@@ -888,6 +888,52 @@ def _minigame_result(payload: dict, declared: dict | None) -> dict:
             result["rejected"] = "engine_mismatch"
             result["declared_engine"] = declared["engine"]
         return result
+    if engine == "design":
+        metadata = payload.get("metadata")
+        if not isinstance(metadata, dict):
+            raise HTTPException(status_code=400, detail="시안 제작 게임 결과 metadata가 필요합니다")
+        wrong_submissions = metadata.get("wrongSubmissionCount")
+        duration_ms = metadata.get("durationMs")
+        counters = {
+            "moveCount": metadata.get("moveCount"),
+            "undoCount": metadata.get("undoCount"),
+            "resetCount": metadata.get("resetCount"),
+        }
+        if (
+            metadata.get("gameId") != "sns-post-design"
+            or metadata.get("completed") is not True
+            or not isinstance(wrong_submissions, int)
+            or isinstance(wrong_submissions, bool)
+            or wrong_submissions < 0
+            or not isinstance(duration_ms, (int, float))
+            or isinstance(duration_ms, bool)
+            or duration_ms < 0
+            or any(
+                not isinstance(value, int) or isinstance(value, bool) or value < 0
+                for value in counters.values()
+            )
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="시안 제작 게임 결과 형식이 올바르지 않습니다",
+            )
+        result = {
+            "engine": engine,
+            "completed": True,
+            "mistakes": wrong_submissions,
+            "metadata": {
+                "gameId": "sns-post-design",
+                "completed": True,
+                "wrongSubmissionCount": wrong_submissions,
+                "completedAt": str(metadata.get("completedAt") or ""),
+                "durationMs": round(float(duration_ms)),
+                **counters,
+            },
+        }
+        if declared and engine != declared["engine"]:
+            result["rejected"] = "engine_mismatch"
+            result["declared_engine"] = declared["engine"]
+        return result
 
     accuracy = payload.get("accuracy")
     if not isinstance(accuracy, (int, float)) or isinstance(accuracy, bool) or not 0 <= accuracy <= 100:
