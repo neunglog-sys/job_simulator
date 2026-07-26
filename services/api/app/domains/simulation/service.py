@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.content import game_map
+from app.content import materials
 from app.content import minigame
 from app.content.loader import yaml_scenario_slugs
 from app.content.kb_map import kb_jobs_for
@@ -64,9 +65,52 @@ def _personalize_text(scenario: Scenario, state: dict, text: str | None) -> str:
     return value
 
 
+def _pick_material_sets(slug: str, seed: int) -> dict[str, str]:
+    """시뮬레이션 생성 시 스텝별 제공자료 세트를 하나씩 골라 둔다 — {step_id: set_id}.
+
+    state에 박아 두므로 새로고침·재개해도 같은 자료를 본다. 플레이마다 다른 세트가 나와
+    (세트별 차액 원인이 다르다) 정답을 외워서 풀 수 없다.
+    """
+    picked: dict[str, str] = {}
+    for step_id in materials.steps_with_materials(slug):
+        sets = materials.material_sets_for(slug, step_id)
+        if sets:
+            chosen = sets[seed % len(sets)]
+            picked[step_id] = str(chosen.get("id") or "")
+    return picked
+
+
+def _material_set_for(scenario: Scenario, state: dict, step_id: str) -> dict | None:
+    """이 시뮬레이션이 볼 자료 세트 — state에 박아둔 id로 찾는다(없으면 첫 세트)."""
+    sets = materials.material_sets_for(scenario.slug, step_id)
+    if not sets:
+        return None
+    wanted = (state.get("material_sets") or {}).get(step_id)
+    for candidate in sets:
+        if str(candidate.get("id") or "") == wanted:
+            return candidate
+    return sets[0]
+
+
+def _task_with_material_criteria(
+    scenario: Scenario, state: dict, step: dict, task: dict
+) -> dict:
+    """이번 세트의 차액 원인을 채점 기준에 추가한 task 사본 — 세트마다 정답이 다르기 때문."""
+    chosen = _material_set_for(scenario, state, step["id"])
+    cause = str((chosen or {}).get("cause") or "").strip()
+    if not cause:
+        return task
+    merged = dict(task)
+    merged["criteria"] = [*(task.get("criteria") or []), f"제공자료가 가리키는 실제 원인({cause})을 찾아냈는가"]
+    return merged
+
+
 def _public_step(scenario: Scenario, state: dict, step: dict) -> dict:
     out = sm.public_step(step)
     out["mission"] = _personalize_text(scenario, state, out.get("mission"))
+    # 제공자료 본문 — guide는 이름만 나열하므로, 실제로 대조할 수 있게 문서를 함께 내려준다.
+    chosen = _material_set_for(scenario, state, step["id"])
+    out["materials"] = materials.public_documents(chosen) if chosen else []
     return out
 
 
@@ -176,6 +220,9 @@ async def create_simulation(
         "quest": {"status": "pending" if scenario.sudden_quest else "none", "attempts": 0},
         "coach_streak": 0,  # 진전(제출) 없이 이어진 미션 대화 턴 수 → 정체 감지용
         "player_name": user.name,
+        # 스텝별 제공자료 세트를 지금 골라 박아 둔다 — 새로고침·재개해도 같은 자료를 보고,
+        # 플레이마다 다른 세트(=다른 차액 원인)가 나와 정답을 외워서 풀 수 없다.
+        "material_sets": _pick_material_sets(scenario_slug, random.randrange(1_000_000)),
     }
     # 상담에서 진입했으면 그 상담 id를 박아둔다 — 재개(이어하기)로 URL 파라미터가 유실돼도
     # 완주 리포트가 상담을 붙일 수 있게. 남의 상담 id는 무시(도용 방지·게임은 계속 진행).
@@ -1302,6 +1349,10 @@ async def submit_task(
     task = step.get("task")
     if not task:
         raise HTTPException(status_code=400, detail="현재 스텝에 과제가 없음")
+
+    # 제공자료가 있는 스텝은 '이번 세트의 정답(차액 원인)'을 채점 기준에 얹는다 —
+    # 세트마다 원인이 달라, 시나리오에 고정으로 적힌 기준만으로는 맞는지 가릴 수 없다.
+    task = _task_with_material_criteria(scenario, state, step, task)
 
     result = await _grade(session, simulation, scenario, step["mission"], task, submission)
 
