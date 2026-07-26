@@ -259,6 +259,10 @@ function introGuide(step: GameStep | null, roster: GameNpc[]): string {
 // FOOT_WIDTH/FOOT_HEIGHT는 MovementArea의 collidesAt과 반드시 같은 값이어야 판정이 어긋나지 않는다.
 const TOUR_FOOT_WIDTH = 46;
 const TOUR_FOOT_HEIGHT = 26;
+// tourCollidesAt이 검사하는 발판박스의 '중심'이 넘겨준 좌표에서 얼마나 떨어져 있는지 —
+// 사수 좌표는 마커 중심이라 이 차이만큼 집기를 옮겨(tourCollisions) 판정 기준을 맞춘다.
+const GUIDE_MARKER_DX = (PLAYER_SIZE.width - TOUR_FOOT_WIDTH) / 2 + TOUR_FOOT_WIDTH / 2; // 38
+const GUIDE_MARKER_DY = PLAYER_SIZE.height - TOUR_FOOT_HEIGHT + TOUR_FOOT_HEIGHT / 2; // 83
 
 function tourCollidesAt(
   pos: Position,
@@ -300,6 +304,26 @@ function findSafeSpot(
   return target;
 }
 
+// 사수가 소개 대상 '바로 옆'에 서는 자리 — 좌·우·아래·위 순으로 한 몸 거리(옆자리)를 먼저 보고,
+// 네 자리가 다 막혔을 때만 findSafeSpot의 링 탐색으로 넘어간다. 예전엔 곧장 링 탐색이라
+// 옆이 막히면 최대 168px 밖(딴 데)에 서서 "소개는 하는데 정작 멀리 떨어져 있는" 그림이 됐다.
+const SIDE_BY_SIDE_GAP = 64;
+function besideSpot(
+  anchor: Position,
+  collisions: Array<{ x: number; y: number; w: number; h: number }>,
+): Position {
+  const candidates: Position[] = [
+    { x: anchor.x - SIDE_BY_SIDE_GAP, y: anchor.y },
+    { x: anchor.x + SIDE_BY_SIDE_GAP, y: anchor.y },
+    { x: anchor.x, y: anchor.y + SIDE_BY_SIDE_GAP },
+    { x: anchor.x, y: anchor.y - SIDE_BY_SIDE_GAP },
+  ];
+  for (const spot of candidates) {
+    if (!tourCollidesAt(spot, collisions)) return spot;
+  }
+  return findSafeSpot(candidates[0], anchor, collisions);
+}
+
 // MovementArea의 guideHopMsRef와 동일한 공식 — 걸음(코너)마다 setTimeout으로 예약할 때 그쪽 CSS
 // transition 종료 시점과 맞추기 위해 값을 그대로 복제했다(GUIDE_HOP_MIN/MAX/SPEED와 반드시 동일).
 // MAX는 코너~코너 한 직선 구간을 등속(220px/s)으로 활공할 수 있어야 하므로 가장 긴 구간(≈720px,
@@ -313,10 +337,6 @@ function tourHopDurationMs(from: Position, to: Position): number {
   const dist = Math.hypot(to.x - from.x, to.y - from.y);
   return Math.min(TOUR_HOP_MAX_MS, Math.max(TOUR_HOP_MIN_MS, (dist / TOUR_HOP_SPEED_PX_S) * 1000));
 }
-// 신입은 사수보다 이만큼 늦게 출발한다 — 둘이 t=0에 동시에 움직이면 나란히 걷는 것처럼 보여서
-// '따라간다' 느낌이 안 산다. 260px/s에서 이 지연이면 약 한 몸 길이 뒤에서 사수를 뒤따르게 된다.
-const TOUR_FOLLOW_LAG_MS = 500;
-
 const GUIDE_GRID = 16; // BFS 격자 간격(px) — 집기(수십 px)보다 촘촘해 그 사이 틈으로 새지 않는다
 const GUIDE_ROUTE_MARGIN = 168; // 집기 바깥으로 이만큼 여유 바닥을 탐색에 포함(돌아갈 통로 확보)
 
@@ -596,6 +616,9 @@ export function ScenarioGamePage() {
   const [taskResult, setTaskResult] = useState<TaskResultFrame | null>(null);
   const [quest, setQuest] = useState<{ title: string; task: GameTask; banner?: string } | null>(null);
   const [greetSent, setGreetSent] = useState(false);
+  // 투어 인사에서 '그 동료를 눌러 대화를 연' 상태 — 근처에 갔다고 채팅창이 저절로 열리면
+  // 입력창이 방향키를 가져가 캐릭터가 멈춘다. 마우스로 누르기 전까지는 열지 않는다.
+  const [tourGreetOpened, setTourGreetOpened] = useState(false);
   const [farewell, setFarewell] = useState<{ name: string; text: string } | null>(null); // 통과 격려 배너
   const npcsRef = useRef<GameNpc[]>([]); // 코치 안내 문구용 로스터(핸들러 클로저의 stale 방지)
   const [npcMessage, setNpcMessage] = useState("");
@@ -766,6 +789,23 @@ export function ScenarioGamePage() {
 
   const tourStop = tour && tourIndex < tour.stops.length ? tour.stops[tourIndex] : null;
   const tourActive = TOUR_PHASES.has(phase);
+
+  // 투어 인사(tour_greet) — 신입이 그 동료 '옆까지 걸어가야' 인사를 보낼 수 있다.
+  // (멀리 떨어진 자리에서 인사가 성립하면 소개 장면 자체가 성립하지 않는다.)
+  const tourStopMarker = useMemo(() => {
+    const npcId = tourStop?.npc;
+    if (!npcId) return null;
+    // 동료는 투어가 시작되면 '그 자리에서' 멈춘다(MovementArea) — 그 좌표가 npcLivePositions로
+    // 올라오므로 여기서도 그걸 쓴다. 사수가 찾아갈 목표(tourAnchor)·카메라·근접 판정이 모두 같은
+    // 좌표를 봐야 실제로 서 있는 사람 옆에서 소개하고 인사할 수 있다(로밍 경로가 없으면 spawn).
+    return npcLivePositions[npcId] ?? spawnPos(npcId);
+  }, [tourStop, npcLivePositions, spawnPos]);
+  const isNearTourStop =
+    tourStopMarker != null &&
+    Math.hypot(
+      playerPosition.x + PLAYER_SIZE.width / 2 - tourStopMarker.x,
+      playerPosition.y + PLAYER_SIZE.height / 2 - tourStopMarker.y,
+    ) < ENCOUNTER_RADIUS;
   // 투어 자막과 하단 대화창이 서로 다른 상태를 보지 않도록 현재 발화자와 대사를 한곳에서 계산한다.
   // 인사를 입력하기 전까지는 직전에 말한 사수의 소개를 유지하고, 전송한 순간부터
   // 작성 중 말풍선과 스탠딩의 화자를 인사받는 동료로 전환한다.
@@ -851,16 +891,30 @@ export function ScenarioGamePage() {
     const geo = gameMap?.geometry;
     const origin = geo?.walkable?.[0];
     if (!geo?.collision || !origin) return [];
-    return geo.collision.map((c) => ({ x: c.x - origin.x, y: c.y - origin.y, w: c.w, h: c.h }));
+    // 좌표계 보정: 사수 컷신 좌표(guidePosition)는 '마커 중심'인데 tourCollidesAt은 좌표를
+    // '플레이어 박스 좌상단'으로 보고 발판박스를 (+38,+83) 위치에서 검사한다. 그대로 두면 사수의
+    // 실제 발밑이 아니라 그보다 83px 아래를 판정해, 옆자리가 비었는데도 막힌 줄 알고 엉뚱한 데
+    // (예: 바 건너편) 가서 서는 문제가 생긴다. 집기를 같은 벡터만큼 옮겨 두면 겹침 판정이
+    // 정확히 마커 중심 기준이 된다(두 사각형을 같은 방향으로 옮기면 겹침 여부는 그대로).
+    return geo.collision.map((c) => ({
+      x: c.x - origin.x + GUIDE_MARKER_DX,
+      y: c.y - origin.y + GUIDE_MARKER_DY,
+      w: c.w,
+      h: c.h,
+    }));
   }, [gameMap]);
 
   // 투어 중 사수·플레이어가 서 있을 자리 — 소개 대상 옆(마무리 때는 사수 자리로 돌아온다).
   const tourAnchor = useMemo(() => {
     if (!tour) return null;
     // 자기소개(tour_opening) 동안엔 사수가 첫 동료에게 걸어가지 않고 제 자리에 머문다.
-    const target = phase === "tour_opening" ? tour.guide?.npc : tourStop?.npc ?? tour.guide?.npc;
-    return target ? spawnPos(target) : null;
-  }, [tour, tourStop, spawnPos, phase]);
+    if (phase === "tour_opening") {
+      const guideNpc = tour.guide?.npc;
+      return guideNpc ? spawnPos(guideNpc) : null; // 사수 본인은 컷신 좌표가 권한이라 제 자리 기준
+    }
+    // 소개 대상은 투어가 시작될 때 '그 자리에서' 멈춘 좌표로 찾아간다(로밍 경로가 없으면 spawn).
+    return tourStopMarker ?? (tour.guide?.npc ? spawnPos(tour.guide.npc) : null);
+  }, [tour, tourStopMarker, spawnPos, phase]);
   // 다음 스톱으로 넘어갈 때 사수는 로밍 NPC처럼 상하좌우로 걸어간다(대각선 금지).
   // planGuideHops가 만든 걸음 목록(코너 단위)을 순서대로 setTimeout으로 재생 — 걸음(코너~코너 직선)
   // 하나가 CSS transition 한 번(= MovementArea guideHopMsRef, 같은 공식)이라 예약 간격을 그 시간과 맞춘다.
@@ -909,7 +963,8 @@ export function ScenarioGamePage() {
       setGuidePosition(null);
       return;
     }
-    const target = findSafeSpot({ x: tourAnchor.x - 70, y: tourAnchor.y }, tourAnchor, tourCollisions);
+    // 소개 대상 바로 옆에 선다 — 옆자리가 막혔을 때만 근처 빈자리로 물러난다.
+    const target = besideSpot(tourAnchor, tourCollisions);
     // 첫 등장(guidePosition이 아직 null)엔 좌표만 콕 찍어 두면 안 된다 — 마커가 직전 렌더 위치
     // (자기 spawn)에서 이 좌표까지 CSS transition으로 '대각선 활공'하며 맵을 가로지른다(사수 대각선의
     // 진짜 원인). 대신 자기 spawn을 출발점으로 삼아 planGuideHops로 상하좌우로 '걸어서' 첫 동료에게
@@ -954,40 +1009,11 @@ export function ScenarioGamePage() {
     };
   }, [tourActive, tourAnchor, tourCollisions, tour, spawnPos]);
 
-  // 사수가 이동하면 신입은 사수 뒤를 자동으로 따라붙는다(컷신 — 플레이어 조작 없음).
-  // 예전엔 tourWaypoint 단일 L(막히면 목표로 직행=대각선)이라 신입이 책상을 가로질러 '날아갔다'.
-  // 이제 사수와 똑같이 planGuideHops로 상하좌우 걸음 목록(코너 단위)을 만들어 한 걸음씩 예약 — 직교로 따라간다.
-  const playerPosRef = useRef<Position>(playerPosition);
-  playerPosRef.current = playerPosition;
-  const playerHopTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  useEffect(() => {
-    playerHopTimersRef.current.forEach(clearTimeout);
-    playerHopTimersRef.current = [];
-    if (!tourActive || !tourAnchor) return;
-    const target = findSafeSpot(
-      { x: tourAnchor.x - 140 - PLAYER_SIZE.width / 2, y: tourAnchor.y - PLAYER_SIZE.height },
-      { x: tourAnchor.x - PLAYER_SIZE.width / 2, y: tourAnchor.y - PLAYER_SIZE.height },
-      tourCollisions,
-    );
-    const start = playerPosRef.current;
-    const hops = planGuideHops(start, target, tourCollisions);
-    // 사수와 같은 순차 예약(타이머 밀림에 강함) — 단, 첫 걸음만 사수보다 늦게 떼서 뒤따르게 한다.
-    let prev = start;
-    let i = 0;
-    const walk = () => {
-      if (i >= hops.length) return;
-      const hop = hops[i];
-      const d = tourHopDurationMs(prev, hop);
-      setPlayerPosition(hop);
-      prev = hop;
-      i += 1;
-      if (i < hops.length) playerHopTimersRef.current = [setTimeout(walk, d)];
-    };
-    playerHopTimersRef.current = [setTimeout(walk, TOUR_FOLLOW_LAG_MS)];
-    return () => {
-      playerHopTimersRef.current.forEach(clearTimeout);
-    };
-  }, [tourActive, tourAnchor, tourCollisions]);
+  // 투어(컷신) 동안 신입은 사수를 자동으로 따라가지 않는다 — 사수만 팀원에게 걸어가 소개하고
+  // 신입은 제자리(개방된 시작 자리)에 머문다. 대사는 배너·버튼으로 진행한다.
+  // (예전엔 신입을 사수 옆으로 자동 이동시켰는데, 마지막 스톱이 계산대-바 사이 좁은 자리면
+  //  거기 처박혀 '끼여서 안 움직이는' 문제가 있었다.) 투어 중엔 카메라가 사수를 비추고
+  //  (아래 MovementArea cameraFocus), 투어가 끝나면 신입이 직접 걸어 미션 NPC에게 간다.
 
   // 투어 전이: 사수 소개(tour_intro) → 신입이 직접 인사(tour_greet) → 동료 응답(tour_reply)
   //          → 다음 동료 / 마지막이면 사수 마무리(tour_closing) → exploring
@@ -1003,6 +1029,7 @@ export function ScenarioGamePage() {
       setChatNpcId(tour.stops[tourIndex]?.npc ?? null);
       setNpcMessage("");
       setUserMessage("");
+      setTourGreetOpened(false); // 아직 안 눌렀다 — 그 동료를 눌러야 채팅창이 열린다
       setPhase("tour_greet");
       return;
     }
@@ -1579,13 +1606,18 @@ export function ScenarioGamePage() {
   );
 
   // NPC 마커 클릭 → 그 NPC와 대화 (미션 진행과 무관한 자유 대화). 대화창 초기화.
-  const handleNpcClick = useCallback((npcId: string) => {
-    setChatNpcId(npcId);
-    setNpcMessage("");
-    setUserMessage("");
-    setIsStreaming(false);
-    setTalk({ id: npcId, at: Date.now() }); // 말 건 NPC는 멈춘다(로밍 중이면)
-  }, []);
+  const handleNpcClick = useCallback(
+    (npcId: string) => {
+      // 투어 인사: 이 클릭(=그 동료에게 도착)으로 비로소 채팅창을 연다.
+      if (phase === "tour_greet") setTourGreetOpened(true);
+      setChatNpcId(npcId);
+      setNpcMessage("");
+      setUserMessage("");
+      setIsStreaming(false);
+      setTalk({ id: npcId, at: Date.now() }); // 말 건 NPC는 멈춘다(로밍 중이면)
+    },
+    [phase],
+  );
 
   const handleMemoSave = useCallback((content: string) => {
     const nextMemo = content.slice(0, 4000);
@@ -1831,10 +1863,31 @@ export function ScenarioGamePage() {
           mapImage={mapImage}
           npcs={npcs}
           activeNpcId={activeNpcId}
-          onNpcClick={MODAL_PHASES.has(phase) || tourActive || isMemoOpen || isWorkflowOpen ? undefined : handleNpcClick}
+          // 컷신 중엔 마커 클릭을 막지만, 인사(tour_greet)만은 예외 — 신입이 그 동료를 눌러
+          // 다가가서 대화를 여는 단계라 클릭이 필요하다.
+          onNpcClick={
+            MODAL_PHASES.has(phase) ||
+            (tourActive && phase !== "tour_greet") ||
+            isMemoOpen ||
+            isWorkflowOpen
+              ? undefined
+              : handleNpcClick
+          }
           onNpcPositionsChange={setNpcLivePositions}
           guideNpcId={tour?.guide?.npc ?? null}
           guidePosition={guidePosition}
+          // 카메라는 기본적으로 신입에게 고정한다. 사수가 소개하는 동안(tour_intro)만 '소개받는
+          // 그 동료'를 잠깐 비추고(걷는 사수를 쫓아다니지 않는다), 소개가 끝나면 다시 신입에게
+          // 돌아온다 — 이후 인사·응답·마무리는 신입이 직접 걸어가서 진행하기 때문.
+          // 마커 좌표를 화면 중앙에 두려면 cameraFocus가 기대하는 '플레이어 박스 좌상단'으로 바꿔 넘긴다.
+          cameraFocus={
+            phase === "tour_intro" && tourStopMarker
+              ? {
+                  x: tourStopMarker.x - PLAYER_SIZE.width / 2,
+                  y: tourStopMarker.y - PLAYER_SIZE.height / 2,
+                }
+              : null
+          }
           tourActive={tourActive}
           talkingNpcId={talk.id}
           roamingPaused={tourActive}
@@ -1939,7 +1992,9 @@ export function ScenarioGamePage() {
                   : phase === "tour_intro"
                     ? tourStop?.line ?? ""
                     : phase === "tour_greet"
-                      ? `${tourStop?.name ?? "동료"} 님에게 직접 인사를 건네보세요. (아래 채팅창)`
+                      ? tourGreetOpened
+                        ? `${tourStop?.name ?? "동료"} 님에게 직접 인사를 건네보세요. (아래 채팅창)`
+                        : `${tourStop?.name ?? "동료"} 님에게 걸어가서(WASD) 클릭하면 대화가 열려요.`
                       : npcMessage || "…"
             }
             stepLabel={
@@ -2040,9 +2095,17 @@ export function ScenarioGamePage() {
             isMemoOpen={isMemoOpen}
             isWorkflowOpen={isWorkflowOpen}
             // 자유 대화, 투어 인사, SNS-01 업무 학습·회고 단계에서 입력을 받는다.
-            disabled={connStatus !== "open" || !canChat(phase)}
+            // 투어 인사는 그 동료 옆까지 걸어가야 보낼 수 있다 — 멀리서 인사가 성립하지 않게.
+            disabled={
+              connStatus !== "open" ||
+              !canChat(phase) ||
+              (phase === "tour_greet" && !(isNearTourStop && tourGreetOpened))
+            }
+            // 투어 인사(tour_greet)에서는 자동 포커스하지 않는다 — 동료 근처에 가는 순간 입력창이
+            // 포커스를 가져가면 방향키가 채팅으로 먹혀 캐릭터가 멈춘다. 마우스로 그 동료를 눌러
+            // 대화를 열었을 때만 포커스한다.
             focusInput={
-              phase === "tour_greet" ||
+              (phase === "tour_greet" && tourGreetOpened) ||
               phase === "process_learning" ||
               phase === "minigame_debrief"
             }

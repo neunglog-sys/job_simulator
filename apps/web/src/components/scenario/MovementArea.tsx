@@ -33,6 +33,9 @@ type MovementAreaProps = {
   // 온보딩 투어(컷신) — 사수가 신입을 데리고 다니는 동안 그 마커를 이 좌표로 옮긴다.
   guideNpcId?: string | null;
   guidePosition?: Position | null;
+  // 투어 중 카메라가 신입 대신 이 지점(사수)을 비추게 한다 — 신입은 제자리에 머무므로,
+  // 이걸 넘겨야 사수가 팀원에게 걸어가 소개하는 장면이 화면에 보인다. null이면 평소대로 신입을 따라간다.
+  cameraFocus?: Position | null;
   // 투어(컷신) 진행 중 — 동료(담당자)를 자기 자리(spawn)에 '고정해 그린다'(npcMarkers 렌더).
   // (사수가 "이쪽은 부장님이에요" 하고 데려갔는데 정작 부장님이 딴 데로 가 있으면 빈자리 소개가 되니까.)
   // 로밍 정지 자체는 roamingPaused가 담당 — 역할 분리.
@@ -172,6 +175,7 @@ export function MovementArea({
   onNpcPositionsChange,
   guideNpcId = null,
   guidePosition = null,
+  cameraFocus = null,
   tourActive = false,
   talkingNpcId = null,
   roamingPaused = false,
@@ -600,10 +604,11 @@ export function MovementArea({
         const isTourGuide = guideNpcId != null && guideNpcId === npc.npc_id;
         const touring = isTourGuide && guidePosition;
         // 그 외 NPC는 순찰 경로(geometry.npc_paths)가 있으면 자기 자리 대신 순찰 목표점에 그린다.
-        // 단 투어(컷신) 중엔 앰비언트 로밍이 남긴 좌표를 무시하고 전부 자기 자리(spawn)에 고정한다 —
-        // 로밍은 loading 단계(투어 진입 전)에 잠깐 돌아 동료를 자리 밖으로 흩어놓는데, 그 상태로
-        // 얼어붙으면 사수가 원래 자리로 가서 '빈자리 소개'를 하게 된다. 투어 동안은 다들 제 데스크에.
-        const patrolTarget = isTourGuide || tourActive ? null : patrolTargets[npc.npc_id];
+        // 투어(컷신)가 시작되면 roamingPaused로 이동이 멈추므로, 마지막 좌표에 '그 자리에서' 선다 —
+        // 자기 자리(spawn)로 되돌리지 않는다. 돌아다니던 동료가 갑자기 제 데스크로 순간이동하면
+        // 어색하고, 인사도 실제로 서 있는 자리에서 해야 하기 때문. 사수가 찾아갈 목표·카메라·근접
+        // 판정도 모두 이 좌표(onNpcPositionsChange로 올려보내는 값)를 함께 쓴다.
+        const patrolTarget = isTourGuide ? null : patrolTargets[npc.npc_id];
         const rawX = touring
           ? guidePosition.x
           : patrolTarget
@@ -716,10 +721,20 @@ export function MovementArea({
     if (!geometry || !areaSize) return { x: 0, y: 0 };
     const viewW = areaSize.width / ZOOM;
     const viewH = areaSize.height / ZOOM;
-    const focusX = position.x + PLAYER_SIZE.width / 2;
-    const focusY = position.y + PLAYER_SIZE.height / 2;
+    // 투어 중엔 신입이 제자리에 머무므로 카메라가 사수(cameraFocus)를 비춘다 — 그래야 팀원 소개가
+    // 화면에 잡힌다. 평소엔 신입(position)을 따라간다.
+    const focus = cameraFocus ?? position;
+    const focusX = focus.x + PLAYER_SIZE.width / 2;
+    const focusY = focus.y + PLAYER_SIZE.height / 2;
     const spanX = worldBounds.maxX - worldBounds.minX;
     const spanY = worldBounds.maxY - worldBounds.minY;
+    // 동료를 잠깐 비추는 컷신(cameraFocus)에서는 맵 경계 clamp를 풀어 대상을 화면 한가운데 둔다 —
+    // 맵 가장자리에 서 있는 동료는 clamp에 걸려 구석에 치우쳐 보이거나 UI에 가려서, 정작 소개받는
+    // 사람이 안 보였다. 잠깐 맵 밖 여백이 보이더라도 대상을 확실히 보여주는 쪽이 낫다.
+    // 신입을 따라가는 평소 카메라는 그대로 맵 안으로 여며 빈 여백이 보이지 않게 한다.
+    if (cameraFocus) {
+      return { x: focusX - viewW / 2, y: focusY - viewH / 2 };
+    }
     return {
       // 맵이 화면보다 작으면 가운데 정렬 (가장자리에 빈 공간이 생기지 않게)
       x: spanX <= viewW
@@ -729,7 +744,7 @@ export function MovementArea({
         ? worldBounds.minY - (viewH - spanY) / 2
         : clamp(focusY - viewH / 2, worldBounds.minY, worldBounds.maxY - viewH),
     };
-  }, [geometry, areaSize, position, worldBounds]);
+  }, [geometry, areaSize, position, cameraFocus, worldBounds]);
 
   // 최신 좌표를 ref로 들고 간다 — 키를 꾹 누르면 키 리피트가 리렌더보다 빨라서, 클로저의
   // position으로 계산하면 그 사이 입력들이 같은 낡은 좌표를 읽고 마지막 것만 남는다(이동 유실).
@@ -1083,9 +1098,26 @@ export function MovementArea({
         return;
       }
       const hopStep = Math.min(dist, step);
-      movePlayer((dx / dist) * hopStep, (dy / dist) * hopStep);
-      if (positionRef.current.x === cur.x && positionRef.current.y === cur.y) {
-        walkTargetRef.current = null; // 더 못 감 — 막힌 지점까지 왔으니 멈춘다
+      // 직교 이동만 — 대각선(두 축 동시)으로 가면 확대 화면에서 잔상이 생기고, 집기 모서리에
+      // 발판박스가 파고들어 이상하게 막힌다. 키보드·로밍과 같은 규칙: 남은 거리가 큰 축부터
+      // 한 축씩 시도하고, 그 축이 막히면 다른 축으로 돌아 벽을 따라 미끄러진다.
+      const stepX = Math.sign(dx) * Math.min(Math.abs(dx), hopStep);
+      const stepY = Math.sign(dy) * Math.min(Math.abs(dy), hopStep);
+      const axes: Array<[number, number]> =
+        Math.abs(dx) >= Math.abs(dy)
+          ? [[stepX, 0], [0, stepY]]
+          : [[0, stepY], [stepX, 0]];
+      let moved = false;
+      for (const [ax, ay] of axes) {
+        if (ax === 0 && ay === 0) continue;
+        movePlayer(ax, ay);
+        if (positionRef.current.x !== cur.x || positionRef.current.y !== cur.y) {
+          moved = true;
+          break;
+        }
+      }
+      if (!moved) {
+        walkTargetRef.current = null; // 두 축 다 막힘 — 막힌 지점까지 왔으니 멈춘다
       }
     };
     raf = requestAnimationFrame(loop);
@@ -1158,6 +1190,10 @@ export function MovementArea({
                 transformOrigin: "0 0",
                 // 실제 화면 픽셀 격자에 맞춰 반올림 — 어긋난 채로 두면 확대된 픽셀아트가 일렁인다
         transform: `scale(${ZOOM}) translate(${-snap(camera.x)}px, ${-snap(camera.y)}px)`,
+                // 소개 대상을 잠깐 비출 때(cameraFocus)만 부드럽게 팬한다 — 시선이 툭 끊기지 않게.
+                // 신입을 따라갈 때는 트랜지션을 걸지 않는다. 신입은 매 프레임 몇 px씩 걷는데 여기에
+                // 트랜지션이 걸리면 맵이 뒤늦게 미끄러져 걸음이 붕 뜬 것처럼 보인다(걷기 이상 증상의 원인).
+                transition: cameraFocus != null ? "transform 450ms ease-in-out" : undefined,
                 willChange: "transform",
               }
             : undefined
@@ -1309,8 +1345,6 @@ export function MovementArea({
             facing={playerFacing}
             walking={playerWalking}
             zIndex={Math.round(position.y + PLAYER_SIZE.height)}
-            smooth={guidePosition != null}
-            transitionMs={playerHopMsRef.current}
           />
         ) : null}
       </div>
@@ -1319,8 +1353,6 @@ export function MovementArea({
           position={{ x: snap(position.x), y: snap(position.y) }}
           facing={playerFacing}
           walking={playerWalking}
-          smooth={guidePosition != null}
-          transitionMs={playerHopMsRef.current}
         />
       ) : null}
       </div>

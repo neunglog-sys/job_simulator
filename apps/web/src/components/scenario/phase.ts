@@ -62,9 +62,11 @@ export const MODAL_PHASES: ReadonlySet<GamePhase> = new Set<GamePhase>([
   "completed",
 ]);
 
-/** 플레이어가 직접 이동할 수 있는가 — 컷신·모달 중에는 조작을 뺏지 않는다. */
+/** 플레이어가 직접 이동할 수 있는가 — 컷신·모달 중에는 조작을 뺏지 않는다.
+ *  단 tour_greet(사수 소개 후 신입이 직접 인사)은 예외 — 신입이 그 동료 옆까지 '걸어가서'
+ *  인사해야 하므로 이동을 열어 준다(멀리서 인사가 성립하면 안 된다). */
 export function canMove(phase: GamePhase): boolean {
-  return phase === "exploring";
+  return phase === "exploring" || phase === "tour_greet";
 }
 
 /** 채팅 입력을 받는가 — 자유 대화, 그리고 투어 중 '직접 인사'(화법 평가) 때. */
