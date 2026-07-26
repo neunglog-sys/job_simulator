@@ -186,7 +186,10 @@ function toAvatarSpeechText(text: string): string {
 
   return naturalEnd > AVATAR_SPEECH_MAX_CHARS * 0.55
     ? limited.slice(0, naturalEnd + 1).trim()
-    : `${limited.replace(/[,\s]+$/g, "")}.`;
+    : // 마침표를 붙일 1자를 미리 깎는다. limited가 정확히 420자이고 끝이 쉼표/공백이
+      // 아니면 replace가 no-op이라 421자가 되고, 청크 분할기(420자 상한)가 2청크로 쪼개
+      // flush를 꺼도 프리페치 동시 WS 경로가 살아난다.
+      `${limited.slice(0, AVATAR_SPEECH_MAX_CHARS - 1).replace(/[,\s]+$/g, "")}.`;
 }
 
 function toSurveyQuestions(items: SurveyItem[]): SurveyQuestionData[] {
@@ -1326,6 +1329,8 @@ export function OneToOneConversationPage() {
     if (id !== consultationId) return;
 
     finishVoiceSession(false);
+    // 현재 상담을 지우면 진행 중이던 발화·대기 큐도 함께 정리한다. (2026-07-26 감사)
+    resetAvatarSpeech();
     sessionStorage.removeItem(CONSULTATION_RESUME_KEY);
     setMessages(initialConversationMessages);
     setInputValue("");
@@ -1352,7 +1357,7 @@ export function OneToOneConversationPage() {
     } catch {
       // 삭제는 완료됐으므로 새 상담 생성 실패 시 기본 화면을 유지한다.
     }
-  }, [consultationId, finishVoiceSession]);
+  }, [consultationId, finishVoiceSession, resetAvatarSpeech]);
 
   const loadRecommendedJobs = useCallback(async () => {
     if (!consultationId) {
@@ -1407,6 +1412,9 @@ export function OneToOneConversationPage() {
       }
 
       finishVoiceSession(false);
+      // 발화 중 다른 상담으로 바꾸면 이전 답변의 음성·대기 큐가 새 상담 위에서 계속
+      // 재생된다 — 큐·blob·세션(seq)까지 여기서 전부 닫는다. (2026-07-26 감사)
+      resetAvatarSpeech();
       setActiveModal(null);
       setActivePanel("chat");
       setInputValue("");
@@ -1456,7 +1464,7 @@ export function OneToOneConversationPage() {
         setAvatarStatus("idle");
       }
     },
-    [consultationId, finishVoiceSession],
+    [consultationId, finishVoiceSession, resetAvatarSpeech],
   );
 
   const handleNavigationSelect = useCallback((id: NavigationMenuId) => {

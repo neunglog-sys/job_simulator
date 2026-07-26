@@ -367,10 +367,19 @@ export function AiAvatarStage({
       stallStartedAt = window.performance.now();
       // 브라우저가 프레임 한두 장에 재생을 재개해 곧바로 또 멈추는 것을 막는다.
       // 명시적으로 세워두고, playIfReady가 리버퍼 임계값을 채웠을 때만 다시 튼다.
-      try {
-        video.pause();
-      } catch {
-        // 이미 정지 상태면 무시한다.
+      //
+      // ⚠️ streamDone이면 절대 멈추지 않는다. playIfReady를 부르는 곳은 updateend·done·
+      //    onclose 셋뿐이고 셋 다 스트림이 끝나면 다시 오지 않는다. 그 뒤에 세워버리면
+      //    깨울 주체가 없어 ended가 안 뜨고 → onSpeakingEnd 미호출 → 아바타가 speaking에
+      //    갇혀 이후 답변이 큐에만 쌓인다. 어차피 남은 데이터는 전부 버퍼에 있으므로
+      //    "더 받을 때까지 기다린다"는 이 pause의 목적 자체가 성립하지 않는다.
+      //    (브라우저의 gap jumping에 맡기는 편이 안전하다)
+      if (!streamDone) {
+        try {
+          video.pause();
+        } catch {
+          // 이미 정지 상태면 무시한다.
+        }
       }
       const bufferedAhead =
         video.buffered.length > 0
@@ -406,24 +415,30 @@ export function AiAvatarStage({
       const bufferedEnd = video.buffered.end(video.buffered.length - 1);
       const bufferedAhead = bufferedEnd - video.currentTime;
       // 첫 재생은 시작 버퍼, stall 회복은 리버퍼 임계값을 쓴다.
+      // 리버퍼는 시작 버퍼보다 클 수 없게 클램프한다 — ?startBuffer=0.5 처럼 측정용으로
+      // 시작 버퍼를 낮추면 회복 조건(0.8s)이 시작 조건보다 엄격해지는 역전을 막는다.
       const isFirstPlay = firstPlayAt === null;
       const gateSeconds = isFirstPlay
         ? startBufferSeconds
-        : MUSE_TALK_REBUFFER_SECONDS;
+        : Math.min(MUSE_TALK_REBUFFER_SECONDS, startBufferSeconds);
       if (bufferedAhead < gateSeconds && !streamDone) return;
 
-      gatePassAt = sinceStart();
-      gatedByDone = bufferedAhead < gateSeconds;
-      bufferedAheadAtGate = Number(bufferedAhead.toFixed(3));
+      // 계측 필드는 첫 재생 게이트만 기록한다. 리버퍼 통과가 덮어쓰면 ended/close
+      // metrics의 gate_pass_at_s가 "첫 재생 조건이 충족된 시각"이 아니게 된다.
+      if (isFirstPlay) {
+        gatePassAt = sinceStart();
+        gatedByDone = bufferedAhead < gateSeconds;
+        bufferedAheadAtGate = Number(bufferedAhead.toFixed(3));
+      }
       console.info("[MuseTalk]", "start_playback_buffer", {
-        buffered_ahead: bufferedAheadAtGate,
+        buffered_ahead: Number(bufferedAhead.toFixed(3)),
         gate_kind: isFirstPlay ? "start" : "rebuffer",
         threshold_s: gateSeconds,
-        at_s: gatePassAt,
-        gated_by_done: gatedByDone,
+        at_s: sinceStart(),
+        gated_by_done: bufferedAhead < gateSeconds,
       });
       video.muted = true;
-      playCalledAt = sinceStart();
+      if (isFirstPlay) playCalledAt = sinceStart();
       void video
         .play()
         .then(() => {
