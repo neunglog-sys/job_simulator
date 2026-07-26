@@ -27,7 +27,13 @@ logger = logging.getLogger(__name__)
 
 TOP_N = 5
 NEUTRAL_SCORE = 50  # 근거 부족 시 중립값
-APTITUDE_CLARITY_MIN = 50  # 미달 시 추천 대신 추가 상담 유도 (중간 게이트)
+# 미달 시 추천 대신 추가 상담 유도 (중간 게이트).
+# 50이던 값을 40으로 내린다 — 실측(2026-07-26) 결과 충분히 상담한 대화(유저 발화 14~22회,
+# 실제로 추천이 생성된 상담)조차 clarity가 45 언저리로 나와 게이트 50에 걸렸다.
+# LLM이 매기는 주관 점수라 45~50을 오가며 통과/차단이 갈렸고, 사용자에겐 "코치는 확인하라는데
+# 눌러보면 더 대화하라 하고, 새로고침하면 뜨는" 증상으로 보였다. temperature=0 고정과 함께
+# 경계를 낮춰, 대화가 정말 부족한 경우(실측 15~35)만 걸러지게 한다.
+APTITUDE_CLARITY_MIN = 40
 INTEREST_WEIGHT = 0.3  # 흥미유형 매칭 반영 비중 (역량 점수가 주 신호, 설문은 보조 신호)
 
 
@@ -77,6 +83,10 @@ async def _extract_profile(session: AsyncSession, consultation: Consultation) ->
             [ChatMessage(role="user", content=f"## 상담 대화\n{transcript}")],
             system=system,
             json_schema=_extraction_schema([c["key"] for c in competencies]),
+            # 기본 0.3이면 같은 대화인데도 aptitude_clarity가 매번 달라져(실측 45·50·45·45·45)
+            # 게이트 경계에서 통과/차단이 운으로 갈렸다 — "확인하라더니 더 대화하라고 뜨고,
+            # 새로고침하면 뜨는" 증상의 직접 원인. 판정은 결정적이어야 한다.
+            temperature=0.0,
         )
     except Exception as e:  # noqa: BLE001 — LLM 실패를 raw 500 대신 명확한 503으로
         logger.warning("추천 프로파일 추출 실패 (consultation=%d): %s", consultation.id, e)
