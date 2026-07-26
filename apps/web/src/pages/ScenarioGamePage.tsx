@@ -1994,7 +1994,7 @@ export function ScenarioGamePage() {
                     : phase === "tour_greet"
                       ? tourGreetOpened
                         ? `${tourStop?.name ?? "동료"} 님에게 직접 인사를 건네보세요. (아래 채팅창)`
-                        : `${tourStop?.name ?? "동료"} 님에게 걸어가서(WASD) 클릭하면 대화가 열려요.`
+                        : `${tourStop?.name ?? "동료"} 님에게 걸어가서(WASD) 클릭 또는 스페이스바로 대화를 여세요.`
                       : npcMessage || "…"
             }
             stepLabel={
@@ -2154,6 +2154,8 @@ export function ScenarioGamePage() {
         <span className={styles.keyboardGuide} aria-hidden="true">
           <kbd>WASD</kbd>
           <span>이동</span>
+          <kbd>Space</kbd>
+          <span>대화</span>
         </span>
       </div>
 

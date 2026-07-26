@@ -1016,6 +1016,29 @@ export function MovementArea({
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (isTypingTarget(event.target)) return;
+      // 스페이스바 = 마커 클릭과 같은 '대화 열기'. 말 걸 수 있는 거리(TALK_RADIUS) 안에서
+      // 가장 가까운 NPC와 대화를 연다. 손을 키보드에 둔 채로 다가가 바로 말을 걸 수 있게.
+      if (event.key === " " || event.code === "Space") {
+        event.preventDefault();
+        const from = positionRef.current;
+        const cx = from.x + PLAYER_SIZE.width / 2;
+        const cy = from.y + PLAYER_SIZE.height / 2;
+        let nearestId: string | null = null;
+        let nearest = TALK_RADIUS;
+        for (const [npcId, pos] of Object.entries(npcPosRef.current)) {
+          const d = Math.hypot(cx - pos.x, cy - pos.y);
+          if (d < nearest) {
+            nearest = d;
+            nearestId = npcId;
+          }
+        }
+        if (nearestId) {
+          approachRef.current = null; // 걸어가던 중이었다면 여기서 바로 대화로 전환
+          walkTargetRef.current = null;
+          onNpcClickRef.current?.(nearestId);
+        }
+        return;
+      }
       if (!MOVEMENT_KEYS[event.key]) return;
       event.preventDefault();
       if (!held.includes(event.key)) held.push(event.key); // 키 반복으로 중복 쌓이지 않게
@@ -1177,7 +1200,7 @@ export function MovementArea({
       ref={areaRef}
       className={styles.movementArea}
       onPointerDown={handlePointerDown}
-      aria-label="플레이어 이동 영역. 방향키 또는 WASD로 이동할 수 있습니다."
+      aria-label="플레이어 이동 영역. 방향키 또는 WASD로 이동하고, 가까이 있는 사람과는 스페이스바로 대화할 수 있습니다."
     >
       <div
         className={styles.mapWorld}
