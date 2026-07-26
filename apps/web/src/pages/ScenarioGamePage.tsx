@@ -172,11 +172,13 @@ const SCENARIO_BGM_TRACKS: Readonly<Record<string, readonly string[]>> = {
 
 const BGM_VOLUME_KEY = "scenario-bgm-volume";
 const COACH_VOLUME_KEY = "scenario-coach-volume";
-const DEFAULT_BGM_VOLUME = 0.09;
-const DEFAULT_COACH_VOLUME = 1;
+const DEFAULT_BGM_VOLUME = 0.1;
+const DEFAULT_COACH_VOLUME = 0.5;
 
 function savedVolume(key: string, fallback: number): number {
-  const saved = Number(localStorage.getItem(key));
+  const stored = localStorage.getItem(key);
+  if (stored === null || stored.trim() === "") return fallback;
+  const saved = Number(stored);
   return Number.isFinite(saved) && saved >= 0 && saved <= 1 ? saved : fallback;
 }
 
@@ -1101,7 +1103,7 @@ export function ScenarioGamePage() {
     const audio = new Audio();
     bgmAudioRef.current = audio;
     audio.preload = "auto";
-    // 저장된 음량이 없을 때는 코치 TTS가 항상 전면에 들리도록 기존 0.09를 유지한다.
+    // 저장된 음량이 없으면 공통 기본값(BGM 10%, 코치 TTS 50%)을 적용한다.
     audio.volume = bgmVolumeRef.current;
 
     const disarmUnlock = () => {
