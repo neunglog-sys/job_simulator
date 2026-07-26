@@ -7,7 +7,7 @@
 
 ## 직무 추천 결과
 {% for r in recommendations %}
-- {{ r.job_title }} (적합도 {{ r.score }}점): {{ r.reason }}{% if r.related_jobs %} [같은 계열 직업 예시: {{ r.related_jobs | join(', ') }}]{% endif %}
+- {{ r.job_title }} (적합도 {{ r.score }}점): {{ r.reason }}{% if r.related_jobs is defined and r.related_jobs %} [같은 계열 직업 예시: {{ r.related_jobs | join(', ') }}]{% endif %}
 {% endfor %}
 
 {% set top = recommendations[0] if recommendations else None %}

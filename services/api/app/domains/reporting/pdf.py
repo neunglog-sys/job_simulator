@@ -22,7 +22,7 @@ from pathlib import Path
 
 from reportlab.lib import colors
 from reportlab.lib.colors import Color, HexColor, white
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
@@ -266,8 +266,10 @@ def _prose_card(text: str, *, bg: colors.Color = LAVENDER,
 def _radar(measured: dict[str, int]) -> Drawing | None:
     """역량 레이더(거미줄) 차트 — 측정된 역량(≥3개)만 축으로. 미측정 축은 넣지 않는다.
 
-    reference 시리즈([100]*n)를 옅은 링으로 함께 그려 눈금(0~100)을 고정한다
-    (SpiderChart는 스포크별 최댓값에 맞춰 스케일하므로, 100 링이 있어야 값이 절대비율로 보인다).
+    25/50/75/100 눈금 링을 옅은 격자(graticule)로 먼저 깔고 그 위에 실측 폴리곤을
+    그린다. SpiderChart는 스포크별 최댓값(=100 링)에 맞춰 스케일하므로 눈금 링이
+    있어야 값이 절대비율로 보이고, 실측을 '맨 위'에 그려야 링과 겹쳐 보이지 않는다
+    (SpiderChart는 data 순서대로 겹쳐 그리므로 실측 시리즈를 마지막에 둔다).
     """
     if len(measured) < 3:
         return None
@@ -282,23 +284,27 @@ def _radar(measured: dict[str, int]) -> Drawing | None:
     sp.height = 74 * mm
     sp.x = (dw - sp.width) / 2
     sp.y = (dh - sp.height) / 2
-    sp.data = [values, [100] * n]
+    # 격자 링(25·50·75·100)을 먼저, 실측 폴리곤을 맨 마지막에 → 실측이 위로 온다
+    grid_rings = [25, 50, 75, 100]
+    sp.data = [[g] * n for g in grid_rings] + [values]
     sp.labels = labels
     sp.spokeLabels.fontName = FONT_SB
     sp.spokeLabels.fontSize = 8.5
     sp.spokeLabels.fillColor = INK
     sp.spokes.strokeColor = TRACK
     sp.spokes.strokeWidth = 0.5
-    # 실측 폴리곤
-    sp.strands[0].strokeColor = PRIMARY
-    sp.strands[0].strokeWidth = 1.8
-    sp.strands[0].fillColor = PRIMARY_FILL
-    sp.strands[0].symbol = None
-    # 100 기준 링(옅게)
-    sp.strands[1].strokeColor = BORDER
-    sp.strands[1].strokeWidth = 0.75
-    sp.strands[1].fillColor = None
-    sp.strands[1].symbol = None
+    # 눈금 링 — 옅은 격자(내부 3개는 아주 옅게, 100 링만 약간 또렷하게)
+    for i in range(len(grid_rings)):
+        sp.strands[i].strokeColor = BORDER if grid_rings[i] == 100 else TRACK
+        sp.strands[i].strokeWidth = 0.5
+        sp.strands[i].fillColor = None
+        sp.strands[i].symbol = None
+    # 실측 폴리곤 — 맨 위, 굵은 퍼플 + 반투명 채움
+    meas = len(grid_rings)
+    sp.strands[meas].strokeColor = PRIMARY
+    sp.strands[meas].strokeWidth = 2.0
+    sp.strands[meas].fillColor = PRIMARY_FILL
+    sp.strands[meas].symbol = None
     d.add(sp)
     d.hAlign = "CENTER"
     return d

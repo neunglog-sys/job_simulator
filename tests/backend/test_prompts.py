@@ -69,7 +69,7 @@ def test_report_prompt_renders():
     assert "20~30대" in out
     assert "난이도를 낮춘 다음 행동 하나" in out
     assert "현재 대화와 수행 기록만으로는 확인하기 어려움" in out
-    assert "시뮬레이션" not in out  # 수행 데이터 없으면 해당 섹션 미출력
+    assert "직무 체험(시뮬레이션) 수행 결과" not in out  # 수행 데이터 없으면 해당 섹션 미출력
 
 
 def test_job_master_system_keeps_grounded_supportive_contract():
@@ -100,7 +100,10 @@ def test_report_prompt_with_performance():
             "total": 82,
             "mission_avg": 85,
             "competencies": {"communication": 81, "collaboration": None},
-            "missions": [{"type": "정상업무", "adjusted": 85, "attempts": 1}],
+            "missions": [
+                {"step": "m1", "type": "정상업무", "adjusted": 85, "attempts": 1, "max_hint_level": 0}
+            ],
+            "mission_titles": {"m1": "접수 응대"},
             "quest": {"status": "passed", "adjusted": 70},
         },
     )
@@ -157,7 +160,10 @@ def test_report_prompt_includes_conduct_when_present():
             "total": 82,
             "mission_avg": 85,
             "competencies": {"communication": 81},
-            "missions": [{"type": "정상업무", "adjusted": 85, "attempts": 1}],
+            "missions": [
+                {"step": "m1", "type": "정상업무", "adjusted": 85, "attempts": 1, "max_hint_level": 0}
+            ],
+            "mission_titles": {"m1": "이슈 처리"},
             "quest": None,
             "conduct": {"average": 48, "band": "보통", "npc_count": 2, "lowest": 44},
         },
