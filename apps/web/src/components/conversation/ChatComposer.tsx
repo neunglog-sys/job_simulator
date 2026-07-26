@@ -1,12 +1,16 @@
-import { CircleNotch, Microphone, PaperPlaneTilt, Stop } from "@phosphor-icons/react";
+import { CircleNotch, Microphone, PaperPlaneTilt, Pause } from "@phosphor-icons/react";
+import { AnimatePresence } from "motion/react";
 import { useLayoutEffect, useRef, type FormEvent, type KeyboardEvent } from "react";
 import styles from "../../styles/oneToOneConversation.module.css";
 import type { RecordingState } from "../../types/conversation";
+import { VoiceLevelMeter } from "./VoiceLevelMeter";
 
 type ChatComposerProps = {
   inputValue: string;
   recordingState: RecordingState;
   voiceIssue: string | null;
+  voiceLevel: number;
+  voiceBands: number[];
   onInputChange: (value: string) => void;
   onSend: () => void;
   onVoiceInput: () => void;
@@ -20,6 +24,8 @@ export function ChatComposer({
   inputValue,
   recordingState,
   voiceIssue,
+  voiceLevel,
+  voiceBands,
   onInputChange,
   onSend,
   onVoiceInput,
@@ -28,6 +34,8 @@ export function ChatComposer({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const previousHeightRef = useRef(MIN_COMPOSER_HEIGHT);
   const isVoiceBusy = recordingState === "requesting" || recordingState === "processing";
+  const isVoiceMode = recordingState !== "idle";
+  const isRecording = recordingState === "recording";
 
   useLayoutEffect(() => {
     const textarea = textareaRef.current;
@@ -66,7 +74,7 @@ export function ChatComposer({
           {voiceIssue}
         </p>
       ) : null}
-      <div className={styles.messageInputWrapper}>
+      <div className={styles.messageInputWrapper} data-voice-mode={isVoiceMode}>
         <textarea
           ref={textareaRef}
           className={styles.messageInput}
@@ -81,7 +89,9 @@ export function ChatComposer({
         <button
           className={styles.sendButton}
           type="submit"
-          disabled={!inputValue.trim()}
+          disabled={!inputValue.trim() || isVoiceMode}
+          aria-hidden={isVoiceMode}
+          tabIndex={isVoiceMode ? -1 : 0}
           aria-label="메시지 전송"
         >
           <PaperPlaneTilt aria-hidden="true" weight="fill" />
@@ -94,18 +104,23 @@ export function ChatComposer({
           onClick={onVoiceInput}
           disabled={isVoiceBusy}
           data-state={recordingState}
-          aria-label={recordingState === "recording" ? "음성 입력 중지" : "음성 입력 시작"}
-          aria-pressed={recordingState === "recording"}
+          aria-label={isRecording ? "음성 입력 일시정지" : "음성 입력 시작"}
+          aria-pressed={isRecording}
           title={voiceIssue ?? undefined}
         >
           {isVoiceBusy ? (
             <CircleNotch className={styles.voiceSpinner} aria-hidden="true" />
-          ) : recordingState === "recording" ? (
-            <Stop aria-hidden="true" weight="fill" />
+          ) : isRecording ? (
+            <Pause aria-hidden="true" weight="fill" />
           ) : (
             <Microphone aria-hidden="true" weight="regular" />
           )}
         </button>
+        <AnimatePresence initial={false}>
+          {isRecording ? (
+            <VoiceLevelMeter level={voiceLevel} bands={voiceBands} />
+          ) : null}
+        </AnimatePresence>
       </div>
     </form>
   );

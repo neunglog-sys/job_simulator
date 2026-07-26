@@ -2181,6 +2181,9 @@ export function ScenarioGamePage() {
         <BriefingPanel
           npcName={activeNpc?.name ?? "사수"}
           npcRole={activeNpc?.role}
+          npcPortraitSrc={
+            activeNpc ? NPC_STANDING_ILLUSTRATIONS[activeNpc.npc_id] : undefined
+          }
           missionTitle={activeStep.title}
           mission={activeStep.mission}
           steps={activeStep.briefing ?? []}

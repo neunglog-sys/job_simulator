@@ -3098,14 +3098,29 @@ button.headerOrb:active {
   justify-content: center;
   width: 52px;
   height: 52px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.72);
   border-radius: 50%;
   color: var(--scenario-accent);
   background: rgb(255 255 255 / 0.92);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.72),
+    0 6px 16px rgb(31 18 65 / 0.18);
 }
 
 .encounterAvatar svg {
   width: 32px;
   height: 32px;
+}
+
+.encounterAvatar img {
+  position: relative;
+  top: -5px;
+  display: block;
+  width: 210%;
+  max-width: none;
+  height: auto;
+  flex: 0 0 auto;
 }
 
 .encounterBody {

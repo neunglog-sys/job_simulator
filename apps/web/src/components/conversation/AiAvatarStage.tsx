@@ -8,7 +8,10 @@ import {
 import styles from "../../styles/oneToOneConversation.module.css";
 import type { AvatarStatus } from "../../types/conversation";
 
-type MuseTalkStageRequest = MuseTalkSpeakRequest & { id: number };
+type MuseTalkStageRequest = MuseTalkSpeakRequest & {
+  id: number;
+  displayCharacters?: number;
+};
 
 type AiAvatarStageProps = {
   children?: ReactNode;
@@ -17,6 +20,7 @@ type AiAvatarStageProps = {
   avatarId?: CoachAvatarId;
   museTalkRequest?: MuseTalkStageRequest | null;
   hlsUrl?: string | null;
+  onSpeakingStart?: (durationMs: number | null) => void;
   onSpeakingEnd?: () => void;
   onSpeakingError?: () => void;
   onMuseTalkMetrics?: (metrics: Record<string, unknown>) => void;
@@ -115,11 +119,13 @@ export function AiAvatarStage({
   avatarId,
   museTalkRequest,
   hlsUrl,
+  onSpeakingStart,
   onSpeakingEnd,
   onSpeakingError,
   onMuseTalkMetrics,
 }: AiAvatarStageProps) {
   const speakRef = useRef<HTMLVideoElement | null>(null);
+  const speakingStartKeyRef = useRef<string | null>(null);
   /** idle 영상. 발화와 머리 위상을 맞추려면 재생 위치를 읽고 되감아야 해서 ref가 필요하다. */
   const idleRef = useRef<HTMLVideoElement | null>(null);
   /** 요청 → 실제 재생 시작까지의 지연 추정치(초).
@@ -145,6 +151,15 @@ export function AiAvatarStage({
   const safeVolume = Math.min(1, Math.max(0, volume));
   const resolvedAvatarId = resolveAvatarId(avatarId);
   const coach = COACH_PROFILES[resolvedAvatarId];
+  const speakingMediaKey = museTalkRequest
+    ? `musetalk-${museTalkRequest.id}`
+    : hlsUrl
+      ? `hls-${hlsUrl}`
+      : null;
+
+  useEffect(() => {
+    speakingStartKeyRef.current = null;
+  }, [speakingMediaKey]);
 
   useEffect(() => {
     if (speakRef.current) speakRef.current.volume = safeVolume;
@@ -488,7 +503,11 @@ export function AiAvatarStage({
     video.addEventListener("ended", handleEnded);
 
     socket.onopen = () => {
-      const { id: _id, ...payload } = museTalkRequest;
+      const {
+        id: _id,
+        displayCharacters: _displayCharacters,
+        ...payload
+      } = museTalkRequest;
       // idle의 **재생 시작 시점 예상 위치**를 보낸다. 지금 위치를 그대로 보내면 생성·전송에
       // 걸리는 시간만큼 idle이 앞서가 어긋나고, 그걸 되감으면 그 되감기가 점프로 보인다.
       const idle = idleRef.current;
@@ -661,9 +680,23 @@ export function AiAvatarStage({
           playsInline
           preload="auto"
           onPlaying={(event) => {
-            event.currentTarget.volume = safeVolume;
-            event.currentTarget.muted = false;
+            const video = event.currentTarget;
+            video.volume = safeVolume;
+            video.muted = false;
             setSpeakReady(true);
+            if (
+              speakingMediaKey &&
+              speakingStartKeyRef.current !== speakingMediaKey
+            ) {
+              speakingStartKeyRef.current = speakingMediaKey;
+              const remainingSeconds =
+                Number.isFinite(video.duration) && video.duration > video.currentTime
+                  ? video.duration - video.currentTime
+                  : null;
+              onSpeakingStart?.(
+                remainingSeconds === null ? null : Math.round(remainingSeconds * 1000),
+              );
+            }
           }}
           onEnded={onSpeakingEnd}
           aria-hidden={!speaking}
