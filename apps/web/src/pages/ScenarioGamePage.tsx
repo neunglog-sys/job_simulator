@@ -1863,6 +1863,9 @@ export function ScenarioGamePage() {
           mapImage={mapImage}
           npcs={npcs}
           activeNpcId={activeNpcId}
+          // 스페이스바로 말을 걸 상대 — 투어 인사 중엔 지금 인사할 동료, 그 외에는 현재 스텝
+          // 담당 NPC. 근처에 다른 사람이 있어도 '지금 대화해야 하는 상대'가 먼저 열린다.
+          talkTargetNpcId={phase === "tour_greet" ? tourStop?.npc ?? null : activeNpcId}
           // 컷신 중엔 마커 클릭을 막지만, 인사(tour_greet)만은 예외 — 신입이 그 동료를 눌러
           // 다가가서 대화를 여는 단계라 클릭이 필요하다.
           onNpcClick={
