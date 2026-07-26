@@ -258,6 +258,36 @@ const VOICE_LEVEL_THRESHOLD = 0.025;
 const VOICE_START_GRACE_MS = 1_400;
 const VOICE_SILENCE_TIMEOUT_MS = 2_800;
 const MUSE_TALK_CHUNK_MAX_CHARS = 420;
+/** LLM 답변을 문장 단위로 쪼개 **먼저 나온 문장부터** 아바타에 보낼지.
+ *
+ * 2026-07-26 실측(같은 문장, 같은 서버):
+ *   한 번에 25.8초 생성 → 립싱크 상관 0.291, 입 변화 σ 2.03, lag −3(불안정)
+ *   문장 4개로 쪼갬     → 상관 0.561~0.729, σ 2.71~3.12, lag 0~+1(안정)
+ * 원인은 datagen이 latent를 `(i + delay_frame) % 298`로 고르는 데 있다. 긴 발화는
+ * 페르소나 사이클을 2바퀴 넘게 돌아 같은 latent가 4~5번 반복 입력되고, 그만큼
+ * 모델이 만드는 입 모양의 다양성이 줄어든다.
+ *
+ * ⚠️ 켜면 다중 청크가 실제로 발생한다. 문장 사이 머리가 튀지 않으려면 각 청크가
+ *    같은 session_id와 순번(seq)을 달고 나가야 한다 — enqueueMuseTalkChunk가
+ *    세션을 자동 시작하고, 답변이 끝나거나 중단되면 닫는다.
+ *    (이 부분은 동작이 확인됐다: 서버 로그에서 seq0 start_frame=367 → seq1 start_frame=412로 이어짐)
+ *
+ * 🔴 그래서 지금은 **꺼 둔다.** 2026-07-26 실측에서 첫 재생이 오히려 12.7초로 악화됐다
+ *    (기준선: 7/23 프로덕션 N=40 p50 7.83초).
+ *
+ *    지연이 어디서 나는지는 4가지 조건으로 좁혀 뒀고, 서버와 터널은 무죄로 확정됐다.
+ *      코랩 로컬 · 단독       첫 바이트 0.69s
+ *      코랩 로컬 · 동시 2청크  첫 바이트 0.675s / 2.03s
+ *      터널 경유 · 단독       첫 바이트 1.22s
+ *      터널 경유 · 동시 2청크  첫 바이트 1.18s / 2.42s   ← 브라우저와 완전히 같은 조건
+ *      실제 브라우저 · 동시 2청크 첫 바이트 10.9s        ← 여기서만 느리다
+ *    코랩 서버는 어느 경우에도 0.83~1.03초에 첫 바이트를 내보냈다(로그 14/14).
+ *    남은 구간은 nginx → FastAPI 릴레이 → 브라우저뿐이다. 릴레이는 투명 펌프라
+ *    `await client_ws.send_text()`가 막히면 그만큼 첫 바이너리 기록도 밀린다
+ *    (services/api/app/domains/avatar/service.py 의 upstream_to_client).
+ *    → 브라우저가 소켓을 제때 안 비우는 쪽이 유력하다. 별도로 규명한 뒤 다시 켠다.
+ *
+ *    끄면 청크가 1개뿐이라 session_id/seq 경로는 그대로 두어도 무해하다. */
 const MUSE_TALK_STREAM_SENTENCE_FLUSH = false;
 const AVATAR_SPEECH_MAX_SENTENCES = 5;
 const AVATAR_SPEECH_MAX_CHARS = 420;
@@ -364,6 +394,10 @@ export function OneToOneConversationPage() {
     avatarQueueRef.current = [];
     museTalkPendingTextRef.current = [];
     museTalkPrefetchRunningRef.current = false;
+    // 중단·오류로 발화가 끊기면 세션도 닫는다. 안 닫으면 다음 답변이 죽은 세션의
+    // seq를 이어받아 서버가 오지 않을 앞 청크를 기다린다(최대 20초 대기).
+    speechSessionIdRef.current = "";
+    speechSeqRef.current = 0;
     revokeMuseTalkBlobUrls();
     avatarPlayingRef.current = false;
     setAvatarHlsUrl(null);
@@ -442,6 +476,16 @@ export function OneToOneConversationPage() {
         museTalkPrefetchRunningRef.current;
 
       // 재생 순번은 **분할 시점에** 매긴다. 이후 어느 경로(MSE·프리페치)로 가든 같은 번호를 쓴다.
+      // 세션이 아직 없으면 여기서 시작한다 — 문장 단위 flush(flushMuseTalkSentences)는
+      // enqueueMuseTalkSpeech를 거치지 않고 이 함수를 직접 부르기 때문에, 세션 발급을
+      // 여기 두지 않으면 session_id가 빈 문자열로 나가 **서버의 위상 체이닝이 통째로 꺼진다**
+      // (그러면 문장이 바뀔 때마다 프레임 0에서 다시 시작해 머리가 튄다).
+      if (!speechSessionIdRef.current) {
+        speechSessionIdRef.current = `s${Date.now().toString(36)}${Math.random()
+          .toString(36)
+          .slice(2, 8)}`;
+        speechSeqRef.current = 0;
+      }
       const sessionId = speechSessionIdRef.current;
       const seq = speechSeqRef.current++;
 
@@ -473,9 +517,10 @@ export function OneToOneConversationPage() {
       const chunks = splitMuseTalkSpeech(text);
       console.info("[MuseTalk]", "sentence_chunks", chunks.length, chunks);
       museTalkPrefetchGenerationRef.current += 1;
-      // 새 답변 = 새 세션. 순번도 0부터 다시 센다.
-      speechSessionIdRef.current =
-        `s${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+      // 새 답변 = 새 세션. 여기서 발급하지 않고 **비우기만** 한다 — 실제 발급은 첫 청크가
+      // 만들어질 때(enqueueMuseTalkChunk) 일어난다. 그래야 문장 flush로 이미 세션이
+      // 시작된 경우 그 세션을 덮어써 체인을 끊는 일이 없다.
+      speechSessionIdRef.current = "";
       speechSeqRef.current = 0;
       if (chunks.length === 0) {
         setAvatarStatus("idle");
@@ -815,7 +860,15 @@ export function OneToOneConversationPage() {
           speech_chars: avatarSpeech.length,
           text: avatarSpeech,
         });
-        if (!museTalkStartedFromStream) enqueueMuseTalkSpeech(avatarSpeech);
+        if (museTalkStartedFromStream) {
+          // 문장 flush가 이미 이 답변의 청크를 다 보냈다. 세션을 닫아 다음 답변이
+          // 같은 session_id를 이어받지 않게 한다(이어받으면 새 답변이 이전 답변의
+          // end_frame에서 시작해 idle 위치와 어긋난다).
+          speechSessionIdRef.current = "";
+          speechSeqRef.current = 0;
+        } else {
+          enqueueMuseTalkSpeech(avatarSpeech);
+        }
       }
     } else if (avatarProvider) {
       try {

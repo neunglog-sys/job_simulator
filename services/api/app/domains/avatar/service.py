@@ -772,25 +772,38 @@ async def warmup_musetalk() -> dict:
 
 
 async def _fire_dummy_warmup() -> None:
-    """코랩에 더미 발화 1회 — done까지 소비해 GPU를 비우고(다음 실제 요청이 큐잉 안 되게) 끝낸다."""
+    """코랩에 더미 발화 — done까지 소비해 GPU를 비우고(다음 실제 요청이 큐잉 안 되게) 끝낸다.
+
+    남·여 두 아바타를 각각 예열한다. 코랩 PERSONA_MAP은 avatar_id("male"/"female")로 서로 다른
+    idle 영상·목소리를 쓰고, cuDNN benchmark는 프레임 크기(영상)별로 커널을 캐시하므로 한쪽만
+    데우면 나머지 아바타의 첫 실제 발화가 여전히 콜드다. 여성 에셋 미준비 시엔 코랩이 남성
+    영상으로 폴백(중복 예열)하므로 실패하지 않는다. 순차로 보내 단일 GPU 워커와 충돌하지 않게 한다.
+    """
     ws_url = settings.avatar_musetalk_ws_url.strip()
     import websockets
 
-    async with websockets.connect(
-        ws_url,
-        additional_headers={"ngrok-skip-browser-warning": "true"},
-        max_size=None,
-        open_timeout=15,
-        ping_interval=20,
-    ) as ws:
-        await ws.send(json.dumps({"speaker_id": "coach", "text": "안녕하세요."}))
-        async for m in ws:
-            if isinstance(m, str):
-                try:
-                    if json.loads(m).get("type") in ("done", "error"):
-                        return
-                except Exception:  # noqa: BLE001
-                    continue
+    async def _fire_one(payload: dict) -> None:
+        async with websockets.connect(
+            ws_url,
+            additional_headers={"ngrok-skip-browser-warning": "true"},
+            max_size=None,
+            open_timeout=15,
+            ping_interval=20,
+        ) as ws:
+            await ws.send(json.dumps(payload))
+            async for m in ws:
+                if isinstance(m, str):
+                    try:
+                        if json.loads(m).get("type") in ("done", "error"):
+                            return
+                    except Exception:  # noqa: BLE001
+                        continue
+
+    for payload in (
+        {"speaker_id": "coach", "avatar_id": "male", "text": "안녕하세요."},
+        {"speaker_id": "coach", "avatar_id": "female", "text": "안녕하세요."},
+    ):
+        await _fire_one(payload)
 
 
 async def speak_chunk_events(text: str, voice: str | None = None, avatar_id: str | None = None):
