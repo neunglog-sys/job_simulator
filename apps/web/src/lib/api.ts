@@ -83,7 +83,13 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
 
 // --- 백엔드 응답 타입 (스키마와 1:1) ---
 export type TokenOut = { access_token: string; token_type: string };
-export type Me = { id: number; email: string | null; name: string; has_password: boolean };
+export type Me = {
+  id: number;
+  email: string | null;
+  name: string;
+  has_password: boolean;
+  gender: "male" | "female" | null; // 게임 주인공 스프라이트 성별 배선용 (미설정 시 null)
+};
 export type Consultation = { id: number; status: string; created_at: string };
 export type ConsultationSummary = {
   id: number;

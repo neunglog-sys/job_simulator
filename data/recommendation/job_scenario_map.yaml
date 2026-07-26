@@ -212,3 +212,50 @@ j102: jm-05
 j103: jm-01
 # 마케터 → sim 0.841 | 차순위: stn-03(데이터·CRM·매출 분석) 0.803, stn-05(서비스·상품·사업기획 보조) 0.795
 marketer: stn-01
+
+# ── 카테고리 직무 self-매핑 (2026-07-26, 사람 추가) ──────────────────────────
+# 이 카테고리 직무들은 competencies 없이 dimension_weights만 있어(is_recommendable=True라
+# 추천엔 뜬다) map_jobs_to_scenarios의 `if j.competencies` 필터에서 빠져 매핑이 없었다 →
+# 추천 카드가 항상 '체험 시나리오 준비 중'으로 뜨던 원인. code가 그 자체로 살아있는
+# 시나리오 slug라 항등 매핑한다. 스크립트 필터도 is_recommendable로 맞춰 재생성해도 동일 산출.
+kts-01: kts-01
+kts-02: kts-02
+kts-03: kts-03
+kts-04: kts-04
+kts-05: kts-05
+ms-01: ms-01
+ms-02: ms-02
+ms-03: ms-03
+ms-04: ms-04
+ms-05: ms-05
+ms-06: ms-06
+ms-07: ms-07
+ms-08: ms-08
+ms-09: ms-09
+ms-10: ms-10
+ys-01: ys-01
+ys-02: ys-02
+ys-03: ys-03
+ys-04: ys-04
+ys-05: ys-05
+ys-06: ys-06
+ys-07: ys-07
+ys-08: ys-08
+ys-09: ys-09
+ys-10: ys-10
+jm-01: jm-01
+jm-02: jm-02
+jm-03: jm-03
+jm-04: jm-04
+jm-05: jm-05
+yg-01: yg-01
+yg-02: yg-02
+yg-03: yg-03
+yg-04: yg-04
+yg-05: yg-05
+stn-01: stn-01
+stn-02: stn-02
+stn-03: stn-03
+stn-04: stn-04
+stn-05: stn-05
+sns-01: sns-01

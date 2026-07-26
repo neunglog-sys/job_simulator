@@ -96,7 +96,7 @@ async def generate_cards(vars_: dict) -> dict | None:
 
 _HANGUL = re.compile(r"[가-힣]")
 _SENTENCES = re.compile(r"[^.!?…]*[.!?…]+|\S[^.!?…]*$")  # 종결부호 포함 문장 단위 분할
-_TIP_SOFT_CAP = 330  # 330자 '내외' — 문장 경계에서 컷 (폭주·과다 생성 방지)
+_TIP_SOFT_CAP = 200  # 문장 경계에서 컷 — 옆자리 선배 한두 마디 톤 유지(폭주·장문 잔소리 방지, 2026-07-26 330→200)
 
 
 def _clean_tip(text: str) -> str:
@@ -143,9 +143,9 @@ async def generate_tip(
             trigger=trigger,
         )
         reply = await get_llm().chat(
-            [ChatMessage(role="user", content="위 상황에 맞는 코치 TIP을 330자 이내로 출력하세요.")],
+            [ChatMessage(role="user", content="위 상황에 맞는 코치 TIP을 한두 문장(150자 이내)으로 짧게 출력하세요.")],
             system=system,
-            temperature=0.4,
+            temperature=0.6,  # 매 턴 같은 틀 반복을 줄이려 약간 높임(0.4→0.6)
         )
         tip = _clean_tip(reply)
         if not tip:

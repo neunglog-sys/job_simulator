@@ -348,7 +348,13 @@ def _speaker(m: Message, roster: dict[str, dict]) -> str:
 
 
 # AI 코치 실시간 TIP 발동 조건 — 신입이 정답을 요구하거나 답답해할 때, 또는 사수가 거부/무뚝뚝하게 반응할 때
-_TIP_USER = re.compile(r"정답|답\s*(을|좀|이|뭐|알려|찍)|그냥\s*(알려|해|답)|알려\s*주|찍어|짜증|몰라|모르겠|대충|귀찮|하기\s*싫")
+_TIP_USER = re.compile(
+    r"정답|답\s*(을|좀|이|뭐|알려|찍)|그냥\s*(알려|해|답)|알려\s*주|찍어|짜증|"
+    r"몰라|모르겠|모르는|잘\s*모|대충|귀찮|하기\s*싫|"
+    # 막힘·답답·도움요청 신호도 개입 트리거로 확장 (2026-07-26, 개입 강화)
+    r"어떻게\s*(하|해|할|하죠|하지)|뭐\s*(부터|를\s*해|해야|하지)|어디\s*서?\s*부터|"
+    r"막막|막혔|막힘|막혀|어려|힘들|헷갈|헤매|감\s*(이\s*)?안|도와|도움|어카|어쩌"
+)
 _TIP_NPC = re.compile(r"왜\s*(나|저)한테|직접\s*(확인|알아|해)|본인이\s*(직접|알아|확인)|알아서\s*(해|찾)")
 
 
@@ -357,9 +363,10 @@ def _should_coach_tip(user_text: str, npc_reply: str) -> bool:
 
 
 # 정체 감지 — 키워드 트리거 없이도, 미션에 실질적 영향이 없는 대화(아래 두 신호)만 이어지면
-# 코치가 먼저 끼어든다. 매 턴 반응하면 참견처럼 느껴지고 너무 뜸하면 방치처럼 느껴져
-# 3턴으로 절충 (팀 조정 가능).
-STAGNANT_TURNS = 3
+# 코치가 먼저 끼어든다. 데모 임팩트 우선 — 정체가 감지되면 바로 개입(1턴).
+# 진전(제출·유의미 발화)이 있으면 카운터가 리셋되므로, 실제로는 "막혀서 겉도는 턴"에만 붙는다.
+# (팀 조정 가능: 참견이 과하면 2~3으로 올린다. 2026-07-26 사용자 요청으로 3→1.)
+STAGNANT_TURNS = 1
 REPEAT_SIMILARITY = 0.6  # 이 이상이면 "같은 말 되풀이"로 간주 (문자 2-gram 자카드)
 
 
@@ -1363,9 +1370,11 @@ async def submit_task(
         except Exception:  # noqa: BLE001 — 스냅샷 실패가 성공한 제출을 500으로 만들면 안 됨
             logger.exception("점수 스냅샷 실패 (simulation=%d) — GET /score는 재집계로 동작", simulation.id)
 
-    # AI 코치: 서술형 통과 시 완료당 1회, 제출물 사후 리뷰 (선택·배열형은 리뷰할 글이 없음)
+    # AI 코치: 서술형 제출마다 사후 리뷰 (선택·배열형은 리뷰할 글이 없음).
+    # 통과=성공 카드, 실패=개선 카드(requirement_check/error_correction) — system.md가 두 경우 다 처리.
+    # (2026-07-26 개입 강화: 통과 시에만 → 실패 시에도. 막혔을 때 코치가 가장 필요하다는 관점.)
     coach_cards = None
-    if result["passed"] and task.get("kind") not in scoring.RULE_KINDS:
+    if task.get("kind") not in scoring.RULE_KINDS:
         coach_cards = await coach.generate_cards(coach.build_vars(
             simulation_id=simulation.id, scenario_slug=scenario.slug,
             step=step, task=task, submission=submission, result=result, attempt=attempt_n,
@@ -1447,7 +1456,7 @@ async def _submit_quest(
     await session.commit()
 
     coach_cards = None
-    if result["passed"] and qtask.get("kind") not in scoring.RULE_KINDS:
+    if qtask.get("kind") not in scoring.RULE_KINDS:  # 통과·실패 모두 리뷰 (2026-07-26 개입 강화)
         quest_step = {"id": "quest", "title": "돌발 퀘스트", "mission": quest_def.get("intro", "")}
         coach_cards = await coach.generate_cards(coach.build_vars(
             simulation_id=simulation.id, scenario_slug=scenario.slug,
