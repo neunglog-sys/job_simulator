@@ -96,6 +96,16 @@ function buildHints(
       description: step.briefing.map((line, index) => `${index + 1}. ${line}`).join("\n"),
     });
   }
+  // 제공자료 본문 — 자료 하나가 카드 하나. guide(이름 나열) 바로 앞에 놓아 먼저 눈에 띄게 한다.
+  // 이 자료를 대조해야 답이 나오는 과제(예: 정산 차액 규명)라 브리핑과 무관하게 항상 열어 둔다.
+  for (const material of step?.materials ?? []) {
+    cards.push({
+      id: `material-${material.title}`,
+      category: "제공 자료",
+      title: material.title,
+      description: material.body,
+    });
+  }
   if (step?.guide) {
     cards.push({
       id: "guide",
