@@ -28,6 +28,9 @@ type MovementAreaProps = {
   mapImage?: string | null;
   npcs?: GameNpc[];
   activeNpcId?: string | null; // 현재 미션 담당 NPC — 마커를 그 이름으로 강조
+  // 스페이스바로 말을 걸 '지금 대화해야 하는 상대'(현재 스텝 담당 NPC, 투어 중엔 인사 대상).
+  // 곁에 다른 NPC가 더 가까이 있어도 이 사람이 사거리 안에 있으면 이쪽과 대화를 연다.
+  talkTargetNpcId?: string | null;
   onNpcClick?: (npcId: string) => void; // NPC 마커 클릭 → 그 NPC와 대화
   onNpcPositionsChange?: (positions: Record<string, Position>) => void;
   // 온보딩 투어(컷신) — 사수가 신입을 데리고 다니는 동안 그 마커를 이 좌표로 옮긴다.
@@ -171,6 +174,7 @@ export function MovementArea({
   mapImage = null,
   npcs = [],
   activeNpcId = null,
+  talkTargetNpcId = null,
   onNpcClick,
   onNpcPositionsChange,
   guideNpcId = null,
@@ -204,6 +208,9 @@ export function MovementArea({
   // 최신 onNpcClick을 RAF 루프에서 부르기 위한 ref.
   const onNpcClickRef = useRef(onNpcClick);
   onNpcClickRef.current = onNpcClick;
+  // 스페이스바 핸들러(등록은 1회)가 매 렌더의 최신 대화 상대를 읽도록 ref로 흘려둔다.
+  const talkTargetRef = useRef(talkTargetNpcId);
+  talkTargetRef.current = talkTargetNpcId;
 
   // geometry 좌표계(스테이지 1920×1080)의 원점 = walkable 영역의 좌상단. movementArea 로컬좌표 = (x-origin).
   const origin = useMemo(() => {
@@ -1016,6 +1023,38 @@ export function MovementArea({
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (isTypingTarget(event.target)) return;
+      // 스페이스바 = 마커 클릭과 같은 '대화 열기'. 손을 키보드에 둔 채로 다가가 바로 말을 건다.
+      // '지금 대화해야 하는 상대'(talkTargetNpcId — 현재 스텝 담당 NPC, 투어 중엔 인사 대상)가
+      // 사거리 안에 있으면 무조건 그 사람과 연다. 옆에 지나가던 다른 NPC가 더 가까워도 스토리
+      // 상대를 놓치지 않게. 대상이 없거나 멀면 사거리 안 가장 가까운 NPC와 연다(자유 대화).
+      if (event.key === " " || event.code === "Space") {
+        event.preventDefault();
+        const from = positionRef.current;
+        const cx = from.x + PLAYER_SIZE.width / 2;
+        const cy = from.y + PLAYER_SIZE.height / 2;
+        const distTo = (pos: { x: number; y: number }) => Math.hypot(cx - pos.x, cy - pos.y);
+        let nearestId: string | null = null;
+        const targetId = talkTargetRef.current;
+        const targetPos = targetId ? npcPosRef.current[targetId] : undefined;
+        if (targetId && targetPos && distTo(targetPos) < TALK_RADIUS) {
+          nearestId = targetId;
+        } else {
+          let nearest = TALK_RADIUS;
+          for (const [npcId, pos] of Object.entries(npcPosRef.current)) {
+            const d = distTo(pos);
+            if (d < nearest) {
+              nearest = d;
+              nearestId = npcId;
+            }
+          }
+        }
+        if (nearestId) {
+          approachRef.current = null; // 걸어가던 중이었다면 여기서 바로 대화로 전환
+          walkTargetRef.current = null;
+          onNpcClickRef.current?.(nearestId);
+        }
+        return;
+      }
       if (!MOVEMENT_KEYS[event.key]) return;
       event.preventDefault();
       if (!held.includes(event.key)) held.push(event.key); // 키 반복으로 중복 쌓이지 않게
@@ -1177,7 +1216,7 @@ export function MovementArea({
       ref={areaRef}
       className={styles.movementArea}
       onPointerDown={handlePointerDown}
-      aria-label="플레이어 이동 영역. 방향키 또는 WASD로 이동할 수 있습니다."
+      aria-label="플레이어 이동 영역. 방향키 또는 WASD로 이동하고, 가까이 있는 사람과는 스페이스바로 대화할 수 있습니다."
     >
       <div
         className={styles.mapWorld}
