@@ -2,7 +2,19 @@ code: yg-05
 title: 웹 운영·콘텐츠 관리
 description: 운영 기준·편성 계획 → 정보·원천데이터 수집 → 사실·품질 검증 → 콘텐츠·라벨 가공 → 편집·승인 → 게시·송출·납품 → 실시간 운영·응대 → 성과·품질 모니터링
   → 수정·업데이트·아카이브
-competencies: {}
+competencies:
+  situation_judgment: 4
+  problem_solving: 4
+  communication: 4
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 1
+  investigative: 3
+  artistic: 3
+  social: 2
+  enterprising: 2
+  conventional: 5
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.artistic: 1.0

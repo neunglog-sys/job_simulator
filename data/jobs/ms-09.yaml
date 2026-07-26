@@ -1,7 +1,19 @@
 code: ms-09
 title: 기계가공·금속가공 작업
 description: 도면·절차서 확인 → 안전·장비 점검 → 자재 전처리 → 조건 설정 → 가공·용접 → 치수·결함 검사 → 보수·재검 → 정리·기록
-competencies: {}
+competencies:
+  situation_judgment: 4
+  problem_solving: 4
+  communication: 2
+  collaboration: 2
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 3
+  artistic: 1
+  social: 1
+  enterprising: 1
+  conventional: 4
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.realistic: 1.0

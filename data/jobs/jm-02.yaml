@@ -2,7 +2,19 @@ code: jm-02
 title: 철도 운행·기관 운전
 description: 운전명령 열람·승무적합성검사(음주·건강) → 차량 인수·기동·제동시험 → 출고·입환(신호 확인) → 본선 운행(신호·시간표 준수, 복명복창) → 관제(사령) 교신·상시
   모니터링 → 돌발 시 비상정차·열차방호(후속열차 차단) → 관제 보고·승객 안내·구원 요청 → 교대·입고·승무일지 기록
-competencies: {}
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 4
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 2
+  artistic: 1
+  social: 1
+  enterprising: 1
+  conventional: 5
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.enterprising: 1.0

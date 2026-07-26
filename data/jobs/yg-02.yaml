@@ -1,7 +1,19 @@
 code: yg-02
 title: 콘텐츠·예술·공예 제작
 description: 요구·주제 정의 → 조사·해석 → 창작 콘셉트 → 원안·설계 → 제작 계획 → 창작·제작 → 다듬기·완성 → 품질·권리 검수 → 발표·유통·보존
-competencies: {}
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 3
+  collaboration: 2
+  task_management: 4
+interest_profile:
+  realistic: 3
+  investigative: 1
+  artistic: 5
+  social: 2
+  enterprising: 2
+  conventional: 1
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.artistic: 1.0

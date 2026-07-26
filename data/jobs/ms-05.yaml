@@ -1,7 +1,19 @@
 code: ms-05
 title: 생산·품질관리 사무
 description: 요구사항·규격 확인 → 자원·제약 파악 → 생산·검사계획 → 공정 모니터링 → 검사 → 부적합 격리 → 원인분석 → 재검·출하
-competencies: {}
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 3
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 3
+  investigative: 4
+  artistic: 1
+  social: 1
+  enterprising: 1
+  conventional: 5
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.investigative: 1.0

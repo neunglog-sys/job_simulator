@@ -1,7 +1,19 @@
 code: kts-02
 title: 교육·강의·코칭 응대
 description: 수업·강습 준비(교안·출석·기구 점검) → 학습자 수준·특이사항 파악 → 진행 보조·시범·개별 피드백 → 이상·불만·안전 대응 → 출결·기록·상담 인계
-competencies: {}
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 5
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 1
+  investigative: 2
+  artistic: 3
+  social: 5
+  enterprising: 3
+  conventional: 3
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.social: 1.0

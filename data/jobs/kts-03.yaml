@@ -1,7 +1,19 @@
 code: kts-03
 title: 영업·판매·매장응대
 description: 오픈 준비·상품/재고 확인 → 고객 니즈 파악(질문·경청) → 상품 제안·비교 설명(페어링 추천) → 교환·환불·불만 대응 → POS 정산·마감·인계
-competencies: {}
+competencies:
+  situation_judgment: 4
+  problem_solving: 4
+  communication: 5
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 1
+  investigative: 2
+  artistic: 2
+  social: 4
+  enterprising: 5
+  conventional: 3
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.social: 1.0

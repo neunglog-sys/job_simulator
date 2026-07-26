@@ -2,7 +2,19 @@ code: ys-10
 title: 시설·설비·전기관리
 description: 교대 인수인계·일지 확인 → 점검계획·작업허가(PTW) 확인 → 안전장구·출입통제 확인 → 설비 순찰·계기 지시치 기록 → 측정값 판정·이상탐지 → 경보·이상
   보고 및 조치 보조 → 정비요청·점검기록 작성 → 교대 인계·문서 보관
-competencies: {}
+competencies:
+  situation_judgment: 5
+  problem_solving: 3
+  communication: 3
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 2
+  artistic: 1
+  social: 1
+  enterprising: 1
+  conventional: 5
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.realistic: 1.0

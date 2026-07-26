@@ -2,7 +2,19 @@ code: ys-06
 title: 전기·배전·계측 점검
 description: 점검계획·단선결선도 확인 → 작업허가·보호구 준비 → 전원차단·잠금표찰(LOTO) → 검전·잔류전하 방전·단락접지 → 절연저항·접지저항 측정 → 열화상·육안 이상탐지
   → 판정·복전 안전확인 → 대장기록·보고
-competencies: {}
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 2
+  collaboration: 2
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 4
+  artistic: 1
+  social: 1
+  enterprising: 1
+  conventional: 5
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.realistic: 1.0

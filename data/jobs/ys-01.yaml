@@ -2,7 +2,19 @@ code: ys-01
 title: 치안·범죄현장 대응
 description: 112 신고접수·코드분류(코드0~4) 확인 → 지령 수신·복명복창 → 출동 전 장비점검(무전기·바디캠·수갑·테이저건) → 현장 도착보고·안전확인 → 초동조치·현장보존(폴리스라인)
   보조 → 목격자 분리·인적사항 확인 → 무전 상황보고·지원요청 판단 → 발생보고서 작성·근무일지 인계
-competencies: {}
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 4
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 4
+  investigative: 2
+  artistic: 1
+  social: 3
+  enterprising: 3
+  conventional: 3
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.realistic: 1.0

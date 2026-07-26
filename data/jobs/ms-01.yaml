@@ -1,7 +1,19 @@
 code: ms-01
 title: 문서·법무·기록관리
 description: 접수·권한 확인 → 자료 수집 → 누락·유효성 점검 → 분류·쟁점 추출 → 초안 → 교차검수 → 승인·보존·전달
-competencies: {}
+competencies:
+  situation_judgment: 4
+  problem_solving: 4
+  communication: 3
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 1
+  investigative: 4
+  artistic: 1
+  social: 2
+  enterprising: 1
+  conventional: 5
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.investigative: 1.0

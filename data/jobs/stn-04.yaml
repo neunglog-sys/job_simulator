@@ -1,7 +1,19 @@
 code: stn-04
 title: 과학·기술 조사분석
 description: 조사문제·가설·기준 설정 → 문헌·선행기술·조사자료 검토 → 시료·관측·실험 수행 → 분석·검증·불확실성 판단 → 보고서·근거 보존·후속과제
-competencies: {}
+competencies:
+  situation_judgment: 4
+  problem_solving: 5
+  communication: 3
+  collaboration: 2
+  task_management: 4
+interest_profile:
+  realistic: 2
+  investigative: 5
+  artistic: 1
+  social: 1
+  enterprising: 1
+  conventional: 4
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.investigative: 1.0

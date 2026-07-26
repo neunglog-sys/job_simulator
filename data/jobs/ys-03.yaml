@@ -2,7 +2,19 @@ code: ys-03
 title: 경호·신변보호·보안
 description: 임무접수·대상자 파악 → 사전답사·위해요소 분석 → 경호계획·배치 브리핑 → 장비·복장 점검 → 출입통제·검색 → 근접경호·사주경계 → 우발상황 보고·대응 →
   근무일지·임무종료 보고
-competencies: {}
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 4
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 4
+  investigative: 2
+  artistic: 1
+  social: 2
+  enterprising: 3
+  conventional: 3
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.realistic: 1.0
