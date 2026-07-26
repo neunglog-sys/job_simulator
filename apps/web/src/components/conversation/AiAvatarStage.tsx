@@ -27,9 +27,24 @@ type AiAvatarStageProps = {
 };
 
 const MUSE_TALK_MIME = 'video/mp4; codecs="avc1.42E01F, mp4a.40.2"';
-const MUSE_TALK_START_BUFFER_SECONDS = 2;
+/** MSE 시작 버퍼(초). 이만큼 쌓여야 첫 재생을 시작한다.
+ *
+ * 2026-07-23 스윕 실측(quality, 버퍼당 N=4): 2.0s→재생시작 7.79s / 1.5s→7.94s /
+ * 1.0s→6.86s / 0.5s→6.78s. 2.0→1.0에서 0.93초를 얻고, 그 아래로는 0.08초뿐이라
+ * (첫 프레임 도착 시각이 한계) 1.0을 채택한다.
+ * ⚠️ 네 조건 모두 끊김이 관측되지 않았으나 N=4로는 끊김률을 판정할 수 없다
+ *    (3/n 규칙: 0/4의 95% 상한 75%). 동시 사용자·긴 답변(420자)에서 재검증 필요.
+ *    그래서 0.5가 아니라 안전 마진이 있는 1.0으로 둔다. */
+const MUSE_TALK_START_BUFFER_SECONDS = 1;
 const MUSE_TALK_START_BUFFER_MIN = 0.3;
 const MUSE_TALK_START_BUFFER_MAX = 5;
+
+/** stall에서 회복할 때 다시 채울 버퍼(초).
+ *
+ * 이게 없으면 브라우저는 프레임 몇 장(HAVE_FUTURE_DATA)만 차도 재생을 재개해 곧바로 또 멈춘다.
+ * 실측에서 stall 3회가 연달아 났고 그때 buffered_ahead가 0.038~0.056초(1프레임 남짓)였다.
+ * 한 번에 이만큼 모아 재개해 "여러 번 딸꾹"을 "한 번 길게"로 바꾼다. */
+const MUSE_TALK_REBUFFER_SECONDS = 0.8;
 
 /** 시작 버퍼 임계값. `?startBuffer=1.0`으로 런타임 조정한다(첫 재생 지연 스윕 측정용).
  *
@@ -365,6 +380,13 @@ export function AiAvatarStage({
     const handleWaiting = () => {
       if (disposed || firstPlayAt === null || stallStartedAt !== null) return;
       stallStartedAt = window.performance.now();
+      // 브라우저가 프레임 한두 장에 재생을 재개해 곧바로 또 멈추는 것을 막는다.
+      // 명시적으로 세워두고, playIfReady가 리버퍼 임계값을 채웠을 때만 다시 튼다.
+      try {
+        video.pause();
+      } catch {
+        // 이미 정지 상태면 무시한다.
+      }
       const bufferedAhead =
         video.buffered.length > 0
           ? video.buffered.end(video.buffered.length - 1) - video.currentTime
@@ -398,14 +420,20 @@ export function AiAvatarStage({
 
       const bufferedEnd = video.buffered.end(video.buffered.length - 1);
       const bufferedAhead = bufferedEnd - video.currentTime;
-      if (bufferedAhead < startBufferSeconds && !streamDone) return;
+      // 첫 재생은 시작 버퍼, stall 회복은 리버퍼 임계값을 쓴다.
+      const isFirstPlay = firstPlayAt === null;
+      const gateSeconds = isFirstPlay
+        ? startBufferSeconds
+        : MUSE_TALK_REBUFFER_SECONDS;
+      if (bufferedAhead < gateSeconds && !streamDone) return;
 
       gatePassAt = sinceStart();
-      gatedByDone = bufferedAhead < startBufferSeconds;
+      gatedByDone = bufferedAhead < gateSeconds;
       bufferedAheadAtGate = Number(bufferedAhead.toFixed(3));
       console.info("[MuseTalk]", "start_playback_buffer", {
         buffered_ahead: bufferedAheadAtGate,
-        threshold_s: startBufferSeconds,
+        gate_kind: isFirstPlay ? "start" : "rebuffer",
+        threshold_s: gateSeconds,
         at_s: gatePassAt,
         gated_by_done: gatedByDone,
       });

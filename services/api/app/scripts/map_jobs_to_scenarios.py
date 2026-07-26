@@ -52,9 +52,14 @@ async def build_mapping() -> list[dict]:
     """→ [{job_code, job_title, slug, sim, alternatives: [(slug,title,sim)...]}] (job code순)."""
     from app.core.db import SessionFactory
 
+    from app.domains.recommendation.service import is_recommendable
+
     async with SessionFactory() as session:
-        # 추천 후보 자격(competencies 보유)과 동일 기준 — recommendation.is_recommendable
-        jobs = [j for j in (await session.execute(select(Job))).scalars() if j.competencies]
+        # 추천 후보 자격과 동일 기준 — competencies 또는 dimension_weights (recommendation.is_recommendable).
+        # dimension_weights만 있는 카테고리 직무(kts/ms/ys/jm/yg/stn/sns-*)도 추천에 뜨므로
+        # 매핑에 포함해야 '체험' 연결이 끊기지 않는다. 이들은 code가 곧 시나리오 slug라 아래
+        # `job.code in scen_codes` 분기에서 임베딩 없이 항등 매핑(sim 1.0)된다.
+        jobs = [j for j in (await session.execute(select(Job))).scalars() if is_recommendable(j)]
         scen_rows = (
             await session.execute(select(Scenario, Job).join(Job, Scenario.job_id == Job.id))
         ).all()

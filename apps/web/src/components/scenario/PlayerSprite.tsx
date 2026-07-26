@@ -1,5 +1,6 @@
 import { UserFocus } from "@phosphor-icons/react";
 import { useState } from "react";
+import { useAuth } from "../../lib/auth";
 import type { NpcFacing } from "./NpcSprite";
 import type { Position } from "./types";
 import styles from "../../styles/scenarioGame.module.css";
@@ -31,10 +32,18 @@ const HERO_ROW: Record<NpcFacing, number> = {
   back: 3,
 };
 
-/** ?hero=male 로 남자 주인공 선택 (기본 female) — 별도 선택 UI 전까지의 임시 스위치 */
-function heroSheet(): string {
-  const pick = new URLSearchParams(window.location.search).get("hero");
-  return `/hero/${pick === "male" ? "male" : "female"}.png`;
+/** 주인공 시트 선택: URL `?hero=` 오버라이드 > 로그인 유저 성별 > 기본 male.
+ *  성별 미설정(null)은 대다수 계정의 상태라 기본을 male로 둔다(팀 결정 2026-07-26).
+ *  female은 유저 성별이 명시적으로 female일 때만. (`?hero=male|female` 은 QA·시연 강제 스위치) */
+function heroSheet(userGender?: "male" | "female" | null): string {
+  const override = new URLSearchParams(window.location.search).get("hero");
+  const pick =
+    override === "male" || override === "female"
+      ? override
+      : userGender === "female"
+        ? "female"
+        : "male";
+  return `/hero/${pick}.png`;
 }
 
 export function PlayerSprite({
@@ -46,7 +55,9 @@ export function PlayerSprite({
   transitionMs = 900,
 }: PlayerSpriteProps) {
   const [missing, setMissing] = useState(false);
-  const sheet = heroSheet();
+  const auth = useAuth();
+  const gender = auth.status === "authed" ? auth.me.gender : null;
+  const sheet = heroSheet(gender);
 
   return (
     <div

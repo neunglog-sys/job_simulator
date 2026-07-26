@@ -46,6 +46,20 @@
 보완점의 근거로 인용하세요.
 {% endif %}
 
+{% set minigames = performance.get('minigames') or [] %}{% if minigames %}
+### SNS 실무 미니게임 원본 수행 기록
+{% for game in minigames %}
+{% set metadata = game.get('metadata') or {} %}
+{% if game.engine == 'research' %}- 자료 수집: 5개 스테이지 완료 · 오답 선택 {{ metadata.get('totalWrongAttempts', game.get('mistakes', 0)) }}회
+{% elif game.engine == 'design' %}- 게시물 시안 제작: 완성 · 오답 제출 {{ metadata.get('wrongSubmissionCount', game.get('mistakes', 0)) }}회 · 배치 {{ metadata.get('moveCount', 0) }}회 · 되돌리기 {{ metadata.get('undoCount', 0) }}회 · 초기화 {{ metadata.get('resetCount', 0) }}회
+{% endif %}
+{% endfor %}
+
+SNS 미니게임 해석 지침: 오답 횟수는 사용자가 실제로 제출하거나 선택한 뒤 수정한 횟수입니다.
+오답이 적으면 샘플 관찰과 구성 판단의 근거로, 반복되면 확인 습관과 세부 요소 대조가 필요한
+보완점의 근거로만 사용하세요. 오답 횟수만으로 적합도나 성격을 단정하지 마세요.
+{% endif %}
+
 수행 데이터 해석 지침: 시도 횟수가 적고 점수가 높은 미션은 강점의 직접 증거,
 여러 번 시도한 미션 유형은 보완점의 직접 증거로 인용하세요.
 "말한 것"(상담)과 "해본 것"(수행)이 다르면 수행 쪽을 더 신뢰하세요.

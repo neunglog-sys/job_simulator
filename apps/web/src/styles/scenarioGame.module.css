@@ -3250,9 +3250,12 @@ button.headerOrb:active {
   box-shadow: inset 0 2px 0 rgb(255 255 255 / 0.14), 0 8px 0 #17182a, 0 34px 80px rgb(4 7 18 / 0.48);
 }
 
-/* 1920×880 좌표를 한 번에 축소하는 자료 수집 게임은 기본 920px 모달에서
-   카드 글자가 지나치게 작다. 이 엔진만 브라우저 125% 확대와 비슷한 체감 크기로 연다. */
-.missionModal.miniGameModal[data-minigame-engine="research"] {
+/* 1920×880 좌표를 한 번에 축소하는 SNS 게임은 기본 920px 모달에서
+   카드·퍼즐 요소가 지나치게 작다. 두 엔진만 125% 확대와 비슷한 체감 크기로 연다. */
+.missionModal.miniGameModal:is(
+    [data-minigame-engine="research"],
+    [data-minigame-engine="design"]
+  ) {
   width: min(1180px, 100%);
 }
 

@@ -96,6 +96,16 @@ function buildHints(
       description: step.briefing.map((line, index) => `${index + 1}. ${line}`).join("\n"),
     });
   }
+  // 제공자료 본문 — 자료 하나가 카드 하나. guide(이름 나열) 바로 앞에 놓아 먼저 눈에 띄게 한다.
+  // 이 자료를 대조해야 답이 나오는 과제(예: 정산 차액 규명)라 브리핑과 무관하게 항상 열어 둔다.
+  for (const material of step?.materials ?? []) {
+    cards.push({
+      id: `material-${material.title}`,
+      category: "제공 자료",
+      title: material.title,
+      description: material.body,
+    });
+  }
   if (step?.guide) {
     cards.push({
       id: "guide",
@@ -172,11 +182,13 @@ const SCENARIO_BGM_TRACKS: Readonly<Record<string, readonly string[]>> = {
 
 const BGM_VOLUME_KEY = "scenario-bgm-volume";
 const COACH_VOLUME_KEY = "scenario-coach-volume";
-const DEFAULT_BGM_VOLUME = 0.09;
-const DEFAULT_COACH_VOLUME = 1;
+const DEFAULT_BGM_VOLUME = 0.1;
+const DEFAULT_COACH_VOLUME = 0.5;
 
 function savedVolume(key: string, fallback: number): number {
-  const saved = Number(localStorage.getItem(key));
+  const stored = localStorage.getItem(key);
+  if (stored === null || stored.trim() === "") return fallback;
+  const saved = Number(stored);
   return Number.isFinite(saved) && saved >= 0 && saved <= 1 ? saved : fallback;
 }
 
@@ -1101,7 +1113,7 @@ export function ScenarioGamePage() {
     const audio = new Audio();
     bgmAudioRef.current = audio;
     audio.preload = "auto";
-    // 저장된 음량이 없을 때는 코치 TTS가 항상 전면에 들리도록 기존 0.09를 유지한다.
+    // 저장된 음량이 없으면 공통 기본값(BGM 10%, 코치 TTS 50%)을 적용한다.
     audio.volume = bgmVolumeRef.current;
 
     const disarmUnlock = () => {
@@ -1863,6 +1875,9 @@ export function ScenarioGamePage() {
           mapImage={mapImage}
           npcs={npcs}
           activeNpcId={activeNpcId}
+          // 스페이스바로 말을 걸 상대 — 투어 인사 중엔 지금 인사할 동료, 그 외에는 현재 스텝
+          // 담당 NPC. 근처에 다른 사람이 있어도 '지금 대화해야 하는 상대'가 먼저 열린다.
+          talkTargetNpcId={phase === "tour_greet" ? tourStop?.npc ?? null : activeNpcId}
           // 컷신 중엔 마커 클릭을 막지만, 인사(tour_greet)만은 예외 — 신입이 그 동료를 눌러
           // 다가가서 대화를 여는 단계라 클릭이 필요하다.
           onNpcClick={
@@ -1994,7 +2009,7 @@ export function ScenarioGamePage() {
                     : phase === "tour_greet"
                       ? tourGreetOpened
                         ? `${tourStop?.name ?? "동료"} 님에게 직접 인사를 건네보세요. (아래 채팅창)`
-                        : `${tourStop?.name ?? "동료"} 님에게 걸어가서(WASD) 클릭하면 대화가 열려요.`
+                        : `${tourStop?.name ?? "동료"} 님에게 걸어가서(WASD) 클릭 또는 스페이스바로 대화를 여세요.`
                       : npcMessage || "…"
             }
             stepLabel={
@@ -2154,6 +2169,8 @@ export function ScenarioGamePage() {
         <span className={styles.keyboardGuide} aria-hidden="true">
           <kbd>WASD</kbd>
           <span>이동</span>
+          <kbd>Space</kbd>
+          <span>대화</span>
         </span>
       </div>
 

@@ -83,7 +83,13 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
 
 // --- 백엔드 응답 타입 (스키마와 1:1) ---
 export type TokenOut = { access_token: string; token_type: string };
-export type Me = { id: number; email: string | null; name: string; has_password: boolean };
+export type Me = {
+  id: number;
+  email: string | null;
+  name: string;
+  has_password: boolean;
+  gender: "male" | "female" | null; // 게임 주인공 스프라이트 성별 배선용 (미설정 시 null)
+};
 export type Consultation = { id: number; status: string; created_at: string };
 export type ConsultationSummary = {
   id: number;
@@ -582,6 +588,9 @@ export type GameStep = {
   mission: string;
   npcs: string[]; // npc_id 목록 (표시정보는 Simulation.npcs에서 조회)
   guide: string | null;
+  // 제공자료 본문 — guide가 이름만 나열하는 것과 달리, 실제로 대조할 수 있는 문서다.
+  // 시뮬레이션마다 세트가 하나 정해져 내려온다(세트별로 정답이 다르다). 없으면 빈 배열.
+  materials: Array<{ title: string; body: string }>;
   // 사수가 업무 시작 전에 알려주는 절차 — 브리핑 창 + 업무 노트에 표시.
   // 정답 키(task.answer)는 서버가 내려주지 않으므로, 들은 절차를 섞인 보기와 맞추는 건 사용자 몫.
   briefing: string[];

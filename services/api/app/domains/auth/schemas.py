@@ -30,5 +30,6 @@ class MeOut(BaseModel):
     email: str | None
     name: str
     has_password: bool
+    gender: Literal["male", "female"] | None = None  # 게임 주인공 스프라이트 성별 배선용
 
     model_config = {"from_attributes": True}

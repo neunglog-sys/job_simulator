@@ -107,6 +107,23 @@ def collect_from_logs(logs: list[dict]) -> tuple[dict, dict | None]:
     return missions, quest
 
 
+def minigame_results_from_logs(logs: list[dict]) -> list[dict]:
+    """리포트 서술용 완료 미니게임 결과를 게임별 최신 기록으로 모은다."""
+    latest_by_game: dict[str, dict] = {}
+    for log in logs:
+        if log.get("type") != "minigame":
+            continue
+        payload = log.get("payload")
+        if not isinstance(payload, dict) or payload.get("rejected"):
+            continue
+        metadata = payload.get("metadata")
+        game_id = metadata.get("gameId") if isinstance(metadata, dict) else None
+        key = str(game_id or payload.get("engine") or "")
+        if key:
+            latest_by_game[key] = payload
+    return list(latest_by_game.values())
+
+
 def scenario_score(
     steps: list[dict], missions: dict, quest: dict | None
 ) -> dict:
@@ -266,6 +283,7 @@ async def simulation_score(session: AsyncSession, simulation, scenario) -> dict:
         ).scalars()
     ]
     missions, quest = collect_from_logs(logs)
+    minigames = minigame_results_from_logs(logs)
     score = scenario_score(scenario.steps, missions, quest)
     quest_type = (scenario.sudden_quest or {}).get("task", {}).get("type") if scenario.sudden_quest else None
     competencies = competency_scores(
@@ -280,6 +298,8 @@ async def simulation_score(session: AsyncSession, simulation, scenario) -> dict:
         "conduct": conduct_from_affinity(simulation.state),
         # 4단계 미니게임 — 역량에 블렌드된 그 결과. 리포트가 근거로 인용한다 (스텁·미완주는 None)
         "minigame": minigame_of(simulation.state),
+        # 점수형이 아닌 SNS 미니게임도 오답 횟수 등 원본 수행 근거를 리포트 LLM에 전달한다.
+        "minigames": minigames,
     }
 
 

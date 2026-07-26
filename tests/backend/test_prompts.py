@@ -111,6 +111,41 @@ def test_report_prompt_with_performance():
     assert "동료 대응 태도" not in out
 
 
+def test_report_prompt_includes_sns_design_wrong_submissions():
+    out = render_prompt(
+        "job-master/consult-report.md",
+        recommendations=[{"job_title": "콘텐츠 운영자", "score": 80, "reason": "근거"}],
+        competencies=[
+            {"key": "task_management", "name": "업무관리", "description": "설명"}
+        ],
+        performance={
+            "scenario_title": "콘텐츠·SNS 운영",
+            "total": 82,
+            "mission_avg": 85,
+            "competencies": {"task_management": 81},
+            "missions": [],
+            "quest": None,
+            "minigames": [
+                {
+                    "engine": "design",
+                    "mistakes": 3,
+                    "metadata": {
+                        "gameId": "sns-post-design",
+                        "wrongSubmissionCount": 3,
+                        "moveCount": 17,
+                        "undoCount": 2,
+                        "resetCount": 1,
+                    },
+                }
+            ],
+        },
+    )
+
+    assert "게시물 시안 제작: 완성 · 오답 제출 3회" in out
+    assert "배치 17회 · 되돌리기 2회 · 초기화 1회" in out
+    assert "오답 횟수만으로 적합도나 성격을 단정하지 마세요" in out
+
+
 def test_report_prompt_includes_conduct_when_present():
     # 대화 태도가 있으면 리포트가 근거로 쓸 수 있게 프롬프트에 실린다
     out = render_prompt(

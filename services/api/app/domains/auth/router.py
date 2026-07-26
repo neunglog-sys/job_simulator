@@ -65,6 +65,7 @@ async def me(user: User = Depends(get_current_user)):
         email=user.email,
         name=user.name,
         has_password=bool(user.pw_hash),
+        gender=user.gender,
     )
 
 

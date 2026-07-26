@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.content import game_map
+from app.content import materials
 from app.content import minigame
 from app.content.loader import yaml_scenario_slugs
 from app.content.kb_map import kb_jobs_for
@@ -64,9 +65,52 @@ def _personalize_text(scenario: Scenario, state: dict, text: str | None) -> str:
     return value
 
 
+def _pick_material_sets(slug: str, seed: int) -> dict[str, str]:
+    """시뮬레이션 생성 시 스텝별 제공자료 세트를 하나씩 골라 둔다 — {step_id: set_id}.
+
+    state에 박아 두므로 새로고침·재개해도 같은 자료를 본다. 플레이마다 다른 세트가 나와
+    (세트별 차액 원인이 다르다) 정답을 외워서 풀 수 없다.
+    """
+    picked: dict[str, str] = {}
+    for step_id in materials.steps_with_materials(slug):
+        sets = materials.material_sets_for(slug, step_id)
+        if sets:
+            chosen = sets[seed % len(sets)]
+            picked[step_id] = str(chosen.get("id") or "")
+    return picked
+
+
+def _material_set_for(scenario: Scenario, state: dict, step_id: str) -> dict | None:
+    """이 시뮬레이션이 볼 자료 세트 — state에 박아둔 id로 찾는다(없으면 첫 세트)."""
+    sets = materials.material_sets_for(scenario.slug, step_id)
+    if not sets:
+        return None
+    wanted = (state.get("material_sets") or {}).get(step_id)
+    for candidate in sets:
+        if str(candidate.get("id") or "") == wanted:
+            return candidate
+    return sets[0]
+
+
+def _task_with_material_criteria(
+    scenario: Scenario, state: dict, step: dict, task: dict
+) -> dict:
+    """이번 세트의 차액 원인을 채점 기준에 추가한 task 사본 — 세트마다 정답이 다르기 때문."""
+    chosen = _material_set_for(scenario, state, step["id"])
+    cause = str((chosen or {}).get("cause") or "").strip()
+    if not cause:
+        return task
+    merged = dict(task)
+    merged["criteria"] = [*(task.get("criteria") or []), f"제공자료가 가리키는 실제 원인({cause})을 찾아냈는가"]
+    return merged
+
+
 def _public_step(scenario: Scenario, state: dict, step: dict) -> dict:
     out = sm.public_step(step)
     out["mission"] = _personalize_text(scenario, state, out.get("mission"))
+    # 제공자료 본문 — guide는 이름만 나열하므로, 실제로 대조할 수 있게 문서를 함께 내려준다.
+    chosen = _material_set_for(scenario, state, step["id"])
+    out["materials"] = materials.public_documents(chosen) if chosen else []
     return out
 
 
@@ -176,6 +220,9 @@ async def create_simulation(
         "quest": {"status": "pending" if scenario.sudden_quest else "none", "attempts": 0},
         "coach_streak": 0,  # 진전(제출) 없이 이어진 미션 대화 턴 수 → 정체 감지용
         "player_name": user.name,
+        # 스텝별 제공자료 세트를 지금 골라 박아 둔다 — 새로고침·재개해도 같은 자료를 보고,
+        # 플레이마다 다른 세트(=다른 차액 원인)가 나와 정답을 외워서 풀 수 없다.
+        "material_sets": _pick_material_sets(scenario_slug, random.randrange(1_000_000)),
     }
     # 상담에서 진입했으면 그 상담 id를 박아둔다 — 재개(이어하기)로 URL 파라미터가 유실돼도
     # 완주 리포트가 상담을 붙일 수 있게. 남의 상담 id는 무시(도용 방지·게임은 계속 진행).
@@ -348,7 +395,13 @@ def _speaker(m: Message, roster: dict[str, dict]) -> str:
 
 
 # AI 코치 실시간 TIP 발동 조건 — 신입이 정답을 요구하거나 답답해할 때, 또는 사수가 거부/무뚝뚝하게 반응할 때
-_TIP_USER = re.compile(r"정답|답\s*(을|좀|이|뭐|알려|찍)|그냥\s*(알려|해|답)|알려\s*주|찍어|짜증|몰라|모르겠|대충|귀찮|하기\s*싫")
+_TIP_USER = re.compile(
+    r"정답|답\s*(을|좀|이|뭐|알려|찍)|그냥\s*(알려|해|답)|알려\s*주|찍어|짜증|"
+    r"몰라|모르겠|모르는|잘\s*모|대충|귀찮|하기\s*싫|"
+    # 막힘·답답·도움요청 신호도 개입 트리거로 확장 (2026-07-26, 개입 강화)
+    r"어떻게\s*(하|해|할|하죠|하지)|뭐\s*(부터|를\s*해|해야|하지)|어디\s*서?\s*부터|"
+    r"막막|막혔|막힘|막혀|어려|힘들|헷갈|헤매|감\s*(이\s*)?안|도와|도움|어카|어쩌"
+)
 _TIP_NPC = re.compile(r"왜\s*(나|저)한테|직접\s*(확인|알아|해)|본인이\s*(직접|알아|확인)|알아서\s*(해|찾)")
 
 
@@ -357,9 +410,10 @@ def _should_coach_tip(user_text: str, npc_reply: str) -> bool:
 
 
 # 정체 감지 — 키워드 트리거 없이도, 미션에 실질적 영향이 없는 대화(아래 두 신호)만 이어지면
-# 코치가 먼저 끼어든다. 매 턴 반응하면 참견처럼 느껴지고 너무 뜸하면 방치처럼 느껴져
-# 3턴으로 절충 (팀 조정 가능).
-STAGNANT_TURNS = 3
+# 코치가 먼저 끼어든다. 데모 임팩트 우선 — 정체가 감지되면 바로 개입(1턴).
+# 진전(제출·유의미 발화)이 있으면 카운터가 리셋되므로, 실제로는 "막혀서 겉도는 턴"에만 붙는다.
+# (팀 조정 가능: 참견이 과하면 2~3으로 올린다. 2026-07-26 사용자 요청으로 3→1.)
+STAGNANT_TURNS = 1
 REPEAT_SIMILARITY = 0.6  # 이 이상이면 "같은 말 되풀이"로 간주 (문자 2-gram 자카드)
 
 
@@ -888,6 +942,52 @@ def _minigame_result(payload: dict, declared: dict | None) -> dict:
             result["rejected"] = "engine_mismatch"
             result["declared_engine"] = declared["engine"]
         return result
+    if engine == "design":
+        metadata = payload.get("metadata")
+        if not isinstance(metadata, dict):
+            raise HTTPException(status_code=400, detail="시안 제작 게임 결과 metadata가 필요합니다")
+        wrong_submissions = metadata.get("wrongSubmissionCount")
+        duration_ms = metadata.get("durationMs")
+        counters = {
+            "moveCount": metadata.get("moveCount"),
+            "undoCount": metadata.get("undoCount"),
+            "resetCount": metadata.get("resetCount"),
+        }
+        if (
+            metadata.get("gameId") != "sns-post-design"
+            or metadata.get("completed") is not True
+            or not isinstance(wrong_submissions, int)
+            or isinstance(wrong_submissions, bool)
+            or wrong_submissions < 0
+            or not isinstance(duration_ms, (int, float))
+            or isinstance(duration_ms, bool)
+            or duration_ms < 0
+            or any(
+                not isinstance(value, int) or isinstance(value, bool) or value < 0
+                for value in counters.values()
+            )
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="시안 제작 게임 결과 형식이 올바르지 않습니다",
+            )
+        result = {
+            "engine": engine,
+            "completed": True,
+            "mistakes": wrong_submissions,
+            "metadata": {
+                "gameId": "sns-post-design",
+                "completed": True,
+                "wrongSubmissionCount": wrong_submissions,
+                "completedAt": str(metadata.get("completedAt") or ""),
+                "durationMs": round(float(duration_ms)),
+                **counters,
+            },
+        }
+        if declared and engine != declared["engine"]:
+            result["rejected"] = "engine_mismatch"
+            result["declared_engine"] = declared["engine"]
+        return result
 
     accuracy = payload.get("accuracy")
     if not isinstance(accuracy, (int, float)) or isinstance(accuracy, bool) or not 0 <= accuracy <= 100:
@@ -1257,6 +1357,10 @@ async def submit_task(
     if not task:
         raise HTTPException(status_code=400, detail="현재 스텝에 과제가 없음")
 
+    # 제공자료가 있는 스텝은 '이번 세트의 정답(차액 원인)'을 채점 기준에 얹는다 —
+    # 세트마다 원인이 달라, 시나리오에 고정으로 적힌 기준만으로는 맞는지 가릴 수 없다.
+    task = _task_with_material_criteria(scenario, state, step, task)
+
     result = await _grade(session, simulation, scenario, step["mission"], task, submission)
 
     attempts = dict(state.get("attempts") or {})
@@ -1317,9 +1421,11 @@ async def submit_task(
         except Exception:  # noqa: BLE001 — 스냅샷 실패가 성공한 제출을 500으로 만들면 안 됨
             logger.exception("점수 스냅샷 실패 (simulation=%d) — GET /score는 재집계로 동작", simulation.id)
 
-    # AI 코치: 서술형 통과 시 완료당 1회, 제출물 사후 리뷰 (선택·배열형은 리뷰할 글이 없음)
+    # AI 코치: 서술형 제출마다 사후 리뷰 (선택·배열형은 리뷰할 글이 없음).
+    # 통과=성공 카드, 실패=개선 카드(requirement_check/error_correction) — system.md가 두 경우 다 처리.
+    # (2026-07-26 개입 강화: 통과 시에만 → 실패 시에도. 막혔을 때 코치가 가장 필요하다는 관점.)
     coach_cards = None
-    if result["passed"] and task.get("kind") not in scoring.RULE_KINDS:
+    if task.get("kind") not in scoring.RULE_KINDS:
         coach_cards = await coach.generate_cards(coach.build_vars(
             simulation_id=simulation.id, scenario_slug=scenario.slug,
             step=step, task=task, submission=submission, result=result, attempt=attempt_n,
@@ -1401,7 +1507,7 @@ async def _submit_quest(
     await session.commit()
 
     coach_cards = None
-    if result["passed"] and qtask.get("kind") not in scoring.RULE_KINDS:
+    if qtask.get("kind") not in scoring.RULE_KINDS:  # 통과·실패 모두 리뷰 (2026-07-26 개입 강화)
         quest_step = {"id": "quest", "title": "돌발 퀘스트", "mission": quest_def.get("intro", "")}
         coach_cards = await coach.generate_cards(coach.build_vars(
             simulation_id=simulation.id, scenario_slug=scenario.slug,
