@@ -2,7 +2,19 @@ code: ys-08
 title: 기계·전자·산업장비 점검
 description: 점검지시·작업허가 확인 → 도면·정비이력 검토 → 안전조치(전원차단·LOTO·잔압제거) → 외관·작동상태 점검 → 계측·측정값 기록(진동·온도·절연저항) → 기준치
   대비 이상판정 → 정비요청·응급조치 → 점검일지 작성·교대 인계
-competencies: {}
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 3
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 3
+  artistic: 1
+  social: 1
+  enterprising: 1
+  conventional: 5
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.realistic: 1.0

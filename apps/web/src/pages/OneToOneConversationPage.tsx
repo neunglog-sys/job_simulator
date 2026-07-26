@@ -1609,7 +1609,12 @@ export function OneToOneConversationPage() {
       }
 
       const savedRecommendation = await fetchLatestRecommendation(targetConsultationId);
-      if (savedRecommendation) return savedRecommendation;
+      if (savedRecommendation) {
+        // 캐시는 recommendation state 변경 effect(다음 렌더)에서만 채워져, 같은 렌더에서
+        // 이어지는 호출이 캐시를 놓치고 매번 네트워크를 다시 탔다. 여기서 즉시 반영한다.
+        recommendationCacheRef.current = savedRecommendation;
+        return savedRecommendation;
+      }
 
       const pendingRequest = recommendationRequestRef.current;
       if (pendingRequest?.consultationId === targetConsultationId) {
@@ -1619,7 +1624,9 @@ export function OneToOneConversationPage() {
       const promise = createRecommendation(targetConsultationId);
       recommendationRequestRef.current = { consultationId: targetConsultationId, promise };
       try {
-        return await promise;
+        const created = await promise;
+        recommendationCacheRef.current = created;
+        return created;
       } finally {
         if (recommendationRequestRef.current?.promise === promise) {
           recommendationRequestRef.current = null;

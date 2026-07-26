@@ -1,7 +1,19 @@
 code: yg-01
 title: 디자인·영상·콘텐츠 제작
 description: 의뢰·범위 정의 → 조사·분석 → 콘셉트·전략 수립 → 상세 설계·시안 → 제작 준비 → 제작·촬영·구현 → 편집·후반작업 → 검수·보완 → 납품·게시·자료화
-competencies: {}
+competencies:
+  situation_judgment: 3
+  problem_solving: 4
+  communication: 4
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 2
+  investigative: 2
+  artistic: 5
+  social: 2
+  enterprising: 3
+  conventional: 1
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.artistic: 1.0

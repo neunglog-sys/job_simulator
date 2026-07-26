@@ -3,7 +3,19 @@ title: 해상 운항·선박 조종
 description: 항해계획(Passage Plan) 검토·승인 → 출항 전 브리지 점검·음주측정·브리핑 → 당직 인수·출항 조선(도선사 승선 보조) → 4시간 항해당직(견시·COLREG
   준수·정시 위치기입) → VTS·VHF 교신 및 통항선 감시(CPA/TCPA) → 돌발상황 대응(초동조치→선장 호출→Ch.16 조난통신→복구) → 입항 조선·계류 → 당직 인계·항해일지
   기록
-competencies: {}
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 4
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 5
+  investigative: 3
+  artistic: 1
+  social: 1
+  enterprising: 2
+  conventional: 4
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.enterprising: 1.0

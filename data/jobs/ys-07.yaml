@@ -2,7 +2,19 @@ code: ys-07
 title: 차량·기계 정비 보조
 description: 작업지시서·정비이력 확인 → 차량 입고·고장 문진 → 안전조치(고임목·리프트 4점지지·배터리(-)단자 분리) → 진단·측정(OBD스캐너·압력게이지) → 부품 준비·정비
   보조 → 측정값 기록·규정값 대조 → 선임 검수·시운전 → 정비명세서 작성·출고 인계
-competencies: {}
+competencies:
+  situation_judgment: 4
+  problem_solving: 4
+  communication: 3
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 5
+  investigative: 3
+  artistic: 1
+  social: 2
+  enterprising: 1
+  conventional: 4
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.realistic: 1.0

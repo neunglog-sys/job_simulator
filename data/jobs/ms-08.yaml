@@ -1,7 +1,19 @@
 code: ms-08
 title: 생활서비스 현장 작업
 description: 예약·요구 확인 → 사전상태 점검 → 위험설명·동의 → 위생·도구 준비 → 단계별 서비스 → 이상반응·품질 확인 → 사후안내·기록
-competencies: {}
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 4
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 4
+  investigative: 1
+  artistic: 2
+  social: 4
+  enterprising: 2
+  conventional: 3
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.realistic: 1.0

@@ -1,7 +1,19 @@
 code: ms-02
 title: 회계·경리·정산 사무
 description: 기간·기준 확인 → 증빙 수집 → 거래 분류·입력 → 대사 → 오류 소명 → 정산·신고 초안 → 승인·마감·보관
-competencies: {}
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 3
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 1
+  investigative: 3
+  artistic: 1
+  social: 1
+  enterprising: 1
+  conventional: 5
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.investigative: 1.0

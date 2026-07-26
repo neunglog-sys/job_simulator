@@ -1,7 +1,19 @@
 code: stn-05
 title: 서비스·상품·사업기획 보조
 description: 문제·기회·목표 정의 → 사용자·시장·운영 조사 → 서비스·상품·사업안 설계 → 타당성·우선순위·리스크 검토 → 제안·실행계획·인계
-competencies: {}
+competencies:
+  situation_judgment: 4
+  problem_solving: 5
+  communication: 4
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 1
+  investigative: 4
+  artistic: 3
+  social: 2
+  enterprising: 4
+  conventional: 3
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.investigative: 1.0

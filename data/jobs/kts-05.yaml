@@ -1,7 +1,19 @@
 code: kts-05
 title: 안내·접수·예약·프론트
 description: 근무 준비·인수인계 확인 → 체크인/개찰·예약 대조 → 요청 응대·시설/노선 안내 → 돌발 민원·안전상황 대응 → 체크아웃/마감·로그 기록·인계
-competencies: {}
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 5
+  collaboration: 4
+  task_management: 3
+interest_profile:
+  realistic: 2
+  investigative: 1
+  artistic: 1
+  social: 5
+  enterprising: 3
+  conventional: 4
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.social: 1.0

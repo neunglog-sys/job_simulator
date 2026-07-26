@@ -1,7 +1,19 @@
 code: kts-01
 title: 의료·복지·상담 응대
 description: 접수·예약 확인 → 문진표·진료정보 확인 → 대기환자 안내·순번 관리 → 진료 전후 설명·수납 → 예약·기록·인계
-competencies: {}
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 5
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 1
+  investigative: 3
+  artistic: 1
+  social: 5
+  enterprising: 2
+  conventional: 4
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.social: 1.0

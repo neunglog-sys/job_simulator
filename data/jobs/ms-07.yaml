@@ -1,7 +1,19 @@
 code: ms-07
 title: 조리·식품제조 현장
 description: 주문·레시피 확인 → 위생·원재료 검수 → 전처리·계량 → 공정 수행 → 시간·온도 점검 → 완성검사 → 제공·보관 → 세척·기록
-competencies: {}
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 3
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 1
+  artistic: 2
+  social: 2
+  enterprising: 1
+  conventional: 4
 # dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
 dimension_weights:
   interest.realistic: 1.0
