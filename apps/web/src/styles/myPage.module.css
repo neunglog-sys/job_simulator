@@ -3007,7 +3007,6 @@ button.headerMenuItem:disabled {
     rgb(255 255 255 / 0.54);
   box-shadow:
     0 11px 28px rgb(72 57 148 / 0.14),
-    inset 4px 0 0 #765bd2,
     inset 0 1px 0 rgb(255 255 255 / 0.92);
 }
 
@@ -3798,7 +3797,6 @@ button.headerMenuItem:disabled {
     linear-gradient(112deg, rgb(128 97 218 / 0.34), rgb(91 153 224 / 0.27)),
     rgb(245 246 255 / 0.32);
   box-shadow:
-    inset 4px 0 0 #765bd2,
     inset 0 1px 0 rgb(255 255 255 / 0.94),
     inset 0 -1px 0 rgb(101 82 183 / 0.1),
     0 12px 28px rgb(72 57 148 / 0.14);

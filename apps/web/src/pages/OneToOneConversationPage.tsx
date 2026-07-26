@@ -75,6 +75,11 @@ type ConversationPerfTrace = {
   server?: ConsultationStreamDoneMetrics;
 };
 
+type AvatarSpeechMedia = {
+  url: string;
+  displayCharacters: number;
+};
+
 function splitMuseTalkSpeech(text: string): string[] {
   const normalized = text.replace(/\s+/g, " ").trim();
   if (!normalized) return [];
@@ -257,10 +262,14 @@ const DESIGN_HEIGHT = 900;
 const VOICE_LEVEL_THRESHOLD = 0.025;
 const VOICE_START_GRACE_MS = 1_400;
 const VOICE_SILENCE_TIMEOUT_MS = 2_800;
+const VOICE_EQUALIZER_BAND_COUNT = 9;
 const MUSE_TALK_CHUNK_MAX_CHARS = 420;
-const MUSE_TALK_STREAM_SENTENCE_FLUSH = false;
+const MUSE_TALK_STREAM_SENTENCE_FLUSH = true;
 const AVATAR_SPEECH_MAX_SENTENCES = 5;
 const AVATAR_SPEECH_MAX_CHARS = 420;
+const TEXT_REVEAL_FALLBACK_MS_PER_CHARACTER = 72;
+const TEXT_REVEAL_MIN_MS_PER_CHARACTER = 24;
+const TEXT_REVEAL_MAX_MS_PER_CHARACTER = 120;
 
 const STAR_POINTS = Array.from({ length: 54 }, (_, index) => ({
   left: `${(index * 37 + 7) % 98}%`,
@@ -282,12 +291,15 @@ export function OneToOneConversationPage() {
   const [messages, setMessages] = useState<ConversationMessage[]>(initialConversationMessages);
   const [inputValue, setInputValue] = useState("");
   const [avatarStatus, setAvatarStatus] = useState<AvatarStatus>("thinking");
-  const [avatarHlsUrl, setAvatarHlsUrl] = useState<string | null>(null);
+  const [avatarSpeechMedia, setAvatarSpeechMedia] = useState<AvatarSpeechMedia | null>(null);
+  const avatarHlsUrl = avatarSpeechMedia?.url ?? null;
   const [avatarProvider, setAvatarProvider] = useState<AvatarProvider | null>(null);
   // AiAvatarStage의 MuseTalkStageRequest와 같은 모양이어야 한다
   // (session_id·seq를 실어 보내야 서버가 청크 순서를 강제할 수 있다).
   const [museTalkRequest, setMuseTalkRequest] =
-    useState<(MuseTalkSpeakRequest & { id: number }) | null>(null);
+    useState<
+      (MuseTalkSpeakRequest & { id: number; displayCharacters: number }) | null
+    >(null);
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [voiceIssue, setVoiceIssue] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<ActiveConversationPanel>("chat");
@@ -296,6 +308,9 @@ export function OneToOneConversationPage() {
   const [activeMenuId, setActiveMenuId] =
     useState<NavigationMenuId>("new-consultation");
   const [voiceLevel, setVoiceLevel] = useState(0);
+  const [voiceBands, setVoiceBands] = useState<number[]>(
+    () => Array.from({ length: VOICE_EQUALIZER_BAND_COUNT }, () => 0),
+  );
   const [consultationId, setConsultationId] = useState<number | null>(null);
   const [surveyQuestions, setSurveyQuestions] = useState<SurveyQuestionData[]>([]);
   const [surveySubmitting, setSurveySubmitting] = useState(false);
@@ -328,7 +343,7 @@ export function OneToOneConversationPage() {
   const voiceSessionActiveRef = useRef(false);
   const voiceInputBaseRef = useRef("");
   const voiceFinalTranscriptRef = useRef("");
-  const avatarQueueRef = useRef<string[]>([]);
+  const avatarQueueRef = useRef<AvatarSpeechMedia[]>([]);
   const avatarPlayingRef = useRef(false);
   /** 한 답변을 묶는 식별자와 청크 순번.
    *
@@ -347,6 +362,19 @@ export function OneToOneConversationPage() {
   >([]);
   const museTalkPrefetchRunningRef = useRef(false);
   const museTalkBlobUrlsRef = useRef<string[]>([]);
+  const avatarSpeakGenerationRef = useRef(0);
+  const avatarSpeakPendingTextRef = useRef<
+    Array<{ speech: string; displayCharacters: number }>
+  >([]);
+  const avatarSpeakRunningRef = useRef(false);
+  const synchronizedMessageIdRef = useRef<string | null>(null);
+  const synchronizedFullTextRef = useRef("");
+  const synchronizedVisibleCharactersRef = useRef(0);
+  const synchronizedTargetCharactersRef = useRef(0);
+  const synchronizedStreamDoneRef = useRef(false);
+  const synchronizedSpeechFailedRef = useRef(false);
+  const synchronizedRevealFrameRef = useRef<number | null>(null);
+  const synchronizedRevealGenerationRef = useRef(0);
 
   const revokeMuseTalkBlobUrl = useCallback((url: string | null) => {
     if (!url?.startsWith("blob:")) return;
@@ -359,26 +387,242 @@ export function OneToOneConversationPage() {
     museTalkBlobUrlsRef.current = [];
   }, []);
 
+  const cancelSynchronizedTextReveal = useCallback(() => {
+    synchronizedRevealGenerationRef.current += 1;
+    if (synchronizedRevealFrameRef.current !== null) {
+      window.cancelAnimationFrame(synchronizedRevealFrameRef.current);
+      synchronizedRevealFrameRef.current = null;
+    }
+  }, []);
+
+  const renderSynchronizedText = useCallback(
+    (visibleCharacters: number, phase: ConversationMessage["phase"] = "streaming") => {
+      const messageId = synchronizedMessageIdRef.current;
+      if (!messageId) return;
+
+      const safeVisibleCharacters = Math.min(
+        synchronizedFullTextRef.current.length,
+        Math.max(0, visibleCharacters),
+      );
+      synchronizedVisibleCharactersRef.current = safeVisibleCharacters;
+      const visibleText = synchronizedFullTextRef.current.slice(0, safeVisibleCharacters);
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === messageId
+            ? { ...message, content: visibleText, phase }
+            : message,
+        ),
+      );
+    },
+    [],
+  );
+
+  const finishSynchronizedTextReveal = useCallback(() => {
+    cancelSynchronizedTextReveal();
+    const messageId = synchronizedMessageIdRef.current;
+    if (!messageId) return;
+
+    const fullText = synchronizedFullTextRef.current;
+    synchronizedVisibleCharactersRef.current = fullText.length;
+    synchronizedTargetCharactersRef.current = fullText.length;
+    setMessages((current) =>
+      current.map((message) =>
+        message.id === messageId
+          ? { ...message, content: fullText, phase: undefined }
+          : message,
+      ),
+    );
+    synchronizedMessageIdRef.current = null;
+  }, [cancelSynchronizedTextReveal]);
+
+  const completeSynchronizedTextSegment = useCallback(() => {
+    cancelSynchronizedTextReveal();
+    renderSynchronizedText(synchronizedTargetCharactersRef.current);
+  }, [cancelSynchronizedTextReveal, renderSynchronizedText]);
+
+  const fallbackToStreamingText = useCallback(() => {
+    synchronizedSpeechFailedRef.current = true;
+    if (synchronizedStreamDoneRef.current) {
+      finishSynchronizedTextReveal();
+      return;
+    }
+    cancelSynchronizedTextReveal();
+    renderSynchronizedText(synchronizedFullTextRef.current.length);
+  }, [
+    cancelSynchronizedTextReveal,
+    finishSynchronizedTextReveal,
+    renderSynchronizedText,
+  ]);
+
+  const startSynchronizedTextReveal = useCallback(
+    (displayCharacters: number, durationMs: number | null) => {
+      const messageId = synchronizedMessageIdRef.current;
+      if (!messageId) return;
+
+      cancelSynchronizedTextReveal();
+      const fullLength = synchronizedFullTextRef.current.length;
+      const startCharacters = synchronizedVisibleCharactersRef.current;
+      const targetCharacters = Math.min(
+        fullLength,
+        Math.max(
+          startCharacters + 1,
+          synchronizedTargetCharactersRef.current + Math.max(1, displayCharacters),
+        ),
+      );
+      synchronizedTargetCharactersRef.current = targetCharacters;
+
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        renderSynchronizedText(targetCharacters);
+        return;
+      }
+
+      const charactersToReveal = targetCharacters - startCharacters;
+      if (charactersToReveal <= 0) return;
+
+      const durationPerCharacter =
+        durationMs && durationMs > 0
+          ? Math.min(
+              TEXT_REVEAL_MAX_MS_PER_CHARACTER,
+              Math.max(
+                TEXT_REVEAL_MIN_MS_PER_CHARACTER,
+                durationMs / charactersToReveal,
+              ),
+            )
+          : TEXT_REVEAL_FALLBACK_MS_PER_CHARACTER;
+      const revealDuration = Math.max(
+        durationPerCharacter,
+        charactersToReveal * durationPerCharacter,
+      );
+      const generation = synchronizedRevealGenerationRef.current;
+      const startedAt = window.performance.now();
+
+      renderSynchronizedText(Math.min(targetCharacters, startCharacters + 1));
+
+      const revealNext = (now: number) => {
+        if (generation !== synchronizedRevealGenerationRef.current) return;
+
+        const progress = Math.min(1, (now - startedAt) / revealDuration);
+        const nextVisibleCharacters = Math.min(
+          targetCharacters,
+          startCharacters + Math.max(1, Math.floor(charactersToReveal * progress)),
+        );
+        if (nextVisibleCharacters !== synchronizedVisibleCharactersRef.current) {
+          renderSynchronizedText(nextVisibleCharacters);
+        }
+
+        if (progress < 1) {
+          synchronizedRevealFrameRef.current = window.requestAnimationFrame(revealNext);
+        } else {
+          synchronizedRevealFrameRef.current = null;
+        }
+      };
+
+      synchronizedRevealFrameRef.current = window.requestAnimationFrame(revealNext);
+    },
+    [cancelSynchronizedTextReveal, renderSynchronizedText],
+  );
+
   const resetAvatarSpeech = useCallback(() => {
     museTalkPrefetchGenerationRef.current += 1;
+    avatarSpeakGenerationRef.current += 1;
     avatarQueueRef.current = [];
     museTalkPendingTextRef.current = [];
+    avatarSpeakPendingTextRef.current = [];
     museTalkPrefetchRunningRef.current = false;
+    avatarSpeakRunningRef.current = false;
     revokeMuseTalkBlobUrls();
     avatarPlayingRef.current = false;
-    setAvatarHlsUrl(null);
+    setAvatarSpeechMedia(null);
     setMuseTalkRequest(null);
   }, [revokeMuseTalkBlobUrls]);
 
-  const enqueueAvatarSpeech = useCallback((hlsUrl: string) => {
+  const enqueueAvatarSpeech = useCallback((media: AvatarSpeechMedia) => {
     if (!avatarPlayingRef.current) {
       avatarPlayingRef.current = true;
-      setAvatarHlsUrl(hlsUrl);
-      setAvatarStatus("speaking");
+      setAvatarSpeechMedia(media);
+      setAvatarStatus("thinking");
       return;
     }
-    avatarQueueRef.current.push(hlsUrl);
+    avatarQueueRef.current.push(media);
   }, []);
+
+  const pumpAvatarSpeakPrefetch = useCallback(
+    async (generation: number) => {
+      if (avatarSpeakRunningRef.current) return;
+      avatarSpeakRunningRef.current = true;
+
+      try {
+        while (generation === avatarSpeakGenerationRef.current) {
+          const pendingSpeech = avatarSpeakPendingTextRef.current.shift();
+          if (!pendingSpeech) return;
+
+          try {
+            let allocatedDisplayCharacters = 0;
+            await streamAvatarSpeakChunks(
+              pendingSpeech.speech,
+              (chunk) => {
+                if (generation !== avatarSpeakGenerationRef.current) return;
+                const remainingDisplayCharacters = Math.max(
+                  0,
+                  pendingSpeech.displayCharacters - allocatedDisplayCharacters,
+                );
+                const displayCharacters =
+                  chunk.index >= chunk.total - 1
+                    ? remainingDisplayCharacters
+                    : Math.min(
+                        remainingDisplayCharacters,
+                        Math.max(
+                          1,
+                          Math.round(
+                            pendingSpeech.displayCharacters *
+                              (chunk.text.length / Math.max(1, pendingSpeech.speech.length)),
+                          ),
+                        ),
+                      );
+                allocatedDisplayCharacters += displayCharacters;
+                enqueueAvatarSpeech({
+                  url: chunk.hls_url,
+                  displayCharacters,
+                });
+              },
+              { avatarId: selectedCoachIdRef.current },
+            );
+          } catch (error) {
+            if (generation === avatarSpeakGenerationRef.current) {
+              console.error("[Avatar]", "stream_prefetch_failed", error);
+              fallbackToStreamingText();
+              setAvatarStatus("idle");
+            }
+            return;
+          }
+        }
+      } finally {
+        avatarSpeakRunningRef.current = false;
+        if (
+          generation === avatarSpeakGenerationRef.current &&
+          avatarSpeakPendingTextRef.current.length > 0
+        ) {
+          void pumpAvatarSpeakPrefetch(generation);
+        }
+      }
+    },
+    [enqueueAvatarSpeech, fallbackToStreamingText],
+  );
+
+  const enqueueAvatarSpeechText = useCallback(
+    (text: string, displayCharacters = text.length) => {
+      const speech = text.trim();
+      if (!speech) return;
+
+      const generation = avatarSpeakGenerationRef.current;
+      avatarSpeakPendingTextRef.current.push({
+        speech,
+        displayCharacters: Math.max(1, displayCharacters),
+      });
+      void pumpAvatarSpeakPrefetch(generation);
+    },
+    [pumpAvatarSpeakPrefetch],
+  );
 
   const pumpMuseTalkPrefetch = useCallback(
     async (generation: number) => {
@@ -409,10 +653,14 @@ export function OneToOneConversationPage() {
             elapsed_ms: result.elapsed_ms,
             statuses: result.statuses,
           });
-          enqueueAvatarSpeech(url);
+          enqueueAvatarSpeech({
+            url,
+            displayCharacters: chunk.text.length,
+          });
         } catch (error) {
           if (generation === museTalkPrefetchGenerationRef.current) {
             console.error("[MuseTalk]", "prefetch_failed", error);
+            fallbackToStreamingText();
           }
           return;
         }
@@ -427,7 +675,7 @@ export function OneToOneConversationPage() {
         }
       }
     },
-    [enqueueAvatarSpeech],
+    [enqueueAvatarSpeech, fallbackToStreamingText],
   );
 
   const enqueueMuseTalkChunk = useCallback(
@@ -453,11 +701,12 @@ export function OneToOneConversationPage() {
         setMuseTalkRequest({
           id: ++museTalkRequestIdRef.current,
           text: chunk,
+          displayCharacters: chunk.length,
           avatar_id: selectedCoachIdRef.current,
           session_id: sessionId,
           seq,
         });
-        setAvatarStatus("speaking");
+        setAvatarStatus("thinking");
         return;
       }
 
@@ -488,16 +737,16 @@ export function OneToOneConversationPage() {
   );
 
   const playQueuedAvatarSpeech = useCallback(() => {
-    const nextUrl = avatarQueueRef.current.shift();
-    if (!nextUrl) {
+    const nextMedia = avatarQueueRef.current.shift();
+    if (!nextMedia) {
       avatarPlayingRef.current = false;
       setAvatarStatus("idle");
       return;
     }
 
     avatarPlayingRef.current = true;
-    setAvatarHlsUrl(nextUrl);
-    setAvatarStatus("speaking");
+    setAvatarSpeechMedia(nextMedia);
+    setAvatarStatus("thinking");
   }, []);
 
   const cleanupVoiceResources = useCallback(() => {
@@ -539,6 +788,7 @@ export function OneToOneConversationPage() {
 
       cleanupVoiceResources();
       setVoiceLevel(0);
+      setVoiceBands(Array.from({ length: VOICE_EQUALIZER_BAND_COUNT }, () => 0));
 
       if (!hadActiveSession) return;
 
@@ -637,8 +887,9 @@ export function OneToOneConversationPage() {
       if (voiceProcessingTimerRef.current !== null) {
         window.clearTimeout(voiceProcessingTimerRef.current);
       }
+      cancelSynchronizedTextReveal();
     };
-  }, [cleanupVoiceResources]);
+  }, [cancelSynchronizedTextReveal, cleanupVoiceResources]);
 
   // 스트림이 빈 채로 끝나거나 끊겨도, 백엔드에는 응답이 이미 생성·저장돼 있을 수 있다
   // (핫리로드로 소켓만 끊긴 경우 등) — "죄송해요"를 보여주기 전에 서버 상태를 한 번 확인한다.
@@ -657,6 +908,7 @@ export function OneToOneConversationPage() {
     const content = inputValue.trim();
     if (!content || sendingRef.current) return;
 
+    finishSynchronizedTextReveal();
     const userMessage: ConversationMessage = {
       id: `message-${Date.now()}`,
       role: "user",
@@ -682,6 +934,21 @@ export function OneToOneConversationPage() {
     setAvatarStatus("thinking");
     resetAvatarSpeech();
     const assistantMessageId = `message-${Date.now()}-assistant`;
+    synchronizedMessageIdRef.current = assistantMessageId;
+    synchronizedFullTextRef.current = "";
+    synchronizedVisibleCharactersRef.current = 0;
+    synchronizedTargetCharactersRef.current = 0;
+    synchronizedStreamDoneRef.current = false;
+    synchronizedSpeechFailedRef.current = false;
+    setMessages((current) => [
+      ...current,
+      {
+        id: assistantMessageId,
+        role: "assistant",
+        content: "진로 코치가 작성중입니다",
+        phase: "pending",
+      },
+    ]);
     const traceId = `conv-${Date.now()}`;
     perfTraceRef.current = {
       id: traceId,
@@ -697,6 +964,10 @@ export function OneToOneConversationPage() {
     let reply = "";
     let museTalkSentenceBuffer = "";
     let museTalkStartedFromStream = false;
+    let avatarSpeakSentenceBuffer = "";
+    let avatarSpeakStartedFromStream = false;
+    let avatarSpeakStreamedSentences = 0;
+    let avatarSpeakStreamedChars = 0;
     // 백엔드(#131) 상세요청 응답 → skip_tts=true. 긴 텍스트를 아바타가 읽으면 지연만 커지므로 발화 생략.
     let skipTts = false;
     const flushMuseTalkSentences = (force = false) => {
@@ -707,6 +978,36 @@ export function OneToOneConversationPage() {
       museTalkStartedFromStream = true;
       console.info("[MuseTalk]", "llm_sentence_flush", result.chunks);
       for (const sentence of result.chunks) enqueueMuseTalkChunk(sentence);
+    };
+    const flushAvatarSpeakSentences = (force = false) => {
+      if (!avatarProvider || avatarProvider === "musetalk") return;
+      const result = takeCompletedMuseTalkSentences(avatarSpeakSentenceBuffer, force);
+      avatarSpeakSentenceBuffer = result.rest;
+      if (result.chunks.length === 0) return;
+
+      const speechChunks: string[] = [];
+      const displayCharacterCounts: number[] = [];
+      for (const sentence of result.chunks) {
+        if (avatarSpeakStreamedSentences >= AVATAR_SPEECH_MAX_SENTENCES) break;
+
+        const speech = toAvatarSpeechText(sentence);
+        if (!speech) continue;
+
+        const nextLength = avatarSpeakStreamedChars + speech.length;
+        if (nextLength > AVATAR_SPEECH_MAX_CHARS && avatarSpeakStreamedSentences > 0) break;
+
+        avatarSpeakStartedFromStream = true;
+        avatarSpeakStreamedSentences += 1;
+        avatarSpeakStreamedChars = nextLength;
+        speechChunks.push(speech);
+        displayCharacterCounts.push(sentence.length);
+      }
+
+      if (speechChunks.length === 0) return;
+      console.info("[Avatar]", "llm_sentence_flush", speechChunks);
+      speechChunks.forEach((speech, index) => {
+        enqueueAvatarSpeechText(speech, displayCharacterCounts[index]);
+      });
     };
 
     try {
@@ -723,19 +1024,26 @@ export function OneToOneConversationPage() {
             });
           }
           reply += chunk;
+          synchronizedFullTextRef.current = reply;
           museTalkSentenceBuffer += chunk;
+          avatarSpeakSentenceBuffer += chunk;
           flushMuseTalkSentences(false);
+          flushAvatarSpeakSentences(false);
           if (!started) {
             started = true;
-            setMessages((current) => [
-              ...current,
-              { id: assistantMessageId, role: "assistant", content: chunk },
-            ]);
-          } else {
+          }
+          if (!avatarProvider || synchronizedSpeechFailedRef.current) {
             setMessages((current) =>
               current.map((message) =>
                 message.id === assistantMessageId
-                  ? { ...message, content: message.content + chunk }
+                  ? {
+                      ...message,
+                      content:
+                        message.phase === "pending"
+                          ? chunk
+                          : message.content + chunk,
+                      phase: "streaming",
+                    }
                   : message,
               ),
             );
@@ -766,46 +1074,42 @@ export function OneToOneConversationPage() {
         // 스트림은 에러 없이 끝났는데 토큰을 하나도 못 받은 경우 — 백엔드 핫리로드 등으로
         // 응답 생성·저장은 끝났지만 소켓만 끊겼을 수 있어, 실제로 저장됐는지 한 번 확인한다.
         const recovered = await recoverAssistantReply();
-        setMessages((current) => [
-          ...current,
-          {
-            id: assistantMessageId,
-            role: "assistant",
-            content: recovered ?? "죄송해요, 응답을 만들지 못했어요. 다시 시도해주세요.",
-          },
-        ]);
+        synchronizedFullTextRef.current =
+          recovered ?? "죄송해요, 응답을 만들지 못했어요. 다시 시도해주세요.";
+        finishSynchronizedTextReveal();
         setAvatarStatus("idle");
         sendingRef.current = false;
         return;
       }
 
       flushMuseTalkSentences(true);
+      flushAvatarSpeakSentences(true);
+      synchronizedStreamDoneRef.current = true;
+      if (!avatarProvider || synchronizedSpeechFailedRef.current) {
+        finishSynchronizedTextReveal();
+      }
     } catch (error) {
       const recovered = await recoverAssistantReply();
-      setMessages((current) => [
-        ...current,
-        {
-          id: `${assistantMessageId}-error`,
-          role: "assistant",
-          content:
-            recovered ??
-            (error instanceof ApiError ? error.message : "응답을 받아오지 못했어요. 다시 시도해주세요."),
-        },
-      ]);
+      synchronizedFullTextRef.current =
+        recovered ??
+        (error instanceof ApiError
+          ? error.message
+          : "응답을 받아오지 못했어요. 다시 시도해주세요.");
+      finishSynchronizedTextReveal();
       resetAvatarSpeech();
       setAvatarStatus("idle");
       sendingRef.current = false;
       return;
     }
 
-    if (avatarProvider === "musetalk") {
-      if (skipTts) {
-        // 상세요청 응답 — 긴 텍스트라 음성 합성 생략, 텍스트만 노출 (지연 방지).
-        // 문장 flush로 첫 문장이 이미 발사됐을 수 있으니(skip_tts는 done에서야 알 수 있음) 중단시킨다.
-        console.info("[MuseTalk]", "skip_tts", { reason: "detail_requested", source_chars: reply.length });
-        resetAvatarSpeech();
-        setAvatarStatus("idle");
-      } else {
+    if (skipTts) {
+      // 상세요청 응답 — 긴 텍스트라 음성 합성 생략, 텍스트만 노출 (지연 방지).
+      // 문장 flush로 첫 문장이 이미 발사됐을 수 있으니(skip_tts는 done에서야 알 수 있음) 중단시킨다.
+      console.info("[Avatar]", "skip_tts", { reason: "detail_requested", source_chars: reply.length });
+      resetAvatarSpeech();
+      finishSynchronizedTextReveal();
+      setAvatarStatus("idle");
+    } else if (avatarProvider === "musetalk") {
         const avatarSpeech = toAvatarSpeechText(reply);
         if (perfTraceRef.current) {
           perfTraceRef.current.avatar_speech_chars = avatarSpeech.length;
@@ -815,20 +1119,33 @@ export function OneToOneConversationPage() {
           speech_chars: avatarSpeech.length,
           text: avatarSpeech,
         });
-        if (!museTalkStartedFromStream) enqueueMuseTalkSpeech(avatarSpeech);
+        if (!avatarSpeech) {
+          finishSynchronizedTextReveal();
+        } else if (!museTalkStartedFromStream) {
+          enqueueMuseTalkSpeech(avatarSpeech);
+        }
+    } else if (avatarProvider && avatarSpeakStartedFromStream) {
+      if (perfTraceRef.current) {
+        perfTraceRef.current.avatar_speech_chars = avatarSpeakStreamedChars;
       }
     } else if (avatarProvider) {
       try {
         await streamAvatarSpeakChunks(
           reply,
-          (chunk) => enqueueAvatarSpeech(chunk.hls_url),
+          (chunk) =>
+            enqueueAvatarSpeech({
+              url: chunk.hls_url,
+              displayCharacters: chunk.text.length,
+            }),
           { avatarId: selectedCoachIdRef.current },
         );
       } catch {
         resetAvatarSpeech();
+        finishSynchronizedTextReveal();
         setAvatarStatus("idle");
       }
     } else {
+      finishSynchronizedTextReveal();
       setAvatarStatus("idle");
     }
     sendingRef.current = false;
@@ -836,28 +1153,66 @@ export function OneToOneConversationPage() {
     avatarProvider,
     consultationId,
     enqueueAvatarSpeech,
+    enqueueAvatarSpeechText,
     enqueueMuseTalkChunk,
     enqueueMuseTalkSpeech,
+    finishSynchronizedTextReveal,
     inputValue,
     recoverAssistantReply,
     resetAvatarSpeech,
   ]);
 
+  const handleSpeakingStart = useCallback(
+    (durationMs: number | null) => {
+      setAvatarStatus("speaking");
+      const displayCharacters =
+        museTalkRequest?.displayCharacters ??
+        avatarSpeechMedia?.displayCharacters ??
+        1;
+      startSynchronizedTextReveal(displayCharacters, durationMs);
+    },
+    [
+      avatarSpeechMedia?.displayCharacters,
+      museTalkRequest?.displayCharacters,
+      startSynchronizedTextReveal,
+    ],
+  );
+
   const handleSpeakingEnd = useCallback(() => {
+    completeSynchronizedTextSegment();
+    const hasOutstandingSpeech =
+      avatarQueueRef.current.length > 0 ||
+      museTalkPendingTextRef.current.length > 0 ||
+      avatarSpeakPendingTextRef.current.length > 0 ||
+      museTalkPrefetchRunningRef.current ||
+      avatarSpeakRunningRef.current;
+
     if (museTalkRequest) {
       setMuseTalkRequest(null);
       playQueuedAvatarSpeech();
-      return;
+    } else {
+      revokeMuseTalkBlobUrl(avatarHlsUrl);
+      setAvatarSpeechMedia(null);
+      playQueuedAvatarSpeech();
     }
 
-    revokeMuseTalkBlobUrl(avatarHlsUrl);
-    playQueuedAvatarSpeech();
-  }, [avatarHlsUrl, museTalkRequest, playQueuedAvatarSpeech, revokeMuseTalkBlobUrl]);
+    if (!hasOutstandingSpeech && synchronizedStreamDoneRef.current) {
+      finishSynchronizedTextReveal();
+    }
+  }, [
+    avatarHlsUrl,
+    completeSynchronizedTextSegment,
+    finishSynchronizedTextReveal,
+    museTalkRequest,
+    playQueuedAvatarSpeech,
+    revokeMuseTalkBlobUrl,
+  ]);
 
   const handleSpeakingError = useCallback(() => {
+    fallbackToStreamingText();
     resetAvatarSpeech();
     setAvatarStatus("idle");
-  }, [resetAvatarSpeech]);
+  }, [fallbackToStreamingText, resetAvatarSpeech]);
 
   const handleCoachConfirm = useCallback(
     (coachId: CoachAvatarId) => {
@@ -1041,6 +1396,23 @@ export function OneToOneConversationPage() {
         analyser.fftSize = 512;
         analyser.smoothingTimeConstant = 0.78;
         const samples = new Uint8Array(analyser.fftSize);
+        const frequencies = new Uint8Array(analyser.frequencyBinCount);
+        const frequencyResolution = audioContext.sampleRate / analyser.fftSize;
+        const minimumVoiceBin = Math.max(1, Math.floor(90 / frequencyResolution));
+        const maximumVoiceBin = Math.min(
+          analyser.frequencyBinCount - 1,
+          Math.ceil(4_200 / frequencyResolution),
+        );
+        const frequencyBandEdges = Array.from(
+          { length: VOICE_EQUALIZER_BAND_COUNT + 1 },
+          (_, index) => {
+            const ratio = index / VOICE_EQUALIZER_BAND_COUNT;
+            return Math.round(
+              minimumVoiceBin *
+                Math.pow(maximumVoiceBin / minimumVoiceBin, ratio),
+            );
+          },
+        );
         source.connect(analyser);
         voiceAudioContextRef.current = audioContext;
         voiceSourceRef.current = source;
@@ -1060,6 +1432,29 @@ export function OneToOneConversationPage() {
           const visibleLevel = Math.min(1, Math.max(0, (rms - 0.008) / 0.14));
           const now = window.performance.now();
           setVoiceLevel(visibleLevel);
+          analyser.getByteFrequencyData(frequencies);
+          setVoiceBands(
+            Array.from({ length: VOICE_EQUALIZER_BAND_COUNT }, (_, index) => {
+              const start = frequencyBandEdges[index];
+              const end = Math.max(start + 1, frequencyBandEdges[index + 1]);
+              let total = 0;
+              let peak = 0;
+
+              for (let bin = start; bin < end; bin += 1) {
+                const value = frequencies[bin] ?? 0;
+                total += value;
+                peak = Math.max(peak, value);
+              }
+
+              const average = total / Math.max(1, end - start);
+              const combined = (average * 0.62 + peak * 0.38) / 255;
+              const normalized = Math.min(
+                1,
+                Math.max(0, (combined - 0.035) / 0.48),
+              );
+              return normalized < 0.035 ? 0 : Math.pow(normalized, 0.82);
+            }),
+          );
 
           if (rms >= VOICE_LEVEL_THRESHOLD) {
             lastSoundAt = now;
@@ -1080,6 +1475,7 @@ export function OneToOneConversationPage() {
       voiceSessionActiveRef.current = false;
       cleanupVoiceResources();
       setVoiceLevel(0);
+      setVoiceBands(Array.from({ length: VOICE_EQUALIZER_BAND_COUNT }, () => 0));
       setRecordingState("idle");
       setAvatarStatus("idle");
       const errorName = error instanceof DOMException ? error.name : "";
@@ -1545,6 +1941,7 @@ export function OneToOneConversationPage() {
             status={avatarStatus}
             hlsUrl={avatarHlsUrl}
             museTalkRequest={museTalkRequest}
+            onSpeakingStart={handleSpeakingStart}
             onSpeakingEnd={handleSpeakingEnd}
             onSpeakingError={handleSpeakingError}
             onMuseTalkMetrics={handleMuseTalkMetrics}
@@ -1560,6 +1957,7 @@ export function OneToOneConversationPage() {
             recordingState={recordingState}
             voiceIssue={voiceIssue}
             voiceLevel={voiceLevel}
+            voiceBands={voiceBands}
             variant={activePanel === "chat" ? "large" : "compact"}
             onInputChange={setInputValue}
             onSend={handleSendMessage}

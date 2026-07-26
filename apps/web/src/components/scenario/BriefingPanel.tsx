@@ -11,6 +11,7 @@ import styles from "../../styles/scenarioGame.module.css";
 type BriefingPanelProps = {
   npcName: string;
   npcRole?: string;
+  npcPortraitSrc?: string;
   missionTitle: string;
   mission: string;
   steps: string[];
@@ -20,6 +21,7 @@ type BriefingPanelProps = {
 export function BriefingPanel({
   npcName,
   npcRole,
+  npcPortraitSrc,
   missionTitle,
   mission,
   steps,
@@ -37,7 +39,11 @@ export function BriefingPanel({
 
         <div className={styles.briefingSpeaker}>
           <span className={styles.encounterAvatar} aria-hidden="true">
-            <UserCircle weight="duotone" />
+            {npcPortraitSrc ? (
+              <img src={npcPortraitSrc} alt="" />
+            ) : (
+              <UserCircle weight="duotone" />
+            )}
           </span>
           <div>
             <strong>{npcName}</strong>

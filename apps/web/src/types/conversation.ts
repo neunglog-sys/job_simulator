@@ -8,6 +8,7 @@ export type ConversationMessage = {
   content: string;
   createdAt?: string;
   action?: "open-survey";
+  phase?: "pending" | "streaming";
 };
 
 export type AvatarStatus = "idle" | "listening" | "thinking" | "speaking";

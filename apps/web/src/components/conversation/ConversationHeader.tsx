@@ -89,6 +89,7 @@ export function ConversationHeader({ onCoachSettingsOpen }: ConversationHeaderPr
             type="button"
             onClick={() => setIsScenarioPickerOpen((current) => !current)}
             aria-label="테스트할 시나리오 선택"
+            data-tooltip="시나리오 화면 이어가기"
             aria-haspopup="menu"
             aria-expanded={isScenarioPickerOpen}
           >
@@ -123,12 +124,14 @@ export function ConversationHeader({ onCoachSettingsOpen }: ConversationHeaderPr
             icon={GearSix}
             label="진로 코치 설정 열기"
             onClick={onCoachSettingsOpen}
+            tooltip="설정"
           />
         ) : null}
         <GlassIconButton
           icon={UserCircle}
           label="내 정보 열기"
           onClick={() => window.location.assign(FRONTEND_ENDPOINTS.myPage)}
+          tooltip="마이페이지"
         />
       </div>
     </header>
