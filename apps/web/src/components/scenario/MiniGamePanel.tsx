@@ -14,6 +14,7 @@ import { SpotGame } from "./minigames/SpotGame";
 import { TraceGame } from "./minigames/TraceGame";
 import { TypingGame } from "./minigames/TypingGame";
 import { SnsResearchGame } from "./minigames/SnsResearchGame";
+import { SnsPostDesignGame } from "./minigames/SnsPostDesignGame";
 import type { EngineProps } from "./minigames/shared";
 import type { Engine, MinigameDef, MinigameResult } from "./minigames/types";
 
@@ -21,7 +22,7 @@ import type { Engine, MinigameDef, MinigameResult } from "./minigames/types";
  * 4단계 — 앞 단계에서 익힌 '신입의 주 업무'를 실제로 해보는 미니게임.
  *
  * 게임 정의는 시뮬레이션 응답의 `minigame`(= data/minigames/<slug>.yaml)에서 온다.
- * 엔진 11종 전부 EngineProps 공용 계약으로 연결 — 게임 데이터가 없는 시나리오만
+ * 등록 엔진 전부 EngineProps 공용 계약으로 연결 — 게임 데이터가 없는 시나리오만
  * '준비 중' 빈 창으로 폴백한다.
  */
 type MiniGamePanelProps = {
@@ -48,6 +49,7 @@ const ENGINE_COMPONENTS: Partial<Record<Engine, React.ComponentType<EngineProps>
   trace: TraceGame,
   typing: TypingGame,
   research: SnsResearchGame,
+  design: SnsPostDesignGame,
 };
 
 /**
@@ -112,7 +114,7 @@ export function MiniGamePanel({
   }, [queueKey]);
 
   const handleAttempt = (result: MinigameResult) => {
-    if (activeGame?.engine === "research") {
+    if (activeGame?.engine === "research" || activeGame?.engine === "design") {
       onClear({ ...result, engine: activeGame.engine });
       return;
     }

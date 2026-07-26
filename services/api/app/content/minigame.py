@@ -20,7 +20,7 @@ from app.domains.scoring.aggregate import MINIGAME_COMPETENCY
 
 logger = logging.getLogger(__name__)
 
-UNSCORED_ENGINES = {"research"}
+UNSCORED_ENGINES = {"research", "design"}
 
 # slug → (mtime, 게임 목록). 실패는 저장하지 않아 파일을 고치면 즉시 반영된다.
 _cache: dict[str, tuple[float, list[dict]]] = {}

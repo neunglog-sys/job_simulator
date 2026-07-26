@@ -11,6 +11,7 @@ from fastapi import HTTPException
 from app.domains.scoring.aggregate import (
     MINIGAME_BLEND,
     competency_scores,
+    minigame_results_from_logs,
     minigame_of,
 )
 from app.domains.simulation.service import _minigame_result
@@ -124,6 +125,91 @@ def test_research_game_rejects_wrong_total():
     payload["metadata"]["totalWrongAttempts"] = 5
     with pytest.raises(HTTPException) as err:
         _minigame_result(payload, {"engine": "research", "pass_score": 70.0})
+    assert err.value.status_code == 400
+
+
+def _design_payload(*, wrong_submissions: int = 2) -> dict:
+    return {
+        "engine": "design",
+        "completed": True,
+        "metadata": {
+            "gameId": "sns-post-design",
+            "completed": True,
+            "wrongSubmissionCount": wrong_submissions,
+            "completedAt": "2026-07-26T00:00:00.000Z",
+            "durationMs": 45200,
+            "moveCount": 16,
+            "undoCount": 2,
+            "resetCount": 1,
+        },
+    }
+
+
+def test_design_game_keeps_raw_wrong_submissions_without_score():
+    result = _minigame_result(
+        _design_payload(),
+        {"engine": "design", "pass_score": 70.0},
+    )
+
+    assert result["completed"] is True
+    assert result["mistakes"] == 2
+    assert result["metadata"]["wrongSubmissionCount"] == 2
+    assert result["metadata"]["moveCount"] == 16
+    assert "accuracy" not in result
+    assert "score" not in result
+    assert "passed" not in result
+    assert minigame_of({"minigame": result}) is None
+
+
+def test_report_collects_latest_raw_minigame_result_per_game():
+    logs = [
+        {
+            "type": "minigame",
+            "payload": {
+                "engine": "design",
+                "mistakes": 1,
+                "metadata": {"gameId": "sns-post-design", "wrongSubmissionCount": 1},
+            },
+        },
+        {
+            "type": "minigame",
+            "payload": {
+                "engine": "design",
+                "mistakes": 3,
+                "metadata": {"gameId": "sns-post-design", "wrongSubmissionCount": 3},
+            },
+        },
+        {
+            "type": "minigame",
+            "payload": {
+                "engine": "research",
+                "mistakes": 2,
+                "metadata": {"gameId": "sns-content-research", "totalWrongAttempts": 2},
+            },
+        },
+    ]
+
+    results = minigame_results_from_logs(logs)
+
+    assert [result["engine"] for result in results] == ["design", "research"]
+    assert results[0]["metadata"]["wrongSubmissionCount"] == 3
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("wrongSubmissionCount", -1),
+        ("durationMs", -1),
+        ("moveCount", True),
+        ("undoCount", "2"),
+        ("resetCount", None),
+    ],
+)
+def test_design_game_rejects_invalid_raw_metrics(field, value):
+    payload = _design_payload()
+    payload["metadata"][field] = value
+    with pytest.raises(HTTPException) as err:
+        _minigame_result(payload, {"engine": "design", "pass_score": 70.0})
     assert err.value.status_code == 400
 
 
