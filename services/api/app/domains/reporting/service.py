@@ -7,9 +7,10 @@ import logging
 from pathlib import Path
 
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.content.loader import load_competencies
+from app.content.loader import load_competencies, load_job_scenario_map
 from app.core.config import settings
 from app.core.db import SessionFactory
 import asyncio
@@ -22,21 +23,77 @@ from app.domains.simulation.service import get_owned_simulation
 from app.llm import get_llm
 from app.llm.base import ChatMessage
 from app.llm.prompts import render_prompt
-from app.models import Report, Scenario, Simulation, User
+from app.models import Job, Report, Scenario, Simulation, User
 
 logger = logging.getLogger(__name__)
 
 _REPORT_SCHEMA = {
     "type": "object",
     "properties": {
-        "fit_score": {"type": "integer"},
+        # 종합 적합도(fit_score)는 LLM이 매기지 않는다 — service에서 추천 결과에 앵커해
+        # 결정론적으로 계산한다(재현 가능·표의 직무 적합도와 역전 없음). 스키마에서 제외.
         "strengths": {"type": "array", "items": {"type": "string"}},
         "improvements": {"type": "array", "items": {"type": "string"}},
+        # '직무 마스터의 종합 총평' — 상담·추천·수행·소감을 아우르는 긴 서술(6~8문장)
         "advice": {"type": "string"},
+        # 추천 5개 직무 묶음에 대한 AI 해석(3~4문장) — 표의 점수·근거에만 기반
+        "recommendation_insight": {"type": "string"},
+        # 체험 역량 점수에 대한 해석(2~3문장). 수행 데이터 없으면 빈 문자열
+        "competency_insight": {"type": "string"},
+        # 체험 소감에 대한 코칭 피드백(3~4문장). 소감 없으면 빈 문자열
+        "reflection_feedback": {"type": "string"},
+        # 마지막 '다음 단계' CTA(2~3문장) — 추천 목록의 다른 직무 체험 권유
+        "next_steps": {"type": "string"},
+        # 체험 미션별 평가 [{step, evaluation}]. 수행 미션 없으면 빈 배열
+        "mission_evaluations": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "step": {"type": "string"},
+                    "evaluation": {"type": "string"},
+                },
+                "required": ["step", "evaluation"],
+                "additionalProperties": False,
+            },
+        },
     },
-    "required": ["fit_score", "strengths", "improvements", "advice"],
+    "required": [
+        "strengths", "improvements", "advice",
+        "recommendation_insight", "competency_insight",
+        "reflection_feedback", "next_steps", "mission_evaluations",
+    ],
     "additionalProperties": False,
 }
+
+
+async def _attach_related_jobs(
+    session: AsyncSession, results: list[dict]
+) -> list[dict]:
+    """추천 각 직무에 '관련 직업 예시'(같은 카테고리의 다른 구체 직업)를 붙인다.
+
+    출처는 data/recommendation/job_scenario_map.yaml(직업→근접 시나리오 카테고리
+    임베딩 매핑)과 data/jobs/*의 실제 직업명이다 — 새로 지어내는 값이 아니라
+    리포지토리에 이미 있는 데이터를 역매핑해 보여줄 뿐이며, 추천 점수·순위는
+    건드리지 않는다(그 로직은 recommendation 도메인 소유). 카테고리 대표코드
+    (자기참조)와 자기 자신은 제외해 구체 직업명만 남기고, 없으면 빈 리스트.
+    """
+    scenario_map = load_job_scenario_map()  # {job_code: category_slug}
+    titles = dict((await session.execute(select(Job.code, Job.title))).all())
+    enriched = []
+    for r in results:
+        code = r.get("job_code")
+        category = scenario_map.get(code)
+        related = (
+            [
+                titles[c]
+                for c, slug in scenario_map.items()
+                if slug == category and c != code and slug != c and c in titles
+            ]
+            if category else []
+        )
+        enriched.append({**r, "related_jobs": related[:4]})
+    return enriched
 
 
 async def create_report(
@@ -101,6 +158,17 @@ async def generate_report(report_id: int) -> None:
                 # 체험자가 직접 쓴 소감 — 채점 대상이 아니라 리포트의 세 번째 재료
                 # (리포트 = 상담 + 수행 + 소감). 본인의 말이므로 그대로 넘긴다.
                 performance["reflection"] = simulation.state.get("reflection")
+                # 미션 상세를 리포트에 사람이 읽을 수 있게 싣기 위한 step_id→제목 맵.
+                # (missions 행에는 step_id·type만 있어 그대로 쓰면 'm1' 같은 코드가 노출된다.)
+                performance["mission_titles"] = {
+                    step["id"]: step.get("title")
+                    for step in (scenario.steps or [])
+                    if step.get("id")
+                }
+
+            # 추천 각 직무에 '관련 직업 예시'(리포지토리 매핑 역참조)를 붙여
+            # 프롬프트·PDF 양쪽에 같은 근거를 넘긴다. 저장된 results는 건드리지 않는다.
+            enriched_recs = await _attach_related_jobs(session, recommendation.results)
 
             transcript = "\n".join(
                 f"{'사용자' if m.role == 'user' else '상담사'}: {m.content}"
@@ -108,7 +176,7 @@ async def generate_report(report_id: int) -> None:
             )
             system = render_prompt(
                 "job-master/consult-report.md",
-                recommendations=recommendation.results,
+                recommendations=enriched_recs,
                 competencies=load_competencies(),
                 performance=performance,
             )
@@ -118,7 +186,12 @@ async def generate_report(report_id: int) -> None:
                 json_schema=_REPORT_SCHEMA,
             )
 
-            consult_fit = max(0, min(100, int(analysis["fit_score"])))
+            # 종합 적합도는 LLM이 아니라 추천 결과에 앵커한다 — 재현 가능하고, 리포트 표에
+            # 보이는 '1순위 직무 적합도'와 절대 어긋나지 않게 하기 위함. (LLM이 매기면 같은
+            # 데이터에도 값이 흔들리고 표의 최고 적합도를 넘길 수 있었다.)
+            # 상담 기준 = 1순위(최고 적합도) 추천 직무 점수, 체험이 있으면 수행과 50%씩 합산.
+            top_rec_score = int(enriched_recs[0]["score"]) if enriched_recs else 0
+            consult_fit = max(0, min(100, top_rec_score))
             if performance is not None:
                 final_fit = round(consult_fit * 0.5 + performance["total"] * 0.5)
             else:
@@ -133,13 +206,18 @@ async def generate_report(report_id: int) -> None:
                 render_report_pdf,
                 pdf_path,
                 user_name=user.name,
-                recommendations=recommendation.results,
+                recommendations=enriched_recs,
                 fit_score=final_fit,
                 strengths=analysis["strengths"],
                 improvements=analysis["improvements"],
                 advice=analysis["advice"],
                 performance=performance,
                 percentile=percentile,
+                recommendation_insight=analysis.get("recommendation_insight"),
+                competency_insight=analysis.get("competency_insight"),
+                reflection_feedback=analysis.get("reflection_feedback"),
+                next_steps=analysis.get("next_steps"),
+                mission_evaluations=analysis.get("mission_evaluations") or [],
             )
 
             report.fit_score = final_fit
