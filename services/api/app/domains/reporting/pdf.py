@@ -380,7 +380,9 @@ def _ncs_info_card(edu_value, median_salary, salary_stats: dict, certs: list) ->
             f'<font name="{FONT_B}" size="14" color="#6C4BEF">'
             f'{round(median_salary / 10000):,}만원</font>{caption}',
             ParagraphStyle("ncssal", fontName=FONT, fontSize=10, leading=18, textColor=INK))
-        rows.append([_label("평균 연봉"), val])
+        # 원자료는 median(중위값) — '평균'으로 표기하면 사실이 틀린다. 통계 종류를 정직하게 라벨링.
+        stat_label = "연봉 중위값" if salary_stats.get("statistic_type") == "median" else "평균 연봉"
+        rows.append([_label(stat_label), val])
     if certs:
         names = [c.get("name", "") for c in certs if c.get("name")]
         if names:
@@ -493,7 +495,14 @@ def render_report_pdf(
     # ── 종합 적합도 히어로 ──────────────────────────────────────────────────
     # 추천 표의 '직무 적합도'와 혼동되지 않도록 라벨·캡션으로 지표 성격을 분명히 한다.
     fit = _clamp(fit_score)
-    fit_caption = "상담 분석 50% + 직무 체험 수행 50% 합산" if performance is not None else "1:1 상담 분석 기준"
+    if performance is not None:
+        # 종합 적합도가 어떻게 나왔는지 원점수·계산식과 함께 보여준다(블랙박스 점수 불신 방지).
+        # 실제 공식: round(1순위 직무 적합도 × 0.5 + 체험 총점 × 0.5) — service.py와 동일.
+        _rec_top = int(recommendations[0]["score"]) if recommendations else 0
+        _exp_total = int(performance.get("total") or 0)
+        fit_caption = f"직무 적합도 {_rec_top}점 × 50% + 직무 체험 {_exp_total}점 × 50% = {fit}점"
+    else:
+        fit_caption = "1:1 상담 분석 기준"
     hero_left = Table(
         [[Paragraph("종합 적합도", _hero_lbl)],
          [Paragraph(f'{fit}<font size="14" color="#8B86A0"> / 100</font>', _hero_num)],
@@ -516,6 +525,12 @@ def render_report_pdf(
         ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
     ]))
     story.append(hero)
+    # 큰 점수가 '검사 결과'처럼 과신되지 않도록, 성격을 한 줄로 못박는다(오용 방지).
+    story.append(Spacer(1, 6))
+    story.append(Paragraph(
+        "※ 이 리포트는 표준화된 직업심리검사가 아니라 제한된 상담·설문과 가상 직무 체험을 바탕으로 한 "
+        "탐색용 참고 지표입니다. 채용 합격 가능성이나 직업 적합성을 확정하는 진단이 아니며, 추가 직무 체험·"
+        "교육·실제 업무 경험과 함께 검토해 주세요.", _muted))
     story.append(Spacer(1, 16))
 
     # ── 추천 직무 표 ────────────────────────────────────────────────────────
@@ -562,7 +577,8 @@ def render_report_pdf(
     story.append(Paragraph(
         "※ ‘직무 적합도’는 설문·상담에서 파악한 흥미 프로필과 각 직무가 요구하는 역량 간의 "
         "일치도입니다. 위의 ‘종합 적합도’는 상담 분석과 실제 직무 체험 수행을 합산한 별도 "
-        "지표로, 산출 방식이 달라 수치가 다를 수 있습니다.", _muted))
+        "지표로, 산출 방식이 달라 수치가 다를 수 있습니다. 추천 직무 간 점수 차가 3점 이내면 "
+        "적합도 차이는 크지 않아 서로 비슷한 계열의 유사 직무군으로 보셔도 됩니다.", _muted))
 
     # 추천 묶음 AI 해석
     ins = _insight_card(recommendation_insight, "AI 해석 · 추천 직무")
@@ -626,6 +642,12 @@ def render_report_pdf(
             ("RIGHTPADDING", (0, 0), (-1, -1), 8),
         ]))
         story.append(comp_table)
+        # 채점 기준을 밝혀 역량 점수가 임의값처럼 보이지 않게 한다(aggregate.py 공식과 일치).
+        story.append(Spacer(1, 5))
+        story.append(Paragraph(
+            "※ 역량 점수는 미션 유형별 가중평균에 자력 보정(정답 가이드를 볼수록 감점)을 적용해 "
+            "산출하며, 협업·커뮤니케이션은 NPC 대화 태도를 일부 반영합니다. 시나리오 총점(미션 80% + "
+            "돌발 대응 20%)과는 계산 방식이 달라 두 점수를 직접 평균·비교하지 않습니다.", _muted))
 
         ins = _insight_card(competency_insight, "AI 해석 · 역량")
         if ins is not None:
@@ -731,8 +753,9 @@ def render_report_pdf(
             _ncs_info_card(edu_value, median_salary, salary_stats, certs),
             Spacer(1, 5),
             Paragraph(
-                "※ 공개 직업정보(NCS·직업정보) 조사 자료 기준이며, 지역·경력·기업에 따라 실제와 차이가 있을 수 있습니다.",
-                _muted),
+                "※ 연봉은 공개 직업정보 조사 자료의 중위값 기준(조사연도·표본은 위 괄호 참조)이며, "
+                "지역·경력·기업 규모에 따라 실제와 차이가 있을 수 있습니다. 자격증·학력은 일반적 기준으로 "
+                "제시한 참고 정보이며 필수 요건이 아닐 수 있습니다.", _muted),
         ]))
 
     # ── 다음 단계 CTA ───────────────────────────────────────────────────────
