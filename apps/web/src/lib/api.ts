@@ -466,6 +466,13 @@ export type JobCertification = {
   tier: string;
 };
 
+/** 개인화 근거 — 상담에서 검증된 실제 발화 인용. 근거가 없으면 null(생략). */
+export type RecommendationEvidence = {
+  quote: string;
+  dimension_name: string;
+  confidence: number;
+};
+
 export type JobRecommendation = {
   job_code: string;
   job_title: string;
@@ -476,6 +483,7 @@ export type JobRecommendation = {
   salary: JobSalary | null;
   certifications: JobCertification[];
   scenario_slug: string | null;
+  evidence?: RecommendationEvidence | null;
 };
 
 export type Recommendation = {
