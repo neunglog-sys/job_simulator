@@ -169,7 +169,9 @@ games:
     engine: match
     title: 오픈 진열분 출고·안전 운반
     intro: 출고 목록의 종류와 수량을 기억해 정확히 피킹하고, 카트 속도를 조절하며 장애물을 피해 매장까지 운반하세요.
-    time_limit: 70
+    # time_limit 없음 — 암기(10초)·운반(60초)은 각 단계가 자체 카운트다운을 갖고,
+    # 피킹 단계는 시간 제한을 두지 않는다(전역 타이머가 돌면 세 단계가 한 시계를 공유해
+    # 앞 단계에서 시간을 다 쓰면 뒤 단계를 못 하는 문제가 있었다).
     pass_score: 70
     data: *supply_game_data
     scoring:
@@ -179,7 +181,7 @@ games:
     engine: match
     title: 니즈-상품 추천 매칭
     intro: 손님의 요구를 확인하고 와인 정보를 살펴본 뒤 알맞은 상품을 추천하고, 돌발 환불 요구에도 올바르게 대응하세요.
-    time_limit: 75
+    # time_limit 없음 — 손님 응대는 시간 압박 없이 판단에 집중하게 한다.
     pass_score: 70
     data: *customer_game_data
     scoring: *customer_game_scoring

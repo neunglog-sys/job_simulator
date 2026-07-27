@@ -24,11 +24,58 @@ from app.models import (
     Message,
     Recommendation,
     Report,
+    Scenario,
     Simulation,
     User,
 )
 
 logger = logging.getLogger(__name__)
+
+
+async def _play_since_last_reply(
+    session: AsyncSession, consultation: Consultation, history: list[Message]
+) -> dict | None:
+    """마지막 상담사 발화 이후에 사용자가 끝낸 체험이 있으면 그 정보를 돌려준다.
+
+    "시나리오를 마치고 1:1 화면으로 돌아왔을 때 마무리 한마디를 해 달라"는 요구 때문에
+    필요하다. 매 턴 프롬프트에 넣으면 상담사가 같은 총평을 계속 반복하므로, **아직
+    언급하지 못한 체험이 있을 때만** 넣는다(= 마지막 상담사 발화 뒤에 끝난 체험).
+
+    consultation_id로 걸지 않는 이유: 시나리오를 상담 화면 밖(예: /scenario?slug=kts-03)
+    에서 시작하면 그 값이 비어 저장된다(실측). 사용자+시각 기준이라야 실제로 잡힌다.
+    """
+    last_reply_at = next((m.created_at for m in reversed(history) if m.role == "assistant"), None)
+    if last_reply_at is None:
+        return None  # 첫 인사 전 — 총평할 맥락 자체가 없다
+
+    row = (
+        await session.execute(
+            select(Simulation, Scenario.title)
+            .join(Scenario, Scenario.id == Simulation.scenario_id)
+            .where(
+                Simulation.user_id == consultation.user_id,
+                Simulation.status == "completed",
+                Simulation.created_at > last_reply_at,
+            )
+            .order_by(Simulation.id.desc())
+            .limit(1)
+        )
+    ).first()
+    if row is None:
+        return None
+
+    simulation, title = row
+    state = simulation.state if isinstance(simulation.state, dict) else {}
+    score = state.get("score") if isinstance(state.get("score"), dict) else {}
+    return {
+        "title": title,
+        "total": score.get("total"),
+        "competencies": {
+            key: value
+            for key, value in (score.get("competencies") or {}).items()
+            if isinstance(value, (int, float))
+        },
+    }
 
 MEMORY_TURNS = 20  # 컨텍스트에 넣는 최근 메시지 수
 RAG_TOP_K = 3
@@ -379,6 +426,9 @@ async def stream_reply(
             ChatMessage(role=m.role, content=m.content) for m in history[-MEMORY_TURNS:]
         ]
 
+        # 시나리오를 마치고 돌아온 직후면 마무리 총평을 하도록 프롬프트에 실어 준다.
+        recent_play = await _play_since_last_reply(session, consultation, history)
+
         # 응답 길이 산정 — 첫 응답은 워밍업으로 더 짧게, 상세 설명 요청은 제한 해제 + TTS 생략
         is_first_reply = not any(m.role == "assistant" for m in history)
         detail_requested = _is_detail_request(user_text)
@@ -417,6 +467,9 @@ async def stream_reply(
         knowledge=knowledge,
         safety_notes=safety_notes,
         reply_char_limit=char_limit,
+        # 사전 설문 전이면 추천이 아니라 설문으로 안내해야 한다(추천 품질이 설문에 달려 있다).
+        survey_done=bool(consultation.survey),
+        recent_play=recent_play,
     )
 
     full: list[str] = []

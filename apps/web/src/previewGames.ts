@@ -1354,7 +1354,7 @@ export const PREVIEW_GAMES = {
     "engine": "match",
     "title": "니즈-상품 추천 매칭",
     "intro": "손님의 요구를 확인하고 오른쪽 진열대의 와인을 눌러 상품 정보를 살펴본 뒤 알맞은 와인을 추천하세요. 예산을 넘거나 품절된 와인은 추천하지 마세요.",
-    "time_limit": 75,
+    "time_limit": null,
     "pass_score": 70,
     "data": {
       "background_id": "kts-03",
@@ -5058,7 +5058,7 @@ PREVIEW_GAMES["kts-03-supply"] = {
   engine: "match",
   title: "오픈 진열분 출고·안전 운반",
   intro: "출고 목록의 종류와 수량을 기억해 정확히 피킹하고, 카트 속도를 조절하며 장애물을 피해 매장까지 운반하세요.",
-  time_limit: 70,
+  time_limit: null,
   pass_score: 70,
   data: {
     background_id: "kts-03",
