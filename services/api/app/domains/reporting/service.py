@@ -7,7 +7,6 @@ import logging
 from pathlib import Path
 
 from fastapi import HTTPException
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.content.loader import load_competencies, load_f_detail_jobs
@@ -23,7 +22,7 @@ from app.domains.simulation.service import get_owned_simulation
 from app.llm import get_llm
 from app.llm.base import ChatMessage
 from app.llm.prompts import render_prompt
-from app.models import Job, Report, Scenario, Simulation, User
+from app.models import Report, Scenario, Simulation, User
 
 logger = logging.getLogger(__name__)
 

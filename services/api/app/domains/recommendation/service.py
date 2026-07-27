@@ -32,7 +32,7 @@ from app.domains.recommendation.evidence import (
 from app.llm import get_llm
 from app.llm.base import ChatMessage
 from app.llm.prompts import render_prompt
-from app.models import Consultation, Job, Recommendation, Scenario, User
+from app.models import Consultation, Job, Recommendation, User
 
 logger = logging.getLogger(__name__)
 
