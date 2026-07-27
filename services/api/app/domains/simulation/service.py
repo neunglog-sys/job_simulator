@@ -567,6 +567,7 @@ async def stream_npc_chat(
         )
     else:
         persona_mission = grading_mission
+    npc_register = register_for_npc(scenario.slug, kind, hostile=hostile)
     system = render_prompt(
         "npc/system.md",
         scenario_title=scenario.title,
@@ -574,7 +575,7 @@ async def stream_npc_chat(
         player_address=_player_address(simulation.state),
         conversation_mode=conversation_mode,
         learning_briefing=learning_briefing,
-        register=register_for_npc(scenario.slug, kind, hostile=hostile),
+        register=npc_register,
         hostile=hostile,  # 악성 고객 — 고압적 태도 분기(npc/system.md)
         npc_kind=kind,
         mission=persona_mission,
@@ -611,6 +612,21 @@ async def stream_npc_chat(
         full.append(chunk)
         yield ("token", chunk)
     npc_reply = _clean_npc("".join(full))
+    # 모델이 간헐적으로 빈 스트림을 반환해도 투어가 빈 `...` 답변에서 멈추지 않게 한다.
+    # 투어 인사는 평가 답안이 아니므로 페르소나를 지어내지 않고 짧은 인사만 폴백한다.
+    if not npc_reply or not _HANGUL.search(npc_reply):
+        if first_meeting and not simulation.state.get("tour_done"):
+            npc_reply = (
+                "반가워. 앞으로 잘 부탁해."
+                if npc_register == "반말"
+                else "반갑습니다. 앞으로 잘 부탁드려요."
+            )
+        else:
+            npc_reply = (
+                "잘 못 들었어. 다시 한번 말해 줄래?"
+                if npc_register == "반말"
+                else "잘 듣지 못했어요. 다시 한번 말씀해 주세요."
+            )
 
     # 사용자가 이미 스트림으로 본 답변이므로 먼저 확정 저장한다 — 이후 평가가 실패해도
     # 대화록(채점·NPC 기억의 근거)이 사용자가 본 것과 어긋나지 않게.
@@ -886,14 +902,29 @@ async def onboarding_tour(
         out = fallback()
 
     by_id = {o["npc_id"]: o for o in others}
+    fallback_out = fallback()
+    fallback_stops = {s["npc"]: s["line"] for s in fallback_out["stops"]}
+
+    def safe_tour_text(value: object, fallback_text: str) -> str:
+        cleaned = _clean_npc(str(value or ""))
+        return cleaned if _HANGUL.search(cleaned) else fallback_text
+
     return {
         "guide": {"npc": guide["npc_id"], "name": guide["name"], "role": guide["role"]},
-        "opening": _clean_npc(out["opening"]),
+        "opening": safe_tour_text(out["opening"], fallback_out["opening"]),
         "stops": [
-            {**s, "name": by_id[s["npc"]]["name"], "role": by_id[s["npc"]]["role"]}
+            {
+                **s,
+                "name": by_id[s["npc"]]["name"],
+                "role": by_id[s["npc"]]["role"],
+                "line": safe_tour_text(
+                    s.get("line"),
+                    fallback_stops[s["npc"]],
+                ),
+            }
             for s in out["stops"]
         ],
-        "closing": _clean_npc(out["closing"]),
+        "closing": safe_tour_text(out["closing"], fallback_out["closing"]),
     }
 
 

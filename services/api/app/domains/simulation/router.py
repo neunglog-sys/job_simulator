@@ -210,13 +210,16 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, token: str | N
                 )
                 try:
                     if data.get("type") == "chat":
+                        chat_npc_id = _ws_text(data, "npc")
                         async for kind, payload in service.stream_npc_chat(
                             session, simulation, scenario,
-                            _ws_text(data, "npc"), _ws_text(data, "content"),
+                            chat_npc_id, _ws_text(data, "content"),
                             chat_mode=_ws_chat_mode(data),
                         ):
                             if kind == "token":
-                                await websocket.send_json({"type": "token", "text": payload})
+                                await websocket.send_json(
+                                    {"type": "token", "npc": chat_npc_id, "text": payload}
+                                )
                             elif kind == "coach_tip":
                                 await websocket.send_json({"type": "coach_tip", "text": payload["text"]})
                             else:
