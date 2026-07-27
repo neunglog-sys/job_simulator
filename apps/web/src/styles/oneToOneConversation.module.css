@@ -2256,6 +2256,7 @@
 .recommendedJobCard > img {
   z-index: -2;
   object-fit: cover;
+  object-position: center top;
   image-rendering: auto;
   transform: scale(1.04);
   transition: transform 360ms cubic-bezier(0.23, 1, 0.32, 1);
@@ -2490,7 +2491,15 @@
 
 .avatarStatusBadge::before {
   padding: 3px;
-  background: linear-gradient(110deg, #967bd8 0%, #8fa9e8 52%, #8ec8ee 100%);
+  background: conic-gradient(
+    from var(--avatar-status-angle),
+    #967bd8 0deg,
+    #c878cf 82deg,
+    #f0afd8 154deg,
+    #8ec8ee 236deg,
+    #7699e2 304deg,
+    #967bd8 360deg
+  );
 }
 
 .fixedNavigationMenu {
