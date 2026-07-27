@@ -259,6 +259,14 @@ function approachGuide(step: GameStep | null, roster: GameNpc[]): string {
     : "지도에서 '!' 표시된 담당 NPC에게 다가가면 업무를 받을 수 있어요.";
 }
 
+// 시나리오 mission은 `NPC 이름: "대사"` 형태도 사용한다. NPC 말풍선에 이름과 따옴표를
+// 다시 노출하지 않도록 실제 발화 부분만 꺼낸다.
+function activityBriefingText(mission: string): string {
+  const trimmed = mission.trim();
+  const quoted = trimmed.match(/^[^:]+:\s*["“]([\s\S]+)["”]\s*$/);
+  return (quoted?.[1] ?? trimmed).trim();
+}
+
 // 1단계 안내 — 사수에게 다가가면 팀을 한 바퀴 돌며 소개해 준다.
 function introGuide(step: GameStep | null, roster: GameNpc[]): string {
   const name = roster.find((npc) => npc.npc_id === step?.npcs?.[0])?.name;
@@ -1558,6 +1566,7 @@ export function ScenarioGamePage() {
           },
           onStepChanged: (step) => {
             if (cancelled || !step) return;
+            const nextNpc = npcsRef.current.find((npc) => npc.npc_id === step.npcs?.[0]);
             setActiveStep(step);
             setQuest(null);
             setChatNpcId(null); // 다음 미션 담당 NPC로 대화 상대 리셋
@@ -1568,11 +1577,26 @@ export function ScenarioGamePage() {
             setGreetSent(false); // 다음 담당 NPC 인사를 새로 요청
             setAdviceCards([]); // 조언 카드는 미션별 — 다음 미션으로 넘기지 않는다
             setCoachCards(null);
+            if (step.activity?.kind === "debrief") {
+              // 첫 실무 게임이 끝나면 사용자가 다시 NPC를 찾아 클릭하게 두지 않고,
+              // 담당자가 곧바로 결과를 돌아보는 질문을 건네 대화 흐름을 이어간다.
+              const prompt =
+                step.activity.prompt || "진행하면서 헷갈렸거나 시간이 걸린 부분과 그 이유를 이야기해 주세요.";
+              setNpcMessage(prompt);
+              appendDialogue(nextNpc?.name || "NPC", "npc", prompt);
+              setPhase("minigame_debrief");
+              speakCoach(`${nextNpc?.name || "담당자"} 님과 방금 마친 업무를 함께 돌아보세요.`);
+              return;
+            }
             speakCoach(approachGuide(step, npcsRef.current));
             setPhase((current) => (current === "minigame_debrief" ? "exploring" : current));
           },
           onActivityMessage: (message) => {
             if (cancelled || !message.text) return;
+            const speaker = npcsRef.current.find((npc) => npc.name === message.name);
+            setChatNpcId(speaker?.npc_id ?? null);
+            setNpcMessage(message.text);
+            setUserMessage("");
             setFarewell({ name: message.name, text: message.text });
             appendDialogue(message.name || "NPC", "npc", message.text);
           },
@@ -1762,6 +1786,18 @@ export function ScenarioGamePage() {
       return;
     }
     if (activeActivity?.kind === "minigame") {
+      const stepId = activeStep?.id;
+      if (stepId && !briefedSteps.includes(stepId)) {
+        const explanation =
+          activeActivity.briefing?.filter(Boolean).join("\n\n") ||
+          activityBriefingText(activeStep.mission);
+        setChatNpcId(null);
+        setNpcMessage(explanation);
+        setUserMessage("");
+        appendDialogue(activeNpc?.name || "NPC", "npc", explanation);
+        setBriefedSteps((current) => [...current, stepId]);
+        return;
+      }
       setTaskResult(null);
       setPhase("minigame");
       return;
@@ -2085,6 +2121,12 @@ export function ScenarioGamePage() {
                   ? "인사하러 가기 →"
                   : activeActivity?.kind === "debrief"
                     ? "이야기하기 →"
+                    : activeActivity?.kind === "minigame" &&
+                        activeStep?.id &&
+                        briefedSteps.includes(activeStep.id)
+                      ? "미니게임 시작 →"
+                      : activeActivity?.kind === "minigame"
+                        ? "업무 설명 듣기 →"
                     : "업무 받기 →"}
             </button>
           </div>

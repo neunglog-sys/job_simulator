@@ -500,7 +500,14 @@ def render_report_pdf(
         # 실제 공식: round(1순위 직무 적합도 × 0.5 + 체험 총점 × 0.5) — service.py와 동일.
         _rec_top = int(recommendations[0]["score"]) if recommendations else 0
         _exp_total = int(performance.get("total") or 0)
-        fit_caption = f"직무 적합도 {_rec_top}점 × 50% + 직무 체험 {_exp_total}점 × 50% = {fit}점"
+        _raw = _rec_top * 0.5 + _exp_total * 0.5
+        _base = f"직무 적합도 {_rec_top}점 × 50% + 직무 체험 {_exp_total}점 × 50%"
+        # 83.5 같은 소수 결과는 '반올림'을 명시해 계산기로 검산하는 의심을 없앤다.
+        if abs(_raw - fit) > 0.05 and round(_raw) == fit:
+            _raw_str = f"{_raw:.1f}".rstrip("0").rstrip(".")
+            fit_caption = f"{_base} = {_raw_str}점 → 반올림 {fit}점"
+        else:
+            fit_caption = f"{_base} = {fit}점"
     else:
         fit_caption = "1:1 상담 분석 기준"
     hero_left = Table(
@@ -645,7 +652,8 @@ def render_report_pdf(
         # 채점 기준을 밝혀 역량 점수가 임의값처럼 보이지 않게 한다(aggregate.py 공식과 일치).
         story.append(Spacer(1, 5))
         story.append(Paragraph(
-            "※ 역량 점수는 미션 유형별 가중평균에 자력 보정(정답 가이드를 볼수록 감점)을 적용해 "
+            "※ 수준 기준: 80점 이상 ‘매우 우수’ · 65~79점 ‘우수’ · 50~64점 ‘보통’ · 50점 미만 ‘개발 필요’. "
+            "역량 점수는 미션 유형별 가중평균에 자력 보정(정답 가이드를 볼수록 감점)을 적용해 "
             "산출하며, 협업·커뮤니케이션은 NPC 대화 태도를 일부 반영합니다. 시나리오 총점(미션 80% + "
             "돌발 대응 20%)과는 계산 방식이 달라 두 점수를 직접 평균·비교하지 않습니다.", _muted))
 
@@ -670,6 +678,8 @@ def render_report_pdf(
             story.append(Paragraph(
                 f"동료 대응 태도: 평균 호감도 {conduct['average']}/100"
                 f" ({conduct['band']}) · 대화한 동료 {conduct['npc_count']}명", _body))
+            story.append(Paragraph(
+                "※ 호감도 기준: 70점 이상 ‘높음’ · 31~69점 ‘보통’ · 30점 이하 ‘낮음’.", _muted))
 
         # 미션별 AI 평가 (실제 미션 로그가 있을 때만)
         if mission_evaluations:
@@ -753,9 +763,9 @@ def render_report_pdf(
             _ncs_info_card(edu_value, median_salary, salary_stats, certs),
             Spacer(1, 5),
             Paragraph(
-                "※ 연봉은 공개 직업정보 조사 자료의 중위값 기준(조사연도·표본은 위 괄호 참조)이며, "
-                "지역·경력·기업 규모에 따라 실제와 차이가 있을 수 있습니다. 자격증·학력은 일반적 기준으로 "
-                "제시한 참고 정보이며 필수 요건이 아닐 수 있습니다.", _muted),
+                "※ 연봉은 임금직업포털(wagework.go.kr)의 재직자 조사 중위값 기준(조사연도·표본은 위 "
+                "괄호 참조)이며, 지역·경력·기업 규모에 따라 실제와 차이가 있을 수 있습니다. 자격증·학력은 공개 "
+                "직업정보 기준의 참고 정보로, 필수 요건이 아닐 수 있습니다.", _muted),
         ]))
 
     # ── 다음 단계 CTA ───────────────────────────────────────────────────────
