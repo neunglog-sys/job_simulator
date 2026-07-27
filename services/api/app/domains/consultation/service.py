@@ -18,7 +18,15 @@ from app.domains.consultation import resume as resume_mod
 from app.llm import get_llm
 from app.llm.base import ChatMessage
 from app.llm.prompts import render_prompt
-from app.models import Consultation, Message, Recommendation, Report, User
+from app.models import (
+    Consultation,
+    Evidence,
+    Message,
+    Recommendation,
+    Report,
+    Simulation,
+    User,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -282,15 +290,27 @@ async def delete_consultation(
     session: AsyncSession,
     consultation: Consultation,
 ) -> None:
-    """상담과 전용 데이터를 삭제하고, 생성된 리포트는 상담 연결만 해제한다."""
+    """상담과 전용 데이터를 삭제하고, 생성된 리포트·체험은 상담 연결만 해제한다."""
     await session.execute(
         update(Report)
         .where(Report.consultation_id == consultation.id)
         .values(consultation_id=None)
     )
+    # 체험(시뮬레이션)도 연결만 끊는다 — 사용자가 실제로 플레이한 기록이라 지우면 안 되고,
+    # simulations.consultation_id는 nullable이다("상담 없이 들어온 체험은 NULL").
+    # 이 해제가 없으면 fk_simulations_consultation_id 위반으로 삭제가 500이 된다
+    # (consultation_id 컬럼이 나중에 추가되며 이 함수가 갱신되지 않았던 것 — 실서버 재현).
+    await session.execute(
+        update(Simulation)
+        .where(Simulation.consultation_id == consultation.id)
+        .values(consultation_id=None)
+    )
     await session.execute(
         delete(Recommendation).where(Recommendation.consultation_id == consultation.id)
     )
+    # evidence.consultation_id는 non-nullable(상담 전용 판단근거)이라 해제 대신 삭제한다.
+    # 현재는 writer가 없어 행이 쌓이지 않지만, 연결되는 순간 같은 FK 위반이 재발한다.
+    await session.execute(delete(Evidence).where(Evidence.consultation_id == consultation.id))
     await session.execute(delete(Message).where(Message.consultation_id == consultation.id))
     await session.delete(consultation)
     await session.commit()
