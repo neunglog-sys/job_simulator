@@ -2289,9 +2289,20 @@
 
 .recommendedJobGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* 원본 복원(팀장 지시 2026-07-27): 카드 5개(F 개편)를 2줄로 쌓으면 카드가 반토막 나
+     원래 디자인(1줄 3칸·모달 높이 전체·큰 아바타)이 무너진다. 원본 레이아웃을 유지하고
+     4·5위는 가로 스크롤로 넘겨 본다 — 한 화면에 정확히 3칸(원본과 동일), 카드 크기 불변. */
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - 32px) / 3);
   height: 100%;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 4px;
   gap: 16px;
+}
+
+.recommendedJobGrid > article {
+  scroll-snap-align: start;
 }
 
 .recommendedJobCard {
@@ -2396,12 +2407,23 @@
   -webkit-line-clamp: 3;
 }
 
-/* F 직무군 카드의 세부직업 나열 — 계열 이름 아래 보조 정보라 한 톤 죽인다 */
-.recommendedJobDetailJobs {
+/* F 직무군 카드의 세부직업 나열 — 계열 이름 아래 보조 정보라 한 톤 죽인다.
+   ⚠️ 공용 .recommendedJobContent p 규칙(min-height 66px·3줄 클램프)을 그대로 받으면
+   이 줄이 66px을 차지해 하단 고정 스택이 위로 넘치고, 제목·적합도가 카드 밖으로
+   잘려 나간다(실서버에서 실제 발생). 한 줄 말줄임으로 고정해 스택 높이를 지킨다. */
+.recommendedJobContent p.recommendedJobDetailJobs {
+  /* 공용 .recommendedJobContent p (0,1,1)보다 선택자를 높여야 min-height 66px를 확실히
+     이긴다 — 클래스 단독(0,1,0)으로는 져서 실서버에서 66px가 그대로 적용됐다(실측). */
+  display: block;
+  min-height: 0;
+  overflow: hidden;
   color: rgb(255 255 255 / 0.65);
   font-size: 12px;
   line-height: 1.5;
-  word-break: keep-all;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  word-break: normal;
+  -webkit-line-clamp: unset;
 }
 
 .recommendedJobEvidence {
