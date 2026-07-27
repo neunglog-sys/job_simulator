@@ -549,6 +549,12 @@ async def stream_npc_chat(
     # 프롬프트는 코드 템플릿이 구조화 필드를 조립 (system_prompt 통짜 저장 안 함)
     kind = npc_kind(persona["role"], persona["rank"])  # 사수/동료/고객 → 화법·톡식 범위
     hostile = is_hostile_customer(persona["role"], persona["rank"])
+    # 그 NPC와 1:1로 말을 트는 첫 턴은 언제나 인사 자리다(손님 제외 — 손님은 용건부터 꺼낸다).
+    # 투어에서 얼굴을 봤어도 직접 대화는 처음이라, 곧바로 업무 지시가 나오면 인사가 사라진다.
+    # 유저 메시지엔 상대 npc_id가 없어 그 NPC가 답한 적 있는지로 판정한다.
+    first_chat = kind != "고객" and not any(
+        m.role == "npc" and m.npc_id == npc_id for m in history
+    )
     # 손님에게는 직원 미션(현재 스텝 과제)을 주입하지 않는다 — 안 그러면 손님이 그 업무의
     # '담당 업무/현재 업무'인 줄 알고 신입에게 업무를 지시하는 직원처럼 군다(손님≠직원).
     # 대신 '손님으로서의 상황'을 줘서 손님답게(용건·문의·요청·불만) 말하게 한다.
@@ -594,7 +600,7 @@ async def stream_npc_chat(
             if process_learning
             else (
                 ("tour_greeting" if not simulation.state.get("tour_done") else "orientation")
-                if first_meeting
+                if (first_meeting or first_chat)
                 else "work"
             )
         ),
