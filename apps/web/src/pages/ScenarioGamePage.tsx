@@ -584,6 +584,10 @@ export function ScenarioGamePage() {
   const [museTalkRequest, setMuseTalkRequest] =
     useState<(MuseTalkSpeakRequest & { id: number }) | null>(null);
 
+  // 코치가 '실질 조언'(대화 TIP·과제 리뷰·피드백)을 한 뒤인가 — 그렇다면 위치 안내 문구로
+  // 덮어쓰지 않는다. 스텝이 바뀌면 초기화한다.
+  const coachAdvisedRef = useRef(false);
+
   const speakCoach = useCallback((text: string) => {
     setCoachMessage(text);
     const trimmed = text.trim();
@@ -1068,13 +1072,22 @@ export function ScenarioGamePage() {
   }, [tour, tourIndex, phase]);
 
   // 1단계 안내 — 인사가 남았으면 누구를 만나야 하는지, 다 만났으면 업무를 받으러 가라고 안내한다.
-  // (대화 중 코치 TIP·리뷰가 떠 있을 때 덮어쓰지 않도록 스트리밍 중에는 건드리지 않는다)
+  // 스트리밍 중에는 건드리지 않는데, 그것만으로는 부족했다: isStreaming이 deps에 있어서 대화가
+  // '끝나는 순간' 이 effect가 다시 돌며 방금 받은 코치 TIP·리뷰를 안내 문구로 덮어썼다
+  // (코치가 조언을 해도 화면엔 "…님에게 다가가면 업무를 받을 수 있어요"만 남던 원인).
+  // 그래서 코치가 실질 조언을 한 뒤에는 이 안내를 다시 말하지 않는다 — 스텝이 바뀌면 초기화된다.
   useEffect(() => {
     if (phase !== "exploring" || isStreaming || npcs.length === 0) return;
+    if (coachAdvisedRef.current) return;
     speakCoach(
       needsTour ? introGuide(activeStep, npcsRef.current) : approachGuide(activeStep, npcsRef.current),
     );
   }, [phase, needsTour, npcs.length, isStreaming, activeStep]);
+
+  // 스텝이 바뀌면 이전 스텝의 조언은 지나간 것 — 새 업무 안내를 다시 해준다.
+  useEffect(() => {
+    coachAdvisedRef.current = false;
+  }, [activeStep?.id]);
 
   // 담당 NPC에게 처음 다가가면 실시간 인사를 1회 요청 (스텝당 1회, 응답 오면 채팅창에 표시).
   // 담당 NPC 인사는 업무를 건네는 대사다 — 팀 소개(투어)를 받기 전에 다가갔다고 해서
@@ -1395,7 +1408,7 @@ export function ScenarioGamePage() {
             setPhase("mission_result");
             // 돌발 퀘스트(onQuestResult)는 결과 피드백을 코치 패널에도 띄우는데 본편 미션은 안 그래서
             // "퀴즈 풀었는데 코치가 조언을 안 해준다"는 오인을 낳았다 — 같은 방식으로 맞춘다(2026-07-24).
-            if (taskResultFrame.feedback) speakCoach(taskResultFrame.feedback);
+            if (taskResultFrame.feedback) { coachAdvisedRef.current = true; speakCoach(taskResultFrame.feedback); }
             // 미달 → 조언 카드 누적 (같은 단계는 한 번만). 힌트 패널에서 계속 볼 수 있게.
             const advice = taskResultFrame.advice_card;
             if (advice) {
@@ -1432,7 +1445,7 @@ export function ScenarioGamePage() {
           },
           onQuestResult: (questResult) => {
             if (cancelled) return;
-            if (questResult.feedback) speakCoach(questResult.feedback);
+            if (questResult.feedback) { coachAdvisedRef.current = true; speakCoach(questResult.feedback); }
             // 결과는 통과·미달 어느 쪽이든 보여준다. 예전엔 퀘스트가 끝날 때 quest와
             // taskResult를 함께 지워서, 결과 화면인데 보여줄 결과가 없고 본편 미션
             // 폼이 대신 떴다(activeMission이 현재 스텝으로 되돌아가므로).
@@ -1453,7 +1466,11 @@ export function ScenarioGamePage() {
                   : "여기까지 하죠. 원래 하던 일 마저 봅시다."),
             });
           },
-          onCoachTip: (text) => !cancelled && speakCoach(text),
+          onCoachTip: (text) => {
+            if (cancelled) return;
+            coachAdvisedRef.current = true; // 조언이 나왔으면 위치 안내로 덮지 않는다
+            speakCoach(text);
+          },
           onTour: (frame) => {
             if (cancelled) return;
             // 같은 요청이 여러 번 큐에 쌓였더라도 첫 응답만 사용한다.
@@ -1532,7 +1549,7 @@ export function ScenarioGamePage() {
             if (cancelled) return;
             // 통과한 제출물에 대한 AI 코치 사후 리뷰 (근거 기반 카드 최대 3장)
             setCoachCards(frame);
-            if (frame.coach_message) speakCoach(frame.coach_message);
+            if (frame.coach_message) { coachAdvisedRef.current = true; speakCoach(frame.coach_message); }
             if (frame.cards?.length) setIsHintOpen(true); // 리뷰가 왔음을 바로 보이게
           },
           onStepChanged: (step) => {
