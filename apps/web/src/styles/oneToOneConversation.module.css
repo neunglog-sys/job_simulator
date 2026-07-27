@@ -2289,15 +2289,20 @@
 
 .recommendedJobGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  /* 카드 5개(F 개편) → 2줄 그리드. 높이를 100%로 두면 행이 반씩 쪼개져(~155px)
-     하단 고정 콘텐츠 스택(제목+이유+세부직업+버튼 ≈ 190px+)이 위로 넘치고 제목·적합도가
-     카드 밖으로 잘린다(실서버 실측). 행 최소 높이를 보장하고 넘치는 만큼 스크롤한다. */
-  grid-auto-rows: minmax(250px, 1fr);
+  /* 원본 복원(팀장 지시 2026-07-27): 카드 5개(F 개편)를 2줄로 쌓으면 카드가 반토막 나
+     원래 디자인(1줄 3칸·모달 높이 전체·큰 아바타)이 무너진다. 원본 레이아웃을 유지하고
+     4·5위는 가로 스크롤로 넘겨 본다 — 한 화면에 정확히 3칸(원본과 동일), 카드 크기 불변. */
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - 32px) / 3);
   height: 100%;
-  overflow-y: auto;
-  padding-right: 4px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 4px;
   gap: 16px;
+}
+
+.recommendedJobGrid > article {
+  scroll-snap-align: start;
 }
 
 .recommendedJobCard {
