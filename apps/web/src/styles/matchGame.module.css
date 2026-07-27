@@ -1154,9 +1154,10 @@
 }
 
 .customerFloorWine>img {
-  width: 92px !important;
+  /* 진열대 와인 병이 작아 잘 안 보여 약 1.25배 확대 (92→115px, 76→95px) */
+  width: 115px !important;
   max-width: 100%;
-  max-height: 76px;
+  max-height: 95px;
   margin: auto;
   object-fit: contain;
 }
@@ -2157,6 +2158,9 @@
   word-break: keep-all;
   overflow-wrap: break-word;
   letter-spacing: -0.02em;
+  /* 손님 대사 폰트 — HUD 라벨('추천 0 · 확인 필요 5', .hudLabel 12px)과 동일 크기로 통일.
+     em은 보드 clamp(8px,0.72vw,14px)에 묶여 화면 크기에 따라 달라지므로 px로 고정한다. */
+  font-size: 12px;
 }
 
 .customerFloorRequest strong {
@@ -2724,7 +2728,9 @@
 
 .customerResponseGuide {
   position: absolute;
-  top: 9%;
+  /* 돌아가기 버튼(top:3%, 우측 상단)과 금색 테두리가 겹쳐 보였다.
+     가이드를 아래로 내려 버튼 아래에서 시작하게 한다. */
+  top: 15%;
   right: 3%;
   bottom: 5%;
   width: 26%;
@@ -2749,9 +2755,10 @@
   margin: 0;
   padding-left: 1.35em;
   font-family: "Pretendard Variable", Pretendard, "Noto Sans KR", system-ui, sans-serif;
-  font-size: 0.9em;
+  /* Service Guidelines 항목 — HUD 라벨(.hudLabel 12px)과 동일 크기. */
+  font-size: 12px;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.35;
   word-break: keep-all;
   overflow-wrap: break-word;
 }
@@ -2784,17 +2791,19 @@
   /* 고정 7.8em이 큰 화면에서 그리드 칸(1fr)보다 커져 가운데정렬로 양옆과 겹쳤다.
      칸을 채우되(width:100%) 7.8em로 상한을 두고, aspect-ratio로 원형을 유지한다.
      이러면 원은 항상 칸 폭 이하 → 어느 브라우저 크기에서도 겹치지 않는다. */
-  width: 100%;
-  max-width: 7.8em;
+  /* 살짝 축소 — 칸이 넓을 땐 max-width가, 좁을 땐 width가 걸리므로 둘 다 내린다. */
+  width: 88%;
+  max-width: 6.8em;
   aspect-ratio: 1 / 1;
   height: auto;
   min-height: 0;
-  padding: 0.5em;
+  padding: 0.45em;
   border: 0.23em solid #fff;
   border-radius: 999px;
   background: rgb(7 10 21 / 0.78);
   color: #fff;
-  font-size: 0.82em;
+  /* 원 안 라벨(규정안내 등) — HUD 라벨(.hudLabel 12px)과 동일 크기. px 고정. */
+  font-size: 12px;
   box-shadow: none;
 }
 
@@ -3068,12 +3077,13 @@
   left: 50%;
   z-index: 10;
   margin: 0;
-  padding: 4px 13px 6px;
+  padding: 7px 18px 9px;
   border: 2px solid var(--cartoon-ink);
   border-radius: 999px;
   background: rgb(255 249 233 / 0.94);
   color: var(--cartoon-ink);
-  font-size: 9px;
+  /* 카트 운반 맵에서 안내 배너가 과하게 커 보여 0.8배로 축소 (15pt → 12pt) */
+  font-size: 12pt;
   font-weight: 900;
   line-height: 1.2;
   box-shadow: 0 3px 0 var(--cartoon-ink);
@@ -3232,11 +3242,11 @@
   left: 50%;
   z-index: 8;
   display: grid;
-  gap: 5px;
-  width: min(34%, 360px);
-  padding: 8px 10px;
-  border: 3px solid #8a0d4f;
-  border-radius: 18px;
+  gap: 6px;
+  width: min(40.8%, 432px);
+  padding: 10px 12px;
+  border: 4px solid #8a0d4f;
+  border-radius: 22px;
   background: rgb(34 12 29 / 0.93);
   color: #fff9e9;
   box-shadow: 0 5px 0 var(--cartoon-ink);
@@ -3247,7 +3257,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: 10pt;
 }
 
 .supplyCounter header span {
@@ -3262,19 +3272,19 @@
 
 .supplyCounter article {
   display: grid;
-  grid-template-columns: 1fr 34px;
+  grid-template-columns: 1fr 41px;
   align-items: center;
   min-width: 0;
   border: 1px solid rgb(255 255 255 / 0.16);
-  border-radius: 8px;
+  border-radius: 10px;
   background: rgb(255 255 255 / 0.06);
 }
 
 .supplyCounter article span {
-  padding-left: 4px;
+  padding-left: 5px;
   overflow: hidden;
   font-family: "New Rocker", Georgia, serif;
-  font-size: 10px;
+  font-size: 10pt;
   font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3282,7 +3292,7 @@
 
 .supplyCounter article b {
   font-family: "New Rocker", Georgia, serif;
-  font-size: 11px;
+  font-size: 10pt;
   font-weight: 400;
   text-align: center;
 }
@@ -3291,29 +3301,106 @@
   position: relative;
   top: 2px;
   justify-self: center;
-  min-height: 27px;
-  padding: 3px 13px;
+  min-height: 32px;
+  padding: 4px 16px;
   border-color: #8a0d4f;
   background: #8a0d4f;
   color: #fff;
-  font-size: 9px;
+  font-size: 10pt;
   box-shadow: none;
 }
 
 .supplyRoad {
   position: absolute;
-  top: 17%;
-  right: 3%;
-  bottom: 25%;
-  left: 3%;
+  top: 15%;
+  right: 1.5%;
+  bottom: 4%;
+  left: 1.5%;
   z-index: 3;
   overflow: hidden;
   border: 3px solid var(--cartoon-ink);
   border-radius: 18px;
   background:
-    linear-gradient(90deg, rgb(24 30 47 / 0.08), rgb(24 30 47 / 0.2)),
-    repeating-linear-gradient(90deg, transparent 0 72px, rgb(255 255 255 / 0.035) 74px 76px);
+    linear-gradient(90deg, rgb(24 30 47 / 0.06), rgb(24 30 47 / 0.16)),
+    repeating-linear-gradient(90deg, transparent 0 72px, rgb(255 255 255 / 0.03) 74px 76px);
   box-shadow: inset 0 0 24px rgb(0 0 0 / 0.18);
+}
+
+.supplyRoad:focus {
+  outline: none;
+}
+
+.supplyRoad:focus-visible {
+  box-shadow:
+    inset 0 0 0 2px rgb(101 224 215 / 0.85),
+    inset 0 0 24px rgb(0 0 0 / 0.18);
+}
+
+.supplyLaneGrid {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(13, 1fr);
+  grid-template-rows: repeat(7, 1fr);
+  pointer-events: none;
+}
+
+.supplyLaneGrid span {
+  border-right: 1px solid rgb(255 255 255 / 0.24);
+  border-bottom: 1px solid rgb(255 255 255 / 0.42);
+  background: rgb(249 246 238 / 0.08);
+  box-shadow: inset 0 -1px 0 rgb(21 25 40 / 0.18);
+}
+
+.supplyLaneGrid span:nth-child(n + 14):nth-child(-n + 26),
+.supplyLaneGrid span:nth-child(n + 40):nth-child(-n + 52),
+.supplyLaneGrid span:nth-child(n + 66):nth-child(-n + 78) {
+  background: rgb(31 37 52 / 0.09);
+}
+
+.supplyLaneGrid span:nth-child(13n) {
+  border-right: 0;
+}
+
+.supplyLaneGrid span:nth-child(n + 79) {
+  border-bottom: 0;
+}
+
+.supplyStartPoint {
+  position: absolute;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: calc(100% / 13);
+  height: calc(100% / 7);
+  color: #fff;
+  filter: drop-shadow(0 5px 8px rgb(34 12 60 / 0.5));
+  transform: translate(0, -100%);
+  pointer-events: none;
+}
+
+.supplyStartPoint img,
+.supplyFinishLine img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.supplyFinishLine {
+  position: absolute;
+  right: auto;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: calc(100% / 13);
+  height: calc(100% / 7);
+  filter: drop-shadow(0 6px 9px rgb(82 49 0 / 0.48));
+  transform: translate(-100%, 0);
+  pointer-events: none;
 }
 
 .supplyTransportIntro {
@@ -3350,28 +3437,20 @@
   z-index: 4;
   display: grid;
   justify-items: center;
-  width: 64px;
+  width: 42px;
   transition: left 120ms linear, filter 100ms linear, opacity 120ms linear;
   transform: translate(-50%, -50%);
 }
 
 .supplyObstacle img {
-  max-width: 56px;
-  max-height: 52px;
+  max-width: 38px;
+  max-height: 34px;
   object-fit: contain;
   filter: drop-shadow(2px 3px 0 var(--cartoon-ink));
 }
 
 .supplyObstacle small {
-  margin-top: -3px;
-  padding: 2px 5px;
-  border: 1px solid var(--cartoon-ink);
-  border-radius: 999px;
-  background: #fff9e9;
-  color: var(--cartoon-ink);
-  font-size: 6px;
-  font-weight: 900;
-  white-space: nowrap;
+  display: none;
 }
 
 .supplyObstacle[data-hit="true"] {
@@ -3402,10 +3481,13 @@
 .supplyCart {
   position: absolute;
   z-index: 7;
-  width: 64px;
+  width: 44px;
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
-  transition: filter 120ms linear;
+  transition:
+    left 150ms cubic-bezier(0.2, 0.8, 0.3, 1),
+    top 150ms cubic-bezier(0.2, 0.8, 0.3, 1),
+    filter 120ms linear;
   pointer-events: none;
 }
 
@@ -3423,107 +3505,49 @@
   filter: drop-shadow(0 0 7px #ff4c73);
 }
 
-.supplyStartPoint {
-  position: absolute;
-  z-index: 3;
-  display: grid;
-  place-items: center;
-  width: 58px;
-  height: 34px;
-  border: 3px solid var(--cartoon-ink);
-  border-radius: 12px;
-  background: #9a4fde;
-  color: #fff;
-  font-size: 8px;
-  font-weight: 950;
-  box-shadow: 0 3px 0 var(--cartoon-ink), 0 0 18px rgb(154 79 222 / 0.5);
-  transform: translate(-50%, -50%);
-}
-
-.supplyFinishLine {
-  position: absolute;
-  right: auto;
-  z-index: 6;
-  display: grid;
-  place-items: center;
-  width: 58px;
-  height: 42px;
-  border: 3px solid var(--cartoon-ink);
-  border-radius: 14px;
-  background: #ffd75c;
-  color: var(--cartoon-ink);
-  font-size: 9px;
-  font-weight: 950;
-  box-shadow: 0 4px 0 var(--cartoon-ink), 0 0 20px rgb(255 215 92 / 0.6);
-  transform: translate(-50%, -50%);
-}
-
 .supplyDrivePanel {
   position: absolute;
-  right: 4%;
-  bottom: 3%;
-  left: 4%;
+  bottom: 2.5%;
+  left: 50%;
   z-index: 8;
-  display: grid;
-  grid-template-columns: 130px 1fr;
-  align-items: center;
-  gap: 8px;
-  padding: 9px;
-  border: 3px solid var(--cartoon-ink);
-  border-radius: 17px;
-  background: rgb(255 249 233 / 0.95);
-  color: var(--cartoon-ink);
-  box-shadow: 0 5px 0 var(--cartoon-ink);
-}
-
-.supplyDpad {
-  display: grid;
-  grid-template-areas:
-    ". up ."
-    "left down right";
+  display: flex;
   justify-content: center;
-  gap: 3px;
-}
-
-.supplyDpadButton {
-  width: 34px;
-  min-height: 28px;
+  width: min(42%, 380px);
   padding: 0;
-  border: 2px solid var(--cartoon-ink);
-  border-radius: 9px;
-  background: #fff2d6;
-  color: var(--cartoon-ink);
-  font: 900 13px/1 inherit;
-  box-shadow: 0 2px 0 var(--cartoon-ink);
-  cursor: pointer;
-  touch-action: none;
-  user-select: none;
-}
-
-.supplyDpadButton:active:not(:disabled) {
-  transform: translateY(1px);
-  box-shadow: 0 1px 0 var(--cartoon-ink);
-}
-
-.supplyDpadButton:disabled {
-  cursor: default;
-  opacity: 0.38;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  box-shadow: none;
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .supplyDriveStatus {
   display: flex;
-  justify-content: space-around;
+  justify-content: center;
   gap: 6px;
   font-size: 8px;
   font-weight: 800;
 }
 
+.supplyDriveStatus span {
+  min-width: 86px;
+  padding: 8px 10px;
+  border: 1px solid rgb(255 255 255 / 0.45);
+  border-radius: 12px;
+  background: rgb(19 24 39 / 0.72);
+  color: #fff;
+  text-align: center;
+  box-shadow: 0 4px 12px rgb(8 11 22 / 0.28);
+  backdrop-filter: blur(6px);
+}
+
 .supplyDriveStatus b {
-  color: #8a0d4f;
+  color: #ff8aa9;
 }
 
 .supplyDriveStatus b[data-state="안정"] {
-  color: #087d65;
+  color: #71e2c1;
 }
 
 .supplyDriveStatus b[data-state="충격 발생"],
@@ -3570,19 +3594,24 @@
   .supplyInstruction {
     max-width: 88%;
     overflow: hidden;
-    font-size: 7px;
+    font-size: 15pt;
     text-overflow: ellipsis;
   }
 
   .supplyCounter {
-    width: 52%;
+    width: 62.4%;
   }
 
   .supplyDrivePanel {
-    grid-template-columns: 1fr;
+    width: 64%;
   }
 
   .supplyRoad {
-    bottom: 39%;
+    bottom: 5%;
+  }
+
+  .supplyDriveStatus span {
+    min-width: 70px;
+    padding: 6px 7px;
   }
 }
