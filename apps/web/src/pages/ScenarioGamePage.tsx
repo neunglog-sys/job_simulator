@@ -664,7 +664,9 @@ export function ScenarioGamePage() {
   // 아니면 세션을 끝낸다: NPC 정지 해제 + 자유 대화였다면 컷신(입상 일러스트)도 함께 내린다.
   // "대화 중엔 계속 멈춤 / 대화가 끝나 NPC가 움직이면 컷신도 같이 사라짐"을 하나로 맞춘다.
   useEffect(() => {
-    if (!talk.id || isStreaming) return;
+    // 팀 소개 중에는 사용자가 상단 버튼을 누르기 전까지 방금 받은 답변을 하단에 유지한다.
+    // 일반 대화용 타임아웃이 투어 답변을 지우면 상단 안내만 남고 대화 맥락이 끊긴다.
+    if (!talk.id || isStreaming || TOUR_PHASES.has(phase)) return;
     const wasFreeChat = chatNpcId !== null;
     const timer = setTimeout(() => {
       setTalk({ id: null, at: 0 });
@@ -675,7 +677,7 @@ export function ScenarioGamePage() {
       }
     }, 5000);
     return () => clearTimeout(timer);
-  }, [talk, isStreaming, chatNpcId]);
+  }, [talk, isStreaming, chatNpcId, phase]);
   const [mapImage, setMapImage] = useState<string>(INITIAL_SCENARIO_MAP_IMAGE);
   // 미달할수록 깊어지는 조언 카드 — 스텝(또는 퀘스트)당 누적, 힌트 패널에 쌓인다.
   const [adviceCards, setAdviceCards] = useState<AdviceCard[]>([]);
@@ -691,6 +693,8 @@ export function ScenarioGamePage() {
   const [tourIndex, setTourIndex] = useState(0);
   const [tourDone, setTourDone] = useState(false); // 서버 state.tour_done 미러 — 업무 게이트
   const [tourRequestPending, setTourRequestPending] = useState(false);
+  // NPC 답변이 도착한 직후 버튼을 실수로 연속 클릭해 다음 소개를 건너뛰지 않도록 잠깐 잠근다.
+  const [tourReplyAdvanceReady, setTourReplyAdvanceReady] = useState(false);
   // 빠른 연속 클릭은 React가 다시 렌더링하기 전에도 들어올 수 있어 ref로 즉시 잠근다.
   const tourRequestPendingRef = useRef(false);
   // 이미 시작된 투어에 뒤늦은 중복 응답이 도착해 입력 단계를 처음으로 되감지 못하게 한다.
@@ -822,11 +826,22 @@ export function ScenarioGamePage() {
   );
 
   const tourStop = tour && tourIndex < tour.stops.length ? tour.stops[tourIndex] : null;
+  const nextTourStop =
+    tour && tourIndex + 1 < tour.stops.length ? tour.stops[tourIndex + 1] : null;
   const tourActive = TOUR_PHASES.has(phase);
 
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
+
+  useEffect(() => {
+    if (phase !== "tour_reply") {
+      setTourReplyAdvanceReady(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setTourReplyAdvanceReady(true), 1200);
+    return () => window.clearTimeout(timer);
+  }, [phase, tourIndex]);
 
   useEffect(() => {
     tourStopNpcRef.current = tourStop?.npc ?? null;
@@ -1057,8 +1072,9 @@ export function ScenarioGamePage() {
   //  거기 처박혀 '끼여서 안 움직이는' 문제가 있었다.) 투어 중엔 카메라가 사수를 비추고
   //  (아래 MovementArea cameraFocus), 투어가 끝나면 신입이 직접 걸어 미션 NPC에게 간다.
 
-  // 투어 전이: 사수 소개(tour_intro) → 신입이 직접 인사(tour_greet) → 동료 응답(tour_reply)
-  //          → 다음 동료 / 마지막이면 사수 마무리(tour_closing) → exploring
+  // 투어 전이: 사수 소개(tour_intro) → 신입이 직접 인사(tour_greet) → 동료 응답(tour_reply).
+  // 답변이 오면 하단에는 그 답변을 유지하고, 상단 사수 안내에서 다음 동료를 소개한다.
+  // 사용자가 상단 버튼을 눌러야 다음 인사로 넘어가며 마지막 답변 뒤에는 곧바로 업무를 시작한다.
   const handleTourNext = useCallback(() => {
     if (!tour) return;
     if (phase === "tour_opening") {
@@ -1077,14 +1093,21 @@ export function ScenarioGamePage() {
       return;
     }
     if (phase === "tour_reply") {
+      if (!tourReplyAdvanceReady) return;
       const next = tourIndex + 1;
       setNpcMessage("");
       setUserMessage("");
       if (next < tour.stops.length) {
         setTourIndex(next);
-        setPhase("tour_intro");
+        setChatNpcId(tour.stops[next]?.npc ?? null);
+        pendingTourGreetingNpcRef.current = null;
+        setTourGreetOpened(false);
+        setPhase("tour_greet");
       } else {
-        setPhase("tour_closing");
+        socketRef.current?.sendTourDone();
+        setTourDone(true);
+        setChatNpcId(null);
+        setPhase("exploring");
       }
       return;
     }
@@ -1094,7 +1117,7 @@ export function ScenarioGamePage() {
       setChatNpcId(null);
       setPhase("exploring");
     }
-  }, [tour, tourIndex, phase]);
+  }, [tour, tourIndex, phase, tourReplyAdvanceReady]);
 
   // 1단계 안내 — 인사가 남았으면 누구를 만나야 하는지, 다 만났으면 업무를 받으러 가라고 안내한다.
   // 스트리밍 중에는 건드리지 않는데, 그것만으로는 부족했다: isStreaming이 deps에 있어서 대화가
@@ -2117,7 +2140,10 @@ export function ScenarioGamePage() {
         ) : tourActive && tour ? (
           <TourBanner
             speakerName={
-              phase === "tour_opening" || phase === "tour_closing" || phase === "tour_intro"
+              phase === "tour_opening" ||
+              phase === "tour_closing" ||
+              phase === "tour_intro" ||
+              phase === "tour_reply"
                 ? tour.guide?.name ?? "사수"
                 : tourStop?.name ?? ""
             }
@@ -2132,13 +2158,19 @@ export function ScenarioGamePage() {
                       ? tourGreetOpened
                         ? `${tourStop?.name ?? "동료"} 님에게 직접 인사를 건네보세요. (아래 채팅창)`
                         : `${tourStop?.name ?? "동료"} 님에게 걸어가서(WASD) 클릭 또는 스페이스바로 대화를 여세요.`
-                      : npcMessage || "…"
+                      : nextTourStop?.line ??
+                        tour.closing ??
+                        "팀원들과 인사를 모두 나눴어요. 준비되면 오늘 업무를 시작해 볼까요?"
             }
             stepLabel={
               phase === "tour_opening"
                 ? "자기소개"
                 : phase === "tour_closing"
                   ? "마무리"
+                  : phase === "tour_reply"
+                    ? nextTourStop
+                      ? `${tourIndex + 2}/${tour.stops.length}`
+                      : "마무리"
                   : `${tourIndex + 1}/${tour.stops.length}`
             }
             mode={
@@ -2151,6 +2183,14 @@ export function ScenarioGamePage() {
                     : "closing"
             }
             onNext={handleTourNext}
+            nextDisabled={phase === "tour_reply" && !tourReplyAdvanceReady}
+            nextLabel={
+              phase === "tour_reply"
+                ? nextTourStop
+                  ? "인사하기 →"
+                  : "일 시작하기 →"
+                : undefined
+            }
           />
         ) : null}
 

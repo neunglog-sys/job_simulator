@@ -15,6 +15,8 @@ type TourBannerProps = {
   /** loading=투어 생성 중 / intro=사수 소개 / greet=신입이 인사할 차례 / reply=동료 응답 / closing=마무리 */
   mode: "loading" | "intro" | "greet" | "reply" | "closing";
   onNext: () => void;
+  nextLabel?: string;
+  nextDisabled?: boolean;
 };
 
 const NEXT_LABEL: Record<TourBannerProps["mode"], string> = {
@@ -25,7 +27,15 @@ const NEXT_LABEL: Record<TourBannerProps["mode"], string> = {
   closing: "일 시작하기 →",
 };
 
-export function TourBanner({ speakerName, line, stepLabel, mode, onNext }: TourBannerProps) {
+export function TourBanner({
+  speakerName,
+  line,
+  stepLabel,
+  mode,
+  onNext,
+  nextLabel,
+  nextDisabled = false,
+}: TourBannerProps) {
   const waiting = mode === "loading" || mode === "greet";
   return (
     <div
@@ -48,16 +58,18 @@ export function TourBanner({ speakerName, line, stepLabel, mode, onNext }: TourB
         className={styles.encounterButton}
         type="button"
         onClick={onNext}
-        disabled={waiting}
+        disabled={waiting || nextDisabled}
         title={
           mode === "loading"
             ? "팀 소개 내용을 준비하고 있어요. 잠시만 기다려주세요."
             : mode === "greet"
               ? "아래 채팅창에 인사를 입력하면 넘어갈 수 있어요."
+              : nextDisabled
+                ? "NPC의 답변을 잠시 확인한 뒤 다음 인사를 이어갈 수 있어요."
               : undefined
         }
       >
-        {NEXT_LABEL[mode]}
+        {nextLabel ?? NEXT_LABEL[mode]}
       </button>
     </div>
   );
