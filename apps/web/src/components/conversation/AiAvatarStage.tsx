@@ -227,6 +227,8 @@ export function AiAvatarStage({
     const startBufferSeconds = resolveStartBufferSeconds();
     let firstBinaryAt: number | null = null;
     let firstPlayAt: number | null = null;
+    /** 수신한 바이너리 청크 수. 청크마다 로그를 찍던 것을 대체한다(metrics로 방출). */
+    let binaryCount = 0;
     // socket.onopen 시각(sinceStart). 첫 재생까지 실제 걸린 시간(firstPlay-wsOpen)이 이번
     // 발화의 실측 lead이고, 이 값으로 leadEstimateRef를 EMA 갱신한다(아래 handlePlaying).
     let wsOpenAt: number | null = null;
@@ -300,6 +302,7 @@ export function AiAvatarStage({
         gated_by_done: gatedByDone,
         buffered_ahead_at_gate: bufferedAheadAtGate,
         play_called_at_s: playCalledAt,
+        binary_count: binaryCount,
         stall_count: stallCount + (stallStartedAt !== null ? 1 : 0),
         total_stall_ms: Math.round(totalStallMs + openStallMs),
         stall_open: stallStartedAt !== null,
@@ -619,11 +622,19 @@ export function AiAvatarStage({
         return;
       }
 
+      // 청크마다 console.info를 찍던 것을 카운터로 바꿨다(2026-07-27).
+      // 발화 1건이 300~700청크라 DevTools가 열려 있으면 그만큼 메인 스레드를 먹고,
+      // 콘솔이 도배돼 정작 봐야 할 [PERF]·[SYNC] 줄을 찾기 어려웠다.
+      // 총량은 metrics의 binary_count로 남으므로 정보 손실은 없다.
+      //
+      // ⚠️ 이 로그 제거가 첫 프레임을 앞당기지는 **않는다**. 릴레이의 first_binary_ms는
+      //    send보다 앞에서 찍히므로(service.py:627 < :629) N번째 로그가 N번째 마크를
+      //    늦출 수 없다. 첫 재생 이후 구간의 실비용만 줄어든다.
       if (event.data instanceof Blob) {
-        console.info("[MuseTalk]", "ws_blob", event.data.size);
+        binaryCount += 1;
         void event.data.arrayBuffer().then(pushChunk);
       } else if (event.data instanceof ArrayBuffer) {
-        console.info("[MuseTalk]", "ws_arraybuffer", event.data.byteLength);
+        binaryCount += 1;
         pushChunk(event.data);
       }
     };
