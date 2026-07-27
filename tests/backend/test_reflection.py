@@ -17,7 +17,10 @@ _PERF = {
     "total": 82,
     "mission_avg": 85,
     "competencies": {"communication": 81},
-    "missions": [{"type": "정상업무", "adjusted": 85, "attempts": 1}],
+    "missions": [
+        {"step": "m1", "type": "정상업무", "adjusted": 85, "attempts": 1, "max_hint_level": 0}
+    ],
+    "mission_titles": {"m1": "기능 구현"},
     "quest": None,
 }
 
