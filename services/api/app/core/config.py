@@ -6,6 +6,13 @@ class Settings(BaseSettings):
 
     # 기본값은 로컬 도커 db 컨테이너 — 실사용은 .env의 Supabase URL이 덮어씀
     database_url: str = "postgresql+asyncpg://app:app@db:5432/jobsim"
+    # DB 커넥션 풀 — Supabase 세션 풀러(5432)는 클라이언트 15개가 상한이라, 기본값
+    # (5+10=15)을 그대로 쓰면 동시 요청이 몰릴 때 초과분이 EMAXCONNSESSION → 500이 된다
+    # (실측 2026-07-26: 동시 20건 중 9건 실패, 로컬·프로덕션 동일). 팀이 DB를 공유하므로
+    # 한 인스턴스가 상한을 다 점유하지 않도록 여유를 두고 잡는다.
+    db_pool_size: int = 5
+    db_max_overflow: int = 3  # 최대 동시 8 — 15 한도 아래로 여유 확보
+    db_pool_timeout: int = 30  # 초과 요청은 500 대신 이만큼 대기 후 처리
     redis_url: str = "redis://localhost:6379/0"
     storage_dir: str = "storage"
     data_dir: str = "data"
