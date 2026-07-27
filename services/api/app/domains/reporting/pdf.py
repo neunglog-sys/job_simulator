@@ -71,8 +71,10 @@ HEADER_TINT = HexColor(0xF0E9FF)  # 배너 서브텍스트
 PRIMARY_FILL = Color(PRIMARY.red, PRIMARY.green, PRIMARY.blue, 0.20)
 
 # 강점/보완점 출처 태그 → (글자색, 배경색). 프롬프트가 각 항목 앞에 [체험]/[상담]/[소감]을 붙인다.
+# 체험은 중립 슬레이트그레이 — 초록(강점)·앰버(보완점) 박스, 핑크(상담)·초록(소감) 칩
+# 어디에도 튀지 않게 한다(브랜드 퍼플은 초록/앰버 배경에서 부딪혀 보였다).
 TAG_STYLES = {
-    "체험": (HexColor(0x6C4BEF), HexColor(0xEDE7FE)),
+    "체험": (HexColor(0x4B5768), HexColor(0xEDF0F5)),
     "상담": (HexColor(0xC13B8B), HexColor(0xFCEAF4)),
     "소감": (HexColor(0x179A6B), HexColor(0xE7F6EF)),
 }
@@ -277,17 +279,23 @@ def _radar(measured: dict[str, int]) -> Drawing | None:
     values = [_clamp(v) for v in measured.values()]
     n = len(labels)
 
-    dw, dh = 150 * mm, 92 * mm
+    # 라벨을 폴리곤 바깥으로 넉넉히 빼기 위해 세로 여백을 키우고(위쪽 '상황 판단력'
+    # 이 잘리지 않도록), labelRadius로 라벨을 그래프에서 크게 밀어낸다. 플롯을 살짝
+    # 줄여(66mm) 라벨-폴리곤 사이 간격을 충분히 확보한다.
+    dw, dh = 150 * mm, 104 * mm
     d = Drawing(dw, dh)
     sp = SpiderChart()
-    sp.width = 74 * mm
-    sp.height = 74 * mm
+    sp.width = 66 * mm
+    sp.height = 66 * mm
     sp.x = (dw - sp.width) / 2
     sp.y = (dh - sp.height) / 2
     # 격자 링(25·50·75·100)을 먼저, 실측 폴리곤을 맨 마지막에 → 실측이 위로 온다
     grid_rings = [25, 50, 75, 100]
     sp.data = [[g] * n for g in grid_rings] + [values]
     sp.labels = labels
+    # 스포크 라벨을 폴리곤에서 멀찌감치(반지름 1.35배) 밖으로 빼 겹침을 확실히 없앤다.
+    # 최고점(100) 꼭짓점이 반지름 1.0, 라벨은 1.35 → 실측값과 라벨 사이 여유가 충분하다.
+    sp.spokes.labelRadius = 1.35
     sp.spokeLabels.fontName = FONT_SB
     sp.spokeLabels.fontSize = 8.5
     sp.spokeLabels.fillColor = INK
@@ -330,6 +338,78 @@ def _mission_block(title: str, score, evaluation: str) -> Table:
         ("TOPPADDING", (0, 0), (0, 0), 9),
         ("BOTTOMPADDING", (0, -1), (0, -1), 9),
     ]))
+    return card
+
+
+def _ncs_info_card(edu_value, median_salary, salary_stats: dict, certs: list) -> Table:
+    """직무 기본 정보 카드 — 라벤더 라운드 카드에 학력/연봉/자격증을 표 형태로.
+
+    라벨 열은 퍼플 SemiBold, 값 열에 내용. 평균 연봉은 큰 퍼플 볼드로 강조하고
+    조사 기준을 옅은 캡션으로 덧붙인다. 자격증은 알약(pill) 칩으로 나열한다.
+    값이 있는 항목만 행으로 넣는다(없는 수치는 지어내지 않는다).
+    """
+    def _pill(name: str) -> Table:
+        p = Paragraph(name, ParagraphStyle(
+            "pill", fontName=FONT_SB, fontSize=8.5, leading=11,
+            textColor=PRIMARY, alignment=TA_CENTER))
+        t = Table([[p]], cornerRadii=[7, 7, 7, 7])
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), HexColor(0xEDE7FE)),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ("TOPPADDING", (0, 0), (-1, -1), 2.5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
+        ]))
+        return t
+
+    def _label(text: str) -> Paragraph:
+        return Paragraph(text, ParagraphStyle(
+            "ncslbl", fontName=FONT_SB, fontSize=9.5, leading=13, textColor=PRIMARY))
+
+    rows: list = []
+    if edu_value:
+        rows.append([_label("학력 요건"), Paragraph(str(edu_value), _cell)])
+    if median_salary:
+        caption_parts = [p for p in (
+            f"{salary_stats['reference_year']}년" if salary_stats.get("reference_year") else None,
+            salary_stats.get("population"),
+        ) if p]
+        caption = (f'&nbsp;&nbsp;<font name="{FONT}" size="8" color="#8B86A0">'
+                   f"({' · '.join(caption_parts)} 기준)</font>") if caption_parts else ""
+        val = Paragraph(
+            f'<font name="{FONT_B}" size="14" color="#6C4BEF">'
+            f'{round(median_salary / 10000):,}만원</font>{caption}',
+            ParagraphStyle("ncssal", fontName=FONT, fontSize=10, leading=18, textColor=INK))
+        rows.append([_label("평균 연봉"), val])
+    if certs:
+        names = [c.get("name", "") for c in certs if c.get("name")]
+        if names:
+            chip_cells = [_pill(n) for n in names]
+            chip_row = Table([chip_cells], colWidths=[None] * len(chip_cells))
+            chip_row.setStyle(TableStyle([
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-2, -1), 5),
+                ("RIGHTPADDING", (-1, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ]))
+            rows.append([_label("관련 자격증"), chip_row])
+
+    card = Table(rows, colWidths=[26 * mm, None], cornerRadii=[8, 8, 8, 8])
+    style = [
+        ("BACKGROUND", (0, 0), (-1, -1), LAV_ALT),
+        ("BOX", (0, 0), (-1, -1), 0.75, BORDER),
+        ("LINEAFTER", (0, 0), (0, -1), 0.5, BORDER),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 12),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+        ("TOPPADDING", (0, 0), (-1, -1), 9),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
+    ]
+    for i in range(len(rows) - 1):
+        style.append(("LINEBELOW", (0, i), (-1, i), 0.5, BORDER))
+    card.setStyle(TableStyle(style))
     return card
 
 
@@ -584,7 +664,8 @@ def render_report_pdf(
                     match = next((sid for sid, t in titles.items() if t and t == step), None)
                     title = titles.get(match, step) if match else step
                     sc = step_score.get(match)
-                story.append(_mission_block(title, sc, me.get("evaluation") or ""))
+                # 카드가 페이지 경계에서 제목/본문으로 갈라지지 않도록 한 덩어리로 유지
+                story.append(KeepTogether(_mission_block(title, sc, me.get("evaluation") or "")))
                 story.append(Spacer(1, 6))
 
     # ── 강점 / 보완점 (출처 태그) ───────────────────────────────────────────
@@ -626,34 +707,33 @@ def render_report_pdf(
     story.append(KeepTogether([
         _section("직무 마스터의 종합 총평"), Spacer(1, 6), _prose_card(advice)]))
 
-    # ── 직무 기본 정보 (1순위 직무, 조사된 값만) ────────────────────────────
-    top = recommendations[0] if recommendations else {}
-    edu_value = (top.get("education_requirement") or {}).get("value")
-    salary_stats = (top.get("salary") or {}).get("reference_statistics") or {}
-    median_salary = salary_stats.get("median_annual_krw")
-    certs = top.get("certifications") or []
-    if edu_value or median_salary or certs:
+    # ── 직무 기본 정보 (추천 직무 중 조사자료가 있는 첫 직무 기준) ──────────────
+    # 직업정보·NCS 통계는 일부 직무(주로 사무·회계 계열)에만 존재한다. 1순위가
+    # 조사 대상이 아닌 카테고리여서 비어 있어도, 추천된 직무 중 실제 값이 있는 첫
+    # 직무의 공개 자료를 보여준다(하나도 없으면 통째 생략 — 없는 수치를 지어내지 않는다).
+    def _ncs_fields(rec: dict):
+        edu = (rec.get("education_requirement") or {}).get("value")
+        stats = (rec.get("salary") or {}).get("reference_statistics") or {}
+        median = stats.get("median_annual_krw")
+        rec_certs = rec.get("certifications") or []
+        return (edu, stats, median, rec_certs) if (edu or median or rec_certs) else None
+
+    ncs = next(((r, f) for r in recommendations if (f := _ncs_fields(r))), None)
+    if ncs is not None:
+        src, (edu_value, salary_stats, median_salary, certs) = ncs
         story.append(Spacer(1, 16))
-        story.append(_section("직무 기본 정보"))
-        story.append(Spacer(1, 4))
-        story.append(Paragraph(
-            f"1순위 추천 직무 ‘{top.get('job_title', '')}’ 기준 공개 자료입니다.", _muted))
-        story.append(Spacer(1, 4))
-        if edu_value:
-            story.append(Paragraph(f"학력 요건: {edu_value}", _body))
-        if median_salary:
-            caption_parts = [
-                p for p in (
-                    f"{salary_stats['reference_year']}년" if salary_stats.get("reference_year") else None,
-                    salary_stats.get("population"),
-                ) if p
-            ]
-            caption = f" ({' · '.join(caption_parts)} 기준)" if caption_parts else ""
-            story.append(Paragraph(
-                f"평균 연봉: {round(median_salary / 10000):,}만원{caption}", _body))
-        if certs:
-            cert_names = ", ".join(c.get("name", "") for c in certs if c.get("name"))
-            story.append(Paragraph(f"관련 자격증: {cert_names}", _body))
+        story.append(KeepTogether([
+            _section("직무 기본 정보"),
+            Spacer(1, 6),
+            Paragraph(
+                f"추천 직무 ‘{src.get('job_title', '')}’의 공개 조사 자료(직업정보·NCS)입니다.", _muted),
+            Spacer(1, 6),
+            _ncs_info_card(edu_value, median_salary, salary_stats, certs),
+            Spacer(1, 5),
+            Paragraph(
+                "※ 공개 직업정보(NCS·직업정보) 조사 자료 기준이며, 지역·경력·기업에 따라 실제와 차이가 있을 수 있습니다.",
+                _muted),
+        ]))
 
     # ── 다음 단계 CTA ───────────────────────────────────────────────────────
     if next_steps and next_steps.strip():
