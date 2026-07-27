@@ -26,7 +26,7 @@ import { ScenarioControlPanel } from "../components/scenario/ScenarioControlPane
 import { TourBanner } from "../components/scenario/TourBanner";
 import { WorkflowModal } from "../components/scenario/WorkflowModal";
 import type { HintCardData, Position } from "../components/scenario/types";
-import { API_BASE_URL } from "../config/endpoints";
+import { API_BASE_URL, FRONTEND_ENDPOINTS } from "../config/endpoints";
 import type { MissionView } from "../components/scenario/MissionPanel";
 import {
   ApiError,
@@ -1930,6 +1930,36 @@ export function ScenarioGamePage() {
     usesConversationLearning,
   ]);
 
+  // 헤더의 '미션' 버튼은 현재 업무를 다시 확인하는 빠른 진입점이다.
+  // NPC 앞의 '업무 받기'와 같은 핸들러를 쓰면 대화형 업무 설명 단계가 매번 먼저 열려
+  // 사용자가 미션 팝업을 직접 열 수 없으므로, 헤더에서는 현재 콘텐츠를 바로 연다.
+  const handleHeaderOpenMission = useCallback(() => {
+    if (needsTour) {
+      handleOpenMission();
+      return;
+    }
+    setTaskResult(null);
+    if (activeActivity?.kind === "minigame") {
+      setPhase("minigame");
+      return;
+    }
+    if (activeActivity?.kind === "debrief") {
+      handleOpenMission();
+      return;
+    }
+    if (activeMission) {
+      if (!quest && activeStep?.id) {
+        setBriefedSteps((current) =>
+          current.includes(activeStep.id) ? current : [...current, activeStep.id],
+        );
+      }
+      setProcessLearningReady(false);
+      setPhase("mission");
+      return;
+    }
+    handleOpenMission();
+  }, [activeActivity, activeMission, activeStep, handleOpenMission, needsTour, quest]);
+
   // 브리핑을 다 들으면 그 스텝은 들은 것으로 기록하고 과제로 넘어간다.
   const handleBriefingDone = useCallback(() => {
     if (activeStep?.id) setBriefedSteps((current) => [...current, activeStep.id]);
@@ -2097,7 +2127,7 @@ export function ScenarioGamePage() {
             else window.location.assign("/");
           }}
           onRestart={handleRetry}
-          onMission={handleOpenMission}
+          onMission={handleHeaderOpenMission}
           missionDisabled={connStatus !== "open" || tourRequestPending || tourActive}
           missionPending={tourRequestPending}
         />
@@ -2449,33 +2479,46 @@ export function ScenarioGamePage() {
           aria-label="시나리오 완수"
         >
           <div className={styles.completionCard}>
-            <span className={styles.completionEmoji} aria-hidden="true">
-              🎉
-            </span>
-            <h2>시나리오 완수!</h2>
-            <p>{scenarioTitle || "시나리오"}를 완료했어요.</p>
-            {/* 점수·역량·화법은 게임에서 보여주지 않는다(팀 결정) — 상담 + 체험을 합쳐
-                최종 진로 리포트에서만 공개한다. 점수 쫓기가 아니라 체험이 되도록. */}
-            <p className={styles.completionNote}>
-              {reportSyncStatus === "done"
-                ? "오늘 체험한 내용이 상담 결과와 함께 최종 진로 리포트에 반영됐어요."
-                : reportSyncStatus === "error"
-                  ? "리포트 반영에 실패했어요. 마이페이지에서 리포트를 다시 만들어주세요."
-                  : reportSyncStatus === "pending"
-                    ? "오늘 체험한 내용을 상담 결과와 함께 최종 진로 리포트에 반영하는 중..."
-                    : "오늘 체험한 내용은 상담 결과와 함께 최종 진로 리포트에 반영됩니다."}
-            </p>
-            <div className={styles.completionActions}>
-              <button
-                className={styles.completionPrimary}
-                type="button"
-                onClick={() => window.location.assign("/")}
-              >
-                홈으로
-              </button>
-              <button className={styles.completionSecondary} type="button" onClick={handleRetry}>
-                다시 하기
-              </button>
+            <div className={styles.completionAvatar} aria-hidden="true">
+              <img
+                src="/assets/scenario/ui/completion-avatar.webp"
+                alt=""
+              />
+            </div>
+            <div className={styles.completionContent}>
+              <span className={styles.completionEyebrow}>JOB EXPERIENCE COMPLETE</span>
+              <h2>시나리오 완수!</h2>
+              <p>{scenarioTitle || "시나리오"}를 완료했어요.</p>
+              {/* 점수·역량·화법은 게임에서 보여주지 않는다(팀 결정) — 상담 + 체험을 합쳐
+                  최종 진로 리포트에서만 공개한다. 점수 쫓기가 아니라 체험이 되도록. */}
+              <p className={styles.completionNote}>
+                {reportSyncStatus === "done"
+                  ? "오늘 체험한 내용이 상담 결과와 함께 최종 진로 리포트에 반영됐어요."
+                  : reportSyncStatus === "error"
+                    ? "리포트 반영에 실패했어요. 마이페이지에서 리포트를 다시 만들어주세요."
+                    : reportSyncStatus === "pending"
+                      ? "오늘 체험한 내용을 상담 결과와 함께 최종 진로 리포트에 반영하는 중..."
+                      : "오늘 체험한 내용은 상담 결과와 함께 최종 진로 리포트에 반영됩니다."}
+              </p>
+              <div className={styles.completionActions}>
+                <button
+                  className={styles.completionPrimary}
+                  type="button"
+                  onClick={() => window.location.assign("/")}
+                >
+                  홈으로
+                </button>
+                <button
+                  className={styles.completionConversation}
+                  type="button"
+                  onClick={() => window.location.assign(FRONTEND_ENDPOINTS.conversation)}
+                >
+                  1:1 상담으로
+                </button>
+                <button className={styles.completionSecondary} type="button" onClick={handleRetry}>
+                  다시 하기
+                </button>
+              </div>
             </div>
           </div>
         </div>

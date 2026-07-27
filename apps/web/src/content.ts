@@ -8,7 +8,7 @@ export const LANDING_COPY = {
   },
   final: {
     eyebrow: "경험으로 발견하는 나의 직무",
-    title: "끊임없는 가능성 속,\n항해를 시작하세요",
+    title: "끝없는 가능성 속,\n항해를 시작하세요",
     description:
       "AI 아바타한테 직무를 추천받고, 가상 회사에서 즐겁게 미션을 수행하고 대화를 통해서\n나의 적성을 분석해보세요.",
   },
