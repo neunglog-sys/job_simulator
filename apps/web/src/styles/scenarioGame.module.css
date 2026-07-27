@@ -2495,6 +2495,71 @@ button.headerOrb:active {
   white-space: pre-wrap;
 }
 
+/* 제공 자료 — 과제 창을 닫지 않고 펼쳐 대조한다(정산 차액처럼 자료를 맞춰봐야 푸는 과제) */
+.missionMaterials {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.missionMaterial {
+  border: 1px solid rgb(255 255 255 / 0.55);
+  border-radius: 14px;
+  background: rgb(255 255 255 / 0.72);
+  overflow: hidden;
+}
+
+.missionMaterial > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  color: #2c2350;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.missionMaterial > summary::-webkit-details-marker {
+  display: none;
+}
+
+.missionMaterial > summary::after {
+  content: "▾";
+  margin-left: auto;
+  font-size: 11px;
+  opacity: 0.55;
+  transition: transform 160ms ease;
+}
+
+.missionMaterial[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+.missionMaterialTag {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgb(124 92 214 / 0.16);
+  color: #5b3fb0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.missionMaterial > pre {
+  margin: 0;
+  padding: 0 14px 13px;
+  max-height: 220px;
+  overflow: auto;
+  color: #2c2350;
+  font-family: ui-monospace, "SFMono-Regular", "Menlo", monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* 돌발 퀘스트 상황 설명 배너 */
 .missionBanner {
   margin: 0;

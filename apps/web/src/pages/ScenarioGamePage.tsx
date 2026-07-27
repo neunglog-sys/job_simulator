@@ -740,7 +740,9 @@ export function ScenarioGamePage() {
   const activeMission: MissionView | null = quest
     ? { title: quest.title, task: quest.task, banner: quest.banner }
     : activeStep?.task
-      ? { title: activeStep.title, task: activeStep.task }
+      ? // 제공자료를 과제 창 안에서 바로 펼쳐볼 수 있게 넘긴다 — 자료를 대조해야 푸는 과제라
+        // 창을 닫고 힌트 패널을 열었다 돌아오면 작성 흐름이 끊긴다.
+        { title: activeStep.title, task: activeStep.task, materials: activeStep.materials }
       : null;
 
   // 현재 미션 담당 NPC의 맵 좌표(로컬) — 근접 판정·마커 강조에 사용.
