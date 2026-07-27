@@ -101,7 +101,7 @@ def _task_with_material_criteria(
     if not cause:
         return task
     merged = dict(task)
-    merged["criteria"] = [*(task.get("criteria") or []), f"제공자료가 가리키는 실제 원인({cause})을 찾아냈는가"]
+    merged["criteria"] = [*(task.get("criteria") or []), f"제공자료가 가리키는 핵심 사실({cause})을 찾아내 근거로 삼았는가"]
     return merged
 
 
