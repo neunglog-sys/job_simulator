@@ -111,6 +111,7 @@ type TransportObstacleLayout = {
   y: number;
   range: number;
   phase: number;
+  direction?: 1 | -1;
 };
 
 type SupplyRunDef = {
@@ -202,26 +203,52 @@ const WIRE_NEUTRAL = "#9fb6ff";
 
 const lineKey = (line: Line) => `${line.left}|${line.right}`;
 const pretty = (id: string) => id.replace(/_/g, " ");
-const TRANSPORT_START: TransportPosition = { x: 12, y: 84 };
-const TRANSPORT_DESTINATION: TransportPosition = { x: 88, y: 14 };
+const TRANSPORT_ROW_COUNT = 7;
+const TRANSPORT_COLUMN_COUNT = 13;
+const TRANSPORT_LANE_Y = Array.from(
+  { length: TRANSPORT_ROW_COUNT },
+  (_, index) => ((index + 0.5) / TRANSPORT_ROW_COUNT) * 100,
+);
+const TRANSPORT_COLUMN_X = Array.from(
+  { length: TRANSPORT_COLUMN_COUNT },
+  (_, index) => ((index + 0.5) / TRANSPORT_COLUMN_COUNT) * 100,
+);
+const TRANSPORT_START: TransportPosition = {
+  x: TRANSPORT_COLUMN_X[0],
+  y: TRANSPORT_LANE_Y[TRANSPORT_ROW_COUNT - 1],
+};
+const TRANSPORT_DESTINATION: TransportPosition = {
+  x: TRANSPORT_COLUMN_X[TRANSPORT_COLUMN_COUNT - 1],
+  y: TRANSPORT_LANE_Y[0],
+};
 const nudgeTransportPosition = (
   position: TransportPosition,
   direction: TransportDirection,
-  amount = 3.2,
-  horizontalScale = 1,
-): TransportPosition => ({
-  x: Math.max(
-    7,
-    Math.min(
-      93,
-      position.x + (direction === "right" ? amount * horizontalScale : direction === "left" ? -amount * horizontalScale : 0),
-    ),
-  ),
-  y: Math.max(
-    10,
-    Math.min(90, position.y + (direction === "down" ? amount : direction === "up" ? -amount : 0)),
-  ),
-});
+): TransportPosition => {
+  const nearestIndex = (values: number[], current: number) =>
+    values.reduce(
+      (nearest, value, index) =>
+        Math.abs(value - current) < Math.abs(values[nearest] - current) ? index : nearest,
+      0,
+    );
+  if (direction === "left" || direction === "right") {
+    const currentColumn = nearestIndex(TRANSPORT_COLUMN_X, position.x);
+    const nextColumn = Math.max(
+      0,
+      Math.min(
+        TRANSPORT_COLUMN_X.length - 1,
+        currentColumn + (direction === "right" ? 1 : -1),
+      ),
+    );
+    return { x: TRANSPORT_COLUMN_X[nextColumn], y: position.y };
+  }
+  const currentLane = nearestIndex(TRANSPORT_LANE_Y, position.y);
+  const nextLane = Math.max(
+    0,
+    Math.min(TRANSPORT_LANE_Y.length - 1, currentLane + (direction === "down" ? 1 : -1)),
+  );
+  return { x: position.x, y: TRANSPORT_LANE_Y[nextLane] };
+};
 const transportRouteProgress = (position: TransportPosition) => {
   const totalDistance = Math.hypot(
     TRANSPORT_DESTINATION.x - TRANSPORT_START.x,
@@ -239,7 +266,7 @@ const expandTransportObstacles = (obstacles: SupplyObstacle[]): SupplyObstacle[]
   const staticSeeds = obstacles.filter((obstacle) => !/직원|고객/.test(`${obstacle.id} ${obstacle.label}`));
   let dynamicCount = dynamicSeeds.length;
   let staticCount = staticSeeds.length;
-  while (dynamicCount < 6 && dynamicSeeds.length > 0) {
+  while (dynamicCount < 9 && dynamicSeeds.length > 0) {
     const source = dynamicSeeds[dynamicCount % dynamicSeeds.length];
     result.push({
       ...source,
@@ -248,7 +275,7 @@ const expandTransportObstacles = (obstacles: SupplyObstacle[]): SupplyObstacle[]
     });
     dynamicCount += 1;
   }
-  while (staticCount < 6 && staticSeeds.length > 0) {
+  while (staticCount < 13 && staticSeeds.length > 0) {
     const source = staticSeeds[staticCount % staticSeeds.length];
     result.push({
       ...source,
@@ -261,20 +288,30 @@ const expandTransportObstacles = (obstacles: SupplyObstacle[]): SupplyObstacle[]
 };
 const createTransportObstacleLayout = (obstacles: SupplyObstacle[]): Record<string, TransportObstacleLayout> => {
   const dynamicTemplates = [
-    { x: 7, y: 14, range: 86 },
-    { x: 7, y: 28, range: 86 },
-    { x: 7, y: 42, range: 86 },
-    { x: 7, y: 56, range: 86 },
-    { x: 7, y: 70, range: 86 },
-    { x: 7, y: 84, range: 86 },
+    { x: 4, y: TRANSPORT_LANE_Y[0], range: 92, phase: 8, direction: 1 as const },
+    { x: 4, y: TRANSPORT_LANE_Y[1], range: 92, phase: 24, direction: -1 as const },
+    { x: 4, y: TRANSPORT_LANE_Y[2], range: 42, phase: 4, direction: 1 as const },
+    { x: 4, y: TRANSPORT_LANE_Y[3], range: 92, phase: 34, direction: -1 as const },
+    { x: 4, y: TRANSPORT_LANE_Y[4], range: 42, phase: 12, direction: 1 as const },
+    { x: 4, y: TRANSPORT_LANE_Y[5], range: 92, phase: 44, direction: -1 as const },
+    { x: 4, y: TRANSPORT_LANE_Y[6], range: 92, phase: 20, direction: 1 as const },
+    { x: 54, y: TRANSPORT_LANE_Y[2], range: 42, phase: 18, direction: -1 as const },
+    { x: 54, y: TRANSPORT_LANE_Y[4], range: 42, phase: 28, direction: -1 as const },
   ];
   const staticTemplates = [
-    { x: 32, y: 34 },
-    { x: 64, y: 27 },
-    { x: 42, y: 50 },
-    { x: 76, y: 53 },
-    { x: 30, y: 69 },
-    { x: 62, y: 72 },
+    { x: 20, y: TRANSPORT_LANE_Y[0] },
+    { x: 40, y: TRANSPORT_LANE_Y[0] },
+    { x: 58, y: TRANSPORT_LANE_Y[1] },
+    { x: 76, y: TRANSPORT_LANE_Y[1] },
+    { x: 27, y: TRANSPORT_LANE_Y[2] },
+    { x: 49, y: TRANSPORT_LANE_Y[2] },
+    { x: 72, y: TRANSPORT_LANE_Y[3] },
+    { x: 35, y: TRANSPORT_LANE_Y[4] },
+    { x: 64, y: TRANSPORT_LANE_Y[4] },
+    { x: 6, y: TRANSPORT_LANE_Y[1] },
+    { x: 6, y: TRANSPORT_LANE_Y[5] },
+    { x: 94, y: TRANSPORT_LANE_Y[2] },
+    { x: 94, y: TRANSPORT_LANE_Y[5] },
   ];
   let dynamicIndex = 0;
   let staticIndex = 0;
@@ -292,7 +329,8 @@ const createTransportObstacleLayout = (obstacles: SupplyObstacle[]): Record<stri
             x: template.x,
             y: template.y,
             range: template.range,
-            phase: (currentDynamicIndex * 27 + Math.random() * 10) % (template.range * 2),
+            phase: template.phase,
+            direction: template.direction,
           },
         ];
       }
@@ -316,10 +354,12 @@ const transportObstaclePosition = (
   motionProgress: number,
 ): TransportPosition => {
   if (layout.kind === "static" || layout.range <= 0) return { x: layout.x, y: layout.y };
-  const span = layout.range * 2;
-  const phase = (layout.phase + motionProgress) % span;
+  const cycle = layout.range * 2;
+  const directedProgress = motionProgress * (layout.direction ?? 1);
+  const cycleProgress = ((layout.phase + directedProgress) % cycle + cycle) % cycle;
+  const offset = cycleProgress <= layout.range ? cycleProgress : cycle - cycleProgress;
   return {
-    x: layout.x + (phase <= layout.range ? phase : span - phase),
+    x: layout.x + offset,
     y: layout.y,
   };
 };
@@ -481,7 +521,6 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const [memoryRemaining, setMemoryRemaining] = useState(Math.max(1, supplyRun?.memory_seconds ?? 10));
   const [pickedCounts, setPickedCounts] = useState<Record<string, number>>({});
   const [supplyHintVisible, setSupplyHintVisible] = useState(false);
-  const transportKeysRef = useRef(new Set<TransportDirection>());
   const transportRoadRef = useRef<HTMLDivElement | null>(null);
   const [transportPosition, setTransportPosition] = useState<TransportPosition>(TRANSPORT_START);
   const [transportObstacleLayout, setTransportObstacleLayout] = useState<Record<string, TransportObstacleLayout>>(
@@ -546,7 +585,6 @@ export function MatchGame({ game, onComplete }: EngineProps) {
     setTransportProgress(100);
     setTransportRunning(false);
     setTransportComplete(true);
-    transportKeysRef.current.clear();
   }, [flowPhase, transportPosition, transportRunning, transportComplete, done]);
 
   // 동적 장애물은 카트 속도와 무관한 평상 속도로 좌우 왕복한다. 정적 장애물은 이 값을 사용하지 않는다.
@@ -559,32 +597,6 @@ export function MatchGame({ game, onComplete }: EngineProps) {
     }, 120);
     return () => window.clearInterval(timer);
   }, [supplyRun, flowPhase, transportRunning, transportComplete, done]);
-
-  // kts-03 ③ 카트 자유 이동 — 모든 방향을 동일한 고정 속도로 움직인다.
-  useEffect(() => {
-    if (flowPhase !== "transport" || !transportRunning || transportComplete || done) return;
-    let frame = 0;
-    let previous = window.performance.now();
-    const move = (now: number) => {
-      const dt = Math.min(0.05, Math.max(0, (now - previous) / 1000));
-      previous = now;
-      const keys = transportKeysRef.current;
-      const dx = (keys.has("right") ? 1 : 0) - (keys.has("left") ? 1 : 0);
-      const dy = (keys.has("down") ? 1 : 0) - (keys.has("up") ? 1 : 0);
-      if (dx !== 0 || dy !== 0) {
-        const length = Math.hypot(dx, dy) || 1;
-        const roadRect = transportRoadRef.current?.getBoundingClientRect();
-        const horizontalScale = roadRect && roadRect.width > 0 ? roadRect.height / roadRect.width : 1;
-        setTransportPosition((position) => ({
-          x: Math.max(7, Math.min(93, position.x + (dx / length) * 34 * horizontalScale * dt)),
-          y: Math.max(10, Math.min(90, position.y + (dy / length) * 34 * dt)),
-        }));
-      }
-      frame = window.requestAnimationFrame(move);
-    };
-    frame = window.requestAnimationFrame(move);
-    return () => window.cancelAnimationFrame(frame);
-  }, [flowPhase, transportRunning, transportComplete, done]);
 
   // 장애물 중심과 카트 중심의 거리가 겹치는 순간을 한 번만 충돌로 센다.
   useEffect(() => {
@@ -601,8 +613,8 @@ export function MatchGame({ game, onComplete }: EngineProps) {
         const obstaclePosition = transportObstaclePosition(layout, transportObstacleProgress);
         return (
           !transportHits.includes(obstacle.id) &&
-          Math.abs(obstaclePosition.x - transportPosition.x) <= 5.5 &&
-          Math.abs(obstaclePosition.y - transportPosition.y) <= 8
+          Math.abs(obstaclePosition.x - transportPosition.x) <= 3.7 &&
+          Math.abs(obstaclePosition.y - transportPosition.y) <= 5.5
         );
       },
     );
@@ -620,7 +632,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
     done,
   ]);
 
-  // 방향키/WASD 상태만 기록하며 방향에 따른 속도 차이는 두지 않는다.
+  // 상하는 한 레인씩 이동하고, 좌우는 키를 누르는 동안 자유롭게 이동한다.
   useEffect(() => {
     if (flowPhase !== "transport" || !transportRunning || transportComplete || done) return;
     const directionOf = (key: string): TransportDirection | null => {
@@ -634,29 +646,12 @@ export function MatchGame({ game, onComplete }: EngineProps) {
       const direction = directionOf(event.key);
       if (!direction) return;
       event.preventDefault();
-      transportKeysRef.current.add(direction);
-      if (!event.repeat) {
-        const roadRect = transportRoadRef.current?.getBoundingClientRect();
-        const horizontalScale = roadRect && roadRect.width > 0 ? roadRect.height / roadRect.width : 1;
-        setTransportPosition((position) => nudgeTransportPosition(position, direction, 3.2, horizontalScale));
-      }
-    };
-    const onKeyUp = (event: KeyboardEvent) => {
-      const direction = directionOf(event.key);
-      if (!direction) return;
-      transportKeysRef.current.delete(direction);
-    };
-    const clearKeys = () => {
-      transportKeysRef.current.clear();
+      if (event.repeat) return;
+      setTransportPosition((position) => nudgeTransportPosition(position, direction));
     };
     window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", clearKeys);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", clearKeys);
-      clearKeys();
     };
   }, [flowPhase, transportRunning, transportComplete, done]);
 
@@ -1161,7 +1156,6 @@ export function MatchGame({ game, onComplete }: EngineProps) {
     setTransportComplete(false);
     setTransportHits([]);
     setTransportCollisions(0);
-    transportKeysRef.current.clear();
   };
 
   const startDriving = () => {
@@ -1169,18 +1163,8 @@ export function MatchGame({ game, onComplete }: EngineProps) {
     setTransportPosition(TRANSPORT_START);
     setTransportProgress(0);
     setTransportObstacleProgress(0);
-    transportKeysRef.current.clear();
     setTransportRunning(true);
-  };
-
-  const holdTransportDirection = (direction: TransportDirection, active: boolean) => {
-    if (done || !transportRunning || transportComplete) return;
-    if (active) {
-      transportKeysRef.current.add(direction);
-      const roadRect = transportRoadRef.current?.getBoundingClientRect();
-      const horizontalScale = roadRect && roadRect.width > 0 ? roadRect.height / roadRect.width : 1;
-      setTransportPosition((position) => nudgeTransportPosition(position, direction, 3.2, horizontalScale));
-    } else transportKeysRef.current.delete(direction);
+    window.requestAnimationFrame(() => transportRoadRef.current?.focus());
   };
 
   const enterCustomerFloor = () => {
@@ -1410,6 +1394,8 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const warehouseBackground = `${import.meta.env.BASE_URL}assets/minigames/backgrounds/cartoon-day-v3/kts-03-background-wine-warehouse-cartoon-day-v3.webp`;
   const cartRouteBackground = `${import.meta.env.BASE_URL}assets/minigames/backgrounds/cartoon-day-v3/kts-03-background-cart-route-cartoon-day-v1.webp`;
   const wineServiceCart = `${import.meta.env.BASE_URL}assets/minigames/kts-03-wine-service-cart-cartoon-v1.webp`;
+  const cartStartMarker = `${import.meta.env.BASE_URL}assets/minigames/ui/kts-03-cart-start-marker-cartoon-v1.webp`;
+  const cartDestinationMarker = `${import.meta.env.BASE_URL}assets/minigames/ui/kts-03-cart-destination-marker-cartoon-v1.webp`;
   const supplyBoardStyle = {
     "--supply-background": `url("${flowPhase === "transport" ? cartRouteBackground : warehouseBackground}")`,
   } as CSSProperties;
@@ -1456,7 +1442,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
                   {supplyOrder.map((item) => (
                     <li key={item.id}>
                       <span>{item.display_label ?? item.label}</span>
-                      <b>{item.id === "스위트" ? "x" : "X"} {item.target}</b>
+                      <b>X {item.target}</b>
                     </li>
                   ))}
                 </ul>
@@ -1477,7 +1463,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
           {flowPhase === "picking" ? (
             <>
               <p className={styles.supplyInstruction}>
-                와인상자를 좌클릭하면 담고, 우클릭하면 한 병 뺍니다.
+                와인 상자 클릭 → 좌클릭: 증가 | 우클릭: 감소
               </p>
               <div className={styles.supplyPickScene}>
                 {supplyOrder.map((item) => (
@@ -1540,9 +1526,33 @@ export function MatchGame({ game, onComplete }: EngineProps) {
           {flowPhase === "transport" ? (
             <>
               {transportRunning || transportComplete ? (
-                <p className={styles.supplyInstruction}>좌측 아래 출발점에서 우측 위 매장까지 이동하세요.</p>
+                <p className={styles.supplyInstruction}>방향키로 한 칸씩 움직여 보세요.</p>
               ) : null}
-              <div ref={transportRoadRef} className={styles.supplyRoad} aria-label="카트 운반 통로">
+              <div
+                ref={transportRoadRef}
+                className={styles.supplyRoad}
+                aria-label="카트 운반 통로"
+                tabIndex={0}
+              >
+                <div className={styles.supplyLaneGrid} aria-hidden="true">
+                  {Array.from({ length: TRANSPORT_ROW_COUNT * TRANSPORT_COLUMN_COUNT }, (_, index) => (
+                    <span key={`transport-cell-${index}`} />
+                  ))}
+                </div>
+                <span
+                  className={styles.supplyStartPoint}
+                  style={{ left: "0%", top: "100%" }}
+                  aria-label="창고 출발지"
+                >
+                  <img src={cartStartMarker} alt="" draggable={false} />
+                </span>
+                <span
+                  className={styles.supplyFinishLine}
+                  style={{ left: "100%", top: "0%" }}
+                  aria-label="매장 도착지"
+                >
+                  <img src={cartDestinationMarker} alt="" draggable={false} />
+                </span>
                 {transportObstacles.map((obstacle, index) => {
                   const layout = transportObstacleLayout[obstacle.id] ?? {
                     kind: index < 2 ? "dynamic" : "static",
@@ -1569,13 +1579,6 @@ export function MatchGame({ game, onComplete }: EngineProps) {
                     </span>
                   );
                 })}
-                <span
-                  className={styles.supplyStartPoint}
-                  style={{ left: `${TRANSPORT_START.x}%`, top: `${TRANSPORT_START.y}%` }}
-                  aria-hidden="true"
-                >
-                  출발
-                </span>
                 <div
                   className={styles.supplyCart}
                   data-hit={transportCollisions > 0 || undefined}
@@ -1584,18 +1587,11 @@ export function MatchGame({ game, onComplete }: EngineProps) {
                 >
                   <img src={wineServiceCart} alt="" draggable={false} />
                 </div>
-                <span
-                  className={styles.supplyFinishLine}
-                  style={{ left: `${TRANSPORT_DESTINATION.x}%`, top: `${TRANSPORT_DESTINATION.y}%` }}
-                  aria-label="매장 도착지"
-                >
-                  매장
-                </span>
                 {!transportRunning && !transportComplete && transportProgress === 0 ? (
                   <div className={styles.supplyTransportIntro}>
                     <strong>백화점 매장 운반</strong>
-                    <p>창고에서 매장까지 카트를 안전하게 운반하세요.</p>
-                    <p>직원·손님·작업 구역과 적재품을 피해 도착지까지 이동하세요.</p>
+                    <p>방향키를 한 번 누를 때마다 상하좌우로 한 칸 이동합니다.</p>
+                    <p>7개 통로와 13개 칸을 건너며 움직이는 손님과 적재품을 피해 매장까지 이동하세요.</p>
                     <button type="button" className={styles.supplyPrimary} onClick={startDriving}>
                       운반 시작
                     </button>
@@ -1604,60 +1600,6 @@ export function MatchGame({ game, onComplete }: EngineProps) {
               </div>
 
               <section className={styles.supplyDrivePanel}>
-                <div className={styles.supplyDpad} role="group" aria-label="카트 자유 이동">
-                  <button
-                    type="button"
-                    className={styles.supplyDpadButton}
-                    style={{ gridArea: "up" }}
-                    aria-label="위로 이동"
-                    disabled={done || !transportRunning || transportComplete}
-                    onPointerDown={() => holdTransportDirection("up", true)}
-                    onPointerUp={() => holdTransportDirection("up", false)}
-                    onPointerLeave={() => holdTransportDirection("up", false)}
-                    onPointerCancel={() => holdTransportDirection("up", false)}
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.supplyDpadButton}
-                    style={{ gridArea: "left" }}
-                    aria-label="왼쪽으로 이동"
-                    disabled={done || !transportRunning || transportComplete}
-                    onPointerDown={() => holdTransportDirection("left", true)}
-                    onPointerUp={() => holdTransportDirection("left", false)}
-                    onPointerLeave={() => holdTransportDirection("left", false)}
-                    onPointerCancel={() => holdTransportDirection("left", false)}
-                  >
-                    ←
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.supplyDpadButton}
-                    style={{ gridArea: "down" }}
-                    aria-label="아래로 이동"
-                    disabled={done || !transportRunning || transportComplete}
-                    onPointerDown={() => holdTransportDirection("down", true)}
-                    onPointerUp={() => holdTransportDirection("down", false)}
-                    onPointerLeave={() => holdTransportDirection("down", false)}
-                    onPointerCancel={() => holdTransportDirection("down", false)}
-                  >
-                    ↓
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.supplyDpadButton}
-                    style={{ gridArea: "right" }}
-                    aria-label="오른쪽으로 이동"
-                    disabled={done || !transportRunning || transportComplete}
-                    onPointerDown={() => holdTransportDirection("right", true)}
-                    onPointerUp={() => holdTransportDirection("right", false)}
-                    onPointerLeave={() => holdTransportDirection("right", false)}
-                    onPointerCancel={() => holdTransportDirection("right", false)}
-                  >
-                    →
-                  </button>
-                </div>
                 <div className={styles.supplyDriveStatus}>
                   <span>
                     적재 상태 <b data-state={cargoState}>{cargoState}</b>

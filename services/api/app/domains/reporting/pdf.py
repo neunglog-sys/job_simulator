@@ -19,6 +19,7 @@ Regular/SemiBold/Bold TTF를 임베드해 크기+굵기+색으로 위계를 준�
 
 import re
 from pathlib import Path
+from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
 from reportlab.lib.colors import Color, HexColor, white
@@ -550,6 +551,13 @@ def render_report_pdf(
         reason = r.get("reason") or "-"
         related = r.get("related_jobs") or []
         reason_flow = [Paragraph(reason, _cell)]
+        # 개인화 근거: 상담에서 검증된 실제 발화 인용(그라운딩 게이트 통과분만). 없으면 생략.
+        evidence = r.get("evidence")
+        if evidence and evidence.get("quote"):
+            reason_flow.append(Spacer(1, 3))
+            reason_flow.append(Paragraph(
+                f'<font name="{FONT_SB}" color="#6C4BEF">상담에서 하신 말</font> · '
+                f'“{escape(evidence["quote"])}”', _cell_muted))
         if related:
             reason_flow.append(Spacer(1, 3))
             reason_flow.append(Paragraph(
