@@ -180,6 +180,8 @@ const SCENARIO_BGM_TRACKS: Readonly<Record<string, readonly string[]>> = {
   ],
 };
 
+const CONVERSATION_LEARNING_SCENARIOS = new Set(["sns-01", "kts-03"]);
+
 const BGM_VOLUME_KEY = "scenario-bgm-volume";
 const COACH_VOLUME_KEY = "scenario-coach-volume";
 const DEFAULT_BGM_VOLUME = 0.1;
@@ -667,7 +669,7 @@ export function ScenarioGamePage() {
   // 미션 통과 후 AI 코치 사후 리뷰 (근거 기반 카드)
   const [coachCards, setCoachCards] = useState<CoachCardsFrame | null>(null);
   const [briefedSteps, setBriefedSteps] = useState<string[]>([]); // 브리핑을 본 스텝 id (스텝당 1회)
-  // SNS-01은 설명 모달 대신 담당 NPC와 업무 과정을 한 번 주고받은 뒤 문제를 연다.
+  // 대화형 학습 시나리오는 설명 모달 대신 담당 NPC와 업무 과정을 주고받은 뒤 문제를 연다.
   const [processLearningReady, setProcessLearningReady] = useState(false);
   // 1단계 진행도 — 인사를 나눈 동료 목록(서버 state.met_npcs). 전원과 인사해야 업무가 열린다.
   const [, setMetNpcs] = useState<string[]>([]);
@@ -717,7 +719,7 @@ export function ScenarioGamePage() {
   const activeNpc = npcs.find((npc) => npc.npc_id === activeNpcId) ?? null;
   const activeActivity = activeStep?.activity ?? null;
   const usesConversationLearning =
-    scenarioSlug === "sns-01" && Boolean(activeStep?.task) && !quest;
+    CONVERSATION_LEARNING_SCENARIOS.has(scenarioSlug) && Boolean(activeStep?.task) && !quest;
   const activeActivityGame =
     activeActivity?.kind === "minigame"
       ? minigames.find((game) => game.id === activeActivity.game_id) ?? null
@@ -2109,7 +2111,7 @@ export function ScenarioGamePage() {
             isHistoryOpen={isHistoryOpen}
             isMemoOpen={isMemoOpen}
             isWorkflowOpen={isWorkflowOpen}
-            // 자유 대화, 투어 인사, SNS-01 업무 학습·회고 단계에서 입력을 받는다.
+            // 자유 대화, 투어 인사, 대화형 업무 학습·회고 단계에서 입력을 받는다.
             // 투어 인사는 그 동료 옆까지 걸어가야 보낼 수 있다 — 멀리서 인사가 성립하지 않게.
             disabled={
               connStatus !== "open" ||
@@ -2225,11 +2227,19 @@ export function ScenarioGamePage() {
           onClear={(result) => {
             if (activeActivity?.kind === "minigame" && activeActivity.game_id) {
               if (result) {
+                const resultWithGameId = {
+                  ...result,
+                  metadata: {
+                    ...result.metadata,
+                    activityGameId: activeActivity.game_id,
+                    gameId: result.metadata?.gameId ?? activeActivity.game_id,
+                  },
+                };
                 pendingMinigameActivityRef.current = {
                   gameId: activeActivity.game_id,
                   engine: result.engine,
                 };
-                if (!socketRef.current?.sendMinigameResult(result)) {
+                if (!socketRef.current?.sendMinigameResult(resultWithGameId)) {
                   pendingMinigameActivityRef.current = null;
                   setCoachMessage("게임 결과를 저장하지 못했어요. 연결을 확인한 뒤 다시 시도해주세요.");
                 }

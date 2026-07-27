@@ -18,16 +18,15 @@ npcs:
   - 근거가 뭐예요?
   - 우선순위 기준은요?
   responsibilities:
-  - 완료 체크리스트
-  - 재고 불일치 보고서
   - 우선순위 배열표
-  - 처리·회신 기록
+  - 마감 정산 및 인계 승인
+  - 고객 응대 판단 및 에스컬레이션
   appearance:
     location: teamjang
     available_steps:
-    - m1
     - m3
     - m4
+    - m7
 - npc_id: npc_kts-03_02
   name: 권채원
   role: 직속 사수·선임 판매원
@@ -45,11 +44,17 @@ npcs:
   speech_habits:
   - 그렇게 하면 어떻게 될 것 같아요?
   - 핵심부터 봅시다.
-  responsibilities: []
+  responsibilities:
+  - 오픈 전 출고 목록 확인과 상품 피킹
+  - 카트 안전 운반 교육
+  - 고객 니즈 파악과 상품 추천 지도
   appearance:
     location: bujang
     available_steps:
+    - m1
     - m2
+    - m5
+    - m6
 - npc_id: npc_kts-03_03
   name: 유선우
   role: 까다로운 단골 고객
