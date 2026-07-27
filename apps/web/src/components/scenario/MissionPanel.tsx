@@ -83,7 +83,13 @@ export function MissionPanel({
 
   return (
     <div className={styles.missionOverlay} role="dialog" aria-modal="true" aria-label="미션 도전">
-      <div className={styles.missionModal}>
+      {/* 제공자료가 붙는 과제는 내용이 길다 — 영역별로 잘라 스크롤하면 답변창이 쪼그라들어서,
+          이때만 모달 전체를 스크롤시키고 각 영역은 제 높이를 그대로 쓰게 한다. */}
+      <div
+        className={
+          mission.materials?.length ? `${styles.missionModal} ${styles.missionModalScroll}` : styles.missionModal
+        }
+      >
         <div className={styles.missionHeader}>
           <div className={styles.missionHeadingText}>
             <span className={styles.missionKindBadge}>{KIND_LABEL[kind] ?? "미션"}</span>

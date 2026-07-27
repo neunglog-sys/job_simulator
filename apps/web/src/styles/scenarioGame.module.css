@@ -2500,13 +2500,23 @@ button.headerOrb:active {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  /* 모달에서 스크롤되는 곳은 .missionBody(답변란)뿐이라, 자료가 길면 잘린 채 못 내려갔다.
-     자료 목록이 스스로 스크롤되게 하고 높이를 묶어, 아래 답변란이 항상 화면에 남게 한다. */
-  flex: 0 1 auto;
-  min-height: 0;
-  max-height: 38vh;
+  flex: 0 0 auto;
+}
+
+/* 제공자료가 있는 과제 — 영역별로 스크롤을 나누면(자료 칸 / 답변 칸) 답변창이 쪼그라든다.
+   모달 하나만 스크롤시키고 자료·답변은 제 높이를 그대로 써서, 답변창을 넓게 유지한다. */
+.missionModalScroll {
   overflow-y: auto;
-  padding-right: 2px;
+}
+
+.missionModalScroll .missionBody {
+  /* flex: 0 0 auto면 어차피 안 줄어든다 — min-height는 건드리지 않는다(Firefox에서 auto 미지원). */
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.missionModalScroll .missionTextarea {
+  min-height: 260px;
 }
 
 .missionMaterial {
