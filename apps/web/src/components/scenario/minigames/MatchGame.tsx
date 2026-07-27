@@ -185,6 +185,12 @@ type Outcome = {
 };
 
 const FLOW_SECONDS = 9; // 구슬이 밴드를 한 번 지나는 시간
+// 창고 출고(kts-03-supply)에서 수량 힌트를 볼 수 있는 총 횟수.
+const SUPPLY_HINT_LIMIT = 3;
+// 카트 운반 단계 제한시간(초). 암기(10초)는 supply_run.memory_seconds가, 피킹은 무제한이고,
+// 운반만 이 시계를 쓴다 — 전역 타이머 하나를 세 단계가 나눠 쓰면 앞 단계에서 시간을 다
+// 써버려 뒤 단계를 못 하는 문제가 있었다.
+const TRANSPORT_SECONDS = 60;
 
 /** kts-05 객실 키 색 팔레트 — 아트 전 임시 색값. */
 const KEY_COLORS: Record<string, string> = {
@@ -518,9 +524,12 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const [flowPhase, setFlowPhase] = useState<"memory" | "picking" | "transport" | "customer">(
     supplyRun ? "memory" : "customer",
   );
-  const [memoryRemaining, setMemoryRemaining] = useState(Math.max(1, supplyRun?.memory_seconds ?? 10));
+  const memorySeconds = Math.max(1, supplyRun?.memory_seconds ?? 10);
+  const [memoryRemaining, setMemoryRemaining] = useState(memorySeconds);
+  const [transportRemaining, setTransportRemaining] = useState(TRANSPORT_SECONDS);
   const [pickedCounts, setPickedCounts] = useState<Record<string, number>>({});
   const [supplyHintVisible, setSupplyHintVisible] = useState(false);
+  const [supplyHintUsed, setSupplyHintUsed] = useState(0);
   const transportRoadRef = useRef<HTMLDivElement | null>(null);
   const [transportPosition, setTransportPosition] = useState<TransportPosition>(TRANSPORT_START);
   const [transportObstacleLayout, setTransportObstacleLayout] = useState<Record<string, TransportObstacleLayout>>(
@@ -570,6 +579,24 @@ export function MatchGame({ game, onComplete }: EngineProps) {
     }, 1000);
     return () => window.clearInterval(timer);
   }, [supplyRun, flowPhase, done]);
+
+  // kts-03 ③ 운반 단계만 제한시간을 둔다. 0이 되면 도착하지 못한 채로 운반을 마감해
+  // (도착 판정은 그대로 미달) 다음 단계로 넘어갈 수 있게 한다 — 멈춰 서서 못 넘어가는 상태 방지.
+  useEffect(() => {
+    if (!supplyRun || flowPhase !== "transport" || transportComplete || done) return;
+    const timer = window.setInterval(() => {
+      setTransportRemaining((value) => {
+        if (value <= 1) {
+          window.clearInterval(timer);
+          setTransportRunning(false);
+          setTransportComplete(true);
+          return 0;
+        }
+        return value - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [supplyRun, flowPhase, transportComplete, done]);
 
   // 카트의 실제 위치를 기준으로 좌측 하단 출발점 → 우측 상단 매장까지의 진행률과 도착을 판정한다.
   useEffect(() => {
@@ -1137,6 +1164,11 @@ export function MatchGame({ game, onComplete }: EngineProps) {
 
   const showSupplyHint = () => {
     if (done || flowPhase !== "picking") return;
+    // 힌트는 총 SUPPLY_HINT_LIMIT회까지만 — 무제한이면 목록을 기억할 이유가 없어져
+    // 이 게임의 취지(기억력)가 사라진다. 표시 중 재클릭은 횟수를 더 쓰지 않는다.
+    if (supplyHintVisible) return;
+    if (supplyHintUsed >= SUPPLY_HINT_LIMIT) return;
+    setSupplyHintUsed((n) => n + 1);
     if (supplyHintTimer.current !== null) window.clearTimeout(supplyHintTimer.current);
     setSupplyHintVisible(true);
     supplyHintTimer.current = window.setTimeout(() => {
@@ -1148,6 +1180,7 @@ export function MatchGame({ game, onComplete }: EngineProps) {
   const startTransport = () => {
     if (done) return;
     setFlowPhase("transport");
+    setTransportRemaining(TRANSPORT_SECONDS);
     setTransportRunning(false);
     setTransportPosition(TRANSPORT_START);
     setTransportProgress(0);
@@ -1407,15 +1440,31 @@ export function MatchGame({ game, onComplete }: EngineProps) {
         <GameHud
           label={
             flowPhase === "memory"
-              ? `출고 목록 확인 · ${memoryRemaining}초`
+              ? "출고 목록 확인" // 남은 초는 타이머 바와 원형 카운터가 보여준다(라벨 중복 제거)
               : flowPhase === "picking"
                 ? `피킹 수량 ${supplyPickedTotal}병`
                 : `카트 운반 ${Math.round(transportProgress)}%`
           }
           count={supplyHudCount}
           total={supplyHudTotal}
-          remaining={remaining}
-          timeLimit={game.time_limit}
+          // 암기(10초)·운반(60초)만 제한시간이 있다. 피킹은 제한 없음(타이머 바도 숨김).
+          remaining={
+            flowPhase === "memory"
+              ? memoryRemaining
+              : flowPhase === "transport"
+                ? transportRemaining
+                : null
+          }
+          timeLimit={
+            flowPhase === "memory"
+              ? memorySeconds
+              : flowPhase === "transport"
+                ? TRANSPORT_SECONDS
+                : null
+          }
+          // 라벨이 이미 진행 상황("피킹 수량 n병" 등)을 말해주고, 하단 수량 패널에도
+          // 같은 정보가 있어 n/N 카운트는 중복이다.
+          showCount={false}
         />
 
         <div
@@ -1495,12 +1544,19 @@ export function MatchGame({ game, onComplete }: EngineProps) {
               <button
                 type="button"
                 className={styles.supplyHintButton}
-                aria-label={supplyHintVisible ? "와인 수량 힌트 표시 중" : "필요한 와인 수량 힌트 보기"}
+                aria-label={
+                  supplyHintVisible
+                    ? "와인 수량 힌트 표시 중"
+                    : `필요한 와인 수량 힌트 보기 — ${SUPPLY_HINT_LIMIT - supplyHintUsed}회 남음`
+                }
                 aria-pressed={supplyHintVisible}
+                disabled={supplyHintUsed >= SUPPLY_HINT_LIMIT && !supplyHintVisible}
                 onClick={showSupplyHint}
               >
                 <span aria-hidden="true">💡</span>
-                <small>힌트</small>
+                <small>
+                  힌트 {SUPPLY_HINT_LIMIT - supplyHintUsed}/{SUPPLY_HINT_LIMIT}
+                </small>
               </button>
               <section className={styles.supplyCounter} aria-label="현재 카트에 담은 와인 수량">
                 <div>
@@ -1649,6 +1705,9 @@ export function MatchGame({ game, onComplete }: EngineProps) {
         total={denominator}
         remaining={remaining}
         timeLimit={game.time_limit}
+        // 손님 응대(kts-03)는 라벨의 "추천 n · 확인 필요 n"이 곧 진행도라 n/N이 중복이다.
+        // 다른 매칭 게임(연결·도장)은 그대로 카운트를 보여준다.
+        showCount={!customerFloor}
       />
 
       <div

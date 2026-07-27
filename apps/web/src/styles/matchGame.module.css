@@ -3216,6 +3216,13 @@
 .supplyHintButton small {
   font-size: 7px;
   font-weight: 900;
+  white-space: nowrap; /* "힌트 3/3" 이 두 줄로 접히지 않게 */
+}
+
+/* 3회를 다 쓰면 더 못 누른다는 걸 눈으로도 알 수 있게 흐리게 처리한다. */
+.supplyHintButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
 }
 
 .supplyHintButton:focus-visible {

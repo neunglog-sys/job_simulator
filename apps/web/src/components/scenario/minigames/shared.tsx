@@ -58,20 +58,25 @@ export function GameHud({
   total,
   remaining,
   timeLimit,
+  showCount = true,
 }: {
   label: string;
   count: number;
   total: number;
   remaining: number | null;
   timeLimit: number | null;
+  /** 진행 카운트(n/N) 노출 여부. kts-03처럼 라벨이 이미 진행도를 말해주는 게임은 끈다. */
+  showCount?: boolean;
 }) {
   const pct = timeLimit && remaining !== null ? Math.max(0, (remaining / timeLimit) * 100) : 100;
   return (
     <div className={styles.hud}>
       <span className={styles.hudLabel}>{label}</span>
-      <span className={styles.hudCount}>
-        {count} / {total}
-      </span>
+      {showCount ? (
+        <span className={styles.hudCount}>
+          {count} / {total}
+        </span>
+      ) : null}
       {timeLimit ? (
         <>
           <span className={styles.timerTrack}>
