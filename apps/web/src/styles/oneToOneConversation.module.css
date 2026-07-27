@@ -2290,7 +2290,13 @@
 .recommendedJobGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* 카드 5개(F 개편) → 2줄 그리드. 높이를 100%로 두면 행이 반씩 쪼개져(~155px)
+     하단 고정 콘텐츠 스택(제목+이유+세부직업+버튼 ≈ 190px+)이 위로 넘치고 제목·적합도가
+     카드 밖으로 잘린다(실서버 실측). 행 최소 높이를 보장하고 넘치는 만큼 스크롤한다. */
+  grid-auto-rows: minmax(250px, 1fr);
   height: 100%;
+  overflow-y: auto;
+  padding-right: 4px;
   gap: 16px;
 }
 
@@ -2396,12 +2402,23 @@
   -webkit-line-clamp: 3;
 }
 
-/* F 직무군 카드의 세부직업 나열 — 계열 이름 아래 보조 정보라 한 톤 죽인다 */
-.recommendedJobDetailJobs {
+/* F 직무군 카드의 세부직업 나열 — 계열 이름 아래 보조 정보라 한 톤 죽인다.
+   ⚠️ 공용 .recommendedJobContent p 규칙(min-height 66px·3줄 클램프)을 그대로 받으면
+   이 줄이 66px을 차지해 하단 고정 스택이 위로 넘치고, 제목·적합도가 카드 밖으로
+   잘려 나간다(실서버에서 실제 발생). 한 줄 말줄임으로 고정해 스택 높이를 지킨다. */
+.recommendedJobContent p.recommendedJobDetailJobs {
+  /* 공용 .recommendedJobContent p (0,1,1)보다 선택자를 높여야 min-height 66px를 확실히
+     이긴다 — 클래스 단독(0,1,0)으로는 져서 실서버에서 66px가 그대로 적용됐다(실측). */
+  display: block;
+  min-height: 0;
+  overflow: hidden;
   color: rgb(255 255 255 / 0.65);
   font-size: 12px;
   line-height: 1.5;
-  word-break: keep-all;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  word-break: normal;
+  -webkit-line-clamp: unset;
 }
 
 .recommendedJobEvidence {
