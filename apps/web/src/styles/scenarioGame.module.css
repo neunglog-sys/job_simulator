@@ -2500,9 +2500,19 @@ button.headerOrb:active {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* 모달에서 스크롤되는 곳은 .missionBody(답변란)뿐이라, 자료가 길면 잘린 채 못 내려갔다.
+     자료 목록이 스스로 스크롤되게 하고 높이를 묶어, 아래 답변란이 항상 화면에 남게 한다. */
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 38vh;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .missionMaterial {
+  /* flex 자식은 기본으로 줄어든다 — 그대로 두면 목록이 넘칠 때 스크롤 대신 카드가 짓눌려
+     제목이 잘리고 휠도 안 먹었다. 제 높이를 지키게 해야 컨테이너가 스크롤된다. */
+  flex: 0 0 auto;
   border: 1px solid rgb(255 255 255 / 0.55);
   border-radius: 14px;
   background: rgb(255 255 255 / 0.72);
@@ -2548,10 +2558,10 @@ button.headerOrb:active {
 }
 
 .missionMaterial > pre {
+  /* 자체 스크롤을 두면 목록 스크롤과 겹쳐(중첩 스크롤) 휠이 어디서 먹는지 헷갈린다 —
+     스크롤은 위 .missionMaterials 한 곳만 담당한다. */
   margin: 0;
   padding: 0 14px 13px;
-  max-height: 220px;
-  overflow: auto;
   color: #2c2350;
   font-family: ui-monospace, "SFMono-Regular", "Menlo", monospace;
   font-size: 12.5px;
