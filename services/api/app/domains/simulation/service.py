@@ -580,6 +580,10 @@ async def stream_npc_chat(
         affinity=aff_value, affinity_band=affinity.band(aff_value),
         knowledge=knowledge,
         greeted=greeted,  # 첫 대면 무인사 → 톡식 분기(system.md). work 단계에선 무시됨.
+        # 사용자가 '인사만' 건넸는가 — 그럼 인사로 받고 업무 지시는 하지 않는다. 업무는 시나리오
+        # 흐름(업무 배너 → 미션 창)으로 전달되므로, 인사에 업무를 얹으면 같은 지시가 두 번 나온다.
+        # (용건이 섞인 긴 문장은 평소대로 업무 대화로 받는다)
+        greeting_only=greeted and len(user_text.strip()) <= 40,
         # 첫 대면은 소개하는 자리 — 짧은 메신저 말투·업무 복귀 규칙을 완화한다.
         #   투어 중(tour_done 전) = 사수가 방금 소개했으니 인사만 짧게 받는다(자기소개 중복 방지)
         #   투어 밖에서 처음 만남 = 스스로 소개한다
