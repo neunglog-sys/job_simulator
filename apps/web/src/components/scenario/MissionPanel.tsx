@@ -6,7 +6,14 @@ import styles from "../../styles/scenarioGame.module.css";
 
 // 임시 스탠드인 — 본격 미니게임 전, 미션을 '간단히 풀어보고 제출→통과'하는 최소 패널.
 // step(본편 미션)과 sudden quest(돌발) 둘 다 이 형태로 렌더한다.
-export type MissionView = { title: string; task: GameTask; banner?: string };
+export type MissionView = {
+  title: string;
+  task: GameTask;
+  banner?: string;
+  // 제공자료 — 이 창을 닫지 않고 대조할 수 있어야 한다. 정산 차액처럼 자료를 맞춰봐야 푸는
+  // 과제는 창을 닫고 힌트 패널을 열었다 오면 답을 쓰던 흐름이 끊긴다.
+  materials?: Array<{ title: string; body: string }>;
+};
 
 type MissionPanelProps = {
   mission: MissionView;
@@ -76,7 +83,13 @@ export function MissionPanel({
 
   return (
     <div className={styles.missionOverlay} role="dialog" aria-modal="true" aria-label="미션 도전">
-      <div className={styles.missionModal}>
+      {/* 제공자료가 붙는 과제는 내용이 길다 — 영역별로 잘라 스크롤하면 답변창이 쪼그라들어서,
+          이때만 모달 전체를 스크롤시키고 각 영역은 제 높이를 그대로 쓰게 한다. */}
+      <div
+        className={
+          mission.materials?.length ? `${styles.missionModal} ${styles.missionModalScroll}` : styles.missionModal
+        }
+      >
         <div className={styles.missionHeader}>
           <div className={styles.missionHeadingText}>
             <span className={styles.missionKindBadge}>{KIND_LABEL[kind] ?? "미션"}</span>
@@ -89,6 +102,20 @@ export function MissionPanel({
 
         {mission.banner ? <p className={styles.missionBanner}>{mission.banner}</p> : null}
         <p className={styles.missionPrompt}>{task.prompt}</p>
+
+        {mission.materials?.length ? (
+          <div className={styles.missionMaterials}>
+            {mission.materials.map((material) => (
+              <details key={material.title} className={styles.missionMaterial}>
+                <summary>
+                  <span className={styles.missionMaterialTag}>제공 자료</span>
+                  {material.title}
+                </summary>
+                <pre>{material.body}</pre>
+              </details>
+            ))}
+          </div>
+        ) : null}
 
         <div className={styles.missionBody}>
           {kind === "write" ? (

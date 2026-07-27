@@ -2495,6 +2495,129 @@ button.headerOrb:active {
   white-space: pre-wrap;
 }
 
+/* 제공 자료 — 과제 창을 닫지 않고 펼쳐 대조한다(정산 차액처럼 자료를 맞춰봐야 푸는 과제) */
+.missionMaterials {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+/* 제공자료가 있는 과제 — 영역별로 스크롤을 나누면(자료 칸 / 답변 칸) 답변창이 쪼그라든다.
+   모달 하나만 스크롤시키고 자료·답변은 제 높이를 그대로 써서, 답변창을 넓게 유지한다. */
+.missionModalScroll {
+  overflow-y: auto;
+}
+
+.missionModalScroll .missionBody {
+  /* flex: 0 0 auto면 어차피 안 줄어든다 — min-height는 건드리지 않는다(Firefox에서 auto 미지원). */
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.missionModalScroll .missionTextarea {
+  min-height: 260px;
+}
+
+/* 스크롤바 — 힌트 패널과 같은 결(가는 막대, ▲▼ 버튼 없음).
+   버튼을 안 지우면 Windows 크롬에서 위아래 화살표가 튀어나온다. */
+.missionModalScroll::-webkit-scrollbar,
+.missionModalScroll .missionTextarea::-webkit-scrollbar {
+  width: 7px;
+}
+
+.missionModalScroll::-webkit-scrollbar-track,
+.missionModalScroll .missionTextarea::-webkit-scrollbar-track {
+  margin-block: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--scenario-scroll-end) 7%, transparent);
+}
+
+.missionModalScroll::-webkit-scrollbar-thumb,
+.missionModalScroll .missionTextarea::-webkit-scrollbar-thumb {
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, var(--scenario-scroll-start), var(--scenario-scroll-end)) padding-box;
+  background-clip: padding-box;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.16);
+}
+
+.missionModalScroll::-webkit-scrollbar-button,
+.missionModalScroll::-webkit-scrollbar-button:single-button,
+.missionModalScroll::-webkit-scrollbar-button:vertical:start:decrement,
+.missionModalScroll::-webkit-scrollbar-button:vertical:end:increment,
+.missionModalScroll .missionTextarea::-webkit-scrollbar-button,
+.missionModalScroll .missionTextarea::-webkit-scrollbar-button:single-button,
+.missionModalScroll .missionTextarea::-webkit-scrollbar-button:vertical:start:decrement,
+.missionModalScroll .missionTextarea::-webkit-scrollbar-button:vertical:end:increment {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.missionMaterial {
+  /* flex 자식은 기본으로 줄어든다 — 그대로 두면 목록이 넘칠 때 스크롤 대신 카드가 짓눌려
+     제목이 잘리고 휠도 안 먹었다. 제 높이를 지키게 해야 컨테이너가 스크롤된다. */
+  flex: 0 0 auto;
+  border: 1px solid rgb(255 255 255 / 0.55);
+  border-radius: 14px;
+  background: rgb(255 255 255 / 0.72);
+  overflow: hidden;
+}
+
+.missionMaterial > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  color: #2c2350;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.missionMaterial > summary::-webkit-details-marker {
+  display: none;
+}
+
+.missionMaterial > summary::after {
+  content: "▾";
+  margin-left: auto;
+  font-size: 11px;
+  opacity: 0.55;
+  transition: transform 160ms ease;
+}
+
+.missionMaterial[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+.missionMaterialTag {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgb(124 92 214 / 0.16);
+  color: #5b3fb0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.missionMaterial > pre {
+  /* 자체 스크롤을 두면 목록 스크롤과 겹쳐(중첩 스크롤) 휠이 어디서 먹는지 헷갈린다 —
+     스크롤은 위 .missionMaterials 한 곳만 담당한다. */
+  margin: 0;
+  padding: 0 14px 13px;
+  color: #2c2350;
+  font-family: ui-monospace, "SFMono-Regular", "Menlo", monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* 돌발 퀘스트 상황 설명 배너 */
 .missionBanner {
   margin: 0;
