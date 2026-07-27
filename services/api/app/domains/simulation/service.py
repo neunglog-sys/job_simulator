@@ -173,8 +173,24 @@ def npc_kind(role: str, rank: str) -> str:
     return "상급자"
 
 
-def register_for_npc(slug: str, kind: str) -> str:
-    """고객은 시나리오 화법과 무관하게 존대(정중 응대) 기본. 사수·동료는 시나리오 화법."""
+# 악성 고객(응대 훈련용) — 이들은 정중하게 굴지 않는 것이 시나리오의 요점이다.
+# 일반 고객처럼 존대로 묶어두면 "진상 응대"를 연습할 수가 없다.
+_HOSTILE_KW = ("블랙컨슈머", "진상", "악성", "폭언", "고성")
+
+
+def is_hostile_customer(role: str, rank: str) -> bool:
+    """응대 훈련용 악성 고객인가 — 반말·고압적 태도를 허용할 대상."""
+    blob = f"{role or ''} {rank or ''}"
+    return npc_kind(role, rank) == "고객" and any(k in blob for k in _HOSTILE_KW)
+
+
+def register_for_npc(slug: str, kind: str, hostile: bool = False) -> str:
+    """고객은 시나리오 화법과 무관하게 존대(정중 응대) 기본. 사수·동료는 시나리오 화법.
+
+    단 악성 고객은 반말 — 신입에게 대뜸 반말로 몰아붙이는 것이 그 상황의 핵심이다.
+    """
+    if hostile:
+        return "반말"
     return "존대" if kind == "고객" else register_for(slug)
 
 
@@ -532,6 +548,7 @@ async def stream_npc_chat(
     )
     # 프롬프트는 코드 템플릿이 구조화 필드를 조립 (system_prompt 통짜 저장 안 함)
     kind = npc_kind(persona["role"], persona["rank"])  # 사수/동료/고객 → 화법·톡식 범위
+    hostile = is_hostile_customer(persona["role"], persona["rank"])
     # 손님에게는 직원 미션(현재 스텝 과제)을 주입하지 않는다 — 안 그러면 손님이 그 업무의
     # '담당 업무/현재 업무'인 줄 알고 신입에게 업무를 지시하는 직원처럼 군다(손님≠직원).
     # 대신 '손님으로서의 상황'을 줘서 손님답게(용건·문의·요청·불만) 말하게 한다.
@@ -551,7 +568,8 @@ async def stream_npc_chat(
         player_address=_player_address(simulation.state),
         conversation_mode=conversation_mode,
         learning_briefing=learning_briefing,
-        register=register_for_npc(scenario.slug, kind),
+        register=register_for_npc(scenario.slug, kind, hostile=hostile),
+        hostile=hostile,  # 악성 고객 — 고압적 태도 분기(npc/system.md)
         npc_kind=kind,
         mission=persona_mission,
         name=persona["name"], role=persona["role"], rank=persona["rank"],
@@ -673,12 +691,14 @@ async def _persona_line(
 ) -> str:
     """해당 NPC 페르소나 시스템 프롬프트로 짧은 대사 1개 생성 (인사·격려 공용)."""
     kind = npc_kind(persona["role"], persona["rank"])
+    hostile = is_hostile_customer(persona["role"], persona["rank"])
     system = render_prompt(
         "npc/system.md",
         scenario_title=scenario.title,
         player_name=_player_name(simulation.state),
         player_address=_player_address(simulation.state),
-        register=register_for_npc(scenario.slug, kind),
+        register=register_for_npc(scenario.slug, kind, hostile=hostile),
+        hostile=hostile,  # 악성 고객 — 고압적 태도 분기(npc/system.md)
         npc_kind=kind,
         mission=_personalize_text(scenario, simulation.state, step["mission"]),
         name=persona["name"], role=persona["role"], rank=persona["rank"],
@@ -698,23 +718,26 @@ async def _persona_line(
 async def npc_greeting(
     session: AsyncSession, simulation: Simulation, scenario: Scenario
 ) -> dict:
-    """현재 스텝 담당 NPC의 실시간 인사 — 플레이어가 다가왔을 때 짧게 인사하며 업무를 건넨다.
+    """현재 스텝 담당 NPC의 실시간 인사 — 플레이어가 다가왔을 때 건네는 짧은 인사.
 
-    LLM 실패 시 시나리오 미션의 NPC 대사(첫 문단)로 폴백. 채점·상태 변경 없음(부작용 없음).
+    업무 지시는 하지 않는다. 업무는 시나리오 흐름(업무 배너 → 미션 창)으로 전달되므로,
+    다가가자마자 대화창에서 일을 시키면 같은 지시가 두 번 나오고 인사가 인사답지 않다.
+    LLM 실패 시 담백한 인사로 폴백. 채점·상태 변경 없음(부작용 없음).
     """
     step = _resolve_step(scenario, simulation.state)
     npc_id = (step.get("npcs") or [None])[0]
-    fallback = _personalize_text(
-        scenario, simulation.state, step.get("mission")
-    ).split("\n\n")[0].strip()
     roster = await npc_map(session, scenario.id)
     persona = roster.get(npc_id or "")
     if persona is None:
-        return {"npc": npc_id, "name": "", "text": fallback}
+        return {"npc": npc_id, "name": "", "text": "오셨어요?"}
+
+    banmal = register_for(scenario.slug) == "반말"
+    fallback = "왔어? 준비되면 얘기하자." if banmal else "오셨어요? 준비되시면 말씀 주세요."
 
     prompt = (
-        "신입 직원이 방금 당신에게 다가왔습니다. 짧게 인사하고, 오늘 맡길 업무를 "
-        "자연스럽게 건네세요. 2~3문장, 정답은 알려주지 말 것."
+        "신입 직원이 방금 당신에게 다가왔습니다. 가볍게 인사만 건네세요. 1~2문장. "
+        "업무 지시·과제 설명·자료 안내는 하지 마세요(그건 따로 전달됩니다). "
+        "인사와 함께 짧은 안부나 한마디 정도만 덧붙일 수 있습니다."
     )
     try:
         text = await _persona_line(simulation, scenario, step, persona, prompt, temperature=0.5)
@@ -796,12 +819,14 @@ async def onboarding_tour(
         for o in others
     )
     kind = npc_kind(guide["role"], guide["rank"])
+    hostile = is_hostile_customer(guide["role"], guide["rank"])
     system = render_prompt(
         "npc/system.md",
         scenario_title=scenario.title,
         player_name=_player_name(simulation.state),
         player_address=_player_address(simulation.state),
-        register=register_for_npc(scenario.slug, kind),
+        register=register_for_npc(scenario.slug, kind, hostile=hostile),
+        hostile=hostile,  # 악성 고객 — 고압적 태도 분기(npc/system.md)
         npc_kind=kind,
         mission=(
             "지금은 첫 출근 온보딩 중이며 팀원 소개만 진행합니다. "
