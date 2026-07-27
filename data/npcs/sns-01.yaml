@@ -26,6 +26,8 @@ npcs:
     - m1
     - m3
     - m4
+    - m5
+    - m6
 - npc_id: npc_sns-01_02
   name: 이지원
   role: 콘텐츠 비주얼 제작 동료
@@ -50,6 +52,7 @@ npcs:
     location: teamjang
     available_steps:
     - m2
+    - m7
 - npc_id: npc_sns-01_03
   name: 박민우
   role: SNS 커뮤니티 관리·응대 동료
