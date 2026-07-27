@@ -579,6 +579,7 @@ export type GameActivity = {
   kind: "minigame" | "debrief";
   game_id?: string | null;
   label: string;
+  briefing?: string[];
   prompt?: string | null;
   completion_message?: string | null;
 };

@@ -287,6 +287,12 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, token: str | N
                         completion_message = result.pop("completion_message", None)
                         completion_name = result.pop("completion_name", None)
                         await websocket.send_json({"type": "state_updated", **result})
+                        # 다음 단계 정보를 먼저 반영한 뒤 이전 담당자의 인계 대사를 보낸다.
+                        # 반대 순서면 프런트의 step_changed 초기화가 인계 말풍선을 즉시 지워버린다.
+                        if step_changed:
+                            await websocket.send_json(
+                                {"type": "step_changed", "step": step_changed}
+                            )
                         if completion_message:
                             await websocket.send_json(
                                 {
@@ -294,10 +300,6 @@ async def simulation_ws(websocket: WebSocket, simulation_id: int, token: str | N
                                     "name": completion_name,
                                     "text": completion_message,
                                 }
-                            )
-                        if step_changed:
-                            await websocket.send_json(
-                                {"type": "step_changed", "step": step_changed}
                             )
                         if reflection_ready:
                             await websocket.send_json({"type": "reflection_ready"})

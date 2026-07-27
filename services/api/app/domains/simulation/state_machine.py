@@ -99,6 +99,11 @@ def public_activity(activity: dict | None) -> dict | None:
         "kind": activity.get("kind"),
         "game_id": activity.get("game_id"),
         "label": activity.get("label") or "후속 업무",
+        "briefing": [
+            str(line).strip()
+            for line in (activity.get("briefing") or [])
+            if str(line).strip()
+        ],
         "prompt": activity.get("prompt"),
         "completion_message": activity.get("completion_message"),
     }
