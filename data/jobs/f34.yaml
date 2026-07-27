@@ -1,0 +1,17 @@
+# F34 의료·복지·상담 응대 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f34
+title: 의료·복지·상담 응대
+description: 병원·복지 현장에서 환자와 이용자를 맞이하고 접수부터 안내·수납까지 응대하는 분야입니다. 상대의 상황에 공감하며 따뜻하고 정확하게 소통하는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 2
+  communication: 5
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 1
+  investigative: 3
+  artistic: 1
+  social: 5
+  enterprising: 2
+  conventional: 4

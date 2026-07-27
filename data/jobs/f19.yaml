@@ -1,0 +1,17 @@
+# F19 생산·품질·기계·금속가공 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f19
+title: 생산·품질·기계·금속가공
+description: 도면과 절차에 따라 제품을 가공·조립하고 치수와 결함을 검사해 품질을 지켜내는 분야입니다. 기계와 도구를 다루는 손재주가 있고 세밀한 확인 작업에 강한 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 4
+  communication: 2
+  collaboration: 2
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 3
+  artistic: 1
+  social: 1
+  enterprising: 1
+  conventional: 4

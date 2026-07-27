@@ -483,6 +483,8 @@ export type JobRecommendation = {
   salary: JobSalary | null;
   certifications: JobCertification[];
   scenario_slug: string | null;
+  // F 직무군 세부직업(조사 자료) — 이 필드 도입 전 스냅샷(과거 추천)엔 없다
+  detail_jobs?: string[];
   evidence?: RecommendationEvidence | null;
 };
 

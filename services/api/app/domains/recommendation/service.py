@@ -9,13 +9,19 @@
 
 import logging
 import math
+import re
 
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.content.loader import load_competencies, load_job_scenario_map
+from app.content.loader import (
+    load_competencies,
+    load_f_detail_jobs,
+    load_job_scenario_map,
+    yaml_scenario_slugs,
+)
 from app.domains.consultation import survey
 from app.domains.consultation.service import get_owned_consultation, list_messages
 from app.domains.recommendation.evidence import (
@@ -26,7 +32,7 @@ from app.domains.recommendation.evidence import (
 from app.llm import get_llm
 from app.llm.base import ChatMessage
 from app.llm.prompts import render_prompt
-from app.models import Consultation, Job, Recommendation, Scenario, User
+from app.models import Consultation, Job, Recommendation, User
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +46,9 @@ NEUTRAL_SCORE = 50  # 근거 부족 시 중립값
 # 경계를 낮춰, 대화가 정말 부족한 경우(실측 15~35)만 걸러지게 한다.
 APTITUDE_CLARITY_MIN = 40
 INTEREST_WEIGHT = 0.3  # 흥미유형 매칭 반영 비중 (역량 점수가 주 신호, 설문은 보조 신호)
+# F 개편(2026-07-27): 추천 후보는 F 직무군 코드(f01~f39)만. 레거시 J·시나리오코드 직무는
+# DB에 남아 있지만(RAG·체험 내부용) 추천 대상이 아니다.
+_F_CODE_RE = re.compile(r"f\d{2}")
 
 
 def _extraction_schema(competency_keys: list[str]) -> dict:
@@ -275,7 +284,14 @@ async def create_recommendation(
     names = {c["key"]: c["name"] for c in load_competencies()}
     interest_profile: dict[str, int] = (consultation.survey or {}).get("profile") or {}
 
-    jobs = [j for j in (await session.execute(select(Job))).scalars() if is_recommendable(j)]
+    # F 개편: 추천 후보는 F 직무군(f01~f39)만이다. DB에는 레거시 J(j001~)·시나리오코드
+    # 직무 행이 그대로 남아 있으므로(RAG·체험용 내부 데이터) 코드 패턴으로 명시 제한한다 —
+    # is_recommendable 속성만으로 거르면 레거시 150개가 후보에 섞인다.
+    jobs = [
+        j
+        for j in (await session.execute(select(Job))).scalars()
+        if _F_CODE_RE.fullmatch(j.code) and is_recommendable(j)
+    ]
     ranked = sorted(
         jobs, key=lambda j: _score_job(j, scores, interest_profile), reverse=True
     )[:TOP_N]
@@ -292,10 +308,12 @@ async def create_recommendation(
         )
         evidence_by_job = {}
 
-    scenario_map = load_job_scenario_map()  # 적성 → 체험 연결: 추천 직무의 근접 시나리오
-    # 매핑 slug가 실제 존재하는 시나리오인지 확인 — 시나리오 rename/삭제로 map이 뒤처지면
-    # '바로 체험하기'가 404 나거나 stale slug가 추천에 박제되므로, 존재하는 것만 남긴다.
-    live_slugs = set((await session.execute(select(Scenario.slug))).scalars())
+    scenario_map = load_job_scenario_map()  # F 직무군 → 대표 체험 시나리오 (f37은 null→누락)
+    # 매핑 slug가 실제 '활성' 시나리오인지 확인 — 기준은 DB Scenario 테이블이 아니라
+    # 활성 YAML 파일이다. seed는 행을 지우지 않아 _disabled로 내린 시나리오도 DB엔 영원히
+    # 남으므로, DB 기준으로 걸면 죽은 slug가 추천에 박제돼 '바로 체험하기'가 404 난다.
+    live_slugs = yaml_scenario_slugs()
+    detail_jobs = load_f_detail_jobs()
     results = [
         {
             "job_code": job.code,
@@ -303,14 +321,16 @@ async def create_recommendation(
             "description": job.description,
             "score": _score_job(job, scores, interest_profile),
             "reason": _build_reason(job, scores, names, interest_profile),
-            # NCS 조사자료(배치1) — 미조사 직무는 내부 필드가 비어있을 수 있음
+            # NCS 조사자료 — F 직무군엔 없음(세부직업 수준 자료라). 프론트는 비면 섹션 생략.
             "education_requirement": job.education_requirement,
             "salary": job.salary,
             "certifications": job.certifications,
-            # 프론트 '바로 체험하기' 버튼용 — 매핑 없거나 시나리오 부재면 null (버튼 숨김)
+            # 프론트 '바로 체험하기' 버튼용 — 매핑 없거나(f37) 시나리오 비활성이면 null(버튼 비활성)
             "scenario_slug": (
                 slug if (slug := scenario_map.get(job.code)) in live_slugs else None
             ),
+            # F 직무군에 속한 세부직업 — 카드·리포트 표시용 (조사 엑셀 04_근거_세부직업)
+            "detail_jobs": detail_jobs.get(job.code, {}).get("primary", []),
             # 개인화 근거 — 검증된 실제 발화 인용 {quote,dimension_name,confidence} 또는 None(생략)
             "evidence": evidence_by_job.get(job.code),
         }

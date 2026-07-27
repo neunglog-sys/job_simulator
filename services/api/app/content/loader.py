@@ -284,9 +284,38 @@ def load_competencies() -> list[dict]:
 
 
 def load_job_scenario_map() -> dict[str, str]:
-    """추천 직무 code → 체험 시나리오 slug (map_jobs_to_scenarios 방출본, 사람 검수 우선).
+    """추천 F 직무군 code → 체험 시나리오 slug (F 개편 후 수동 관리 파일).
 
     파일이 없으면 빈 dict — 추천은 정상 동작하고 '바로 체험' 연결만 빠진다.
-    값이 null인 항목(체험 미연결 확정)은 걸러낸다.
+    값이 null인 항목(f37 등 체험 미연결 확정)은 걸러낸다.
     """
     return read_yaml_map(Path(settings.data_dir) / "recommendation" / "job_scenario_map.yaml")
+
+
+def load_f_families() -> list[dict]:
+    """F 직무군 원장(f_families.yaml) — 추천 후보·RAG 스코프 확장의 단일 기준.
+
+    각 항목: {code, title, scenario(str|None), members(list[str] — KB v5 J코드)}.
+    파일이 없으면 빈 리스트(추천 후보가 0이 되므로 테스트가 존재를 강제한다).
+    """
+    path = Path(settings.data_dir) / "recommendation" / "f_families.yaml"
+    if not path.exists():
+        return []
+    with open(path, encoding="utf-8") as f:
+        return yaml.safe_load(f)["families"]
+
+
+def load_f_detail_jobs() -> dict[str, dict]:
+    """F code → 세부직업 {primary: [...], related: [...]} (조사 엑셀 변환본).
+
+    추천 카드·리포트의 '관련 세부직업'과 상담 중 세부직업 질문 응답에 쓴다.
+    없으면 빈 dict — 세부직업 표시만 빠지고 추천은 정상 동작.
+    """
+    path = Path(settings.data_dir) / "recommendation" / "f_detail_jobs.yaml"
+    if not path.exists():
+        return {}
+    try:
+        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError:
+        logger.warning("세부직업 YAML 파싱 실패 — 빈 매핑으로 동작: %s", path)
+        return {}

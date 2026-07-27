@@ -110,6 +110,14 @@ async def list_simulations(
             .order_by(Simulation.id.desc())
         )
     ).all()
+    # 비활성 시나리오의 '진행 중' 세션은 이어하기 목록에서 숨긴다 — 눌러봤자 재개가
+    # 409로 막히므로(get_owned_simulation) 죽은 버튼을 보여주지 않는다. 완주 기록은 유지.
+    active_slugs = yaml_scenario_slugs()
+    rows = [
+        (sim, sc)
+        for sim, sc in rows
+        if not (sim.status == "active" and sc.slug not in active_slugs)
+    ]
     return [
         {
             "id": sim.id,

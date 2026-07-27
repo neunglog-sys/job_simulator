@@ -1,0 +1,17 @@
+# F37 운반·하역 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f37
+title: 운반·하역
+description: 현장에서 자재와 화물을 안전하게 옮기고 싣고 내리는 작업을 수행하는 분야입니다. 몸을 움직이는 일에 능숙하고 동료와 호흡을 맞춰 계획대로 처리하는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 2
+  communication: 2
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 1
+  artistic: 1
+  social: 2
+  enterprising: 2
+  conventional: 3

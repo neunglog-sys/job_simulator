@@ -1,0 +1,17 @@
+# F27 농축산 현장 작업 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f27
+title: 농축산 현장 작업
+description: 작물을 기르고 가축을 돌보며 농축산물 생산 현장을 지키는 분야입니다. 자연과 생명을 상대로 꾸준히 몸을 움직여 일하는 것을 좋아하는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 2
+  collaboration: 2
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 2
+  artistic: 1
+  social: 1
+  enterprising: 1
+  conventional: 3

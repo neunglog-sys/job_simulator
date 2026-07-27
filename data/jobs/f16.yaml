@@ -1,0 +1,17 @@
+# F16 웹·앱·소프트웨어 개발 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f16
+title: 웹·앱·소프트웨어 개발
+description: 웹과 앱, 소프트웨어를 설계하고 코드로 구현해 동작하는 서비스를 만들어내는 분야입니다. 논리적으로 문제를 파고들어 해결하는 과정 자체를 즐기는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 5
+  communication: 2
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 2
+  investigative: 5
+  artistic: 3
+  social: 1
+  enterprising: 2
+  conventional: 3

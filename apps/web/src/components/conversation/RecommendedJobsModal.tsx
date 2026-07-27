@@ -41,7 +41,9 @@ export function RecommendedJobsModal({
   onEnterScenario,
   onClose,
 }: RecommendedJobsModalProps) {
-  const jobs = recommendation?.results.slice(0, 3) ?? [];
+  // F 개편: 추천 단위가 직무군(F)이라 카드 수를 백엔드 TOP_N(5)와 맞춘다 — 3개만
+  // 자르면 나머지 2개 직무군은 사용자가 영영 못 본다.
+  const jobs = recommendation?.results.slice(0, 5) ?? [];
 
   return (
     <ConversationModalShell
@@ -119,6 +121,13 @@ export function RecommendedJobsModal({
                     <strong>{job.score}%</strong>
                   </div>
                   <p>{job.reason}</p>
+                  {job.detail_jobs && job.detail_jobs.length > 0 ? (
+                    <p className={styles.recommendedJobDetailJobs}>
+                      {/* F 직무군 소속 세부직업(조사 자료) — 계열 이름만으론 감이 안 오는 사용자용 */}
+                      {job.detail_jobs.slice(0, 4).join(" · ")}
+                      {job.detail_jobs.length > 4 ? " 외" : ""}
+                    </p>
+                  ) : null}
                   {job.evidence ? (
                     <div className={styles.recommendedJobEvidence}>
                       <span className={styles.recommendedJobEvidenceQuote}>

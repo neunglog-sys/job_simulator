@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.content.counseling import build_safety_notes
 from app.content.knowledge import search_knowledge
+from app.content.loader import load_f_detail_jobs, load_f_families
 from app.core.db import SessionFactory
 from app.domains.consultation import rag_gate
 from app.domains.consultation import resume as resume_mod
@@ -157,11 +158,24 @@ async def _recommended_scope(
     except Exception:  # 추천 조회 실패는 상담을 막지 않는다 — 전역검색으로 폴백
         logger.warning("추천 스코프 조회 실패 — 전역검색으로 진행", exc_info=True)
         return None
-    codes = [
-        str(r["job_code"]).upper()
-        for r in (results or [])
-        if isinstance(r, dict) and r.get("job_code")
-    ]
+    # F 개편: 추천 job_code가 F 직무군(f01~)이면 doc_chunks엔 대응 청크가 없다(청크는
+    # J001~J103/slug 체계). F는 소속 J코드(f_families.members)로 확장하고, 소속 J가 없는
+    # 신설 계열은 시나리오 slug 전용 지식으로 보충한다(기존 갭 패턴). 레거시 j코드 추천은
+    # 종전대로 대문자 정규화만 한다.
+    fam_members: dict[str, list[str]] | None = None
+    codes: list[str] = []
+    for r in results or []:
+        if not isinstance(r, dict) or not r.get("job_code"):
+            continue
+        code = str(r["job_code"])
+        if code.startswith("f") and code[1:].isdigit():
+            if fam_members is None:
+                fam_members = {f["code"]: f.get("members") or [] for f in load_f_families()}
+            codes.extend(m.upper() for m in fam_members.get(code, []))
+            if r.get("scenario_slug"):
+                codes.append(str(r["scenario_slug"]))
+        else:
+            codes.append(code.upper())
     if not codes:
         return None  # 추천 전(대화 초반)에는 전역검색 유지
     return [*codes, GENERAL_KB_SCOPE]
@@ -429,6 +443,33 @@ async def stream_reply(
         # 시나리오를 마치고 돌아온 직후면 마무리 총평을 하도록 프롬프트에 실어 준다.
         recent_play = await _play_since_last_reply(session, consultation, history)
 
+        # 추천이 이미 있으면 F 직무군·세부직업을 상담사에게 알려준다 — "이 분야에 어떤
+        # 직업이 있어요?" 질문에 조사 자료로 답하게(지어내기 방지). 부가 기능이라 조회
+        # 실패는 상담을 막지 않는다.
+        recommended_families = None
+        try:
+            rec_results = (
+                await session.execute(
+                    select(Recommendation.results).where(
+                        Recommendation.consultation_id == consultation.id
+                    )
+                )
+            ).scalar_one_or_none()
+            if rec_results:
+                detail_map = load_f_detail_jobs()
+                recommended_families = [
+                    {
+                        "title": r.get("job_title"),
+                        "detail_jobs": detail_map.get(str(r.get("job_code")), {}).get(
+                            "primary", []
+                        ),
+                    }
+                    for r in rec_results
+                    if isinstance(r, dict) and r.get("job_title")
+                ]
+        except Exception:  # noqa: BLE001
+            logger.warning("추천 직무군 컨텍스트 조회 실패 — 상담은 계속", exc_info=True)
+
         # 응답 길이 산정 — 첫 응답은 워밍업으로 더 짧게, 상세 설명 요청은 제한 해제 + TTS 생략
         is_first_reply = not any(m.role == "assistant" for m in history)
         detail_requested = _is_detail_request(user_text)
@@ -470,6 +511,7 @@ async def stream_reply(
         # 사전 설문 전이면 추천이 아니라 설문으로 안내해야 한다(추천 품질이 설문에 달려 있다).
         survey_done=bool(consultation.survey),
         recent_play=recent_play,
+        recommended_families=recommended_families,
     )
 
     full: list[str] = []

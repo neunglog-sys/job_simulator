@@ -2396,6 +2396,14 @@
   -webkit-line-clamp: 3;
 }
 
+/* F 직무군 카드의 세부직업 나열 — 계열 이름 아래 보조 정보라 한 톤 죽인다 */
+.recommendedJobDetailJobs {
+  color: rgb(255 255 255 / 0.65);
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
 .recommendedJobEvidence {
   display: flex;
   flex-direction: column;

@@ -1,0 +1,17 @@
+# F32 치안·범죄현장 대응 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f32
+title: 치안·범죄현장 대응
+description: 사건·사고 현장에 출동해 초동조치와 현장 보존, 질서 유지를 수행하는 분야입니다. 긴박한 상황에서도 침착하게 판단하고 움직이는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 4
+  collaboration: 3
+  task_management: 2
+interest_profile:
+  realistic: 4
+  investigative: 3
+  artistic: 1
+  social: 3
+  enterprising: 3
+  conventional: 2
