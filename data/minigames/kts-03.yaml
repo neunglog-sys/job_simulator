@@ -33,22 +33,22 @@ data: &customer_game_data
     - { id: 니즈_집들이,   sprite: 니즈_집들이_화이트,   customer_sprite: 손님_집들이_카툰,     budget: green,  occasion: 집들이, label: 집들이 · 낮은 예산 · 화이트, speech: "친구 집들이에 가져갈 가벼운 화이트 와인을 찾고 있어요." }
     - { id: 니즈_부모님,   sprite: 니즈_부모님_레드,     customer_sprite: 손님_부모님선물_카툰, budget: red,    occasion: 자식, label: 자식 선물 · 높은 예산 · 레드, speech: "자식에게 줄 선물이라 품질 좋은 레드 와인을 원합니다." }
     - { id: 니즈_와인초보, sprite: 니즈_초보_스위트,     customer_sprite: 손님_와인초보_카툰,   budget: green,  occasion: 입문, label: 와인 초보 · 낮은 예산 · 달달한 맛, speech: "와인은 처음이라 저렴하고 달콤하게 마시기 쉬운 와인이 좋아요." }
-    - { id: 니즈_기념일,   sprite: 니즈_기념일_스파클링, customer_sprite: 손님_기념일_카툰,     budget: yellow, occasion: 기념일, label: 기념일 · 중간 예산 · 스파클링, foreign: true, foreign_speech: "I need a sparkling wine for our anniversary. Something nice, but not too expensive.", translated_speech: "기념일에 마실 스파클링 와인을 찾고 있어요. 너무 비싸지 않은 좋은 제품이면 좋겠습니다." }
+    - { id: 니즈_기념일,   sprite: 니즈_기념일_스파클링, customer_sprite: 손님_기념일_카툰,     budget: yellow, occasion: 기념일, label: 기념일 · 중간 예산 · 스파클링, foreign: true, foreign_speech: "我想找一瓶纪念日喝的气泡酒。品质好一点，但不要太贵的。", translated_speech: "기념일에 마실 스파클링 와인을 찾고 있어요. 너무 비싸지 않은 좋은 제품이면 좋겠습니다." }
 
   # 오른쪽 = 와인 상품. 종류는 아이콘, 가격대는 색 + 가격표 개수. (12종 중 화면용 7종 발췌)
   right:
-    - { id: 상품_레드_중가,   sprite: 와인_레드_중가,   price: yellow, kind: red,       tier: house,    slot: 2, accent: "#8A0447", stock: ok, label: 레드 · 중간 가격 }
-    - { id: 상품_화이트_저가, sprite: 와인_화이트_저가, price: green,  kind: white,     tier: favorite, slot: 2, accent: "#0BD01F", stock: ok, label: 화이트 · 저가 }
-    - { id: 상품_레드_고가,   sprite: 와인_레드_고가,   price: red,    kind: red,       tier: favorite, slot: 1, accent: "#8A0447", stock: ok, label: 레드 · 고가 }
+    - { id: 상품_레드_중가,   sprite: 와인_레드_중가,   price: yellow, kind: red,       tier: favorite,    slot: 1, accent: "#8A0447", stock: ok, label: 레드 · 중간 가격 }
+    - { id: 상품_화이트_저가, sprite: 와인_화이트_저가, price: green,  kind: white,     tier: house, slot: 2, accent: "#0BD01F", stock: ok, label: 화이트 · 저가 }
+    - { id: 상품_레드_고가,   sprite: 와인_레드_고가,   price: red,    kind: red,       tier: premium, slot: 2, accent: "#8A0447", stock: ok, label: 레드 · 고가 }
     - { id: 상품_스위트_저가, sprite: 와인_스위트_저가, price: green,  kind: sweet,     tier: house,    slot: 1, accent: "#FFF019", stock: ok, label: 스위트 · 저가 }
-    - { id: 상품_스파클링_중가, sprite: 와인_스파클링_중가, price: yellow, kind: sparkling, tier: favorite, slot: 3, accent: "#C3FF8A", stock: ok, label: 스파클링 · 중간 가격 }
+    - { id: 상품_스파클링_중가, sprite: 와인_스파클링_중가, price: yellow, kind: sparkling, tier: favorite, slot: 2, accent: "#C3FF8A", stock: ok, label: 스파클링 · 중간 가격 }
     # 예산 초과 유도 — 짝 없음. 이으면 '비싼 상품부터 제시' 실수.
     # 판별은 가격표 4장+금박 리본(visual_cues)으로 — '(최고가)' 같은 판정 접미를
     # 라벨에 쓰지 않는다(규칙 8, 검증 지적 반영).
     - { id: 상품_레드_프리미엄, sprite: 와인_레드_프리미엄, price: red, kind: red, tier: premium, slot: 1, accent: "#9106A4", stock: ok, label: 레드 · 프리미엄 }
     # 품절 — 재고 현황상 없음. 이으면 없는 상품 추천. 대체 안내가 정답.
     # 판별은 병의 재고없음 빗금(visual_cues)으로 — '(품절)' 접미 금지(규칙 8, 검증 지적 반영).
-    - { id: 상품_레드_품절,   sprite: 와인_레드_품절,   price: yellow, kind: red, tier: premium, slot: 2, accent: "#8A0447", stock: soldout, label: 레드 · 중간 가격 }
+    - { id: 상품_레드_품절,   sprite: 와인_레드_품절,   price: yellow, kind: red, tier: favorite, slot: 3, accent: "#8A0447", stock: soldout, label: 레드 · 중간 가격 }
 
   # 가격대·재고를 글자 없이 알아볼 시각 단서(ms-03 규약) — 가격표 아이콘 개수가 가격대다.
   # 니즈 카드의 예산도 같은 가격표 개수로 뜬다(저가 1장 · 중가 2장 · 고가 3장).
