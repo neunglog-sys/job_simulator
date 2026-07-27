@@ -126,6 +126,23 @@ async def upload_resume(
     return analysis
 
 
+@router.post("/{consultation_id}/resume/from-storage")
+async def attach_stored_resume(
+    consultation_id: int,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """마이페이지에 저장해 둔 이력서를 상담에 자동 연결(B안) — 상담 시작 시 프론트가 호출.
+
+    저장된 이력서가 있으면 분석해 상담사가 대화에서 방향을 짚는 근거로 쓴다. 없거나 분석이
+    실패해도 조용히 넘어가(attached=false) 상담 시작을 막지 않는다. 이미 분석돼 있으면 재분석
+    없이 기존 결과를 돌려준다(멱등).
+    """
+    consultation = await service.get_owned_consultation(session, consultation_id, user)
+    analysis = await resume.attach_resume_from_storage(session, consultation, user)
+    return {"attached": analysis is not None, "analysis": analysis}
+
+
 @router.get("/{consultation_id}/messages", response_model=list[MessageOut])
 async def get_messages(
     consultation_id: int,

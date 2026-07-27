@@ -56,6 +56,8 @@ export const API_ENDPOINTS = {
     detail: (id: number) => apiUrl(`/api/consultations/${id}`),
     survey: (id: number) => apiUrl(`/api/consultations/${id}/survey`),
     messages: (id: number) => apiUrl(`/api/consultations/${id}/messages`),
+    resumeFromStorage: (id: number) =>
+      apiUrl(`/api/consultations/${id}/resume/from-storage`),
   },
   recommendations: {
     latest: (consultationId: number) =>
