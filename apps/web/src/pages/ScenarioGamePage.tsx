@@ -1095,7 +1095,9 @@ export function ScenarioGamePage() {
   // 담당 NPC 인사는 업무를 건네는 대사다 — 팀 소개(투어)를 받기 전에 다가갔다고 해서
   // "왔어? 이것부터 점검해 줘"가 튀어나오면 안 된다. 투어를 마친 뒤부터 요청한다.
   useEffect(() => {
-    if (scenarioSlug === "sns-01") return;
+    // 대화형 업무 학습은 업무 받기 시점에 프로세스 안내를 직접 시작한다.
+    // 별도 인사를 함께 요청하면 늦게 도착한 응답이 안내 아래에 붙어 순서가 뒤집힌다.
+    if (CONVERSATION_LEARNING_SCENARIOS.has(scenarioSlug)) return;
     if (showEncounter && !needsTour && !greetSent && socketRef.current?.sendGreet()) {
       setGreetSent(true);
     }
