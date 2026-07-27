@@ -175,6 +175,15 @@ def validate_scenario(doc: dict, source: str, npc_ids: set[str]) -> None:
                 )
             if kind == "minigame" and not activity.get("game_id"):
                 raise ValueError(f"{source}: step '{step['id']}' minigame activity에 game_id 필요")
+            briefing = activity.get("briefing")
+            if briefing is not None and (
+                not isinstance(briefing, list)
+                or not briefing
+                or any(not isinstance(line, str) or not line.strip() for line in briefing)
+            ):
+                raise ValueError(
+                    f"{source}: step '{step['id']}' activity.briefing은 빈 값 없는 문자열 목록이어야 함"
+                )
             if kind == "debrief" and not activity.get("prompt"):
                 raise ValueError(f"{source}: step '{step['id']}' debrief activity에 prompt 필요")
     # 엔진 키 전체를 막는다. 세 개만 막고 있어서 minigame·coach_streak 같은 키를
