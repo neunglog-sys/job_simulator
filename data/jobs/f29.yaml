@@ -15,3 +15,27 @@ interest_profile:
   social: 1
   enterprising: 3
   conventional: 3
+# 조사 데이터: ms-10(건축시공 신입 현장기사) 리서치 검증본(2026-07-27) 기준.
+# 급여는 직접 통계가 없어 null 유지 확정(사용자 결정) — 상위직 값 대체 안 함.
+education_requirement:
+  value: >-
+    법정 필수 자격은 없다. 건설기술진흥법상 '건설기술인'은 국가기술자격 취득자 또는 관련 학력·경력
+    요건 충족자로 인정되며(역량지수=자격·학력·경력·교육 합산), 건축기사 등 특정 자격이 일률적으로
+    법정 필수는 아니다. 전문대졸 이상 또는 현장 경력으로 진입하는 것이 일반적이다.
+  evidence_type: descriptive_text
+salary:
+  entry_level:
+    min_krw: null
+    max_krw: null
+    basis: >-
+      건축시공 신입 현장기사의 직접 임금 통계를 확인하지 못함. 상위직 '건축공학기술자'(설계·엔지니어링
+      포함)·'건축구조기술자' 값은 업무가 달라 대체하지 않음(직무 간 급여 오염 방지).
+  reference_statistics: null
+certifications:
+  - name: "건축기사"
+    tier: related
+  - name: "건축산업기사"
+    tier: related
+  - name: "건설안전기사"
+    tier: related
+status: provisional

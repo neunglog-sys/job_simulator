@@ -15,3 +15,28 @@ interest_profile:
   social: 1
   enterprising: 1
   conventional: 4
+# 조사 데이터: stn-04(배터리 소재 시험·분석원=화학공학시험원) 리서치 검증본(2026-07-27) 기준.
+# 급여는 wagework·adiga(고용24) 2개 포털 동일값 상호확인으로 확정.
+salary:
+  entry_level:
+    min_krw: null
+    max_krw: null
+    basis: "공식 출처에서 배터리 소재 시험·분석 신입 초임으로 명시된 수치를 확인하지 못함"
+  reference_statistics:
+    median_annual_krw: 60000000
+    statistic_type: mean
+    population: "화학공학시험원 재직자 전체; 배터리 소재 분야·신입 분리 아님"
+    reference_year: 2023
+    cross_check_flag: true
+    cross_check_note: >-
+      고용24(구 워크넷) 화학공학시험원(직업코드 K000000934): 하위25% 5,000만 / 평균 6,000만 /
+      상위25% 7,000만, 2023 조사. wagework·adiga 2개 포털 동일값 상호확인.
+      ※ '화학공학 기술자 및 시험원' 4,092만/2021(커리어넷 구조사)과는 별개 집계·연도(혼동 금지).
+certifications:
+  - name: "화학분석기사"
+    tier: related
+  - name: "화공기사"
+    tier: related
+  - name: "금속재료산업기사"
+    tier: related
+status: cross_check_required
