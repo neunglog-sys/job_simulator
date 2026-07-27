@@ -119,6 +119,16 @@ export function RecommendedJobsModal({
                     <strong>{job.score}%</strong>
                   </div>
                   <p>{job.reason}</p>
+                  {job.evidence ? (
+                    <div className={styles.recommendedJobEvidence}>
+                      <span className={styles.recommendedJobEvidenceQuote}>
+                        “{job.evidence.quote}”
+                      </span>
+                      <span className={styles.recommendedJobEvidenceLabel}>
+                        상담에서 하신 말을 근거로 골랐어요
+                      </span>
+                    </div>
+                  ) : null}
                   {activeScenarioSlug ? (
                     <button type="button" onClick={() => onEnterScenario(activeScenarioSlug)}>
                       직무 체험하기

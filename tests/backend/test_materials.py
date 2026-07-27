@@ -16,6 +16,19 @@ def _clear():
     materials.clear_caches()
 
 
+def test_sns01_m4_has_multiple_sets():
+    """SNS 일일 보고도 서술형이라 자료가 필요하다 — 세트가 여러 개여야 정답을 못 외운다."""
+    sets = materials.material_sets_for("sns-01", "m4")
+    assert len(sets) >= 2
+    assert materials.steps_with_materials("sns-01") == ["m4"]
+    causes = {s["cause"] for s in sets}
+    assert len(causes) == len(sets), "세트끼리 핵심 이슈가 겹친다"
+    for entry in sets:
+        assert entry["documents"], f"{entry['id']}: 문서 없음"
+        for doc in entry["documents"]:
+            assert doc.get("title") and doc.get("body"), f"{entry['id']}: 제목·본문 누락"
+
+
 def test_kts03_m4_has_multiple_sets():
     """정산 차액 스텝엔 세트가 여러 개 있어야 한다 — 하나뿐이면 정답을 외워서 풀 수 있다."""
     sets = materials.material_sets_for("kts-03", "m4")

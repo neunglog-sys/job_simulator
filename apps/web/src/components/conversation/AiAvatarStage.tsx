@@ -87,11 +87,17 @@ function resolveAvatarId(preferredAvatarId?: CoachAvatarId): CoachAvatarId {
  * 후에도** 워밍업된 값에서 시작한다. 옛 하드코딩 2.4는 실제(~7.5s)보다 훨씬 짧아 세션 초반
  * 8발화쯤까지 머리가 튀는 원인이었다 — 시드를 실측 p50 근처로 두면 첫 발화부터 위상이 맞는다. */
 const LEAD_ESTIMATE_KEY = "jobiverse-avatar-lead-estimate";
-// 2026-07-26 실측: 버퍼 1s + flush OFF 적용 후 observed_lead가 2.79~2.96s로 일관됨(로컬 5발화).
+// 2026-07-27 **실서버** 실측: 버퍼 1s + flush OFF에서 observed_lead 평균 2.87s (N=5,
+// 범위 2.73~3.12). 7/26에 로컬로 잰 2.9와 사실상 같았다 — 릴레이 경유가 더 느릴 거라던
+// 예상은 빗나갔고, 로컬↔실서버 차이는 이 지표에선 무시할 수준이다.
+//
 // 옛값 6.5는 버퍼 2s·flush 시절 기준이라 첫 접속 브라우저마다 idle이 3.5s+ 어긋나
-// 초반 발화들의 머리 점프 원인이 됐다. EMA(α=0.3)는 발화당 30%씩만 좁혀서 수렴에 ~8발화가
-// 걸리므로 시드 자체가 실측 근처여야 한다. 실서버는 릴레이 경유라 약간 길 수 있어 3.0으로.
-const LEAD_ESTIMATE_DEFAULT = 3.0;
+// 초반 발화들의 머리 점프 원인이 됐다(실측 drift −3.5s). EMA(α=0.3)는 발화당 30%씩만
+// 좁혀서 수렴에 ~8발화가 걸리므로 시드 자체가 실측 근처여야 한다.
+//
+// ⚠️ 이 값은 **시작 버퍼와 한 세트**다. 버퍼를 2.0으로 되돌리면 실측 lead가 3.37s가 되고
+//    (7/27 A/B) 이 시드는 0.5s 어긋난다. 버퍼를 바꾸면 여기도 같이 재야 한다.
+const LEAD_ESTIMATE_DEFAULT = 2.9;
 const LEAD_ESTIMATE_MIN = 1;
 const LEAD_ESTIMATE_MAX = 12;
 

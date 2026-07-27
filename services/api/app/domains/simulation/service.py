@@ -101,7 +101,7 @@ def _task_with_material_criteria(
     if not cause:
         return task
     merged = dict(task)
-    merged["criteria"] = [*(task.get("criteria") or []), f"제공자료가 가리키는 실제 원인({cause})을 찾아냈는가"]
+    merged["criteria"] = [*(task.get("criteria") or []), f"제공자료가 가리키는 핵심 사실({cause})을 찾아내 근거로 삼았는가"]
     return merged
 
 
@@ -549,6 +549,12 @@ async def stream_npc_chat(
     # 프롬프트는 코드 템플릿이 구조화 필드를 조립 (system_prompt 통짜 저장 안 함)
     kind = npc_kind(persona["role"], persona["rank"])  # 사수/동료/고객 → 화법·톡식 범위
     hostile = is_hostile_customer(persona["role"], persona["rank"])
+    # 그 NPC와 1:1로 말을 트는 첫 턴은 언제나 인사 자리다(손님 제외 — 손님은 용건부터 꺼낸다).
+    # 투어에서 얼굴을 봤어도 직접 대화는 처음이라, 곧바로 업무 지시가 나오면 인사가 사라진다.
+    # 유저 메시지엔 상대 npc_id가 없어 그 NPC가 답한 적 있는지로 판정한다.
+    first_chat = kind != "고객" and not any(
+        m.role == "npc" and m.npc_id == npc_id for m in history
+    )
     # 손님에게는 직원 미션(현재 스텝 과제)을 주입하지 않는다 — 안 그러면 손님이 그 업무의
     # '담당 업무/현재 업무'인 줄 알고 신입에게 업무를 지시하는 직원처럼 군다(손님≠직원).
     # 대신 '손님으로서의 상황'을 줘서 손님답게(용건·문의·요청·불만) 말하게 한다.
@@ -561,6 +567,7 @@ async def stream_npc_chat(
         )
     else:
         persona_mission = grading_mission
+    npc_register = register_for_npc(scenario.slug, kind, hostile=hostile)
     system = render_prompt(
         "npc/system.md",
         scenario_title=scenario.title,
@@ -568,7 +575,7 @@ async def stream_npc_chat(
         player_address=_player_address(simulation.state),
         conversation_mode=conversation_mode,
         learning_briefing=learning_briefing,
-        register=register_for_npc(scenario.slug, kind, hostile=hostile),
+        register=npc_register,
         hostile=hostile,  # 악성 고객 — 고압적 태도 분기(npc/system.md)
         npc_kind=kind,
         mission=persona_mission,
@@ -580,6 +587,10 @@ async def stream_npc_chat(
         affinity=aff_value, affinity_band=affinity.band(aff_value),
         knowledge=knowledge,
         greeted=greeted,  # 첫 대면 무인사 → 톡식 분기(system.md). work 단계에선 무시됨.
+        # 사용자가 '인사만' 건넸는가 — 그럼 인사로 받고 업무 지시는 하지 않는다. 업무는 시나리오
+        # 흐름(업무 배너 → 미션 창)으로 전달되므로, 인사에 업무를 얹으면 같은 지시가 두 번 나온다.
+        # (용건이 섞인 긴 문장은 평소대로 업무 대화로 받는다)
+        greeting_only=greeted and len(user_text.strip()) <= 40,
         # 첫 대면은 소개하는 자리 — 짧은 메신저 말투·업무 복귀 규칙을 완화한다.
         #   투어 중(tour_done 전) = 사수가 방금 소개했으니 인사만 짧게 받는다(자기소개 중복 방지)
         #   투어 밖에서 처음 만남 = 스스로 소개한다
@@ -589,7 +600,7 @@ async def stream_npc_chat(
             if process_learning
             else (
                 ("tour_greeting" if not simulation.state.get("tour_done") else "orientation")
-                if first_meeting
+                if (first_meeting or first_chat)
                 else "work"
             )
         ),
@@ -601,6 +612,21 @@ async def stream_npc_chat(
         full.append(chunk)
         yield ("token", chunk)
     npc_reply = _clean_npc("".join(full))
+    # 모델이 간헐적으로 빈 스트림을 반환해도 투어가 빈 `...` 답변에서 멈추지 않게 한다.
+    # 투어 인사는 평가 답안이 아니므로 페르소나를 지어내지 않고 짧은 인사만 폴백한다.
+    if not npc_reply or not _HANGUL.search(npc_reply):
+        if first_meeting and not simulation.state.get("tour_done"):
+            npc_reply = (
+                "반가워. 앞으로 잘 부탁해."
+                if npc_register == "반말"
+                else "반갑습니다. 앞으로 잘 부탁드려요."
+            )
+        else:
+            npc_reply = (
+                "잘 못 들었어. 다시 한번 말해 줄래?"
+                if npc_register == "반말"
+                else "잘 듣지 못했어요. 다시 한번 말씀해 주세요."
+            )
 
     # 사용자가 이미 스트림으로 본 답변이므로 먼저 확정 저장한다 — 이후 평가가 실패해도
     # 대화록(채점·NPC 기억의 근거)이 사용자가 본 것과 어긋나지 않게.
@@ -636,18 +662,27 @@ async def stream_npc_chat(
     prior_user_msgs = [m.content for m in history[:-1] if m.role == "user"]
     is_repeat = bool(prior_user_msgs) and _text_similarity(user_text, prior_user_msgs[-1]) >= REPEAT_SIMILARITY
 
+    # 코치는 '조건이 맞을 때만' 끼어드는 게 아니라 대화를 계속 지켜보며 매 턴 한마디씩 거든다
+    # (팀 요청). 트리거는 이제 발동 여부가 아니라 '어떤 톤으로 말할지'만 정한다:
+    #   keyword  = 정답 요구·짜증 감지
+    #   stagnant = 진전 없이 같은 자리를 맴돎
+    #   watching = 그 외 평소 — 지켜보다 짧게 거드는 톤
+    # 담당 NPC와의 대화면 절차 설명(process_learning) 중에도 거든다 — 막혔을 때 코치가 가장 필요하다.
     tip_trigger = None
-    if mission_active:
+    if npc_id in mission_npcs:
         if _should_coach_tip(user_text, npc_reply):
             tip_trigger = "keyword"
             new_state["coach_streak"] = 0
         elif not is_repeat and any(deltas.values()):
+            tip_trigger = "watching"
             new_state["coach_streak"] = 0  # 유의미한 발화 — 정체 아님
         else:
             streak = int(new_state.get("coach_streak", 0)) + 1
             if streak >= STAGNANT_TURNS:
                 tip_trigger = "stagnant"
                 streak = 0
+            else:
+                tip_trigger = "watching"
             new_state["coach_streak"] = streak
         simulation.state = new_state
         flag_modified(simulation, "state")
@@ -867,14 +902,29 @@ async def onboarding_tour(
         out = fallback()
 
     by_id = {o["npc_id"]: o for o in others}
+    fallback_out = fallback()
+    fallback_stops = {s["npc"]: s["line"] for s in fallback_out["stops"]}
+
+    def safe_tour_text(value: object, fallback_text: str) -> str:
+        cleaned = _clean_npc(str(value or ""))
+        return cleaned if _HANGUL.search(cleaned) else fallback_text
+
     return {
         "guide": {"npc": guide["npc_id"], "name": guide["name"], "role": guide["role"]},
-        "opening": _clean_npc(out["opening"]),
+        "opening": safe_tour_text(out["opening"], fallback_out["opening"]),
         "stops": [
-            {**s, "name": by_id[s["npc"]]["name"], "role": by_id[s["npc"]]["role"]}
+            {
+                **s,
+                "name": by_id[s["npc"]]["name"],
+                "role": by_id[s["npc"]]["role"],
+                "line": safe_tour_text(
+                    s.get("line"),
+                    fallback_stops[s["npc"]],
+                ),
+            }
             for s in out["stops"]
         ],
-        "closing": _clean_npc(out["closing"]),
+        "closing": safe_tour_text(out["closing"], fallback_out["closing"]),
     }
 
 

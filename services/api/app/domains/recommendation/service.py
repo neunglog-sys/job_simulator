@@ -18,6 +18,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.content.loader import load_competencies, load_job_scenario_map
 from app.domains.consultation import survey
 from app.domains.consultation.service import get_owned_consultation, list_messages
+from app.domains.recommendation.evidence import (
+    attach_to_recommendations,
+    extract_grounded_evidence,
+    persist_evidence,
+)
 from app.llm import get_llm
 from app.llm.base import ChatMessage
 from app.llm.prompts import render_prompt
@@ -274,6 +279,19 @@ async def create_recommendation(
     ranked = sorted(
         jobs, key=lambda j: _score_job(j, scores, interest_profile), reverse=True
     )[:TOP_N]
+
+    # 추천근거 개인화 — 상담에서 검증된 실제 발화 인용을 근거로 추출·저장·직무별 매칭(evidence.py).
+    # 부가 기능이라 어떤 이유로든 실패해도 추천 본체는 반드시 살린다(evidence만 비우고 진행).
+    try:
+        evidence_items = await extract_grounded_evidence(session, consultation)
+        await persist_evidence(session, consultation, evidence_items)
+        evidence_by_job = attach_to_recommendations(ranked, evidence_items)
+    except Exception:  # noqa: BLE001
+        logger.warning(
+            "근거 개인화 실패 — 추천은 유지 (consultation=%d)", consultation.id, exc_info=True
+        )
+        evidence_by_job = {}
+
     scenario_map = load_job_scenario_map()  # 적성 → 체험 연결: 추천 직무의 근접 시나리오
     # 매핑 slug가 실제 존재하는 시나리오인지 확인 — 시나리오 rename/삭제로 map이 뒤처지면
     # '바로 체험하기'가 404 나거나 stale slug가 추천에 박제되므로, 존재하는 것만 남긴다.
@@ -293,6 +311,8 @@ async def create_recommendation(
             "scenario_slug": (
                 slug if (slug := scenario_map.get(job.code)) in live_slugs else None
             ),
+            # 개인화 근거 — 검증된 실제 발화 인용 {quote,dimension_name,confidence} 또는 None(생략)
+            "evidence": evidence_by_job.get(job.code),
         }
         for job in ranked
     ]

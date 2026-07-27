@@ -1427,7 +1427,7 @@ export const PREVIEW_GAMES = {
           "occasion": "기념일",
           "label": "기념일 · 중간 예산 · 스파클링",
           "foreign": true,
-          "foreign_speech": "I need a sparkling wine for our anniversary. Something nice, but not too expensive.",
+          "foreign_speech": "我想找一瓶纪念日喝的气泡酒。品质好一点，但不要太贵的。",
           "translated_speech": "기념일에 마실 스파클링 와인을 찾고 있어요. 너무 비싸지 않은 좋은 제품이면 좋겠습니다."
         }
       ],
@@ -1437,8 +1437,8 @@ export const PREVIEW_GAMES = {
           "sprite": "와인_레드_중가",
           "price": "yellow",
           "kind": "red",
-          "tier": "house",
-          "slot": 2,
+          "tier": "favorite",
+          "slot": 1,
           "accent": "#8A0447",
           "stock": "ok",
           "label": "레드 · 중간 가격"
@@ -1448,7 +1448,7 @@ export const PREVIEW_GAMES = {
           "sprite": "와인_화이트_저가",
           "price": "green",
           "kind": "white",
-          "tier": "favorite",
+          "tier": "house",
           "slot": 2,
           "accent": "#0BD01F",
           "stock": "ok",
@@ -1459,8 +1459,8 @@ export const PREVIEW_GAMES = {
           "sprite": "와인_레드_고가",
           "price": "red",
           "kind": "red",
-          "tier": "favorite",
-          "slot": 1,
+          "tier": "premium",
+          "slot": 2,
           "accent": "#8A0447",
           "stock": "ok",
           "label": "레드 · 고가"
@@ -1482,7 +1482,7 @@ export const PREVIEW_GAMES = {
           "price": "yellow",
           "kind": "sparkling",
           "tier": "favorite",
-          "slot": 3,
+          "slot": 2,
           "accent": "#C3FF8A",
           "stock": "ok",
           "label": "스파클링 · 중간 가격"
@@ -1503,8 +1503,8 @@ export const PREVIEW_GAMES = {
           "sprite": "와인_레드_품절",
           "price": "yellow",
           "kind": "red",
-          "tier": "premium",
-          "slot": 2,
+          "tier": "favorite",
+          "slot": 3,
           "accent": "#8A0447",
           "stock": "soldout",
           "label": "레드 · 중간 가격"

@@ -46,7 +46,10 @@ _MIN_DELTA, _MAX_DELTA = -6, 3
 # 첫 대면 인사말 — 용건과 섞여 있어도(예: "안녕하세요, 이거 어떻게…") 인사로 인정한다.
 _GREETING = re.compile(
     r"안녕|반갑|반가워|처음\s*뵙|뵙겠|뵙습|잘\s*부탁|좋은\s*(아침|오후|저녁)"
-    r"|하이|헬로|hello|안뇽|방가|인사\s*드",
+    r"|하이|헬로|hello|안뇽|방가|인사\s*드"
+    # 초성·축약 인사 — 실제 플레이에서 "ㅎㅇ"만 치는 경우가 많은데, 이걸 인사로 못 보면
+    # 첫마디부터 업무 지시가 튀어나온다(greeting_only 분기가 안 걸림).
+    r"|ㅎㅇ|ㅎ2|ㅂㄱ|ㄱㄷ|헤이",
     re.IGNORECASE,
 )
 _GREETING_EN = re.compile(r"\bhi\b", re.IGNORECASE)  # 영어 hi 단독(단어경계) — history 등 오탐 방지

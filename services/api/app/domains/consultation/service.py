@@ -74,6 +74,17 @@ def _is_detail_request(text: str) -> bool:
 # 한글은 토큰당 여러 글자를 담는 경우가 많아, 목표 글자수보다 넉넉히 잡아 문장이 중간에 끊기지
 # 않게 한다. 실제 글자수 컷은 스트리밍 중 total_chars 체크(아래)가 담당한다.
 REPLY_MAX_TOKENS_HEADROOM = 120
+# 글자수 제한 도달 후, 문장이 끝날 때까지 더 받아주는 여유분.
+# 제한 즉시 끊으면 "…추천 직무를 확인해보" 처럼 말이 중간에 잘린다. 그렇다고 제한 자체를
+# 올리면 군더더기가 늘어(200자 제한의 본래 취지) 곤란하므로, 마침표 하나까지의 꼬리만 허용한다.
+# 이 안에 문장이 안 끝나면 그때는 강제로 닫는다(무한정 기다리지 않음).
+REPLY_SENTENCE_GRACE_CHARS = 80
+# 문장 종료 판정 — 종결 문장부호. 닫는 따옴표·괄호가 뒤따르는 경우(예: 그래요!") 도 종료로 본다.
+_SENTENCE_END_RE = re.compile(r"[.!?。！？…][\"'’”\)\]】」』]*\s*$")
+
+
+def _ends_sentence(text: str) -> bool:
+    return bool(_SENTENCE_END_RE.search(text.rstrip()))
 
 
 async def _recommended_scope(
@@ -427,9 +438,15 @@ async def stream_reply(
             full.append(chunk)
             total_chars += len(chunk)
             yield chunk
-            if char_limit is not None and total_chars >= char_limit:
-                # 목표 글자수 도달 — 나머지 생성은 기다리지 않고 스트림을 바로 닫는다
-                # (지연 절감 본래 목적과 직결되는 부분).
+            if char_limit is None:
+                continue
+            # 목표 글자수 도달 후 **문장이 끝나는 지점**까지만 더 받고 닫는다.
+            # 예전엔 도달 즉시 aclose 해서 "…추천 직무를 확인해보" 처럼 말이 중간에 잘렸다.
+            # 제한을 올리면 군더더기가 늘어나므로(200자 제한의 본래 취지) 한도는 그대로 두고,
+            # 마침표까지의 여유분(grace)만 허용한다 — 그 안에 안 끝나면 강제로 닫는다.
+            if total_chars >= char_limit + REPLY_SENTENCE_GRACE_CHARS or (
+                total_chars >= char_limit and _ends_sentence("".join(full))
+            ):
                 await reply_stream.aclose()
                 break
     finally:
