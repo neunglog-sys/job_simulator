@@ -273,6 +273,14 @@ async def get_owned_simulation(
         flag_modified(simulation, "state")
         await session.commit()
     scenario = await session.get(Scenario, simulation.scenario_id)
+    # 비활성(_disabled) 시나리오의 '진행 중' 세션은 이어하기를 막는다(팀 결정 2026-07-27).
+    # completed는 통과 — 완주 기록 조회·채점·리포트는 계속 동작해야 한다(과거 데이터 보존).
+    # DB 행 수정 없이 서빙만 막으므로, 시나리오를 되살리면 세션도 그대로 살아난다.
+    if simulation.status == "active" and scenario.slug not in yaml_scenario_slugs():
+        raise HTTPException(
+            status_code=409,
+            detail="이 체험은 현재 비활성화되어 이어할 수 없어요. 추천 화면에서 새 체험을 시작해 주세요.",
+        )
     return simulation, scenario
 
 

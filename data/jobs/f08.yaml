@@ -1,0 +1,17 @@
+# F08 서비스·상품·사업·행사기획 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f08
+title: 서비스·상품·사업·행사기획
+description: 시장·사용자 조사를 바탕으로 서비스·상품·행사를 설계하고 실행 계획을 세우는 분야입니다. 문제를 파고들어 새로운 안을 만들고 추진하는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 5
+  communication: 4
+  collaboration: 3
+  task_management: 2
+interest_profile:
+  realistic: 1
+  investigative: 4
+  artistic: 3
+  social: 2
+  enterprising: 5
+  conventional: 2

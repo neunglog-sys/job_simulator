@@ -1,0 +1,17 @@
+# F26 해상 운항·선박조종 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f26
+title: 해상 운항·선박조종
+description: 선박을 조종하고 항해 당직을 서며 바닷길의 안전 운항을 책임지는 분야입니다. 규칙적인 당직 근무를 견디며 팀과 함께 침착하게 상황을 판단하는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 2
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 5
+  investigative: 3
+  artistic: 1
+  social: 1
+  enterprising: 2
+  conventional: 4

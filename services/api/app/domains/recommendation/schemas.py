@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+from app.content.loader import yaml_scenario_slugs
 
 
 class RecommendationRequest(BaseModel):
@@ -17,11 +19,24 @@ class JobRecommendation(BaseModel):
     description: str | None = None
     score: int  # 0~100 적합도
     reason: str
-    # NCS 조사자료(배치1) 원본 — 미조사 직무는 필드 내부가 비어있을 수 있음
+    # NCS 조사자료(배치1) 원본 — F 직무군(f01~)엔 없음. 과거 J 추천 스냅샷 호환용으로 유지.
     education_requirement: dict | None = None
     salary: dict | None = None
     certifications: list = []
     scenario_slug: str | None = None
+    # F 직무군 세부직업(조사 엑셀) — 이 필드 추가 이전 스냅샷엔 없으므로 기본 [].
+    detail_jobs: list[str] = []
+
+    @field_validator("scenario_slug")
+    @classmethod
+    def _only_active_scenarios(cls, v: str | None) -> str | None:
+        # 스냅샷에 박제된 slug가 저장 이후 비활성(_disabled)됐을 수 있다 — 그대로 내리면
+        # '직무 체험하기'가 404 데드엔드가 된다(레거시 추천 8건 실측). 모든 응답 경로가
+        # 이 스키마를 거치므로 여기 한 곳에서 활성 YAML 기준으로 재검증하고, DB 행은
+        # 건드리지 않는다(읽기 전용 방어).
+        if v is not None and v not in yaml_scenario_slugs():
+            return None
+        return v
 
 
 class RecommendationOut(BaseModel):

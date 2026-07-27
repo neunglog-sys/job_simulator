@@ -1,0 +1,17 @@
+# F38 철도 운행·기관 운전 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f38
+title: 철도 운행·기관 운전
+description: 정해진 시간표와 신호 체계에 따라 열차를 안전하게 운행하는 분야입니다. 규정을 정확히 지키며 오랜 시간 집중력을 유지할 수 있는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 3
+  communication: 4
+  collaboration: 2
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 2
+  artistic: 1
+  social: 1
+  enterprising: 1
+  conventional: 5

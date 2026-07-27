@@ -1,0 +1,17 @@
+# F36 건설·시설·환경안전 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f36
+title: 건설·시설·환경안전
+description: 건설·산업 현장을 점검하며 위험 요인을 찾아내고 사고를 예방하는 분야입니다. 기준과 절차에 따라 꼼꼼하게 확인하고 원칙 있게 판단하는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 3
+  collaboration: 2
+  task_management: 5
+interest_profile:
+  realistic: 4
+  investigative: 3
+  artistic: 1
+  social: 2
+  enterprising: 2
+  conventional: 5

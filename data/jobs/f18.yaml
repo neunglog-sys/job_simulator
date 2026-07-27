@@ -1,0 +1,17 @@
+# F18 물류창고·분류 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f18
+title: 물류창고·분류
+description: 물류창고에서 상품의 입출고·분류·피킹을 정확하고 신속하게 처리하는 분야입니다. 몸을 움직여 일하는 것을 좋아하고 정해진 절차를 빈틈없이 지키는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 2
+  communication: 2
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 1
+  artistic: 1
+  social: 1
+  enterprising: 1
+  conventional: 4

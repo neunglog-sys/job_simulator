@@ -1,0 +1,17 @@
+# F33 군사·국가안보 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f33
+title: 군사·국가안보
+description: 경계·감시 임무를 수행하며 국가와 주요 시설의 안보를 지키는 분야입니다. 규율과 절차를 지키며 동료와 함께 임무를 완수하는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 2
+  communication: 3
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 5
+  investigative: 1
+  artistic: 1
+  social: 1
+  enterprising: 2
+  conventional: 4

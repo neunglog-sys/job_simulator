@@ -1,0 +1,17 @@
+# F10 상담·안내·중개·CS — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f10
+title: 상담·안내·중개·CS
+description: 고객의 문의와 요청을 듣고 상품·절차를 정확히 안내하며 민원까지 해결하는 분야입니다. 사람의 말에 귀 기울여 핵심을 파악하고 상황을 빠르게 판단하는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 5
+  collaboration: 2
+  task_management: 3
+interest_profile:
+  realistic: 1
+  investigative: 2
+  artistic: 1
+  social: 5
+  enterprising: 3
+  conventional: 4

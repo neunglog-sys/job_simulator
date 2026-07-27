@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.content.loader import load_competencies, load_job_scenario_map
+from app.content.loader import load_competencies, load_f_detail_jobs
 from app.core.config import settings
 from app.core.db import SessionFactory
 import asyncio
@@ -70,28 +70,20 @@ _REPORT_SCHEMA = {
 async def _attach_related_jobs(
     session: AsyncSession, results: list[dict]
 ) -> list[dict]:
-    """추천 각 직무에 '관련 직업 예시'(같은 카테고리의 다른 구체 직업)를 붙인다.
+    """추천 각 직무군에 '관련 직업 예시'(세부직업)를 붙인다.
 
-    출처는 data/recommendation/job_scenario_map.yaml(직업→근접 시나리오 카테고리
-    임베딩 매핑)과 data/jobs/*의 실제 직업명이다 — 새로 지어내는 값이 아니라
-    리포지토리에 이미 있는 데이터를 역매핑해 보여줄 뿐이며, 추천 점수·순위는
-    건드리지 않는다(그 로직은 recommendation 도메인 소유). 카테고리 대표코드
-    (자기참조)와 자기 자신은 제외해 구체 직업명만 남기고, 없으면 빈 리스트.
+    F 개편(2026-07-27): 출처를 job_scenario_map 역매핑에서 조사 엑셀 변환본
+    (f_detail_jobs.yaml)으로 교체했다 — 맵이 F→시나리오 1:1이 되면서 '같은 slug를
+    공유하는 다른 직무' 역매핑이 항상 비기 때문. 새로 지어내는 값이 아니라 팀 조사
+    자료(04_근거_세부직업)를 그대로 보여주며, 추천 점수·순위는 건드리지 않는다.
+    레거시 J코드 스냅샷(과거 추천)은 세부직업 자료가 없어 빈 리스트 — 종전과 동일한
+    폴백이라 리포트 생성은 깨지지 않는다.
     """
-    scenario_map = load_job_scenario_map()  # {job_code: category_slug}
-    titles = dict((await session.execute(select(Job.code, Job.title))).all())
+    detail_map = load_f_detail_jobs()
     enriched = []
     for r in results:
-        code = r.get("job_code")
-        category = scenario_map.get(code)
-        related = (
-            [
-                titles[c]
-                for c, slug in scenario_map.items()
-                if slug == category and c != code and slug != c and c in titles
-            ]
-            if category else []
-        )
+        detail = detail_map.get(str(r.get("job_code")), {})
+        related = [*detail.get("primary", []), *detail.get("related", [])]
         enriched.append({**r, "related_jobs": related[:4]})
     return enriched
 

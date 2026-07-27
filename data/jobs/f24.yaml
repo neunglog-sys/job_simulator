@@ -1,0 +1,17 @@
+# F24 육상 운전·배송 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f24
+title: 육상 운전·배송
+description: 차량을 운전해 사람이나 물건을 정해진 시간에 안전하게 이동시키는 분야입니다. 도로 위 돌발 상황에 침착하게 대처하고 시간 약속을 지키는 것이 몸에 밴 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 2
+  communication: 4
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 5
+  investigative: 1
+  artistic: 1
+  social: 3
+  enterprising: 2
+  conventional: 3

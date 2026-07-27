@@ -589,7 +589,12 @@ async def build_all_docs(session: AsyncSession) -> list[tuple[TeamCategory, dict
 async def main() -> None:
     from app.core.db import SessionFactory
 
-    protected = yaml_scenario_slugs()  # 사람 검수 YAML이 소유한 slug는 건드리지 않음
+    protected = set(yaml_scenario_slugs())  # 사람 검수 YAML이 소유한 slug는 건드리지 않음
+    # _disabled로 내린 시나리오도 보호 — 여기서 빼먹으면 db 모드가 비활성 slug의 DB 행을
+    # 조사데이터 기준으로 재생성해 steps를 갈아엎는다(파일만 옮긴 비활성화가 무력화됨).
+    disabled_dir = Path(settings.data_dir) / "scenarios" / "_disabled"
+    if disabled_dir.exists():
+        protected |= {p.stem for p in disabled_dir.glob("*.yaml")}
     built = skipped = 0
     async with SessionFactory() as session:
         for cat, doc in await build_all_docs(session):
@@ -643,6 +648,13 @@ def _write_protected(write_path: Path, body: str, check_path: Path | None = None
     check = check_path or write_path
     if check.exists() and AUTO_GEN_MARKER not in check.read_text(encoding="utf-8"):
         logger.warning("보호: %s 는 손편집본 — 건너뜀", check.name)
+        return False
+    # 팀이 명시적으로 비활성화한 콘텐츠(_disabled/로 이동)는 재생성하지 않는다 —
+    # 이 검사가 없으면 emit 재실행이 비활성 시나리오를 data/scenarios/에 부활시켜
+    # 사용자에게 다시 노출된다(F 개편에서 내린 7개 + yg-05가 전부 AUTO-GEN 파일이라 대상).
+    disabled = check.parent / "_disabled" / check.name
+    if disabled.exists():
+        logger.warning("보호: %s 는 _disabled로 비활성화됨 — 재생성 건너뜀", check.name)
         return False
     write_path.write_text(_AUTO_GEN_HEADER + body, encoding="utf-8")
     return True

@@ -1,0 +1,17 @@
+# F28 생활서비스 현장 작업 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f28
+title: 생활서비스 현장 작업
+description: 미용·피부관리처럼 고객의 몸과 생활을 직접 돌보는 서비스를 제공하는 분야입니다. 사람을 대하는 것이 즐겁고 손끝 기술로 만족을 주고 싶은 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 2
+  communication: 5
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 4
+  investigative: 1
+  artistic: 2
+  social: 4
+  enterprising: 2
+  conventional: 3

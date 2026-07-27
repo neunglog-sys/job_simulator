@@ -1,0 +1,60 @@
+# F 직무군 원장 — 추천·체험·리포트·RAG의 단일 기준 (2026-07-27 팀 확정)
+#
+# 이 파일이 F 체계의 유일한 정의처다. 여기서 파생되는 것:
+#   - 추천 후보: data/jobs/f{번호}.yaml (F당 1개, 프로필은 각 파일에)
+#   - 체험 연결: job_scenario_map.yaml (scenario 필드와 일치해야 함 — 테스트로 검증)
+#   - 상담 RAG 스코프: members(KB v5 J코드)로 확장 — doc_chunks의 job_code가 J 체계라서다
+#   - 세부직업: f_detail_jobs.yaml (조사 엑셀 04_근거_세부직업 변환본)
+#
+# 주의:
+#   - f15는 결번(웹 운영·콘텐츠 관리 → f07에 흡수). f37은 시나리오 없음(체험 버튼 비활성).
+#   - 번호를 당겨 재부여하지 말 것 — 기존 J yaml의 family_id·kb_map.py(KB v5 F01~F24)와
+#     번호가 겹치지만 **의미가 다르다**. 여기 members가 새 체계의 소속 정의다.
+#     (예: 새 f12엔 J055가 없다 — f34로 이동. kb_map의 F12(J54~57)와 다름)
+#   - members가 빈 F(신설 계열)는 KB에 대응 J가 없다 — RAG는 시나리오 slug 전용 지식으로
+#     보충하는 기존 갭 패턴을 그대로 쓴다.
+
+families:
+  - { code: f01, title: 문서·행정·총무,            scenario: ms-03,  members: [J001, J002, J003, J004, J005] }
+  - { code: f02, title: 회계·경리·정산,            scenario: ms-02,  members: [J006, J007, J008, J009, J010] }
+  - { code: f03, title: 구매·자재,                 scenario: gm-01,  members: [J011, J012, J013, J014] }
+  - { code: f04, title: 무역·물류·운송사무,        scenario: ms-04,  members: [J015, J016, J017, J018, J019] }
+  - { code: f05, title: 인사·채용·교육운영,        scenario: hr-01,  members: [J020, J021, J022, J023, J024] }
+  - { code: f06, title: 마케팅·광고·홍보,          scenario: stn-01, members: [J025, J026, J027, J028, J029] }
+  # f07은 구 f15(웹 운영·콘텐츠 관리, J067~J069)를 흡수했다
+  - { code: f07, title: 콘텐츠·SNS·웹 운영,        scenario: sns-01, members: [J030, J031, J032, J033, J067, J068, J069] }
+  - { code: f08, title: 서비스·상품·사업·행사기획, scenario: stn-05, members: [J034, J035, J036, J037, J038] }
+  - { code: f09, title: 데이터·CRM·매출분석,       scenario: stn-03, members: [J039, J040, J041, J042, J043] }
+  - { code: f10, title: 상담·안내·중개·CS,         scenario: kts-04, members: [J044, J045, J046, J047, J048] }
+  - { code: f11, title: 영업·판매·매장응대,        scenario: kts-03, members: [J049, J050, J051, J052, J053] }
+  # J055(병원 코디네이터)는 f34로 이동
+  - { code: f12, title: 안내·접수·예약·프론트,     scenario: kts-05, members: [J054, J056, J057] }
+  - { code: f13, title: 교육·강의·코칭,            scenario: kts-02, members: [J058, J059, J060, J061] }
+  - { code: f14, title: 디자인·영상제작,           scenario: yg-01,  members: [J062, J063, J064, J065, J066] }
+  - { code: f16, title: 웹·앱·소프트웨어 개발,     scenario: yg-03,  members: [J070, J071, J072, J073, J074] }
+  - { code: f17, title: IT·시스템 개발·운영,       scenario: yg-04,  members: [J075, J076, J077, J078, J079] }
+  - { code: f18, title: 물류창고·분류,             scenario: wh-01,  members: [J080, J081, J082, J083] }
+  - { code: f19, title: 생산·품질·기계·금속가공,   scenario: ms-09,  members: [J084, J085, J086, J087] }
+  - { code: f20, title: 조리·식품제조,             scenario: ms-07,  members: [J088, J089, J090] }
+  - { code: f21, title: 청소·객실관리,             scenario: cln-01, members: [J091, J092, J093] }
+  - { code: f22, title: 시설·설비·전기·장비 설치정비, scenario: ys-09, members: [J094, J095, J096, J097] }
+  # J099(소방)→f35, J100(환경안전)→f36으로 이동
+  - { code: f23, title: 경호·신변보호·보안,        scenario: ys-03,  members: [J098] }
+  # J102(운반·하역)→f37로 이동
+  - { code: f24, title: 육상 운전·배송,            scenario: jm-01,  members: [J101, J103] }
+  - { code: f25, title: 항공 운항·관제,            scenario: jm-03,  members: [] }
+  - { code: f26, title: 해상 운항·선박조종,        scenario: jm-04,  members: [] }
+  - { code: f27, title: 농축산 현장 작업,          scenario: ms-06,  members: [] }
+  - { code: f28, title: 생활서비스 현장 작업,      scenario: ms-08,  members: [] }
+  - { code: f29, title: 건설·토목·조경 시공,       scenario: ms-10,  members: [] }
+  - { code: f30, title: 과학·기술 조사분석,        scenario: stn-04, members: [] }
+  - { code: f31, title: 콘텐츠·예술·공예 제작,     scenario: yg-02,  members: [] }
+  - { code: f32, title: 치안·범죄현장 대응,        scenario: ys-01,  members: [] }
+  - { code: f33, title: 군사·국가안보,             scenario: ys-02,  members: [] }
+  - { code: f34, title: 의료·복지·상담 응대,       scenario: kts-01, members: [J055] }
+  - { code: f35, title: 소방·구조·방재,            scenario: ys-04,  members: [J099] }
+  - { code: f36, title: 건설·시설·환경안전,        scenario: ys-05,  members: [J100] }
+  # 시나리오 없음 — 추천엔 나오되 체험 버튼 비활성(팀장 확정)
+  - { code: f37, title: 운반·하역,                 scenario: null,   members: [J102] }
+  - { code: f38, title: 철도 운행·기관 운전,       scenario: jm-02,  members: [] }
+  - { code: f39, title: 중장비·특수장비 조종,      scenario: jm-05,  members: [] }

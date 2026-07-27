@@ -1,0 +1,17 @@
+# F13 교육·강의·코칭 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f13
+title: 교육·강의·코칭
+description: 학습자의 수준에 맞춰 지식과 기술을 전달하고 성장을 이끄는 분야입니다. 눈높이 소통을 잘하고 사람이 변화하는 과정에서 보람을 느끼는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 2
+  communication: 5
+  collaboration: 4
+  task_management: 3
+interest_profile:
+  realistic: 1
+  investigative: 2
+  artistic: 3
+  social: 5
+  enterprising: 3
+  conventional: 3

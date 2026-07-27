@@ -1,0 +1,17 @@
+# F22 시설·설비·전기·장비 설치정비 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f22
+title: 시설·설비·전기·장비 설치정비
+description: 건물 설비와 전기·통신 장비를 점검하고 고장의 원인을 찾아 수리·설치하는 분야입니다. 기계와 장비의 원리를 파고들어 문제를 직접 해결하는 것을 즐기는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 5
+  communication: 2
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 5
+  investigative: 4
+  artistic: 1
+  social: 1
+  enterprising: 1
+  conventional: 3

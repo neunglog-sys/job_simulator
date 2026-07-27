@@ -1,0 +1,17 @@
+# F11 영업·판매·매장응대 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f11
+title: 영업·판매·매장응대
+description: 고객의 니즈를 파악해 상품을 제안·판매하고 매장 응대와 정산까지 책임지는 분야입니다. 사람을 만나 설득하고 성과를 만들어내는 데서 에너지를 얻는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 2
+  communication: 5
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 2
+  investigative: 1
+  artistic: 2
+  social: 4
+  enterprising: 5
+  conventional: 3
