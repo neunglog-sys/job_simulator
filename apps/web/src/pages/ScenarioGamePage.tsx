@@ -638,6 +638,7 @@ export function ScenarioGamePage() {
   const [stepIds, setStepIds] = useState<string[]>([]); // 본편 미션 순서 (진행률 계산용)
   // 진행 페이즈 — "지금 무엇을 하는 중인지"의 단일 출처. 전이는 아래 handle*/소켓 핸들러에서만.
   const [phase, setPhase] = useState<GamePhase>("loading");
+  const phaseRef = useRef<GamePhase>("loading");
   const [retryKey, setRetryKey] = useState(0);
   const [taskResult, setTaskResult] = useState<TaskResultFrame | null>(null);
   const [quest, setQuest] = useState<{ title: string; task: GameTask; banner?: string } | null>(null);
@@ -694,6 +695,11 @@ export function ScenarioGamePage() {
   const tourRequestPendingRef = useRef(false);
   // 이미 시작된 투어에 뒤늦은 중복 응답이 도착해 입력 단계를 처음으로 되감지 못하게 한다.
   const tourStartedRef = useRef(false);
+  // 투어 인사 응답은 지금 인사한 동료의 것일 때만 다음 단계로 인정한다.
+  const tourStopNpcRef = useRef<string | null>(null);
+  const pendingTourGreetingNpcRef = useRef<string | null>(null);
+  // React 재렌더 전에 전송 버튼을 연타해도 소켓에 대화 요청이 중복 적재되지 않게 즉시 잠근다.
+  const chatRequestPendingRef = useRef(false);
   const [reflectionSending, setReflectionSending] = useState(false);
   const [memo, setMemo] = useState("");
   const [memoSaveStatus, setMemoSaveStatus] = useState<MemoSaveStatus>("idle");
@@ -817,6 +823,14 @@ export function ScenarioGamePage() {
 
   const tourStop = tour && tourIndex < tour.stops.length ? tour.stops[tourIndex] : null;
   const tourActive = TOUR_PHASES.has(phase);
+
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+
+  useEffect(() => {
+    tourStopNpcRef.current = tourStop?.npc ?? null;
+  }, [tourStop?.npc]);
 
   // 투어 인사(tour_greet) — 신입이 그 동료 '옆까지 걸어가야' 인사를 보낼 수 있다.
   // (멀리 떨어진 자리에서 인사가 성립하면 소개 장면 자체가 성립하지 않는다.)
@@ -1055,6 +1069,7 @@ export function ScenarioGamePage() {
     if (phase === "tour_intro") {
       // 소개를 들었으면 이제 신입이 직접 인사한다 — 여기서 화법(호감도)이 평가된다.
       setChatNpcId(tour.stops[tourIndex]?.npc ?? null);
+      pendingTourGreetingNpcRef.current = null;
       setNpcMessage("");
       setUserMessage("");
       setTourGreetOpened(false); // 아직 안 눌렀다 — 그 동료를 눌러야 채팅창이 열린다
@@ -1378,6 +1393,8 @@ export function ScenarioGamePage() {
           onClose: () => {
             if (cancelled) return;
             setConnStatus("closed");
+            chatRequestPendingRef.current = false;
+            pendingTourGreetingNpcRef.current = null;
             pendingMinigameActivityRef.current = null;
             tourRequestPendingRef.current = false;
             setTourRequestPending(false);
@@ -1389,6 +1406,8 @@ export function ScenarioGamePage() {
           onError: (detail) => {
             if (cancelled) return;
             setConnStatus("error");
+            chatRequestPendingRef.current = false;
+            pendingTourGreetingNpcRef.current = null;
             pendingMinigameActivityRef.current = null;
             tourRequestPendingRef.current = false;
             setTourRequestPending(false);
@@ -1402,17 +1421,53 @@ export function ScenarioGamePage() {
             // 채점 중 오류면 과제 창을 유지한 채 다시 제출할 수 있게 되돌린다.
             setPhase((current) => (current === "mission_grading" ? "mission" : current));
           },
-          onToken: (text) => !cancelled && setNpcMessage((prev) => prev + text),
+          onToken: (text, npc) => {
+            if (cancelled) return;
+            if (
+              phaseRef.current === "tour_greet" &&
+              (npc !== pendingTourGreetingNpcRef.current || npc !== tourStopNpcRef.current)
+            ) {
+              return;
+            }
+            setNpcMessage((prev) => prev + text);
+          },
           onNpcReply: (reply) => {
             if (cancelled) return;
-            setNpcMessage(reply.content);
+            const isTourGreetingPhase = phaseRef.current === "tour_greet";
+            const expectedTourNpc = pendingTourGreetingNpcRef.current;
+            const isExpectedTourReply =
+              isTourGreetingPhase &&
+              Boolean(expectedTourNpc) &&
+              reply.npc === expectedTourNpc &&
+              reply.npc === tourStopNpcRef.current;
+            // 다음 인사 단계에 이전 NPC의 늦은 응답이 도착하면 현재 화면과 전이를 건드리지 않는다.
+            if (isTourGreetingPhase && !isExpectedTourReply) return;
+
+            chatRequestPendingRef.current = false;
+            const replyText = reply.content?.trim() ?? "";
+            const hasMeaningfulReply = /[가-힣A-Za-z0-9]/.test(replyText);
+            // 빈 응답이나 `...` 같은 기호뿐인 응답이면 투어를 완료 처리하지 않는다. 그렇지 않으면
+            // 상단에 `...`만 남은 채
+            // 다음 버튼이 활성화되어 빈 대사를 정상 인사로 오인하게 된다.
+            if (!hasMeaningfulReply) {
+              pendingTourGreetingNpcRef.current = null;
+              setNpcMessage("");
+              setIsStreaming(false);
+              setProcessLearningReady(false);
+              setCoachMessage("NPC의 답변을 받지 못했어요. 인사를 다시 한번 보내주세요.");
+              return;
+            }
+            setNpcMessage(replyText);
             setIsStreaming(false);
             setProcessLearningReady(true);
-            appendDialogue(reply.name || "NPC", "npc", reply.content);
+            appendDialogue(reply.name || "NPC", "npc", replyText);
             const met = reply.state?.met_npcs as string[] | undefined;
             if (met) setMetNpcs(met); // 방금 인사한 동료 반영 → 1단계 진행도 갱신
             // 투어 중이었다면 그 동료가 인사를 받아준 것 → '다음' 버튼이 열린다.
-            setPhase((current) => (current === "tour_greet" ? "tour_reply" : current));
+            if (isExpectedTourReply) {
+              pendingTourGreetingNpcRef.current = null;
+              setPhase("tour_reply");
+            }
           },
           onTaskResult: (taskResultFrame) => {
             if (cancelled) return;
@@ -1632,7 +1687,7 @@ export function ScenarioGamePage() {
   const handleSendToNpc = useCallback(
     (message: string) => {
       const socket = socketRef.current;
-      if (!socket || !chatTargetId) return;
+      if (!socket || !chatTargetId || chatRequestPendingRef.current) return;
       setTalk({ id: chatTargetId, at: Date.now() }); // 발화할 때마다 갱신 — 대화 중엔 계속 멈춤
       if (phase === "minigame_debrief" && activeActivity?.kind === "debrief") {
         const sent = socket.sendActivityComplete({ content: message });
@@ -1646,15 +1701,20 @@ export function ScenarioGamePage() {
         setPhase("exploring");
         return;
       }
+      chatRequestPendingRef.current = true;
       const sent = socket.sendChat(
         chatTargetId,
         message,
         phase === "process_learning" ? "process_learning" : "work",
       );
       if (!sent) {
+        chatRequestPendingRef.current = false;
         setIsStreaming(false);
         setCoachMessage("게임 서버에 연결 중이에요. 잠시 후 다시 보내주세요.");
         return;
+      }
+      if (phase === "tour_greet") {
+        pendingTourGreetingNpcRef.current = chatTargetId;
       }
       setUserMessage(message);
       setNpcMessage("");
@@ -1762,6 +1822,9 @@ export function ScenarioGamePage() {
     setNpcLivePositions({});
     tourRequestPendingRef.current = false;
     tourStartedRef.current = false;
+    tourStopNpcRef.current = null;
+    pendingTourGreetingNpcRef.current = null;
+    chatRequestPendingRef.current = false;
     setMetNpcs([]);
     setConnStatus("creating");
     setRetryKey((key) => key + 1);
@@ -2178,6 +2241,7 @@ export function ScenarioGamePage() {
             // 투어 인사는 그 동료 옆까지 걸어가야 보낼 수 있다 — 멀리서 인사가 성립하지 않게.
             disabled={
               connStatus !== "open" ||
+              isStreaming ||
               !canChat(phase) ||
               (phase === "tour_greet" && !(isNearTourStop && tourGreetOpened))
             }

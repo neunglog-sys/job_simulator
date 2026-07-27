@@ -69,7 +69,7 @@ export type NpcGreetingFrame = {
 
 export type SimulationSocketHandlers = {
   onSession?: (session: Simulation) => void;
-  onToken?: (text: string) => void;
+  onToken?: (text: string, npc?: string) => void;
   onCoachTip?: (text: string) => void;
   onNpcReply?: (reply: NpcReplyFrame) => void;
   onTaskResult?: (result: TaskResultFrame) => void;
@@ -122,7 +122,10 @@ export class SimulationSocket {
         this.handlers.onSession?.(msg as unknown as Simulation);
         break;
       case "token":
-        this.handlers.onToken?.(String(msg.text ?? ""));
+        this.handlers.onToken?.(
+          String(msg.text ?? ""),
+          typeof msg.npc === "string" ? msg.npc : undefined,
+        );
         break;
       case "coach_tip":
         this.handlers.onCoachTip?.(String(msg.text ?? ""));
