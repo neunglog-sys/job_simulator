@@ -865,7 +865,13 @@ export function MovementArea({
     for (const npc of roamers) {
       const spot = byId.get(npc.spawn as string);
       if (!spot) continue;
-      let last = { x: spot.x, y: spot.y }; // 직전 목표(스테이지 좌표)
+      // 직전 목표(스테이지 좌표) — **지금 서 있는 자리**에서 이어간다. spawn으로 초기화하면,
+      // 이 effect가 다시 도는 순간(미션 완료로 activeNpcId가 바뀔 때 등) 로밍하던 NPC들이
+      // 일제히 제 자리로 튄다(대화 끝나고 NPC가 순간이동하던 원인).
+      const standing = npcPosRef.current[npc.npc_id];
+      let last = standing
+        ? { x: standing.x + origin.x, y: standing.y + origin.y }
+        : { x: spot.x, y: spot.y };
 
       // 목표점만이 아니라 직선 경로 전체를 훑는다 — 안 그러면 진열대·벽을 관통해 걷는다(발밑
       // 박스로 8px 간격 충돌 판정 + walkable 경계 확인). 한 곳이라도 막히면 이 방향은 못 간다.
