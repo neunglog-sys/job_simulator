@@ -776,8 +776,8 @@ async def onboarding_tour(
     """1단계 — 사수가 신입을 데리고 다니며 팀원을 한 명씩 소개하는 투어 대사.
 
     사수(현재 스텝 담당 NPC)가 각 동료 앞에서 "이 사람은 누구고 무슨 일을 한다"를 소개하고,
-    마지막에 오늘 업무가 어떻게 흘러가는지 큰 흐름을 짚는다. 개별 과제의 정답·절차 상세는
-    각 업무 브리핑(step.briefing)이 담당하므로 여기서는 말하지 않는다.
+    마지막에는 소개가 끝났음을 알리고 사수에게 돌아와 첫 업무를 받도록 안내한다.
+    개별 업무의 내용·절차·퀴즈·미니게임은 각 업무 브리핑에서 다루므로 여기서는 말하지 않는다.
 
     LLM 실패 시 페르소나(역할·담당)로 만든 문구로 폴백 — 투어가 게임을 막지 않게.
     """
@@ -810,7 +810,7 @@ async def onboarding_tour(
                 }
                 for o in others
             ],
-            "closing": f"오늘은 {step['title']}부터 시작할 거야. 준비되면 나한테 와.",
+            "closing": "팀 소개는 여기까지야. 준비되면 나한테 와서 첫 업무를 받아.",
         }
 
     listing = "\n".join(
@@ -828,7 +828,10 @@ async def onboarding_tour(
         register=register_for_npc(scenario.slug, kind, hostile=hostile),
         hostile=hostile,  # 악성 고객 — 고압적 태도 분기(npc/system.md)
         npc_kind=kind,
-        mission=_personalize_text(scenario, simulation.state, step["mission"]),
+        mission=(
+            "지금은 첫 출근 온보딩 중이며 팀원 소개만 진행합니다. "
+            "개별 업무 내용·수행 절차·퀴즈·미니게임은 소개가 끝난 뒤 담당자가 별도로 안내합니다."
+        ),
         name=guide["name"], role=guide["role"], rank=guide["rank"],
         personality=guide["personality"], likes=guide["likes"],
         dislikes=guide["dislikes"], speech_habits=guide["speech_habits"],
@@ -846,8 +849,9 @@ async def onboarding_tour(
         "각 동료 앞에 멈출 때마다 신입에게 그 사람을 소개하는 말을 1~2문장으로 만드세요. "
         "이름과 무슨 일을 하는 사람인지가 드러나야 합니다. 명단에 없는 사실은 지어내지 마세요.\n"
         "stops의 npc는 위 명단의 id를 그대로 씁니다.\n"
-        "closing에는 소개를 마치고 오늘 업무가 전체적으로 어떻게 흘러가는지 2~3문장으로 짚어 주세요. "
-        "구체적인 정답이나 풀이는 말하지 않습니다."
+        "closing에는 동료 소개를 마무리하고, 소개는 여기까지이며 준비되면 자신에게 와서 "
+        "첫 업무를 받으라는 안내만 1~2문장으로 만드세요. 첫 업무의 내용이나 수행 순서, "
+        "퀴즈, 미니게임은 절대 미리 설명하지 않습니다."
     )
     try:
         out = await get_llm().chat_json(
