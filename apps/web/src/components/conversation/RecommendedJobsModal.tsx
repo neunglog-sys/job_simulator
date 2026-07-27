@@ -1,6 +1,10 @@
 import { ArrowRight, Sparkle, SuitcaseSimple } from "@phosphor-icons/react";
 import { API_BASE_URL } from "../../config/endpoints";
 import type { Recommendation, ScenarioSummary } from "../../lib/api";
+import {
+  getActiveCareerScenarioSlug,
+  getCareerAvatarSrc,
+} from "../../lib/careerAvatars";
 import styles from "../../styles/oneToOneConversation.module.css";
 import { ConversationModalShell } from "./ConversationModalShell";
 
@@ -86,36 +90,47 @@ export function RecommendedJobsModal({
         </div>
       ) : (
         <div className={styles.recommendedJobGrid}>
-          {jobs.map((job, index) => (
-            <article className={styles.recommendedJobCard} key={job.job_code}>
-              <img
-                src={backgroundFor(job.scenario_slug, scenarios)}
-                alt=""
-                style={{ objectPosition: `${32 + index * 18}% center` }}
-                onError={(event) => {
-                  event.currentTarget.onerror = null;
-                  event.currentTarget.src = FALLBACK_MAP;
-                }}
-              />
-              <div className={styles.recommendedJobScrim} aria-hidden="true" />
-              <div className={styles.recommendedJobRank}>추천 {index + 1}순위</div>
-              <div className={styles.recommendedJobContent}>
-                <div className={styles.recommendedJobHeading}>
-                  <h3>{job.job_title}</h3>
-                  <strong>{job.score}%</strong>
+          {jobs.map((job, index) => {
+            const activeScenarioSlug = getActiveCareerScenarioSlug(job.scenario_slug);
+            const scenarioBackground = backgroundFor(activeScenarioSlug, scenarios);
+            const careerAvatar = getCareerAvatarSrc(job.job_code, activeScenarioSlug);
+
+            return (
+              <article className={styles.recommendedJobCard} key={job.job_code}>
+                <img
+                  src={careerAvatar ?? scenarioBackground}
+                  alt=""
+                  onError={(event) => {
+                    const image = event.currentTarget;
+                    if (careerAvatar && !image.dataset.scenarioFallback) {
+                      image.dataset.scenarioFallback = "true";
+                      image.src = scenarioBackground;
+                      return;
+                    }
+                    image.onerror = null;
+                    image.src = FALLBACK_MAP;
+                  }}
+                />
+                <div className={styles.recommendedJobScrim} aria-hidden="true" />
+                <div className={styles.recommendedJobRank}>추천 {index + 1}순위</div>
+                <div className={styles.recommendedJobContent}>
+                  <div className={styles.recommendedJobHeading}>
+                    <h3>{job.job_title}</h3>
+                    <strong>{job.score}%</strong>
+                  </div>
+                  <p>{job.reason}</p>
+                  {activeScenarioSlug ? (
+                    <button type="button" onClick={() => onEnterScenario(activeScenarioSlug)}>
+                      직무 체험하기
+                      <ArrowRight aria-hidden="true" />
+                    </button>
+                  ) : (
+                    <span className={styles.recommendedJobUnavailable}>체험 시나리오 준비 중</span>
+                  )}
                 </div>
-                <p>{job.reason}</p>
-                {job.scenario_slug ? (
-                  <button type="button" onClick={() => onEnterScenario(job.scenario_slug!)}>
-                    직무 체험하기
-                    <ArrowRight aria-hidden="true" />
-                  </button>
-                ) : (
-                  <span className={styles.recommendedJobUnavailable}>체험 시나리오 준비 중</span>
-                )}
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
     </ConversationModalShell>
