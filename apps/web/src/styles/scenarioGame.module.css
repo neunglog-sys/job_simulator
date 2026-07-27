@@ -3215,6 +3215,7 @@ button.headerOrb:active {
 }
 
 .encounterAvatar {
+  position: relative;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -3237,13 +3238,14 @@ button.headerOrb:active {
 }
 
 .encounterAvatar img {
-  position: relative;
-  top: -5px;
+  position: absolute;
+  top: 0;
+  left: 50%;
   display: block;
   width: 210%;
   max-width: none;
   height: auto;
-  flex: 0 0 auto;
+  transform: translateX(-50%);
 }
 
 .encounterBody {
