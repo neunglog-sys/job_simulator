@@ -1023,20 +1023,54 @@ export function OneToOneConversationPage() {
     let reply = "";
     let museTalkSentenceBuffer = "";
     let museTalkStartedFromStream = false;
+    let museTalkStreamedSentences = 0;
+    let museTalkStreamedChars = 0;
     let avatarSpeakSentenceBuffer = "";
     let avatarSpeakStartedFromStream = false;
     let avatarSpeakStreamedSentences = 0;
     let avatarSpeakStreamedChars = 0;
     // 백엔드(#131) 상세요청 응답 → skip_tts=true. 긴 텍스트를 아바타가 읽으면 지연만 커지므로 발화 생략.
     let skipTts = false;
+    /** LLM 답변을 문장 단위로 쪼개 먼저 나온 문장부터 아바타에 보낸다.
+     *
+     * ⚠️ 2026-07-27 수정: 이 경로에 `toAvatarSpeechText`와 문장/글자 캡이 **빠져 있었다.**
+     * 아래 flushAvatarSpeakSentences(비-MuseTalk 경로)는 처음부터 둘 다 걸고 있었는데
+     * 여기만 답변 전체를 마크다운째로 TTS에 태우고 있었다. 그 결과:
+     *   · flush ON은 flush OFF보다 통상 3~5배 많은 오디오·영상을 만들었다
+     *     (OFF는 :1191에서 toAvatarSpeechText로 5문장/420자로 잘라 보낸다)
+     *   · "flush ON이 느리다"는 관측의 일부가 지연이 아니라 **작업량 차이**였다 —
+     *     두 모드의 비교 자체가 성립하지 않았다
+     *   · `**`·`#`·`-` 같은 마크다운 기호가 그대로 TTS에 들어갔다
+     * 캡을 걸면 답변이 길 때 뒷부분을 말하지 않게 되는데, 이는 flush OFF의 **현행 동작과
+     * 동일**하므로 회귀가 아니다. */
     const flushMuseTalkSentences = (force = false) => {
       if (avatarProvider !== "musetalk" || !MUSE_TALK_STREAM_SENTENCE_FLUSH) return;
       const result = takeCompletedMuseTalkSentences(museTalkSentenceBuffer, force);
       museTalkSentenceBuffer = result.rest;
       if (result.chunks.length === 0) return;
+
+      const speechChunks: string[] = [];
+      for (const sentence of result.chunks) {
+        if (museTalkStreamedSentences >= AVATAR_SPEECH_MAX_SENTENCES) break;
+
+        const speech = toAvatarSpeechText(sentence);
+        if (!speech) continue;
+
+        // 첫 문장은 420자를 넘어도 보낸다. 안 그러면 긴 첫 문장에서 아바타가 아예 말을 안 한다.
+        const nextLength = museTalkStreamedChars + speech.length;
+        if (nextLength > AVATAR_SPEECH_MAX_CHARS && museTalkStreamedSentences > 0) break;
+
+        museTalkStreamedSentences += 1;
+        museTalkStreamedChars = nextLength;
+        speechChunks.push(speech);
+      }
+
+      if (speechChunks.length === 0) return;
+      // 캡에 걸려 뒷부분을 잘랐어도 **말은 시작했으므로** true다. false로 두면 답변 종료 시
+      // enqueueMuseTalkSpeech가 전체를 처음부터 다시 말한다.
       museTalkStartedFromStream = true;
-      console.info("[MuseTalk]", "llm_sentence_flush", result.chunks);
-      for (const sentence of result.chunks) enqueueMuseTalkChunk(sentence);
+      console.info("[MuseTalk]", "llm_sentence_flush", speechChunks);
+      for (const speech of speechChunks) enqueueMuseTalkChunk(speech);
     };
     const flushAvatarSpeakSentences = (force = false) => {
       if (!avatarProvider || avatarProvider === "musetalk") return;

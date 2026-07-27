@@ -87,17 +87,24 @@ function resolveAvatarId(preferredAvatarId?: CoachAvatarId): CoachAvatarId {
  * 후에도** 워밍업된 값에서 시작한다. 옛 하드코딩 2.4는 실제(~7.5s)보다 훨씬 짧아 세션 초반
  * 8발화쯤까지 머리가 튀는 원인이었다 — 시드를 실측 p50 근처로 두면 첫 발화부터 위상이 맞는다. */
 const LEAD_ESTIMATE_KEY = "jobiverse-avatar-lead-estimate";
-// 2026-07-27 **실서버** 실측: 버퍼 1s + flush OFF에서 observed_lead 평균 2.87s (N=5,
-// 범위 2.73~3.12). 7/26에 로컬로 잰 2.9와 사실상 같았다 — 릴레이 경유가 더 느릴 거라던
-// 예상은 빗나갔고, 로컬↔실서버 차이는 이 지표에선 무시할 수준이다.
+// 2026-07-27 실서버 실측(버퍼 1s · flush OFF · CRF 26), 남녀 각 N=5:
+//   남성 첫재생 p50 3.977s → 시드 4.2에서 drift 0.003s  ✅
+//   여성 첫재생 p50 4.175s → 시드 2.9에서 drift 최대 1.236s (EMA가 4발화에 걸쳐 따라잡음)
+// → 남녀 모두 실제 lead가 4.0s대다. **코치별로 나눌 필요 없이 4.0 하나면 맞는다.**
+//
+// 같은 날 더 이른 측정에서는 2.87s가 나왔는데, 그건 네트워크가 더 빨랐을 때다
+// (dial_ms 430ms → 이후 606~633ms로 열화된 뒤 그대로 유지). 즉 이 값은 코드 상수가
+// 아니라 **그날의 경로 지연**을 반영한다.
 //
 // 옛값 6.5는 버퍼 2s·flush 시절 기준이라 첫 접속 브라우저마다 idle이 3.5s+ 어긋나
 // 초반 발화들의 머리 점프 원인이 됐다(실측 drift −3.5s). EMA(α=0.3)는 발화당 30%씩만
-// 좁혀서 수렴에 ~8발화가 걸리므로 시드 자체가 실측 근처여야 한다.
+// 좁혀 수렴에 ~8발화가 걸리므로, 시드가 틀리면 그동안 계속 튄다.
 //
-// ⚠️ 이 값은 **시작 버퍼와 한 세트**다. 버퍼를 2.0으로 되돌리면 실측 lead가 3.37s가 되고
-//    (7/27 A/B) 이 시드는 0.5s 어긋난다. 버퍼를 바꾸면 여기도 같이 재야 한다.
-const LEAD_ESTIMATE_DEFAULT = 2.9;
+// ⚠️ 이 값은 **시작 버퍼·스트림 CRF·경로 지연과 한 세트**다. 셋 중 하나라도 바뀌면
+//    실측 lead가 달라지므로 재측정해야 한다. 틀려도 EMA가 결국 수렴하니 치명적이진 않고,
+//    비용은 "세션 초반 몇 발화에서 머리가 튄다" 정도다.
+//    측정 근거: avatar/스크럼_0727_성능측정.md §6
+const LEAD_ESTIMATE_DEFAULT = 4.0;
 const LEAD_ESTIMATE_MIN = 1;
 const LEAD_ESTIMATE_MAX = 12;
 
@@ -227,6 +234,8 @@ export function AiAvatarStage({
     const startBufferSeconds = resolveStartBufferSeconds();
     let firstBinaryAt: number | null = null;
     let firstPlayAt: number | null = null;
+    /** 수신한 바이너리 청크 수. 청크마다 로그를 찍던 것을 대체한다(metrics로 방출). */
+    let binaryCount = 0;
     // socket.onopen 시각(sinceStart). 첫 재생까지 실제 걸린 시간(firstPlay-wsOpen)이 이번
     // 발화의 실측 lead이고, 이 값으로 leadEstimateRef를 EMA 갱신한다(아래 handlePlaying).
     let wsOpenAt: number | null = null;
@@ -300,6 +309,7 @@ export function AiAvatarStage({
         gated_by_done: gatedByDone,
         buffered_ahead_at_gate: bufferedAheadAtGate,
         play_called_at_s: playCalledAt,
+        binary_count: binaryCount,
         stall_count: stallCount + (stallStartedAt !== null ? 1 : 0),
         total_stall_ms: Math.round(totalStallMs + openStallMs),
         stall_open: stallStartedAt !== null,
@@ -619,11 +629,19 @@ export function AiAvatarStage({
         return;
       }
 
+      // 청크마다 console.info를 찍던 것을 카운터로 바꿨다(2026-07-27).
+      // 발화 1건이 300~700청크라 DevTools가 열려 있으면 그만큼 메인 스레드를 먹고,
+      // 콘솔이 도배돼 정작 봐야 할 [PERF]·[SYNC] 줄을 찾기 어려웠다.
+      // 총량은 metrics의 binary_count로 남으므로 정보 손실은 없다.
+      //
+      // ⚠️ 이 로그 제거가 첫 프레임을 앞당기지는 **않는다**. 릴레이의 first_binary_ms는
+      //    send보다 앞에서 찍히므로(service.py:627 < :629) N번째 로그가 N번째 마크를
+      //    늦출 수 없다. 첫 재생 이후 구간의 실비용만 줄어든다.
       if (event.data instanceof Blob) {
-        console.info("[MuseTalk]", "ws_blob", event.data.size);
+        binaryCount += 1;
         void event.data.arrayBuffer().then(pushChunk);
       } else if (event.data instanceof ArrayBuffer) {
-        console.info("[MuseTalk]", "ws_arraybuffer", event.data.byteLength);
+        binaryCount += 1;
         pushChunk(event.data);
       }
     };
