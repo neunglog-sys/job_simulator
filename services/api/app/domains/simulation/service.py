@@ -640,18 +640,27 @@ async def stream_npc_chat(
     prior_user_msgs = [m.content for m in history[:-1] if m.role == "user"]
     is_repeat = bool(prior_user_msgs) and _text_similarity(user_text, prior_user_msgs[-1]) >= REPEAT_SIMILARITY
 
+    # 코치는 '조건이 맞을 때만' 끼어드는 게 아니라 대화를 계속 지켜보며 매 턴 한마디씩 거든다
+    # (팀 요청). 트리거는 이제 발동 여부가 아니라 '어떤 톤으로 말할지'만 정한다:
+    #   keyword  = 정답 요구·짜증 감지
+    #   stagnant = 진전 없이 같은 자리를 맴돎
+    #   watching = 그 외 평소 — 지켜보다 짧게 거드는 톤
+    # 담당 NPC와의 대화면 절차 설명(process_learning) 중에도 거든다 — 막혔을 때 코치가 가장 필요하다.
     tip_trigger = None
-    if mission_active:
+    if npc_id in mission_npcs:
         if _should_coach_tip(user_text, npc_reply):
             tip_trigger = "keyword"
             new_state["coach_streak"] = 0
         elif not is_repeat and any(deltas.values()):
+            tip_trigger = "watching"
             new_state["coach_streak"] = 0  # 유의미한 발화 — 정체 아님
         else:
             streak = int(new_state.get("coach_streak", 0)) + 1
             if streak >= STAGNANT_TURNS:
                 tip_trigger = "stagnant"
                 streak = 0
+            else:
+                tip_trigger = "watching"
             new_state["coach_streak"] = streak
         simulation.state = new_state
         flag_modified(simulation, "state")
