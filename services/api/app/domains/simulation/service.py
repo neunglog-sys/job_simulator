@@ -439,11 +439,11 @@ async def stream_npc_chat(
     """NPC 대화 처리 — ("token", str) 조각들 후 ("final", dict) 하나를 yield. npc_id로 지목."""
     _ensure_active(simulation)
     step = _resolve_step(scenario, simulation.state)
-    # 업무 설명 대화는 SNS-01의 실제 브리핑이 있는 단계에서만 허용한다.
+    # 업무 설명 대화는 대화형 학습을 적용한 시나리오의 실제 브리핑 단계에서만 허용한다.
     # 클라이언트가 임의 문맥을 보내지 않고 서버의 시나리오 원문을 사용해 프롬프트 주입을 막는다.
     process_learning = (
         chat_mode == "process_learning"
-        and scenario.slug == "sns-01"
+        and scenario.slug in {"sns-01", "kts-03"}
         and bool(step.get("briefing"))
     )
     conversation_mode = "process_learning" if process_learning else "work"
@@ -870,9 +870,9 @@ async def finish_tour(
 def _minigame_result(payload: dict, declared: dict | None) -> dict:
     """미니게임 결과 페이로드 검증·정합 대조 → 저장할 결과 dict (순수 로직, 테스트 대상).
 
-    declared = 시나리오에 선언된 게임 정의(content.minigame). 선언이 있으면 그 엔진만
-    인정한다 — 프론트 자진신고를 믿지 않고 데이터와 대조 (사양 도착 후 전환, 2026-07-20).
-    엔진 불일치는 에러로 끊지 않고 rejected 표시로 저장만 한다: 4단계 흐름은 막지 않되
+    declared = 시나리오에 선언된 게임 정의(content.minigame). 선언이 있으면 게임 ID와
+    엔진을 대조한다 — 프론트 자진신고를 믿지 않고 데이터와 대조 (사양 도착 후 전환, 2026-07-20).
+    불일치는 에러로 끊지 않고 rejected 표시로 저장만 한다: 4단계 흐름은 막지 않되
     가짜 점수가 역량 블렌드에 못 들어가게 (aggregate.minigame_of가 거른다).
     """
     engine = str(payload.get("engine") or "").strip()
@@ -999,8 +999,20 @@ def _minigame_result(payload: dict, declared: dict | None) -> dict:
         if isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0:
             result[key] = round(float(value), 1)
 
+    metadata = payload.get("metadata")
+    game_id = str(metadata.get("gameId") or "").strip() if isinstance(metadata, dict) else ""
+    if game_id:
+        result["metadata"] = {"gameId": game_id}
+
     if declared:
-        if engine != declared["engine"]:
+        if game_id and game_id != declared.get("id"):
+            logger.warning(
+                "미니게임 ID 불일치 — 시나리오 선언 '%s' ≠ 수신 '%s' (저장만, 반영 안 함)",
+                declared.get("id"), game_id,
+            )
+            result["rejected"] = "game_mismatch"
+            result["declared_game_id"] = declared.get("id")
+        elif engine != declared["engine"]:
             logger.warning(
                 "미니게임 engine 불일치 — 시나리오 선언 '%s' ≠ 수신 '%s' (저장만, 반영 안 함)",
                 declared["engine"], engine,
@@ -1027,16 +1039,27 @@ async def save_minigame_result(
     엔진은 시나리오의 게임 선언과 대조하고(_minigame_result), 스텁·불일치도 저장은 한다 —
     반영 여부는 aggregate.minigame_of가 거른다.
     """
-    # 한 직무에 게임이 2~3개 붙는다. 첫 게임하고만 대조하면 두 번째 게임 결과가
-    # 통째로 engine_mismatch로 버려진다 — 선언된 게임 중 engine이 같은 것을 찾아 대조한다.
-    declared = minigame.declared_for_engine(scenario.slug, payload.get("engine"))
+    # 같은 엔진을 쓰는 게임이 여러 개일 수 있으므로 활동 결과의 gameId를 우선 대조한다.
+    metadata = payload.get("metadata")
+    game_id = (
+        metadata.get("activityGameId") or metadata.get("gameId")
+        if isinstance(metadata, dict)
+        else None
+    )
+    declared = (
+        minigame.declared_for_game(scenario.slug, game_id)
+        if game_id
+        else minigame.declared_for_engine(scenario.slug, payload.get("engine"))
+    )
     result = _minigame_result(payload, declared)
 
     state = dict(simulation.state)
-    # 게임이 여러 개여도 결과는 한 번만 온다 — 프론트(MiniGamePanel)가 게임들을 순서대로
-    # 돌린 뒤 정확도 평균 하나로 합쳐 보내기 때문. 그래서 슬롯도 하나로 충분하다.
-    # 게임별 점수를 따로 남기려면 전송 규약부터 바꿔야 하고, 그건 점수 설계라 팀 결정 사항.
+    # 최신 결과는 기존 호환 필드에 두고, 게임 ID가 있는 단계형 게임은 각 결과도 별도로 보존한다.
     state["minigame"] = result
+    if game_id:
+        game_results = dict(state.get("minigame_results") or {})
+        game_results[str(game_id)] = result
+        state["minigame_results"] = game_results
     simulation.state = state
     flag_modified(simulation, "state")
     await scoring.log_action(session, simulation.id, "minigame", result, {})

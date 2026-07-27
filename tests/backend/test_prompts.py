@@ -149,6 +149,48 @@ def test_report_prompt_includes_sns_design_wrong_submissions():
     assert "오답 횟수만으로 적합도나 성격을 단정하지 마세요" in out
 
 
+def test_report_prompt_includes_both_kts_minigames():
+    out = render_prompt(
+        "job-master/consult-report.md",
+        recommendations=[{"job_title": "판매원", "score": 80, "reason": "근거"}],
+        competencies=[
+            {"key": "task_management", "name": "업무관리", "description": "설명"}
+        ],
+        performance={
+            "scenario_title": "영업·판매·매장응대",
+            "total": 82,
+            "mission_avg": 85,
+            "competencies": {"task_management": 81},
+            "missions": [],
+            "quest": None,
+            "minigame": {
+                "engine": "match",
+                "score": 76,
+                "mistakes": 3,
+                "metadata": {"gameId": "kts-03-customer"},
+            },
+            "minigames": [
+                {
+                    "engine": "match",
+                    "score": 88,
+                    "mistakes": 1,
+                    "metadata": {"gameId": "kts-03-supply"},
+                },
+                {
+                    "engine": "match",
+                    "score": 76,
+                    "mistakes": 3,
+                    "metadata": {"gameId": "kts-03-customer"},
+                },
+            ],
+        },
+    )
+
+    assert "출고·안전 운반: 정확도 88점 · 실수 1회" in out
+    assert "고객 니즈 파악·상품 추천: 정확도 76점 · 실수 3회" in out
+    assert out.count("고객 니즈 파악·상품 추천") == 1
+
+
 def test_report_prompt_includes_conduct_when_present():
     # 대화 태도가 있으면 리포트가 근거로 쓸 수 있게 프롬프트에 실린다
     out = render_prompt(

@@ -165,7 +165,7 @@ supply_game_data: &supply_game_data
 # 팀장 확정: 두 게임은 별도 결과 화면을 거쳐 순서대로 실행한다.
 games:
   - id: kts-03-supply
-    step: m1
+    step: m5
     engine: match
     title: 오픈 진열분 출고·안전 운반
     intro: 출고 목록의 종류와 수량을 기억해 정확히 피킹하고, 카트 속도를 조절하며 장애물을 피해 매장까지 운반하세요.
@@ -175,7 +175,7 @@ games:
     scoring:
       supply_weight: 100
   - id: kts-03-customer
-    step: m2
+    step: m7
     engine: match
     title: 니즈-상품 추천 매칭
     intro: 손님의 요구를 확인하고 와인 정보를 살펴본 뒤 알맞은 상품을 추천하고, 돌발 환불 요구에도 올바르게 대응하세요.

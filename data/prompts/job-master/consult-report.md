@@ -40,7 +40,8 @@
 태도가 달랐다는 뜻이니 그 점을 짚으세요. 호감도가 낮다고 해서 직무 적합성을 통째로 낮게 서술하지는 마세요.
 {% endif %}
 
-{% set minigame = performance.get('minigame') %}{% if minigame %}- 실무 미니게임(손 조작 과제): {{ minigame.engine }} 유형 · 정확도 {{ minigame.score }}점{% if minigame.get('passed') is not none %} · {{ '기준 통과' if minigame.passed else '기준(' ~ minigame.pass_score ~ '점) 미달' }}{% endif %}{% if minigame.get('mistakes') is not none %} · 실수 {{ minigame.mistakes }}회{% endif %}{% if minigame.get('time_seconds') is not none %} · {{ minigame.time_seconds }}초{% endif %}
+{% set minigames = performance.get('minigames') or [] %}
+{% set minigame = performance.get('minigame') %}{% if minigame and (minigames | length <= 1) %}- 실무 미니게임(손 조작 과제): {{ minigame.engine }} 유형 · 정확도 {{ minigame.score }}점{% if minigame.get('passed') is not none %} · {{ '기준 통과' if minigame.passed else '기준(' ~ minigame.pass_score ~ '점) 미달' }}{% endif %}{% if minigame.get('mistakes') is not none %} · 실수 {{ minigame.mistakes }}회{% endif %}{% if minigame.get('time_seconds') is not none %} · {{ minigame.time_seconds }}초{% endif %}
 
 미니게임 해석 지침: 대화·문서형 미션과 달리 **손으로 직접 해본 실무 조작**(결함 찾기·분류·
 계량 등)의 결과입니다. 이미 해당 역량 점수에 일부 반영되어 있으니 점수를 다시 얹지 말고,
@@ -48,16 +49,18 @@
 보완점의 근거로 인용하세요.
 {% endif %}
 
-{% set minigames = performance.get('minigames') or [] %}{% if minigames %}
-### SNS 실무 미니게임 원본 수행 기록
+{% if minigames and ((minigames | length) > 1 or minigames[0].engine in ['research', 'design']) %}
+### 단계별 실무 미니게임 수행 기록
 {% for game in minigames %}
 {% set metadata = game.get('metadata') or {} %}
 {% if game.engine == 'research' %}- 자료 수집: 5개 스테이지 완료 · 오답 선택 {{ metadata.get('totalWrongAttempts', game.get('mistakes', 0)) }}회
 {% elif game.engine == 'design' %}- 게시물 시안 제작: 완성 · 오답 제출 {{ metadata.get('wrongSubmissionCount', game.get('mistakes', 0)) }}회 · 배치 {{ metadata.get('moveCount', 0) }}회 · 되돌리기 {{ metadata.get('undoCount', 0) }}회 · 초기화 {{ metadata.get('resetCount', 0) }}회
+{% elif metadata.get('gameId') == 'kts-03-supply' %}- 출고·안전 운반: 정확도 {{ game.get('score', game.get('accuracy', 0)) }}점 · 실수 {{ game.get('mistakes', 0) }}회{% if game.get('time_seconds') is not none %} · {{ game.time_seconds }}초{% endif %}
+{% elif metadata.get('gameId') == 'kts-03-customer' %}- 고객 니즈 파악·상품 추천: 정확도 {{ game.get('score', game.get('accuracy', 0)) }}점 · 실수 {{ game.get('mistakes', 0) }}회{% if game.get('time_seconds') is not none %} · {{ game.time_seconds }}초{% endif %}
 {% endif %}
 {% endfor %}
 
-SNS 미니게임 해석 지침: 오답 횟수는 사용자가 실제로 제출하거나 선택한 뒤 수정한 횟수입니다.
+단계별 미니게임 해석 지침: 오답·실수 횟수는 사용자가 실제로 제출하거나 조작한 뒤 수정한 횟수입니다.
 오답이 적으면 샘플 관찰과 구성 판단의 근거로, 반복되면 확인 습관과 세부 요소 대조가 필요한
 보완점의 근거로만 사용하세요. 오답 횟수만으로 적합도나 성격을 단정하지 마세요.
 {% endif %}

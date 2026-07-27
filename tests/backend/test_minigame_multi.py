@@ -117,6 +117,22 @@ def test_declared_for_engine_picks_the_matching_game(monkeypatch, tmp_path):
     assert minigame.declared_for_engine("sns-01", "unknown")["engine"] == "match"
 
 
+def test_declared_for_game_distinguishes_games_using_the_same_engine(monkeypatch):
+    """kts-03의 두 match 게임은 engine이 아니라 gameId로 구분해야 한다."""
+    monkeypatch.setattr(
+        minigame,
+        "minigames_for",
+        lambda slug: [
+            {"id": "kts-03-supply", "engine": "match", "pass_score": 70},
+            {"id": "kts-03-customer", "engine": "match", "pass_score": 70},
+        ],
+    )
+
+    assert minigame.declared_for_game("kts-03", "kts-03-supply")["id"] == "kts-03-supply"
+    assert minigame.declared_for_game("kts-03", "kts-03-customer")["id"] == "kts-03-customer"
+    assert minigame.declared_for_game("kts-03", "unknown")["id"] == "kts-03-supply"
+
+
 def test_result_is_accepted_when_it_matches_any_declared_game(monkeypatch):
     """두 번째 게임의 engine으로 와도 통과해야 한다 — 첫 게임하고만 비교하면 전부 버려진다.
 
@@ -142,3 +158,33 @@ def test_result_is_accepted_when_it_matches_any_declared_game(monkeypatch):
         {"engine": "bogus", "accuracy": 99}, minigame.declared_for_engine("x", "bogus")
     )
     assert bogus["rejected"] == "engine_mismatch"
+
+
+def test_result_keeps_and_validates_activity_game_id():
+    from app.domains.simulation import service
+
+    declared = {
+        "id": "kts-03-customer",
+        "engine": "match",
+        "pass_score": 70,
+    }
+    accepted = service._minigame_result(
+        {
+            "engine": "match",
+            "accuracy": 82,
+            "metadata": {"gameId": "kts-03-customer"},
+        },
+        declared,
+    )
+    assert accepted["metadata"]["gameId"] == "kts-03-customer"
+    assert not accepted.get("rejected")
+
+    rejected = service._minigame_result(
+        {
+            "engine": "match",
+            "accuracy": 82,
+            "metadata": {"gameId": "kts-03-supply"},
+        },
+        declared,
+    )
+    assert rejected["rejected"] == "game_mismatch"

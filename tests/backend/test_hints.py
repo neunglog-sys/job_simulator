@@ -68,6 +68,10 @@ def test_weak_threshold_follows_pass_score():
 
 STEP_MID = {"id": "s2", "task": {"on_pass": "s3"}}
 STEP_LAST = {"id": "s3", "task": {"on_pass": "__end__"}}
+STEP_ACTIVITY = {
+    "id": "s4",
+    "activity": {"kind": "minigame", "game_id": "demo-game"},
+}
 
 
 def test_quest_fires_on_probability():
@@ -78,6 +82,11 @@ def test_quest_fires_on_probability():
 def test_quest_forced_on_terminal_step_entry():
     # 종착 스텝(on_pass=__end__) 진입 = 마지막 기회 → 강제 (배열 순서 무관)
     assert should_fire_quest(STEP_LAST, "pending", roll=0.99)
+
+
+def test_quest_forced_before_followup_activity_entry():
+    # 일반 과제가 끝나고 미니게임 흐름으로 넘어가면 퀘스트를 발동시킬 마지막 기회다.
+    assert should_fire_quest(STEP_ACTIVITY, "pending", roll=0.99)
 
 
 def test_quest_never_fires_twice():

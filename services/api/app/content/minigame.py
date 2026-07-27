@@ -83,6 +83,15 @@ def declared_for_engine(slug: str, engine: str | None) -> dict | None:
     return next((g for g in games if g.get("engine") == name), games[0])
 
 
+def declared_for_game(slug: str, game_id: str | None) -> dict | None:
+    """제출된 게임 ID에 해당하는 선언. 없으면 첫 게임을 돌려 불일치로 기록한다."""
+    games = minigames_for(slug)
+    if not games:
+        return None
+    name = str(game_id or "").strip()
+    return next((game for game in games if game.get("id") == name), games[0])
+
+
 def _sanitize_all(doc: object, filename: str, slug: str) -> list[dict]:
     """파일 한 개 → 게임 목록. `games:` 리스트면 다중, 아니면 단일 게임으로 취급."""
     if not isinstance(doc, dict):
