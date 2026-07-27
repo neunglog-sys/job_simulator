@@ -102,11 +102,11 @@
 }
 
 .card[data-selection-state="correct"]::after {
-  box-shadow: inset 0 0 0 10px #0bd01f;
+  box-shadow: inset 0 0 0 6px #18c93d;
 }
 
 .card[data-selection-state="incorrect"]::after {
-  box-shadow: inset 0 0 0 10px #fb0000;
+  box-shadow: inset 0 0 0 6px #f13d50;
 }
 
 .card:disabled {
@@ -121,6 +121,37 @@
   transform-origin: center;
   pointer-events: none;
   user-select: none;
+}
+
+.resultBadge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  box-shadow:
+    0 6px 16px rgba(9, 16, 31, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+}
+
+.resultBadge[data-result="correct"] {
+  background: linear-gradient(145deg, #28db58, #08a92c);
+}
+
+.resultBadge[data-result="incorrect"] {
+  background: linear-gradient(145deg, #ff6070, #d91f39);
+}
+
+.resultBadge svg {
+  width: 20px;
+  height: 20px;
 }
 
 .clear {

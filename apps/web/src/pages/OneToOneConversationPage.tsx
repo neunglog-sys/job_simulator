@@ -11,6 +11,10 @@ import { FixedNavigationMenu } from "../components/conversation/FixedNavigationM
 import { PanelIndexTabs } from "../components/conversation/PanelIndexTabs";
 import { RecommendedJobsModal } from "../components/conversation/RecommendedJobsModal";
 import { SurveyDrawer } from "../components/conversation/SurveyDrawer";
+import {
+  VirtualCompanyGateModal,
+  type VirtualCompanyGateReason,
+} from "../components/conversation/VirtualCompanyGateModal";
 import { YouthPolicyCard } from "../components/conversation/YouthPolicyCard";
 import { YouthPolicyModal } from "../components/conversation/YouthPolicyModal";
 import { FRONTEND_ENDPOINTS } from "../config/endpoints";
@@ -61,7 +65,12 @@ import type { SurveyAnswers, SurveyQuestionData } from "../types/survey";
 // 진행 중이던 상담 id를 기억해 이어받는다 — 새로고침마다 새 상담을 만들면 대화 이력이 날아간다.
 const CONSULTATION_RESUME_KEY = "consultation:current";
 
-type ActiveConversationModal = "history" | "recommendations" | "youthPolicy" | null;
+type ActiveConversationModal =
+  | "history"
+  | "recommendations"
+  | "virtualCompanyGate"
+  | "youthPolicy"
+  | null;
 
 type ConversationPerfTrace = {
   id: string;
@@ -350,6 +359,8 @@ export function OneToOneConversationPage() {
   const [surveyError, setSurveyError] = useState<string | null>(null);
   const [reportState, setReportState] = useState<ReportState>(INITIAL_REPORT_STATE);
   const [activeModal, setActiveModal] = useState<ActiveConversationModal>(null);
+  const [virtualCompanyGateReason, setVirtualCompanyGateReason] =
+    useState<VirtualCompanyGateReason>("survey");
   const [consultationHistory, setConsultationHistory] = useState<ConsultationSummary[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -1804,6 +1815,60 @@ export function OneToOneConversationPage() {
     setRecommendationLoading(false);
   }, [consultationId, ensureRecommendation]);
 
+  const handleVirtualCompanyEntry = useCallback(async () => {
+    if (!surveyCompleted || !consultationId) {
+      setVirtualCompanyGateReason("survey");
+      setActiveModal("virtualCompanyGate");
+      return;
+    }
+
+    const enterScenario = (slug: string, targetConsultationId: number) => {
+      const params = new URLSearchParams({
+        slug,
+        consultationId: String(targetConsultationId),
+      });
+      window.location.assign(`${FRONTEND_ENDPOINTS.scenario}?${params.toString()}`);
+    };
+
+    const openRecommendationOrScenarioGate = (current: Recommendation | null) => {
+      if (!current) {
+        setVirtualCompanyGateReason("recommendation");
+        setActiveModal("virtualCompanyGate");
+        return;
+      }
+
+      const topSlug = current.results[0]?.scenario_slug;
+      if (!topSlug) {
+        setVirtualCompanyGateReason("scenario");
+        setActiveModal("virtualCompanyGate");
+        return;
+      }
+
+      setActiveModal(null);
+      enterScenario(topSlug, consultationId);
+    };
+
+    if (recommendation?.consultation_id === consultationId) {
+      openRecommendationOrScenarioGate(recommendation);
+      return;
+    }
+
+    setVirtualCompanyGateReason("checking");
+    setActiveModal("virtualCompanyGate");
+
+    try {
+      const savedRecommendation = await fetchLatestRecommendation(consultationId);
+      if (savedRecommendation) {
+        recommendationCacheRef.current = savedRecommendation;
+        setRecommendation(savedRecommendation);
+      }
+      openRecommendationOrScenarioGate(savedRecommendation);
+    } catch {
+      setVirtualCompanyGateReason("error");
+      setActiveModal("virtualCompanyGate");
+    }
+  }, [consultationId, recommendation, surveyCompleted]);
+
   const handleConsultationSelect = useCallback(
     async (nextConsultationId: number) => {
       if (nextConsultationId === consultationId) {
@@ -1889,14 +1954,7 @@ export function OneToOneConversationPage() {
     }
 
     if (id === "virtual-company") {
-      const topSlug = recommendation?.results[0]?.scenario_slug;
-      const params = new URLSearchParams();
-      if (topSlug) params.set("slug", topSlug);
-      // 추천 목록 팝업의 "체험하기"와 동일하게 consultationId를 실어야 완주 시 이 상담의
-      // 최종 리포트에 반영된다 (없으면 ScenarioGamePage가 리포트 생성을 건너뜀).
-      if (consultationId) params.set("consultationId", String(consultationId));
-      const query = params.toString();
-      window.location.assign(query ? `${FRONTEND_ENDPOINTS.scenario}?${query}` : FRONTEND_ENDPOINTS.scenario);
+      void handleVirtualCompanyEntry();
       return;
     }
 
@@ -1948,11 +2006,10 @@ export function OneToOneConversationPage() {
 
     window.dispatchEvent(new CustomEvent(`jobiverse:${id}`));
   }, [
-    consultationId,
     finishVoiceSession,
+    handleVirtualCompanyEntry,
     loadConsultationHistory,
     loadRecommendedJobs,
-    recommendation,
     resetAvatarSpeech,
     surveyCompleted,
   ]);
@@ -2095,6 +2152,29 @@ export function OneToOneConversationPage() {
                 // (없으면 ScenarioGamePage가 리포트 생성을 건너뜀).
                 if (consultationId) params.set("consultationId", String(consultationId));
                 window.location.assign(`${FRONTEND_ENDPOINTS.scenario}?${params.toString()}`);
+              }}
+              onClose={() => setActiveModal(null)}
+            />
+          ) : null}
+          {activeModal === "virtualCompanyGate" ? (
+            <VirtualCompanyGateModal
+              key="virtual-company-gate"
+              reason={virtualCompanyGateReason}
+              onAction={() => {
+                if (virtualCompanyGateReason === "survey") {
+                  setSurveyError(null);
+                  setActiveModal(null);
+                  setActivePanel("survey");
+                  return;
+                }
+
+                if (virtualCompanyGateReason === "error") {
+                  void handleVirtualCompanyEntry();
+                  return;
+                }
+
+                setActiveModal("recommendations");
+                void loadRecommendedJobs();
               }}
               onClose={() => setActiveModal(null)}
             />

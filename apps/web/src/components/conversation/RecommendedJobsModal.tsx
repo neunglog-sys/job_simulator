@@ -52,10 +52,10 @@ export function RecommendedJobsModal({
       onClose={onClose}
     >
       {loading ? (
-        <div className={styles.recommendedJobGrid} aria-label="추천 직무 불러오는 중">
-          {Array.from({ length: 3 }, (_, index) => (
-            <span className={styles.recommendedJobSkeleton} key={index} />
-          ))}
+        <div className={styles.recommendedJobsLoading} role="status" aria-live="polite">
+          <span className={styles.recommendedJobsLoadingRing} aria-hidden="true" />
+          <strong>추천 직무를 분석하고 있어요.</strong>
+          <p>설문과 상담 내용을 바탕으로 가장 잘 맞는 직무를 찾는 중이에요.</p>
         </div>
       ) : error ? (
         <div className={styles.conversationModalState} role="alert">

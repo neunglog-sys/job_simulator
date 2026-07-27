@@ -8,7 +8,7 @@ type ConversationModalShellProps = {
   title: string;
   description: string;
   icon: Icon;
-  size?: "history" | "recommendations";
+  size?: "history" | "recommendations" | "gate";
   onClose: () => void;
   children: ReactNode;
 };
@@ -25,6 +25,12 @@ export function ConversationModalShell({
   const titleId = useId();
   const descriptionId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  const sizeClass =
+    size === "history"
+      ? styles.conversationModalHistory
+      : size === "recommendations"
+        ? styles.conversationModalRecommendations
+        : styles.conversationModalGate;
 
   useEffect(() => {
     const panel = panelRef.current;
@@ -73,7 +79,7 @@ export function ConversationModalShell({
     >
       <motion.div
         ref={panelRef}
-        className={`${styles.conversationModal} ${styles[`conversationModal${size === "history" ? "History" : "Recommendations"}`]}`}
+        className={`${styles.conversationModal} ${sizeClass}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

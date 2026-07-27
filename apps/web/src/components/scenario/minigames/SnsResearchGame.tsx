@@ -1,4 +1,5 @@
 import { useEffect, useReducer, useRef, useState, type CSSProperties } from "react";
+import { Check, X } from "@phosphor-icons/react";
 import { SNS_RESEARCH_STAGES } from "../../../data/snsResearchStages";
 import styles from "../../../styles/snsResearchGame.module.css";
 import type { EngineProps } from "./shared";
@@ -241,8 +242,17 @@ export function SnsResearchGame({ game, onComplete }: EngineProps) {
                       : item.objectPosition?.endsWith("top")
                         ? "center top"
                       : "center",
-                  }}
-                />
+                    }}
+                  />
+                {selected ? (
+                  <span
+                    className={styles.resultBadge}
+                    data-result={correct ? "correct" : "incorrect"}
+                    aria-hidden="true"
+                  >
+                    {correct ? <Check weight="bold" /> : <X weight="bold" />}
+                  </span>
+                ) : null}
               </button>
             );
           })}
