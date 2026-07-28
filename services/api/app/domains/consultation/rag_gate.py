@@ -129,17 +129,33 @@ def should_run_rag(text: str) -> bool:
 # ── 스코프(하이브리드) ─────────────────────────────────────
 # 상담(1:1 코치) RAG는 job_code 스코프 없이 전역검색이라, 직무특정 어휘가 없는 범용질문은
 # 같은 계열 여러 직무가 섞여 나온다(거리컷으론 못 막음). 검색 결과의 직무 분포로 판단:
-#   - 최상위(가장 가까운) 직무가 지배적(단일 직무거나 2청크 이상) → 그 직무로 좁힘(일관 답변)
+#   - 특정 직무가 지배적(단일 직무거나 2청크 이상) → 그 직무로 좁힘(일관 답변)
 #   - 여러 직무에 1청크씩 흩어짐(지배 없음) → 빈 결과 = 주입 생략(범용 답변, 억지 직무 선택 안 함)
 # chunks는 거리 오름차순(가장 가까운 게 [0]). DocChunk import 없이 .job_code만 덕타이핑으로 씀.
-# ⚠️ 한계(v1, count 기반): 거리 margin을 안 본다 → 근소차 최근접을 '지배'로 볼 수 있고,
-#   강한 단일청크 매칭이 청크 수 1이라는 이유로 범용처리될 수 있다. 거리 기반 정밀화는
-#   search_knowledge가 distance를 반환해야 해서(호출부 3곳 영향) 후속 과제로 남김.
+#
+# v2(2026-07-28): 판정 기준을 '1등 청크의 직무' → '최빈 직무'로 바꿨다.
+#   v1은 chunks[0].job_code만 봐서, 정답 직무가 다수인데도 1등이 아니면 통째로 버렸다.
+#   실측 예: 후보 [J021, J058, J060, J058, J058, J059] — 정답 J058이 6개 중 3개로
+#   최다인데 1등이 J021이라 same=[J021] 1개 → 조건 미달 → 6개 전부 폐기.
+#   지식이 있는데도 한 건도 주입되지 않았다(게이트 탈락 3건 중 2건이 이 유형).
+#   골든셋 실측에서 후보 6개 기준 '최빈 직무 == 정답 직무'가 15/18이었다.
+# 동률(예 2:2)은 **거리 합이 작은 쪽**을 택한다 — 같은 빈도면 질문에 더 가까운 쪽이
+#   맞을 가능성이 높다. 빈도만 보면 동률에서 다시 임의 선택이 된다(팀 합의 2026-07-28).
+# chunks 순서가 거리 오름차순이므로 인덱스 합을 거리 합의 프록시로 쓴다 — search_knowledge가
+#   distance를 반환하지 않아(호출부 3곳 영향) 실제 거리 대신 순위를 쓰는 것이며, 순위가
+#   거리의 단조 변환이라 대소 비교 목적에는 동치다.
 def scope_chunks(chunks: list, top_k: int) -> list:
     if not chunks:
         return []
-    top_job = chunks[0].job_code
-    same = [c for c in chunks if c.job_code == top_job]
-    if len({c.job_code for c in chunks}) == 1 or len(same) >= 2:
-        return same[:top_k]
-    return []
+    jobs = [c.job_code for c in chunks]
+    if len(set(jobs)) == 1:
+        return chunks[:top_k]
+
+    # (빈도 내림, 순위합 오름) 순으로 지배 직무 선정
+    best = min(
+        set(jobs),
+        key=lambda j: (-jobs.count(j), sum(i for i, x in enumerate(jobs) if x == j)),
+    )
+    if jobs.count(best) < 2:
+        return []  # 어느 직무도 2청크 이상이 아님 = 지배 없음 → 주입 생략
+    return [c for c in chunks if c.job_code == best][:top_k]
