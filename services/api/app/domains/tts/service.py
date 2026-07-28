@@ -13,6 +13,7 @@ import io
 import logging
 import math
 import struct
+import time
 import wave
 
 from app.core.config import settings
@@ -69,12 +70,32 @@ async def _elevenlabs_mp3(text: str, voice: str | None = None) -> bytes:
         return res.content
 
 
+def _log_tts(provider: str, text: str, voice: str | None, t0: float, size: int) -> None:
+    """어느 단계가 응답했는지 한 줄로 남긴다.
+
+    폴백은 조용히 일어난다 — 쿼터가 걸리면 사용자는 그대로 gTTS 로봇 목소리를,
+    최악엔 0.6초 비프음을 듣는데 로그만 봐서는 알 수 없었다. 품질 지표(WER·MCD)를
+    잴 때도 어느 샘플이 폴백으로 합성됐는지 모르면 결과가 통째로 오염된다.
+    chars는 ElevenLabs 문자 과금 집계에도 그대로 쓴다.
+    """
+    logger.info(
+        "[TTS] provider=%s chars=%d voice=%s elapsed_ms=%.0f bytes=%d",
+        provider,
+        len(text),
+        voice or "-",
+        (time.monotonic() - t0) * 1000,
+        size,
+    )
+
+
 async def synthesize(text: str, voice: str | None = None) -> tuple[bytes, str]:
     """텍스트 → (오디오 바이트, media_type)."""
+    t0 = time.monotonic()
     # 팀 확정 TTS — 키 있으면 최우선 (gTTS 팝·과도한 쉼 없음)
     if settings.elevenlabs_api_key:
         try:
             audio = await _elevenlabs_mp3(text, voice)
+            _log_tts("elevenlabs", text, voice or settings.elevenlabs_voice_id, t0, len(audio))
             return audio, "audio/mpeg"
         except Exception:  # noqa: BLE001 — 키 오류·쿼터·네트워크 등. 아래 폴백으로 연동 유지
             logger.warning("ElevenLabs 실패 → 다음 폴백(OpenAI/gTTS)", exc_info=True)
@@ -88,13 +109,16 @@ async def synthesize(text: str, voice: str | None = None) -> tuple[bytes, str]:
             voice=voice or settings.tts_voice,
             input=text,
         )
+        _log_tts("openai", text, voice or settings.tts_voice, t0, len(res.content))
         return res.content, "audio/mpeg"
 
     # 임시 — ElevenLabs 키 확보 전까지 gTTS로 실제 한국어 발화를 낸다
     try:
         audio = await asyncio.to_thread(_gtts_mp3_sync, text)
-        logger.info("TTS: OPENAI_API_KEY 없음 → gTTS(임시) 사용")
+        _log_tts("gtts", text, None, t0, len(audio))
         return audio, "audio/mpeg"
     except Exception:  # noqa: BLE001 — gTTS 미설치/네트워크 차단 등. 비프음으로라도 연동은 유지
         logger.warning("gTTS 실패 → 비프음 폴백 (아바타 립싱크 검증엔 부적합)", exc_info=True)
-        return _mock_beep_wav(), "audio/wav"
+        beep = _mock_beep_wav()
+        _log_tts("beep", text, None, t0, len(beep))
+        return beep, "audio/wav"

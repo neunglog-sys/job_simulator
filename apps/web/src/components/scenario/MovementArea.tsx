@@ -13,6 +13,7 @@ import {
   type PointerEvent,
 } from "react";
 import type { GameMapData, GameNpc } from "../../lib/api";
+import { withGwa } from "../../lib/korean";
 import { NPC_FRAME, NpcSprite, type NpcFacing } from "./NpcSprite";
 import { PlayerSprite, PLAYER_SIZE } from "./PlayerSprite";
 import type { Position } from "./types";
@@ -1343,7 +1344,7 @@ export function MovementArea({
                     approachStallRef.current = 0;
                   }
                 }}
-                aria-label={`${marker.name}와 대화하기`}
+                aria-label={`${withGwa(marker.name)} 대화하기`}
               >
                 {marker.isActive ? (
                   <span className={styles.npcMarkerBadge} aria-hidden="true">

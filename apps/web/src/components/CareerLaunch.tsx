@@ -23,6 +23,7 @@ import { CLIENT_EVENTS, FRONTEND_ENDPOINTS } from "../config/endpoints";
 import { AVATAR_IMAGE, LANDING_COPY } from "../content";
 import { warmupAvatar } from "../lib/api";
 import { logout, useAuth } from "../lib/auth";
+import { withEul } from "../lib/korean";
 import { AuthModal, type AuthMode } from "./AuthModal";
 import { LogoutConfirmDialog } from "./LogoutConfirmDialog";
 
@@ -503,7 +504,7 @@ function CareerPlanet({
         className="career-node"
         style={style}
         role="img"
-        aria-label={`${career.name}을 상징하는 직무 행성`}
+        aria-label={`${withEul(career.name)} 상징하는 직무 행성`}
       >
         <span className="planet-float">
           <span className="planet-shell">

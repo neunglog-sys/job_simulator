@@ -59,6 +59,27 @@ def test_profile_summary_top_two():
     assert "실행" in summary and "소통" in summary
 
 
+# summary_label이 전부 '…것을 선호'로 끝난다. 조사를 그대로 이어 붙이면
+# "…선호이고, …선호인 것 같아요"라는 비문이 설문 직후 첫 대사로 나간다(2026-07-28 발견).
+def test_summary_and_avatar_lines_are_grammatical():
+    profile = {"realistic": 90, "social": 70}
+    summary = profile_summary(profile)
+    opening = avatar_lines(profile)[0]
+    for broken in ("선호이고", "선호인", "선호이"):
+        assert broken not in summary, f"{summary!r}에 비문 {broken!r}"
+        assert broken not in opening, f"{opening!r}에 비문 {broken!r}"
+    assert "선호하고" in summary
+    assert "선호하시는 것 같아요" in opening
+
+
+def test_flat_profile_does_not_produce_broken_sentence():
+    # 성향이 하나도 안 잡히면 요약 문구를 억지로 끼우지 않는다
+    # (예전엔 "…드러나지 않음인 것 같아요"가 나갔다).
+    opening = avatar_lines({})[0]
+    assert "않음인" not in opening
+    assert "뚜렷하게 드러나지는 않았어요" in opening
+
+
 @pytest.mark.parametrize(
     "dim", ["realistic", "investigative", "artistic", "social", "enterprising", "conventional"]
 )
