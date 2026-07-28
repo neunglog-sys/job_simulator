@@ -15,3 +15,30 @@ interest_profile:
   social: 4
   enterprising: 2
   conventional: 3
+# 조사 데이터: ms-08(미용사·헤어) 리서치 검증본(2026-07-27) 기준. 급여는 career.go.kr 미용사 SEQ=1122 fetch 2회 일치로 확정.
+education_requirement:
+  value: >-
+    미용사(일반) 국가기술자격을 취득한 뒤 시장·군수·구청장의 면허를 받아야 영업할 수 있다
+    (공중위생관리법 제6조). 무면허 미용업 종사는 금지된다(제8조). 법정 학력 제한은 없으며,
+    미용 관련 교육·현장 수습을 거치는 것이 일반적이다.
+  evidence_type: descriptive_text
+salary:
+  entry_level:
+    min_krw: null
+    max_krw: null
+    basis: >-
+      공식 출처에서 신입 미용사 초임으로 명시된 수치를 확인하지 못함.
+      신입은 수습·성과급(인센티브) 구조라 재직자 중앙값과 크게 달라 초임으로 대체하지 않음.
+  reference_statistics:
+    median_annual_krw: 31058440
+    statistic_type: median
+    population: "미용사 재직자 전체; 신입 초임 아님"
+    reference_year: null
+    cross_check_flag: true
+    cross_check_note: >-
+      워크넷 직업정보(career.go.kr 미용사 SEQ=1122): 하위25% 2,257만 / 중앙값 3,105.844만 /
+      상위25% 3,716만. 페이지에 조사연도 미표기라 reference_year=null — 워크넷 원본에서 연도 확인 권장.
+certifications:
+  - name: "미용사(일반) — 국가기술자격"
+    tier: related
+status: cross_check_required

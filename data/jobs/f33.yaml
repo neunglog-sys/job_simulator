@@ -15,3 +15,30 @@ interest_profile:
   social: 1
   enterprising: 2
   conventional: 4
+# 조사 데이터: ys-02(육군 부사관) 리서치 검증본(2026-07-27) 기준.
+# 시나리오는 의무복무 병(초병) 관점이나, 병은 '직업'이 아니라 추천 대상은 직업군인(부사관).
+# 하사 봉급(월)과 부사관 재직 연봉은 별도 통계 — 환산·합산 금지.
+education_requirement:
+  value: >-
+    직업군인 진로는 부사관 모집시험·양성교육을 거쳐 하사로 임관하는 경로다(자격증이 아니라 임용).
+    ※ 시나리오는 의무복무 병(초병) 관점이지만, 의무복무 병은 '직업'이 아니므로 추천 대상은 직업군인(부사관)이다.
+  evidence_type: descriptive_text
+salary:
+  entry_level:
+    min_krw: null
+    max_krw: null
+    basis: >-
+      직업군인(부사관) 초임은 군인 봉급표상 하사 1호봉 월 2,133,000원(2026, 수당 제외 기본급).
+      월 봉급이라 연봉과 단위가 다르며 ×12 환산은 수당 누락으로 과소표시되어 환산하지 않는다.
+      (의무복무 병 봉급은 직업 임금이 아니므로 포함하지 않음.)
+  reference_statistics:
+    median_annual_krw: 35500000
+    statistic_type: mean
+    population: "부사관 재직자 평균연봉(신입 아님); 워크피디아 직업코드 K000007508"
+    reference_year: null
+    cross_check_flag: true
+    cross_check_note: >-
+      부사관 평균연봉 35,500,000원. 페이지에 조사연도 미표기라 reference_year=null.
+      워크피디아 페이지가 JS렌더라 값 직접 확인 못 함 — 제출 전 워크넷/워크피디아 1회 확인 권장.
+      초임 봉급(하사 1호봉 월 2,133,000원, 2026)과는 단위·성격이 다른 별도 통계.
+status: cross_check_required

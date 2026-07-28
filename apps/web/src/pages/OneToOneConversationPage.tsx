@@ -21,6 +21,7 @@ import { FRONTEND_ENDPOINTS } from "../config/endpoints";
 import { initialConversationMessages } from "../data/conversationMockData";
 import {
   ApiError,
+  attachStoredResume,
   createConsultation,
   createRecommendation,
   createReport,
@@ -908,6 +909,11 @@ export function OneToOneConversationPage() {
         const id = await resumeOrCreateConsultation();
         if (cancelled) return;
         setConsultationId(id);
+
+        // 마이페이지에 저장해 둔 이력서가 있으면 상담 시작과 함께 백그라운드로 자동 분석·연결(B안).
+        // 사전 설문 게이트 덕에 자유대화 전까지 시간이 넉넉해 첫 발화 전에 끝난다. 저장된 이력서가
+        // 없거나 분석이 실패해도 상담 시작을 막지 않도록 fire-and-forget(에러 무시).
+        void attachStoredResume(id).catch(() => undefined);
 
         const [history, survey] = await Promise.all([
           fetchConsultationMessages(id),
@@ -1798,6 +1804,7 @@ export function OneToOneConversationPage() {
       const consultation = await createConsultation();
       sessionStorage.setItem(CONSULTATION_RESUME_KEY, String(consultation.id));
       setConsultationId(consultation.id);
+      void attachStoredResume(consultation.id).catch(() => undefined);
       const survey = await fetchSurveyItems(consultation.id);
       setSurveyQuestions(toSurveyQuestions(survey.items));
     } catch {
@@ -1931,6 +1938,7 @@ export function OneToOneConversationPage() {
       setConsultationId(nextConsultationId);
       setAvatarStatus("thinking");
       sessionStorage.setItem(CONSULTATION_RESUME_KEY, String(nextConsultationId));
+      void attachStoredResume(nextConsultationId).catch(() => undefined);
 
       try {
         const [history, survey] = await Promise.all([
