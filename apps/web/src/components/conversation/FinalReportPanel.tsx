@@ -5,6 +5,7 @@ import {
   DownloadSimple,
   GraduationCap,
   ListChecks,
+  WarningCircle,
 } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 import { ApiError, fetchReportPdfBlob } from "../../lib/api";
@@ -104,7 +105,9 @@ export function FinalReportPanel({ reportState, onRetry }: FinalReportPanelProps
         {phase === "error" ? (
           <article className={styles.reportSection}>
             <h3>
-              <CheckCircle weight="fill" aria-hidden="true" /> 리포트를 만들지 못했어요
+              {/* 실패 상태에 성공 아이콘(CheckCircle)이 붙어 있었다 — 문구는 실패인데
+                  체크 표시라 리포트가 만들어진 것처럼 읽혔다. */}
+              <WarningCircle weight="fill" aria-hidden="true" /> 리포트를 만들지 못했어요
             </h3>
             <p>{message}</p>
             <button type="button" onClick={onRetry} style={retryButtonStyle}>

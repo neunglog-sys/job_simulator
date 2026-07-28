@@ -128,6 +128,7 @@ def _clean_tip(text: str) -> str:
 
 async def generate_tip(
     *, mission: str, criteria: list, user_text: str, npc_reply: str,
+    npc_name: str | None = None, npc_kind: str | None = None,
     knowledge: str | None = None, trigger: str = "keyword",
 ) -> str | None:
     """대화 중 실시간 코치 TIP — 문장형 조언. 실패 시 None(비차단).
@@ -135,11 +136,16 @@ async def generate_tip(
     trigger: "keyword"(정답요구·짜증 감지) 또는 "stagnant"(진전 없이 대화만 여러 턴 이어짐,
     simulation/service.py의 STAGNANT_TURNS) — 프롬프트 톤 분기용.
     knowledge: 그 직무 스코프 RAG 지식(NPC와 동일 청크 재사용). 있으면 그 사실 범위로 그라운딩.
+
+    npc_name·npc_kind: 지금 상대가 누구인지. 예전엔 대사(`npc_reply`)만 넘겨서 코치가
+    사수인지 고객인지 모르는 채로 호칭을 골랐다(2026-07-28 측정에서 호칭 오류 1/26).
+    "사수님께 여쭤보세요"를 고객에게 하는 식의 오류는 상대를 알려주지 않는 한 못 막는다.
     """
     try:
         system = render_prompt(
             "coach/tip.md", mission=mission, criteria=criteria or [],
-            user_text=user_text, npc_reply=npc_reply, knowledge=knowledge,
+            user_text=user_text, npc_reply=npc_reply,
+            npc_name=npc_name, npc_kind=npc_kind, knowledge=knowledge,
             trigger=trigger,
         )
         reply = await get_llm().chat(
