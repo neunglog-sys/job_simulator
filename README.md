@@ -172,7 +172,7 @@ AI 아바타와 진로를 상담하고, 가상 회사에 출근해 하루치 업
 | **Avatar / Voice** | MuseTalk 립싱크(Gradio Client), ElevenLabs · gTTS |
 | **Report** | ReportLab, pypdf, Pretendard |
 | **Infra** | Docker Compose, Nginx |
-| **Quality** | pytest(556 cases), ruff, TypeScript strict |
+| **Quality** | pytest(564 cases), ruff, TypeScript strict |
 
 ---
 
@@ -303,7 +303,7 @@ cd apps/web && npx tsc -b
 │
 ├── maps/                  게임 맵 (Tiled → geometry.json + 배경)
 ├── infra/                 Docker Compose · Nginx
-├── tests/backend/         pytest 556 cases
+├── tests/backend/         pytest 564 cases
 └── docs/                  기획 · 아키텍처 · 가이드 문서
 ```
 
