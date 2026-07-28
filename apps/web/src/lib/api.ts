@@ -688,6 +688,9 @@ export type Simulation = {
   map: GameMapData | null; // null이면 맵 미배정 → 프론트 기본 배경 폴백
   minigame: MinigameDef | null; // 4단계 게임 정의. null이면 '준비 중' 빈 창으로 폴백
   minigames: MinigameDef[]; // 다중 게임 시 순서대로 실행. 단일 게임은 1개짜리 목록.
+  // 미션 스킵 버튼 노출 여부. 서버 설정(allow_skip_step)과 같은 값이라 프론트가 따로
+  // 판단하지 않는다 — 기본 false이므로 시연·운영에서는 버튼이 뜨지 않는다.
+  allow_skip: boolean;
   created_at: string;
 };
 
