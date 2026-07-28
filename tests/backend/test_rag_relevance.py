@@ -64,7 +64,50 @@ async def test_off_topic_false_positive_band_stays_blocked(db_session, monkeypat
     got = {c.job_code for c in chunks}
     assert "test-relevant" in got, "명확히 관련된 청크(거리 0.30)가 유실됨"
     assert "test-off-topic" not in got, (
-        "실측 오탐대(거리 0.37) 청크가 통과함 — RAG_MAX_DISTANCE가 0.35보다 느슨해졌는지 확인"
+        "실측 오탐대(거리 0.37) 청크가 통과함 — RAG_MAX_DISTANCE가 느슨해졌는지 확인"
+    )
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_cut_stays_inside_measured_safe_band(db_session, monkeypatch):
+    """컷은 안전밴드 [0.267, 0.372] 안에 있어야 한다.
+
+    재측정(0728, 골든셋 40건·코퍼스 556청크): in-domain 1위 max 0.267 /
+    오프토픽 1위 min 0.372로 겹침이 없다. 컷이 이 밴드를 벗어나면 한쪽이 깨진다.
+      - 0.267보다 낮으면 정답을 자르기 시작한다(회수 손실)
+      - 0.372 이상이면 오프토픽이 새기 시작한다(0.40에서 20%, 0.45에서 75%)
+    위 테스트는 0.30/0.37 두 점만 봐서 0.267~0.30 구간이 비어 있었다 — 경계를 직접 고정한다.
+    """
+    query_vec = _unit_vector(1.0)
+
+    in_domain_worst = DocChunk(
+        job_code="test-in-domain-worst",
+        source="test",
+        content="in-domain 최악 케이스",
+        embedding=_unit_vector(1 - 0.267),  # 거리 0.267
+    )
+    off_topic_best = DocChunk(
+        job_code="test-off-topic-best",
+        source="test",
+        content="오프토픽 최선 케이스",
+        embedding=_unit_vector(1 - 0.372),  # 거리 0.372
+    )
+    db_session.add_all([in_domain_worst, off_topic_best])
+    await db_session.flush()
+
+    from app.content import knowledge
+
+    monkeypatch.setattr(knowledge, "get_llm", lambda: _FakeLLM(query_vec))
+
+    chunks = await search_knowledge(
+        db_session, "쿼리", top_k=5, max_distance=CONSULTATION_MAX_DISTANCE
+    )
+    got = {c.job_code for c in chunks}
+    assert "test-in-domain-worst" in got, (
+        f"컷({CONSULTATION_MAX_DISTANCE})이 in-domain 최악(0.267)을 잘랐다 — 밴드 하단을 넘었다"
+    )
+    assert "test-off-topic-best" not in got, (
+        f"컷({CONSULTATION_MAX_DISTANCE})이 오프토픽 최선(0.372)을 통과시켰다 — 밴드 상단을 넘었다"
     )
 
 

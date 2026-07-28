@@ -77,3 +77,21 @@ def _chunk(job_code):
 def test_scope_chunks(jobs, expected_jobs):
     scoped = rag_gate.scope_chunks([_chunk(j) for j in jobs], top_k=3)
     assert [c.job_code for c in scoped] == expected_jobs
+
+
+def test_consultation_top_k_carries_a_full_stage_set():
+    """상담 주입 상한은 한 직무의 단계 수(5)를 담을 수 있어야 한다.
+
+    scope_chunks는 결과를 단일 직무로 붕괴시키는데, 그 직무의 청크는 단계 5개
+    (업무요청 이해/자료·현황 확인/처리·제작·응대/검수·판단/보고·인계)로 나뉜다.
+    상한이 3이면 정답 단계가 밀려 빠진다 — 실측(0728, 골든셋 40건)에서 실패는
+    전부 이 유형이었고 직무 오염은 0이었다. 3 → 5로 올려 정답 근거 포함이
+    추천 스코프 적중 시 95.0% → 100.0%가 됐다.
+    """
+    from app.domains.consultation.service import RAG_TOP_K
+
+    one_job_all_stages = [_chunk("J012") for _ in range(5)]
+    scoped = rag_gate.scope_chunks(one_job_all_stages, top_k=RAG_TOP_K)
+    assert len(scoped) == 5, (
+        f"주입 상한 {RAG_TOP_K}가 단계 5개를 못 담는다 — 정답 단계가 밀려 빠진다"
+    )

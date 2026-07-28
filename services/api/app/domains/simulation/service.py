@@ -38,8 +38,9 @@ logger = logging.getLogger(__name__)
 MEMORY_TURNS = 20
 SCORING_TURNS = 40  # 채점 대화록 상한 — 하루 종일 대화해도 채점 프롬프트가 무한 성장하지 않게
 RAG_TOP_K = 3
-RAG_MAX_DISTANCE = 0.35  # 실측(0722): 정답매칭 ~0.22~0.33 · 오프토픽 ~0.37~0.46 — 그 사이로 낮춤.
+RAG_MAX_DISTANCE = 0.31  # consultation과 같은 코퍼스·같은 근거 — 그쪽 주석 참고(0728 재측정).
 # 여긴 job_code 스코프(kb_jobs_for)라 타직무 교차오염은 해당 없음(consultation과 차이).
+# 두 경로가 같은 doc_chunks를 보므로 컷을 따로 두면 같은 질문에 다른 지식이 붙는다.
 COACH_RAG_TOP_K = 6  # 코치는 가르치는 입장 — NPC(3)보다 넓게 그 직무 전체 그림을 그라운딩
 
 
@@ -95,13 +96,25 @@ def _material_set_for(scenario: Scenario, state: dict, step_id: str) -> dict | N
 def _task_with_material_criteria(
     scenario: Scenario, state: dict, step: dict, task: dict
 ) -> dict:
-    """이번 세트의 차액 원인을 채점 기준에 추가한 task 사본 — 세트마다 정답이 다르기 때문."""
+    """이번 세트에 맞춘 채점 기준을 얹은 task 사본 — 세트마다 사건도 정답도 다르기 때문.
+
+    세트가 자기 `criteria`를 들고 있으면 시나리오 기준을 **대체**한다. 시나리오 기준이
+    특정 사건에 맞춰져 있으면(예: sns-01 m4가 '랜딩 링크 404 시각'을 요구) 다른 세트가
+    배정된 순간 자료에 없는 걸 요구받아 통과가 구조적으로 불가능해진다(2026-07-28 E2E).
+    세트 기준이 없으면 기존처럼 시나리오 기준을 그대로 쓰고 cause만 덧붙인다.
+    """
     chosen = _material_set_for(scenario, state, step["id"])
-    cause = str((chosen or {}).get("cause") or "").strip()
-    if not cause:
+    if not chosen:
         return task
+    cause = str(chosen.get("cause") or "").strip()
+    set_criteria = [str(c).strip() for c in (chosen.get("criteria") or []) if str(c).strip()]
+    if not cause and not set_criteria:
+        return task
+    criteria = set_criteria or list(task.get("criteria") or [])
+    if cause:
+        criteria = [*criteria, f"제공자료가 가리키는 핵심 사실({cause})을 찾아내 근거로 삼았는가"]
     merged = dict(task)
-    merged["criteria"] = [*(task.get("criteria") or []), f"제공자료가 가리키는 핵심 사실({cause})을 찾아내 근거로 삼았는가"]
+    merged["criteria"] = criteria
     return merged
 
 
@@ -702,6 +715,9 @@ async def stream_npc_chat(
             criteria=(step.get("task") or {}).get("criteria", []),
             user_text=user_text,
             npc_reply=npc_reply,
+            # 상대가 누구인지 넘긴다 — 없으면 코치가 고객을 "사수"라고 부른다(호칭 오류의 원인).
+            npc_name=persona["name"],
+            npc_kind=kind,
             # NPC와 동일 스코프로 이미 검색한 청크 재사용 (추가 임베딩 호출 없음)
             knowledge=("\n\n".join(c.content for c in chunks) if chunks else None),
             trigger=tip_trigger,
@@ -1434,13 +1450,28 @@ def _envelope(
     }
 
 
-def _public_quest(quest_def: dict, npc_name: str | None = None) -> dict:
-    """클라이언트용 퀘스트 정보 — 정답(hints·answer)은 숨김. npc는 npc_id + 표시 이름."""
+def _public_quest(
+    quest_def: dict,
+    npc_name: str | None = None,
+    scenario: Scenario | None = None,
+    state: dict | None = None,
+) -> dict:
+    """클라이언트용 퀘스트 정보 — 정답(hints·answer)은 숨김. npc는 npc_id + 표시 이름.
+
+    intro·task도 본편 mission과 똑같이 개인화한다. 안 그러면 sns-01 원본의 고정 가명이
+    그대로 나가 NPC가 사용자를 "지수 씨"라고 부른다(2026-07-28 E2E에서 실제로 노출).
+    """
+    task = sm.public_task(quest_def["task"])
+    intro = quest_def.get("intro")
+    if scenario is not None:
+        intro = _personalize_text(scenario, state or {}, intro)
+        if task.get("prompt"):
+            task = {**task, "prompt": _personalize_text(scenario, state or {}, task["prompt"])}
     return {
         "npc": quest_def.get("npc"),  # npc_id
         "npc_name": npc_name,
-        "intro": quest_def.get("intro"),
-        "task": sm.public_task(quest_def["task"]),
+        "intro": intro,
+        "task": task,
     }
 
 
@@ -1499,7 +1530,9 @@ async def submit_task(
                 quest = {"status": "active", "attempts": 0}
                 q_roster = await npc_map(session, scenario.id)
                 q_name = (q_roster.get(scenario.sudden_quest.get("npc")) or {}).get("name")
-                quest_fired = _public_quest(scenario.sudden_quest, q_name)
+                quest_fired = _public_quest(
+                    scenario.sudden_quest, q_name, scenario, simulation.state
+                )
     else:
         advice = hints.advice_card(task, attempt_n, result["scores"], result["feedback"])
 
@@ -1618,7 +1651,12 @@ async def _submit_quest(
 
     coach_cards = None
     if qtask.get("kind") not in scoring.RULE_KINDS:  # 통과·실패 모두 리뷰 (2026-07-26 개입 강화)
-        quest_step = {"id": "quest", "title": "돌발 퀘스트", "mission": quest_def.get("intro", "")}
+        quest_step = {
+            "id": "quest",
+            "title": "돌발 퀘스트",
+            # 코치도 개인화된 문장을 봐야 한다 — 원본 가명을 그대로 주면 조언에 그 이름이 섞인다
+            "mission": _personalize_text(scenario, simulation.state, quest_def.get("intro", "")),
+        }
         coach_cards = await coach.generate_cards(coach.build_vars(
             simulation_id=simulation.id, scenario_slug=scenario.slug,
             step=quest_step, task=qtask, submission=submission, result=result,

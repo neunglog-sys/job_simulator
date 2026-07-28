@@ -182,10 +182,14 @@ async def change_password(
 
 @router.get("/avatar")
 async def get_avatar(user: User = Depends(get_current_user)):
-    """로그인한 사용자의 프로필 이미지만 반환한다."""
+    """로그인한 사용자의 프로필 이미지만 반환한다.
+
+    이미지를 안 올린 상태는 오류가 아니라 정상이므로 204로 답한다. 404로 두면
+    브라우저 콘솔에 매 진입마다 빨간 에러가 찍혀, 정작 봐야 할 오류가 묻힌다.
+    """
     path = _avatar_path(user.id)
     if path is None:
-        raise HTTPException(status_code=404, detail="등록된 프로필 이미지가 없어요.")
+        return Response(status_code=204)
     media_type = next(
         media_type
         for media_type, suffix in AVATAR_MEDIA_TYPES.items()
