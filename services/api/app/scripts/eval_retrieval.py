@@ -155,8 +155,10 @@ async def evaluate_prod(
     scored = [g for g in golden if g.get("kind") != "chunk_missing"]
 
     gated_out = injected = correct = empty_after_scope = retried = timed_out = 0
+    label_mismatch = 0
     injected_sizes: Counter = Counter()
     misses: list[dict] = []
+    label_examples: list[str] = []
 
     async with SessionFactory() as session:
         fam_map = await _family_scope(session) if scope_mode == "family" else {}
@@ -202,6 +204,17 @@ async def evaluate_prod(
 
             injected += 1
             injected_sizes[len(chunks)] += 1
+
+            # 본문이 같아도 머리말 [직무명/...]은 다르고, 그게 그대로 프롬프트에 들어간다.
+            # 근거 내용은 맞지만 LLM이 엉뚱한 직무명을 말할 여지가 남으므로 따로 센다
+            # ('같은 F 내 재순위화'가 실제로 잡을 대상이 있는지는 이 수치로 판단해야 한다).
+            if item["gt_job_code"] not in {c.job_code for c in chunks}:
+                label_mismatch += 1
+                label_examples.append(
+                    f"{item['gt_job_code']} {item.get('gt_job_name', '')}"
+                    f" ← 머리말 {sorted({c.job_code for c in chunks})}"
+                )
+
             if acceptable & {c.id for c in chunks}:
                 correct += 1
             else:
@@ -225,6 +238,7 @@ async def evaluate_prod(
     return {
         "n": n, "gated_out": gated_out, "empty": empty_after_scope, "retried": retried,
         "timed_out": timed_out, "injected": injected, "correct": correct,
+        "label_mismatch": label_mismatch, "label_examples": label_examples,
         "sizes": injected_sizes, "misses": misses,
     }
 
@@ -263,6 +277,12 @@ async def main() -> int:
         if args.scope == "family":
             logger.info("%-28s %4d", "스코프 빈손 → 전역 재시도", p["retried"])
         logger.info("%-28s %s", "주입 청크 수 분포", dict(sorted(p["sizes"].items())))
+        logger.info(
+            "%-28s %4d  %5.1f%%  (본문은 동일)",
+            "머리말 직무명 불일치", p["label_mismatch"], p["label_mismatch"] / n * 100,
+        )
+        for ex in p["label_examples"]:
+            logger.info("    %s", ex)
         if p["misses"]:
             logger.info("")
             logger.info("정답 근거가 안 들어간 %d건", len(p["misses"]))
