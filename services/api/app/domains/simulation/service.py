@@ -95,13 +95,25 @@ def _material_set_for(scenario: Scenario, state: dict, step_id: str) -> dict | N
 def _task_with_material_criteria(
     scenario: Scenario, state: dict, step: dict, task: dict
 ) -> dict:
-    """이번 세트의 차액 원인을 채점 기준에 추가한 task 사본 — 세트마다 정답이 다르기 때문."""
+    """이번 세트에 맞춘 채점 기준을 얹은 task 사본 — 세트마다 사건도 정답도 다르기 때문.
+
+    세트가 자기 `criteria`를 들고 있으면 시나리오 기준을 **대체**한다. 시나리오 기준이
+    특정 사건에 맞춰져 있으면(예: sns-01 m4가 '랜딩 링크 404 시각'을 요구) 다른 세트가
+    배정된 순간 자료에 없는 걸 요구받아 통과가 구조적으로 불가능해진다(2026-07-28 E2E).
+    세트 기준이 없으면 기존처럼 시나리오 기준을 그대로 쓰고 cause만 덧붙인다.
+    """
     chosen = _material_set_for(scenario, state, step["id"])
-    cause = str((chosen or {}).get("cause") or "").strip()
-    if not cause:
+    if not chosen:
         return task
+    cause = str(chosen.get("cause") or "").strip()
+    set_criteria = [str(c).strip() for c in (chosen.get("criteria") or []) if str(c).strip()]
+    if not cause and not set_criteria:
+        return task
+    criteria = set_criteria or list(task.get("criteria") or [])
+    if cause:
+        criteria = [*criteria, f"제공자료가 가리키는 핵심 사실({cause})을 찾아내 근거로 삼았는가"]
     merged = dict(task)
-    merged["criteria"] = [*(task.get("criteria") or []), f"제공자료가 가리키는 핵심 사실({cause})을 찾아내 근거로 삼았는가"]
+    merged["criteria"] = criteria
     return merged
 
 
