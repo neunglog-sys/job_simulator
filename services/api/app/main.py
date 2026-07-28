@@ -20,6 +20,7 @@ from app.domains.auth.router import router as auth_router
 from app.domains.avatar import service as avatar_service
 from app.domains.avatar.router import router as avatar_router
 from app.domains.careertest.router import router as careertest_router
+from app.domains.debug.router import router as debug_router
 from app.domains.policy.router import router as policy_router
 from app.domains.consultation.router import router as consultation_router
 from app.domains.jobs.router import router as jobs_router
@@ -118,6 +119,7 @@ app.include_router(simulation_router)
 app.include_router(tts_router)
 app.include_router(avatar_router)
 app.include_router(careertest_router)
+app.include_router(debug_router)
 app.include_router(policy_router)
 
 # 아바타 연속 스트림 서빙 — ffmpeg가 Colab HLS를 연속 타임라인으로 재인코딩한 결과(.m3u8/.ts).
