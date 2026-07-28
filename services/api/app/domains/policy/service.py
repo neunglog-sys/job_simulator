@@ -132,6 +132,10 @@ def _filter_bokjiro(rows: list[dict], *, ctpv: str | None, sgg: str | None) -> l
 
         row_ctpv = codes.normalize_region(row.get("ctpv"))
         row_sgg = codes.normalize_region(row.get("sgg"))
+        # 거주지를 모르면 지역 전용 제도는 뺀다 — 신청 요건을 못 맞추는 제도가
+        # '맞춤 제도'로 올라오는 걸 막는다. (_filter_youth와 같은 규칙)
+        if row_ctpv and not ctpv:
+            continue
         # 통합·개칭된 시도는 소스마다 표기가 달라, 같은 지역의 다른 이름끼리도 맞춰 준다.
         if row_ctpv and ctpv and row_ctpv not in codes.ctpv_aliases(ctpv):
             continue  # 타 시도 전용 제도는 의미가 없다
@@ -184,6 +188,13 @@ def _filter_youth(
         zip_codes = [z.strip() for z in (row.get("zipCd") or "").split(",") if z.strip()]
         prefixes = {z[:2] for z in zip_codes}
         national = len(prefixes) >= codes.YOUTH_NATIONAL_MIN_PREFIXES
+
+        # 거주지를 모르면 지역 전용 정책은 내보내지 않는다. 필터를 통째로 건너뛰면
+        # 남의 동네 제도가 '맞춤 제도'로 올라오는데(실측: 지역 미입력 계정에 대구
+        # 달서구·남구 정책 노출), 대부분 거주 요건이 있어 신청조차 못 한다.
+        # 전국 정책만 보여주고, 지역 입력은 프로필에서 채우도록 남긴다.
+        if not national and not user_prefix:
+            continue
 
         if not national and user_prefix:
             if user_prefix not in prefixes:

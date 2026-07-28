@@ -71,22 +71,42 @@ def score_answers(answers: dict[str, str]) -> dict:
     return profile
 
 
-def profile_summary(profile: dict) -> str:
-    """상위 성향 2개로 [요약 내용] 문장 조립 — 아바타 summary·전환 대사 공용."""
+def profile_labels(profile: dict) -> list[str]:
+    """상위 성향 2개의 라벨. 어미는 붙이지 않는다 — 문장 조립은 호출부 몫."""
     dims = _load()["dimensions"]
     top = sorted(profile.items(), key=lambda kv: kv[1], reverse=True)[:2]
-    labels = [dims[d]["summary_label"] for d, v in top if d in dims and v > 0]
+    return [dims[d]["summary_label"] for d, v in top if d in dims and v > 0]
+
+
+def profile_summary(profile: dict) -> str:
+    """저장·프롬프트용 성향 요약 한 문장.
+
+    ⚠️ 라벨이 전부 '…것을 선호'로 끝난다. 여기에 조사를 그대로 이어 붙이면
+    '…선호이고, …선호인'처럼 비문이 된다(2026-07-28까지 사용자에게 그대로
+    노출됐다). 연결·종결 어미를 붙여 문장으로 닫는다.
+    """
+    labels = profile_labels(profile)
     if not labels:
-        return "아직 뚜렷한 성향이 드러나지 않음"
-    return "이고, ".join(labels)
+        return "아직 뚜렷한 성향이 드러나지 않았습니다"
+    return "하고, ".join(labels) + "합니다"
 
 
 def avatar_lines(profile: dict) -> list[str]:
     """설문 완료 → 자유대화 전환 대사 3종 (태수님 스크립트)."""
-    summary = profile_summary(profile)
+    labels = profile_labels(profile)
+    if labels:
+        opening = (
+            f"지금까지 정리해보면 {'하고, '.join(labels)}하시는 것 같아요. "
+            "제가 맞게 이해한 걸까요? 다르게 느끼는 부분이 있다면 알려주세요."
+        )
+    else:
+        # 성향이 안 잡혔는데 억지로 요약을 끼우면 "…않음인 것 같아요"가 된다.
+        opening = (
+            "아직 성향이 뚜렷하게 드러나지는 않았어요. "
+            "이야기를 나누면서 같이 찾아봐요."
+        )
     return [
-        f"지금까지 정리해보면 {summary}인 것 같아요. 제가 맞게 이해한 걸까요? "
-        "다르게 느끼는 부분이 있다면 알려주세요.",
+        opening,
         "이야기를 나눠보고 어울리는 직무를 찾으면, 먼저 체험해보고 싶은 걸 골라볼 수 있어요. "
         "실제로 해보면서 맞는지 확인해볼 수 있거든요.",
         "제가 정리한 내용 중에 와닿지 않는 부분이 있다면 편하게 말씀해주세요. 다시 조정해볼게요.",

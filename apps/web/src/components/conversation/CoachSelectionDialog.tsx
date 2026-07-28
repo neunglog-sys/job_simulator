@@ -166,8 +166,14 @@ export function CoachSelectionDialog({
                   취소
                 </button>
               ) : null}
+              {/* 첫 카드에 자동 포커스가 걸려 '이미 골라진' 것처럼 보이는데, 실제로는
+                  아무것도 선택되지 않아 버튼이 죽어 있다. 왜 안 눌리는지 문구로 말해준다. */}
               <button className={styles.confirmButton} type="submit" disabled={!draftCoachId}>
-                {required ? "이 코치와 시작하기" : "진로 코치 저장"}
+                {!draftCoachId
+                  ? "코치를 선택해주세요"
+                  : required
+                    ? "이 코치와 시작하기"
+                    : "진로 코치 저장"}
               </button>
             </div>
           </motion.form>
