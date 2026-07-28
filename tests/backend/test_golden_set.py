@@ -71,6 +71,25 @@ def test_review_flagged_items_carry_the_conflicting_job(golden):
     for g in golden:
         if g.get("kind") == "wrong_job_hint":
             assert g.get("question_mentions_jobs"), f"충돌 직무 미기록: {g['q'][:40]}"
+        else:
+            assert "question_mentions_jobs" not in g, (
+                f"해소된 충돌 기록이 남아 있다: {g['q'][:40]}"
+            )
+
+
+def test_no_unresolved_question_job_conflicts(golden):
+    """질문이 정답과 다른 직무군의 직무를 지칭하면 채점이 성립하지 않는다 — 0건이어야 한다.
+
+    실제로 1건 있었다: 정답은 J058 '교육운영 매니저 보조'(교육운영·튜터보조)인데 질문은
+    'J021 교육운영 보조'(인사·채용·교육운영)를 지칭했다. 검색이 J021을 뽑는 게 오히려
+    맞는 동작인데 오답으로 세고 있었다. 질문의 지칭을 정식 명칭으로 고쳐 해소했다.
+    """
+    conflicts = [
+        (g["q"][:50], g.get("question_mentions_jobs"))
+        for g in golden
+        if g.get("kind") == "wrong_job_hint"
+    ]
+    assert not conflicts, f"질문과 정답이 어긋난 문항: {conflicts}"
 
 
 def test_stage_labels_are_the_known_five(golden):

@@ -28,12 +28,17 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 GOLDEN_PATH = Path(settings.data_dir) / "evaluation" / "golden" / "job_knowledge_40.json"
-HEADER_RE = re.compile(r"^\[([^/\]]+)/([^/\]]+)/([^\]]+)\]")
+HEADER_RE = re.compile(r"^\[([^/\]]+)/([^/\]]+)/([^\]]+)\]\s*(.+?):")
 
 
 def _family_of(content: str) -> str | None:
     m = HEADER_RE.match(content or "")
     return m.group(2).strip() if m else None
+
+
+def _stage_of(content: str) -> str | None:
+    m = HEADER_RE.match(content or "")
+    return m.group(4).strip() if m else None
 
 
 async def evaluate(top_k: int) -> dict:
@@ -43,9 +48,10 @@ async def evaluate(top_k: int) -> dict:
     old_hit1 = new_hit1 = 0
     old_hitk = new_hitk = 0
     old_job_contam = new_job_contam = 0
-    fam_contam = 0
+    fam_contam = stage_miss = 0
     kind_stats: dict[str, Counter] = {}
     flipped: list[dict] = []
+    stage_confusion: Counter = Counter()
 
     async with SessionFactory() as session:
         for item in scored:
@@ -79,6 +85,10 @@ async def evaluate(top_k: int) -> dict:
             new_job_contam += top.job_code not in acceptable_jobs
             if _family_of(top.content) != item.get("gt_family"):
                 fam_contam += 1
+            got_stage = _stage_of(top.content)
+            if got_stage != item.get("gt_stage"):
+                stage_miss += 1
+                stage_confusion[f"{item.get('gt_stage')} → {got_stage}"] += 1
 
             stat = kind_stats.setdefault(kind, Counter())
             stat["n"] += 1
@@ -99,6 +109,8 @@ async def evaluate(top_k: int) -> dict:
         "old": {"r1": old_hit1 / n, "rk": old_hitk / n, "job_contam": old_job_contam / n},
         "new": {"r1": new_hit1 / n, "rk": new_hitk / n, "job_contam": new_job_contam / n},
         "family_contam": fam_contam / n,
+        "stage_miss": stage_miss / n,
+        "stage_confusion": stage_confusion,
         "kind_stats": kind_stats,
         "flipped": flipped,
     }
@@ -118,6 +130,13 @@ async def main() -> int:
     logger.info("%-22s %9.1f%% %9.1f%%", f"Recall@{args.top_k}", r["old"]["rk"] * 100, r["new"]["rk"] * 100)
     logger.info("%-22s %9.1f%% %9.1f%%", "직무 오염(top-1)", r["old"]["job_contam"] * 100, r["new"]["job_contam"] * 100)
     logger.info("%-22s %9.1f%%", "직무군 오염(top-1)", r["family_contam"] * 100)
+    logger.info("%-22s %9.1f%%", "단계 오답(top-1)", r["stage_miss"] * 100)
+
+    if r["stage_confusion"]:
+        logger.info("")
+        logger.info("단계 혼동 (정답 → 검색)")
+        for pair, cnt in r["stage_confusion"].most_common():
+            logger.info("  %-40s %d", pair, cnt)
 
     logger.info("")
     logger.info("분류별 Recall@1")

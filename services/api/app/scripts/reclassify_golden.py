@@ -82,16 +82,26 @@ async def load_chunks() -> dict[str, dict]:
     return chunks
 
 
-def classify(question: str, target: dict, all_job_names: set[str]) -> tuple[str, list[str]]:
+def classify(
+    question: str, target: dict, all_job_names: set[str], equal_job_names: set[str]
+) -> tuple[str, list[str]]:
     """질문이 어느 직무를 가리키는지로 분류. 두 번째 값은 질문에 등장한 '다른' 직무명."""
     if target["job_name"] in question:
         return "exact_job", []
 
     # 다른 직무명이 들어 있으면 질문 자체가 그 직무를 가리킨다 — 정답과 어긋난 셈이다.
     # 짧은 이름이 우연히 부분일치하는 것을 막으려 2글자 이상만 본다.
+    #
+    # 단, 그 직무가 정답과 동등집합(본문 동일) 안이면 충돌이 아니다. 근거가 글자 단위로
+    # 같아서 어느 쪽이 뽑히든 답이 달라지지 않는다. 실제로 '사무행정·총무' 직무군은
+    # 이름이 곧 '사무행정'+'총무'라, 직무군을 풀어 쓴 질문이 J003 '총무 담당자'와
+    # 통째로 겹친다 — 그건 직무를 콕 집은 게 아니라 직무군을 가리킨 것이다.
     others = sorted(
         name for name in all_job_names
-        if name != target["job_name"] and len(name) >= 2 and name in question
+        if name != target["job_name"]
+        and name not in equal_job_names
+        and len(name) >= 2
+        and name in question
     )
     if others:
         return "wrong_job_hint", others
@@ -125,9 +135,11 @@ async def build() -> tuple[list[dict], Counter, list[dict]]:
             out.append({**item, "kind": "chunk_missing"})
             continue
 
-        kind, others = classify(item["q"], target, all_job_names)
-        kinds[kind] += 1
         equals = sorted(by_body[target["body"]], key=lambda c: c["id"])
+        kind, others = classify(
+            item["q"], target, all_job_names, {c["job_name"] for c in equals}
+        )
+        kinds[kind] += 1
 
         # 기록된 gt_chunk_id는 코퍼스를 다시 적재하면서 어긋났다(전 건 불일치).
         # chunk_text로 찾은 실제 행 id로 바로잡고, 원래 값은 추적용으로 남긴다.
@@ -146,6 +158,9 @@ async def build() -> tuple[list[dict], Counter, list[dict]]:
         if others:
             entry["question_mentions_jobs"] = others
             review.append({"q": item["q"], "gt": target["job_name"], "mentions": others})
+        else:
+            # 이전 실행에서 붙었다가 해소된 흔적은 지운다 — 남아 있으면 미해결로 읽힌다
+            entry.pop("question_mentions_jobs", None)
         out.append(entry)
 
     return out, kinds, review
