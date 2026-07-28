@@ -18,6 +18,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.content import game_map
 from app.content import materials
+from app.core.config import settings
 from app.content import minigame
 from app.content.loader import yaml_scenario_slugs
 from app.content.kb_map import kb_jobs_for
@@ -395,6 +396,9 @@ async def to_out(session: AsyncSession, simulation: Simulation, scenario: Scenar
         "minigame": minigame.minigame_for(scenario.slug),  # 하위호환(첫 게임)
         # 직무당 게임 2~3개 — 목록 순서대로, step이 있으면 그 스텝에서 띄운다
         "minigames": minigame.minigames_for(scenario.slug),
+        # 미션 스킵 버튼 노출 여부 — 서버가 skip_step을 받는지와 같은 값이라 프론트가 따로
+        # 판단하지 않는다(둘이 어긋나면 눌러도 에러만 나는 버튼이 생긴다).
+        "allow_skip": settings.allow_skip_step,
         "created_at": simulation.created_at,
     }
 
@@ -1682,7 +1686,13 @@ async def skip_step(
     """테스트용 — 채점 없이 현재 미션을 통과 처리하고 다음 미션으로 전진(마지막이면 완주).
 
     돌발 퀘스트가 활성 중이면 퀘스트를 통과 처리하고 본편은 유지한다.
+
+    settings.allow_skip_step(기본 false)이 꺼져 있으면 거부한다. 프론트가 버튼을 숨기더라도
+    WS로 직접 보내면 통하므로 서버에서 막아야 한다 — 안 푼 판이 완주로 기록돼 백분위 풀에
+    섞이는 걸 막는 게 목적이다.
     """
+    if not settings.allow_skip_step:
+        raise HTTPException(status_code=403, detail="미션 스킵이 비활성화되어 있어요.")
     _ensure_active(simulation)
     state = dict(simulation.state)
 

@@ -20,7 +20,7 @@ type MissionPanelProps = {
   submitting: boolean;
   result: TaskResultFrame | null;
   onSubmit: (content: string | string[]) => void;
-  onSkip: () => void;
+  onSkip: (() => void) | null; // null이면 스킵 비활성(서버 allow_skip=false) — 버튼을 감춘다
   onClose: () => void;
   onClearResult: () => void;
 };
@@ -158,9 +158,11 @@ export function MissionPanel({
         </div>
 
         <div className={styles.missionFooter}>
-          <button className={styles.missionSkip} type="button" onClick={onSkip} disabled={submitting}>
-            다음 문제로 스킵 →
-          </button>
+          {onSkip ? (
+            <button className={styles.missionSkip} type="button" onClick={onSkip} disabled={submitting}>
+              다음 문제로 스킵 →
+            </button>
+          ) : null}
           {result ? (
             <div className={styles.missionResultBlock}>
               <p
