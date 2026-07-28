@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.content.counseling import build_safety_notes
 from app.content.knowledge import search_knowledge
 from app.content.loader import load_f_detail_jobs, load_f_families
+from app.core.config import settings
 from app.core.db import SessionFactory
 from app.domains.consultation import rag_gate
 from app.domains.consultation import resume as resume_mod
@@ -103,17 +104,15 @@ RAG_MAX_DISTANCE = 0.31
 # RAG는 스트리밍 시작 전 직렬 구간 — 실측 ~1.2s를 사용자가 빈 화면으로 기다린다.
 # 지연 스파이크에 상담이 볼모잡히지 않게 가드하고, 지식 검색이 무의미한 발화는 왕복을 생략한다.
 # 초과 시 지식 없이 진행 (짧은 지연 > 지식 주입 이득).
-# 2.0 → 1.0 (2026-07-28): 임베딩 지연이 **이봉분포**라 값을 낮춰도 실패가 안 늘어난다.
-#   실측(n=40, 단독): p50 365ms · p90 409ms · p95 2,020ms · max 7,898ms.
-#   409ms(p90)와 2,020ms 사이가 비어 있어 0.7~2.0s 어느 값을 써도 실패는 같은 3건(7.5%)이고,
-#   낮출수록 그 실패 턴에서 버리는 시간만 준다(2.0s → 1.0s면 턴당 1초 절약).
-#   타임아웃 턴은 어차피 지식 0건으로 진행하므로 오래 기다릴수록 손해만 커진다
-#   (실측: 타임아웃 턴 TTFT 3,185ms vs 정상 1,499ms).
-# ⚠️ 원인은 우리 쪽 이벤트 루프 경합이 아니다 — CPU 블로킹을 인위로 걸어도 임베딩은
-#   최대 648ms로 멀쩡했고(2초 초과 0/12), 아무 부하 없는 단독 조건에서도 스파이크가 났다.
-#   Gemini 임베딩 API 자체의 꼬리 지연이라 우리가 줄일 수 없고, 빨리 포기하는 게 최선이다.
-#   1.0s는 p90(409ms)의 2.4배로 여유를 두되 손실 시간을 줄이는 절충값.
-RAG_EMBED_TIMEOUT_S = 1.0
+# 값은 settings로 옮겼다(.env의 RAG_EMBED_TIMEOUT_S). 근거·장애 경위는 config.py 주석 참고.
+#
+# 요약: 2.0 → 1.0으로 낮췄다가 VM에서 8/8 전건 초과 → 지식 주입률 0%로 상담이 직무 지식
+# 없이 답했다(2026-07-28). 1.0의 근거였던 이봉분포(p50 365ms · p90 409ms)는 **로컬 실측**
+# 이었고 VM에는 해당하지 않았다. 환경마다 지연이 달라 코드에 박을 값이 아니다.
+#
+# ⚠️ 임베딩 스파이크의 원인은 우리 이벤트 루프 경합이 아니다 — CPU 블로킹을 인위로 걸어도
+#   임베딩은 최대 648ms로 멀쩡했다. 외부 API의 꼬리 지연이라 우리가 줄일 수 없다.
+RAG_EMBED_TIMEOUT_S = settings.rag_embed_timeout_s
 # 일반 진로상담 KB(포트폴리오·이력서·면접·공백기 등) 스코프. 직무 코드가 아니라서
 # 직무 스코프만 걸면 통째로 배제된다 — 스코프를 좁힐 때 **반드시 함께 포함**한다.
 # (실측: 직무 스코프만 걸면 일반 상담 질문 4/4가 '미주입'으로 떨어짐)
@@ -241,7 +240,7 @@ async def _fetch_knowledge(
         candidates = await search_knowledge(
             session, user_text, job_code=scope,
             top_k=RAG_SCOPE_CANDIDATES, max_distance=RAG_MAX_DISTANCE,
-            embed_timeout=RAG_EMBED_TIMEOUT_S,
+            embed_timeout=settings.rag_embed_timeout_s,
         )
         chunks = rag_gate.scope_chunks(candidates, top_k=RAG_TOP_K)
         if scope and not chunks:
@@ -252,11 +251,17 @@ async def _fetch_knowledge(
             candidates = await search_knowledge(
                 session, user_text,
                 top_k=RAG_SCOPE_CANDIDATES, max_distance=RAG_MAX_DISTANCE,
-                embed_timeout=RAG_EMBED_TIMEOUT_S,
+                embed_timeout=settings.rag_embed_timeout_s,
             )
             chunks = rag_gate.scope_chunks(candidates, top_k=RAG_TOP_K)
     except asyncio.TimeoutError:
-        logger.warning("RAG 임베딩 %.1fs 초과 — 지식 없이 진행", RAG_EMBED_TIMEOUT_S)
+        # 컷 값만 찍으면 실제 지연을 알 수 없어 값을 다시 정할 근거가 안 남는다
+        # (2026-07-28 장애의 한 원인). 실제 분포는 [RAG-EMBED] 로그를 본다.
+        logger.warning(
+            "RAG 임베딩 %.1fs 초과 — 지식 없이 진행 "
+            "(실제 지연은 [RAG-EMBED] 로그 확인 · .env RAG_EMBED_TIMEOUT_S로 조정)",
+            settings.rag_embed_timeout_s,
+        )
         return None
     if candidates and not chunks:
         logger.info("RAG 스코프: 여러 직무 흩어짐 → 주입 생략(범용) (후보 %d)", len(candidates))

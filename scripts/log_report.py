@@ -40,6 +40,9 @@ RE_TRUNC = re.compile(r"\[LLM-USAGE\] api=stream truncated=1")
 RE_HTTP = re.compile(r"\[HTTP-LATENCY\] (\w+) (\S+) status=(\d+) ms=([\d.]+)")
 RE_RELAY = re.compile(r"\[RELAY-TIMING\] rid=(\w+) first_binary .*first_binary_ms=([\d.]+)")
 RE_TTS = re.compile(r"\[TTS\] provider=(\w+) chars=(\d+) voice=(\S+) elapsed_ms=([\d.]+)")
+# 임베딩 왕복 실측. 컷(RAG_EMBED_TIMEOUT_S)을 정하는 유일한 근거 — 로컬 값으로 정했다가
+# VM에서 전건 초과해 지식 주입률이 0%가 된 적이 있다(0728). 반드시 **그 환경의** 분포를 본다.
+RE_RAG_EMBED = re.compile(r"\[RAG-EMBED\] ms=([\d.]+) ok=(\d)")
 # 프론트 비콘(POST /api/debug/client-metrics)이 남기는 두 줄. 브라우저 안에서만 보이던
 # 값이라 서버 로그에 이 줄이 없으면 '측정 안 됨'이지 '동작 안 함'이 아니다.
 RE_STT = re.compile(r"\[STT\] event=(\S+) ms=(\S+) chars=(\d+)")
@@ -65,7 +68,7 @@ def line(title=""):
 
 def main() -> None:
     consult, usage, http, relay, tts = [], [], [], [], []
-    stt, fps = [], []
+    stt, fps, embed = [], [], []
     trunc = embed_timeout = errors = 0
 
     for raw in sys.stdin:
@@ -86,6 +89,8 @@ def main() -> None:
             relay.append(float(m[2]))
         if m := RE_TTS.search(raw):
             tts.append({"provider": m[1], "chars": int(m[2]), "ms": float(m[4])})
+        if m := RE_RAG_EMBED.search(raw):
+            embed.append({"ms": float(m[1]), "ok": m[2] == "1"})
         if m := RE_STT.search(raw):
             # ms는 interim이 없던 구간에서 None으로 찍힌다 — 지연 표본에서만 빼고
             # 인식 건수에는 남긴다(동작 증빙이 목적이라 건수를 잃으면 안 된다).
@@ -117,7 +122,8 @@ def main() -> None:
         print(f"  지식 주입률      {kb}/{len(consult)} ({kb*100//max(1,len(consult))}%)")
         print(f"  RAG 실행 사유    " + " · ".join(f"{k} {v}" for k, v in reasons.most_common()))
         if embed_timeout:
-            print(f"  ⚠️ 임베딩 타임아웃 {embed_timeout}건 — 2초 쓰고 지식 0건으로 진행")
+            print(f"  ⚠️ 임베딩 타임아웃 {embed_timeout}건 — 그만큼 지식 0건으로 진행 "
+                  f"(아래 'RAG 임베딩 왕복' 참고)")
         chars = [c["chars"] for c in consult]
         print(f"  응답 길이        p50 {pct(chars,50):>4.0f}자 · max {max(chars)}자")
 
@@ -156,6 +162,22 @@ def main() -> None:
         print(f"  제공자           " + " · ".join(f"{k} {v}" for k, v in prov.most_common()))
         if set(prov) - {"elevenlabs"}:
             print("  ⚠️ 폴백 발생 — 품질 지표(WER·MCD) 집계 시 해당 샘플 제외 필요")
+
+    # ── RAG 임베딩 ──
+    if embed:
+        line("RAG 임베딩 왕복")
+        ok = [e["ms"] for e in embed if e["ok"]]
+        to = [e for e in embed if not e["ok"]]
+        print(f"  호출 수          {len(embed)}건  ·  성공 {len(ok)} · 타임아웃 {len(to)}")
+        if ok:
+            print(f"  성공 지연        p50 {pct(ok,50):>6.0f}ms · p90 {pct(ok,90):>6.0f}ms · "
+                  f"p95 {pct(ok,95):>6.0f}ms · max {max(ok):.0f}ms")
+        if to:
+            rate = len(to) * 100 // len(embed)
+            print(f"  ⚠️ 타임아웃 {rate}% — 이만큼 지식 없이 답했다.")
+            print("     .env RAG_EMBED_TIMEOUT_S를 위 p95 위로 올리고 재기동할 것.")
+            if rate >= 50:
+                print("     ⛔ 절반 이상이면 RAG가 사실상 죽은 상태다.")
 
     # ── STT ──
     if stt:
@@ -205,7 +227,7 @@ def main() -> None:
         line()
         print(f"  ⚠️ 에러/트레이스백 라인 {errors}건 — 원문 확인 권장")
 
-    if not any([consult, usage, http, relay, tts, stt, fps]):
+    if not any([consult, usage, http, relay, tts, stt, fps, embed]):
         print("\n  파싱된 로그가 없습니다.")
         print("  · 계측 로그는 배포 이후 기동분부터 남습니다(LLM-USAGE·HTTP-LATENCY).")
         print("  · docker compose logs 에 --since 를 너무 짧게 준 건 아닌지 확인하세요.")
