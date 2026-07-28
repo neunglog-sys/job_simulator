@@ -11,6 +11,31 @@ from app.llm.base import ChatMessage, LLMError
 
 logger = logging.getLogger(__name__)
 
+# Vertex gemini-3.6-flash 공식 단가(2026-07, Standard): 입력 $1.50 / 출력 $7.50 per 1M.
+# 사고 토큰은 출력 단가로 과금된다("Output price (including thinking tokens)").
+_USD_PER_INPUT_TOKEN = 1.50 / 1_000_000
+_USD_PER_OUTPUT_TOKEN = 7.50 / 1_000_000
+
+
+def _log_usage(api: str, res: object) -> None:
+    """LLM 호출 1건의 실제 과금 토큰·추정비용을 로그로 남긴다.
+
+    평가지표(9.4 '1콜당 토큰·비용')를 로그 파싱만으로 뽑기 위한 계측이다. 사고 토큰은
+    응답 텍스트에 안 보이지만 출력으로 과금되므로 따로 찍어야 실제 비용이 보인다
+    (실측: 추천·리포트 콜은 사고가 출력의 60~75%).
+    """
+    um = getattr(res, "usage_metadata", None)
+    if um is None:
+        return
+    prompt = um.prompt_token_count or 0
+    out = um.candidates_token_count or 0
+    think = getattr(um, "thoughts_token_count", 0) or 0
+    usd = prompt * _USD_PER_INPUT_TOKEN + (out + think) * _USD_PER_OUTPUT_TOKEN
+    logger.info(
+        "[LLM-USAGE] api=%s in=%d out=%d think=%d total=%d usd=%.6f",
+        api, prompt, out, think, um.total_token_count or 0, usd,
+    )
+
 
 def _is_retryable(exc: Exception) -> bool:
     """일시 오류만 재시도. 4xx(429 제외)는 영구 오류라 재시도하지 않는다."""
@@ -96,6 +121,7 @@ class GeminiProvider:
             )
         except Exception as e:  # noqa: BLE001
             raise LLMError(f"gemini chat 실패: {e}") from e
+        _log_usage("chat", res)
         return res.text or ""
 
     async def chat_stream(
@@ -126,11 +152,22 @@ class GeminiProvider:
                     contents=self._build_contents(messages),
                     config=config,
                 )
-                async for chunk in stream:
-                    if chunk.text:
-                        yielded = True
-                        yield chunk.text
+                # usage_metadata는 **마지막 청크에만** 실린다(실측: 46청크 중 46번째에
+                # in=1156/out=1112). 상담은 글자수 도달 시 aclose()로 조기 종료하므로
+                # 그 청크에 도달하지 못한다 — 그때는 토큰을 알 수 없으니 잘렸다는 사실만
+                # 남겨, 비용 집계가 '누락'인지 '0'인지 구분되게 한다.
+                last_chunk = None
+                try:
+                    async for chunk in stream:
+                        last_chunk = chunk
+                        if chunk.text:
+                            yielded = True
+                            yield chunk.text
+                except GeneratorExit:
+                    logger.info("[LLM-USAGE] api=stream truncated=1 (조기 종료로 토큰 미집계)")
+                    raise
                 if yielded:
+                    _log_usage("stream", last_chunk)
                     return
             except Exception as e:  # noqa: BLE001
                 # 이미 토큰을 내보낸 뒤면 재시도 시 중복 출력 → 재시도 불가, 그대로 실패

@@ -1,10 +1,11 @@
 import asyncio
 import logging
 import mimetypes
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -74,6 +75,30 @@ async def unhandled_exception_handler(request, exc):
     """
     logger.exception("미처리 예외: %s %s", request.method, request.url.path)
     return JSONResponse(status_code=500, content={"detail": "서버 오류가 발생했어요. 잠시 후 다시 시도해주세요."})
+
+@app.middleware("http")
+async def log_request_latency(request: Request, call_next):
+    """엔드포인트 응답 시간 계측 — 평가지표 9.4(p50/p95) 산출용.
+
+    로그 파싱만으로 백분위를 낼 수 있게 경로·상태·소요시간을 한 줄로 남긴다.
+    경로는 라우트 패턴(/api/reports/{id})으로 정규화해야 id별로 흩어지지 않는데,
+    미들웨어 시점엔 아직 매칭 전이라 응답 뒤 request.scope["route"]에서 꺼낸다.
+
+    ⚠️ SSE 스트리밍 엔드포인트(상담 messages 등)에서 이 값은 **응답 시작까지**의
+    시간이지 생성 완료 시간이 아니다(실측 13ms). 스트리밍 구간의 체감 지연은
+    consultation.service가 남기는 '상담 응답 구간' 로그의 첫토큰·전체 ms를 봐야 한다.
+    """
+    started = time.perf_counter()
+    response = await call_next(request)
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    route = request.scope.get("route")
+    pattern = getattr(route, "path", None) or request.url.path
+    logger.info(
+        "[HTTP-LATENCY] %s %s status=%d ms=%.1f",
+        request.method, pattern, response.status_code, elapsed_ms,
+    )
+    return response
+
 
 app.add_middleware(
     CORSMiddleware,
