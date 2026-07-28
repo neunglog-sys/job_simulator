@@ -2,15 +2,22 @@
 
 ## 이 숫자를 어떻게 읽어야 하나 (먼저 못 박는다)
 
-정답을 알고 넣으므로 **완주율은 100%로 나온다.** 그건 측정이 아니라 동어반복이다.
-따라서 이 스크립트의 산출물은 완주율이 아니라 다음 셋이다.
+**완주율은 100%로 나온다. 그건 지표가 아니다.**
 
-    ① 완주 검증      N/N — 플로우가 끝까지 완결되는가 (막히면 여기서 드러난다)
-    ② 성능 베이스라인  스텝별 소요시간·채점 지연 — 정답을 알아도 이건 실측값이다
-    ③ 채점기 동작     정답 제출이 실제로 통과 판정을 받는가, 몇 점이 나오는가
+본편 미션은 틀려도 완주가 막히지 않는다 — 실패해도 조언 카드가 나올 뿐 횟수 제한이 없고
+(service.py:1540), 돌발 퀘스트도 2회 실패하면 넘어간다. 완주를 막는 건 사용자가 나가는
+것뿐인데 **스크립트는 나가지 않는다.** 즉 정답을 알든 모르든 100%이며, 자동화로는
+이탈률을 원리적으로 잴 수 없다.
 
-보고서에 쓸 때는 "자동 완주 검증 8/8 성공"이라고 적는다. "완주율 100%"로 적으면
-사용자 행동 지표로 오해되고, 어떻게 돌렸냐고 물으면 그 자리에서 무너진다.
+따라서 이 스크립트의 산출물은 완주율이 아니라 다음 둘이다.
+
+    ① 완주 검증    N/N — 플로우가 끝까지 완결되는가 (막히면 여기서 드러난다)
+    ② 채점기 동작   정답 제출이 실제로 통과 판정을 받는가
+
+응답 지연은 내지 않는다 — TTFB·채점 지연은 9.4가 따로 다루고, 이 러너의 시간에는
+'사람 대신 답안을 만든 시간'이 섞여 있어 그대로 쓰면 거짓이 된다.
+
+보고서에 쓸 때는 "자동 완주 검증 8/8 성공"이라고 적는다.
 
 ## 기존 데이터와 섞이지 않게
 
@@ -30,8 +37,8 @@
 import argparse
 import asyncio
 import logging
-import statistics
 import time
+from collections import Counter
 
 from sqlalchemy import select
 
@@ -131,6 +138,7 @@ async def run_session(slug: str, tag: str) -> dict:
             activity = step.get("activity") or {}
             task = step.get("task") or {}
             s0 = time.perf_counter()
+            gen_ms = 0.0  # 반복 사이에 남지 않게 매 스텝 초기화
 
             if activity.get("kind") == "minigame":
                 await service.complete_activity(
@@ -157,7 +165,12 @@ async def run_session(slug: str, tag: str) -> dict:
                 if content is None:  # write — 자료를 읽고 LLM이 작성
                     chosen = service._material_set_for(scenario, state, step["id"]) or {}
                     docs = materials_mod.public_documents(chosen) if chosen else []
+                    g0 = time.perf_counter()
                     content = await _write_answer(task, docs)
+                    # 답안 작성은 **러너가 사람을 대신하는 시간**이다. 실제 사용자는 직접
+                    # 쓰므로 이 시간을 겪지 않는다. 채점 지연과 합산하면 지표가 거짓이 된다.
+                    gen_ms = (time.perf_counter() - g0) * 1000
+                s0 = time.perf_counter()  # 여기부터가 서버 처리(채점) 시간
                 try:
                     result = await service.submit_task(session, sim, scenario, content)
                 except Exception:
@@ -179,7 +192,8 @@ async def run_session(slug: str, tag: str) -> dict:
                             tries[step["id"]], score,
                         )
                         marks.append({"step": step["id"], "kind": kind, "passed": False,
-                                      "score": score, "ms": (time.perf_counter() - s0) * 1000})
+                                      "score": score, "gen_ms": gen_ms,
+                                      "ms": (time.perf_counter() - s0) * 1000})
                         break
             else:
                 logger.warning("[%s] %s — 처리할 게 없다, 중단", tag, step["id"])
@@ -187,6 +201,7 @@ async def run_session(slug: str, tag: str) -> dict:
 
             marks.append({
                 "step": step["id"], "kind": kind, "passed": passed, "score": score,
+                "gen_ms": gen_ms,
                 "ms": (time.perf_counter() - s0) * 1000,
             })
             await session.refresh(sim)
@@ -254,21 +269,13 @@ def report(results: list[dict]) -> None:
         for m in fails[:10]:
             print(f"    {m['step']} ({m['kind']}) {m['score']}점")
 
-    print("\n── 스텝별 소요시간 (정답을 알아도 이건 실측이다) " + "─" * 10)
-    by_kind: dict[str, list[float]] = {}
-    for r in results:
-        for m in r["marks"]:
-            by_kind.setdefault(m["kind"], []).append(m["ms"])
-    for kind, vals in sorted(by_kind.items(), key=lambda kv: -statistics.mean(kv[1])):
-        print(f"  {kind:12} n={len(vals):<3} 평균 {statistics.mean(vals):7.0f}ms · "
-              f"최대 {max(vals):7.0f}ms")
-
-    if done:
-        totals = [r["total_ms"] for r in done]
-        print(f"\n  판당 전체    평균 {statistics.mean(totals) / 1000:.1f}s · "
-              f"최대 {max(totals) / 1000:.1f}s")
+    # 응답 지연은 여기서 안 낸다 — TTFB·채점 지연은 9.4가 따로 다루고, 이 러너의 시간에는
+    # '사람 대신 답안을 만든 시간'이 섞여 있어 그대로 쓰면 거짓이 된다. 여기선 완주 여부만.
+    kinds = Counter(m["kind"] for r in results for m in r["marks"])
+    print(f"\n  거친 스텝 유형: {dict(kinds)}")
     print("\n  ※ 보고 시 표기: '자동 완주 검증 N/N 성공'.")
-    print("     '완주율 100%'로 적으면 사용자 행동 지표로 오해된다.")
+    print("     '완주율 100%'로 적으면 사용자 행동 지표로 오해된다 —")
+    print("     스크립트는 이탈하지 않으므로 무엇을 해도 100%다.")
 
 
 if __name__ == "__main__":
