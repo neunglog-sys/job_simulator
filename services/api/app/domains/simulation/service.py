@@ -702,6 +702,9 @@ async def stream_npc_chat(
             criteria=(step.get("task") or {}).get("criteria", []),
             user_text=user_text,
             npc_reply=npc_reply,
+            # 상대가 누구인지 넘긴다 — 없으면 코치가 고객을 "사수"라고 부른다(호칭 오류의 원인).
+            npc_name=persona["name"],
+            npc_kind=kind,
             # NPC와 동일 스코프로 이미 검색한 청크 재사용 (추가 임베딩 호출 없음)
             knowledge=("\n\n".join(c.content for c in chunks) if chunks else None),
             trigger=tip_trigger,
