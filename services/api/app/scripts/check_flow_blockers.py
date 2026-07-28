@@ -196,9 +196,10 @@ async def main() -> int:
     slugs = args.slug or list(DEMO_SLUGS)
 
     print("=" * 60)
-    print(" 진행 불가 지점 검사")
+    print(" 진행 불가 지점 검사 (정적·서비스 계층 기준)")
     print("=" * 60)
-    print("  '사용자가 나갔는가'가 아니라 '시스템이 막았는가'를 본다.")
+    print("  '사용자가 나갔는가'가 아니라 '진행이 막히는 지점이 있는가'를 본다.")
+    print("  프론트 조작(걷기·클릭·미니게임 플레이)은 이 검사의 범위 밖이다.")
 
     total = 0
     for slug in slugs:
@@ -212,8 +213,8 @@ async def main() -> int:
 
     print("\n" + "=" * 60)
     if total == 0:
-        print(" 결론: 시스템이 강제로 막아 세우는 지점 0건")
-        print(" (이탈률은 별개 — 사용자가 스스로 나가는 비율은 실사용자가 있어야 잰다)")
+        print(" 결론: 정적·서비스 계층 검사 기준 진행 불가 지점 0건")
+        print(" (실사용자 과업 완수율은 별개 — 서비스 오픈 후 측정한다)")
     else:
         print(f" 결론: 진행 불가 지점 {total}건 — 위 항목을 먼저 해결해야 한다")
     return 0
