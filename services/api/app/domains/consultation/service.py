@@ -118,6 +118,21 @@ def _is_detail_request(text: str) -> bool:
         if _DETAIL_REQUEST_VERB_RE.search(tail):
             return True
     return False
+
+
+# 자해·정신건강 위기 신호. 안전 규칙(SF-011)은 이때 진로상담을 중단하고 전문 도움 경로로
+# 안내하게 하는데, 그 안내에는 상담전화 번호가 들어간다 — 200자 컷이 걸리면 번호가
+# 중간에 잘린다(실측: '1577-0199' → '1577-01', 사용 불가능한 번호가 그대로 전송됨).
+# 위기 응답만은 길이 제한을 풀어 안내가 온전히 나가게 한다.
+_CRISIS_MARKERS = (
+    "죽고 싶", "죽고싶", "자살", "자해", "극단적 선택", "사라지고 싶", "사라지는 게",
+    "없어져버리", "없어지고 싶", "살기 싫", "살고 싶지 않", "끝내버리고 싶", "끝내고 싶",
+    "의미가 없", "다 끝내",
+)
+
+
+def _is_crisis(text: str) -> bool:
+    return any(m in text for m in _CRISIS_MARKERS)
 # 프롬프트의 글자수 지시는 소프트 가이드일 뿐이라 넘길 수 있음 — 토큰 상한은 그 경우의 안전망.
 # 한글은 토큰당 여러 글자를 담는 경우가 많아, 목표 글자수보다 넉넉히 잡아 문장이 중간에 끊기지
 # 않게 한다. 실제 글자수 컷은 스트리밍 중 total_chars 체크(아래)가 담당한다.
@@ -479,7 +494,9 @@ async def stream_reply(
         # 응답 길이 산정 — 첫 응답은 워밍업으로 더 짧게, 상세 설명 요청은 제한 해제 + TTS 생략
         is_first_reply = not any(m.role == "assistant" for m in history)
         detail_requested = _is_detail_request(user_text)
-        if detail_requested:
+        crisis = _is_crisis(user_text)
+        if crisis or detail_requested:
+            # 위기 응답은 상담전화 안내가 잘리면 안 된다(번호 절단 실측) — 첫 응답이어도 제한 해제.
             char_limit = None
         elif is_first_reply:
             char_limit = GREETING_REPLY_CHAR_LIMIT
