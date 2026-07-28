@@ -56,6 +56,7 @@ async def lifespan(app: FastAPI):
     # 아바타 Gradio 핸드셰이크(≈2.4초)·LLM chat_stream 콜드스타트(≈2~3초)를 기동 시 선지불
     # → 첫 사용자가 안 기다림. 서로 독립적이라 동시에 돌려 부팅 지연을 겹쳐서 흡수한다.
     # 둘 다 내부에서 예외를 삼키므로(미설정 등) 부팅을 막지 않는다.
+    avatar_service.log_voice_config()
     await asyncio.gather(avatar_service.warmup(), warmup_llm())
     yield
     await redis_client.aclose()

@@ -209,6 +209,32 @@ def test_youth_province_wide_policy_kept_for_any_district():
     assert _filter_youth_names(province, age=30, ctpv="경기도", sgg="양주시") != []
 
 
+def test_youth_region_policy_is_dropped_when_residence_unknown():
+    """거주지를 모르면 지역 전용 정책은 빼고 전국 정책만 남긴다.
+
+    프로필에 지역을 안 넣은 계정에 대구 달서구·남구 정책이 '맞춤 제도'로 노출됐다
+    (2026-07-28 E2E 실측). 거주 요건이 걸려 신청조차 못 하는 제도다.
+    """
+    gyeonggi = _youth(zipCd="41630")
+    assert _filter_youth_names(gyeonggi, age=30, ctpv=None, sgg=None) == []
+
+    nationwide = _youth(plcyNm="전국 청년 취업지원", zipCd=",".join(
+        f"{p}110" for p in ("11", "12", "26", "27", "28", "30", "31", "36", "41", "43", "44", "47")
+    ))
+    assert _filter_youth_names(nationwide, age=30, ctpv=None, sgg=None) != []
+
+
+def test_bokjiro_region_policy_is_dropped_when_residence_unknown():
+    rows = [
+        {"name": "대구 달서구 청년수당", "summary": "취업 지원", "theme": "일자리",
+         "ctpv": "대구광역시", "sgg": "달서구", "provider": "", "link": ""},
+        {"name": "전국 취업지원", "summary": "취업 지원", "theme": "일자리",
+         "ctpv": "", "sgg": "", "provider": "", "link": ""},
+    ]
+    names = [r["name"] for r in service._filter_bokjiro(rows, ctpv=None, sgg=None)]
+    assert names == ["전국 취업지원"]
+
+
 def _filter_youth_names(row, **kw):
     return [r["name"] for r in service._filter_youth([row], **kw)]
 
