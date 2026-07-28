@@ -11,9 +11,25 @@
                 두 경로를 비교할 수 없다.
   ③ 재현성     같은 seed + 같은 DB면 같은 표본. 시드를 시트에 적어 둔다.
 
+## 평가자가 1명일 때 — --retest
+
+혼자 평가하면 평가자 간 일치도를 잴 수 없다. 대신 **같은 항목을 모르게 두 번** 넣어
+본인과의 일치도(재평가 일치도)를 본다. 두 번째 사본은 id만 다르고 본문이 같으며,
+셔플로 멀리 떨어뜨려 같은 항목인 줄 모르게 한다.
+
+이걸로 알 수 있는 것: 앵커가 일관되게 적용되는가(= 점수를 믿어도 되는가).
+이걸로 알 수 없는 것: 다른 사람도 같게 볼까(= 개인 취향인가). 후자는 1인 평가로는
+원리적으로 확인이 불가능하므로 보고서에 한계로 적는다.
+
 실행:
+    # 3인 평가
     docker compose exec api python -m app.scripts.build_human_eval_sheet \
         --seed 42 --n 40 --raters 3 --out /tmp/humaneval
+
+    # 1인 평가 (10건을 몰래 두 번 물어 자기일치도 측정)
+    docker compose exec api python -m app.scripts.build_human_eval_sheet \
+        --seed 42 --n 40 --raters 1 --retest 10 --out /tmp/humaneval
+
     docker compose cp api:/tmp/humaneval ./humaneval
 """
 
@@ -93,17 +109,47 @@ def stratify(turns: list[dict], n: int, rng: random.Random) -> list[dict]:
     return picked[:n]
 
 
-def write_sheets(picked: list[dict], out: Path, raters: int, seed: int, n: int) -> None:
+def add_retest(rows: list[dict], retest: int, rng: random.Random) -> list[dict]:
+    """일부 항목을 사본으로 한 번 더 넣는다 — 평가자가 같은 항목인 줄 몰라야 한다.
+
+    사본은 원본과 멀리 떨어뜨린다. 바로 옆에 있으면 '아까 그거'로 알아보고 같은 점수를
+    적어, 일관성이 아니라 기억을 재게 된다.
+    """
+    if retest <= 0:
+        return rows
+    picks = rng.sample(range(len(rows)), min(retest, len(rows)))
+    out = list(rows)
+    for idx in picks:
+        src = rows[idx]
+        copy = dict(src)
+        copy["item_id"] = f"R{src['item_id'][1:]}"  # H007 → R007
+        copy["retest_of"] = src["item_id"]
+        # 원본이 앞쪽이면 뒤쪽에, 뒤쪽이면 앞쪽에 꽂는다
+        pos = rng.randrange(len(out) // 2, len(out)) if idx < len(rows) // 2 \
+            else rng.randrange(0, max(1, len(out) // 2))
+        out.insert(pos, copy)
+    return out
+
+
+def write_sheets(
+    picked: list[dict], out: Path, raters: int, seed: int, n: int, retest: int, rng
+) -> None:
     out.mkdir(parents=True, exist_ok=True)
+
+    rows = [
+        {"item_id": f"H{i:03d}", "user": t["user"], "reply": t["reply"]}
+        for i, t in enumerate(picked, 1)
+    ]
+    rows = add_retest(rows, retest, rng)
 
     for r in range(1, raters + 1):
         path = out / f"sheet_rater{r}.csv"
         with path.open("w", encoding="utf-8-sig", newline="") as f:
             w = csv.writer(f)
             w.writerow(["item_id", "사용자 발화", "상담사 응답", *DIMENSIONS, "메모"])
-            for i, t in enumerate(picked, 1):
-                w.writerow([f"H{i:03d}", t["user"], t["reply"], "", "", "", "", ""])
-        logger.info("시트: %s", path)
+            for row in rows:
+                w.writerow([row["item_id"], row["user"], row["reply"], "", "", "", "", ""])
+        logger.info("시트: %s  (%d행)", path, len(rows))
 
     # 정답키는 시트와 분리한다 — 평가자에게 주면 블라인드가 깨진다.
     key = out / "KEY_do_not_share.json"
@@ -113,12 +159,19 @@ def write_sheets(picked: list[dict], out: Path, raters: int, seed: int, n: int) 
                 "seed": seed,
                 "n": n,
                 "raters": raters,
-                "note": "평가자에게 주지 말 것 — 층 정보가 들어 있다",
+                "retest": retest,
+                "note": "평가자에게 주지 말 것 — 층 정보와 재평가 짝이 들어 있다",
                 "items": [
                     {"item_id": f"H{i:03d}", "msg_id": t["msg_id"],
                      "consultation_id": t["consultation_id"], "stratum": t["stratum"]}
                     for i, t in enumerate(picked, 1)
                 ],
+                # R로 시작하는 id는 같은 번호 H의 사본이다(R007 = H007). 집계가 이 짝으로
+                # 재평가 일치도를 낸다.
+                "retest_pairs": {
+                    r["item_id"]: r["retest_of"]
+                    for r in rows if r.get("retest_of")
+                },
             },
             ensure_ascii=False,
             indent=2,
@@ -131,9 +184,15 @@ def write_sheets(picked: list[dict], out: Path, raters: int, seed: int, n: int) 
     guide = out / "평가안내.md"
     guide.write_text(
         "# 평가 안내 (5분 읽고 시작)\n\n"
-        f"시드 {seed} · {n}건 · 예상 소요 25분\n\n"
-        "**서로 상의하지 마세요.** 상의하면 일치도가 인위로 올라가 "
-        "'독립으로 합의했다'는 근거가 사라집니다.\n\n"
+        f"시드 {seed} · {n}건" + (f" (+재확인 {retest}건)" if retest else "")
+        + f" · 예상 소요 {round((n + retest) * 40 / 60)}분\n\n"
+        + (
+            "**중간에 앞으로 돌아가 고치지 마세요.** 한 번 매긴 점수는 그대로 둡니다 — "
+            "일관성을 재는 항목이 섞여 있어, 되돌아가 맞추면 그 측정이 무의미해집니다.\n\n"
+            if retest else
+            "**서로 상의하지 마세요.** 상의하면 일치도가 인위로 올라가 "
+            "'독립으로 합의했다'는 근거가 사라집니다.\n\n"
+        ) +
         "각 행의 `사용자 발화`와 `상담사 응답`을 읽고 네 열을 **1~5 정수**로 채웁니다.\n\n"
         "| 열 | 묻는 것 | 1점 | 3점 | 5점 |\n"
         "|---|---|---|---|---|\n"
@@ -157,6 +216,10 @@ async def main() -> int:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--n", type=int, default=40)
     parser.add_argument("--raters", type=int, default=3)
+    parser.add_argument(
+        "--retest", type=int, default=0,
+        help="같은 항목을 몰래 한 번 더 넣을 개수 — 1인 평가일 때 자기일치도 측정용",
+    )
     parser.add_argument("--out", default="/tmp/humaneval")
     args = parser.parse_args()
 
@@ -180,7 +243,12 @@ async def main() -> int:
     logger.info("표본 %d건 — 지식형 %d · 비지식형 %d (시드 %d)",
                 len(picked), strata["kb"], strata["no_kb"], args.seed)
 
-    write_sheets(picked, Path(args.out), args.raters, args.seed, len(picked))
+    retest = args.retest
+    if args.raters == 1 and retest == 0:
+        # 1인 평가인데 재확인이 없으면 일치도를 잴 방법이 아예 없다 — 기본값을 준다.
+        retest = max(5, len(picked) // 4)
+        logger.info("1인 평가 — 자기일치도 측정을 위해 재확인 %d건을 자동으로 넣는다.", retest)
+    write_sheets(picked, Path(args.out), args.raters, args.seed, len(picked), retest, rng)
     logger.info("")
     logger.info("다음: 시트를 평가자에게 배포하고, 채운 뒤 scripts/human_eval_report.py로 집계.")
     return 0

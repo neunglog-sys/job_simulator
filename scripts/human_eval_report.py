@@ -96,13 +96,43 @@ def main() -> int:
         print(f"  ⚠️ 전원이 채운 항목은 {len(filled)}/{len(scores)}건 — 나머지는 일치도에서 빠진다")
 
     # ── ② 일치도 먼저 ──
-    print("\n── 평가자 간 일치도 (±1점) " + "─" * 30)
-    verdicts = {}
-    for d in DIMENSIONS:
-        rate, pairs = agreement(scores, d)
-        mark = "🟢" if rate >= AGREE_GREEN else ("🟡" if rate >= AGREE_YELLOW else "🔴")
-        verdicts[d] = rate
-        print(f"  {LABEL[d]:<8} {rate:5.1f}%  {mark}   (비교쌍 {pairs})")
+    # 평가자가 1명이면 평가자 간 일치도가 성립하지 않는다. 대신 몰래 두 번 물은 항목
+    # (R### = H###의 사본)으로 **본인과의 일치도**를 낸다.
+    retest_pairs = {}
+    if key_path.exists():
+        retest_pairs = json.loads(key_path.read_text(encoding="utf-8")).get("retest_pairs", {})
+
+    solo = len(raters) == 1
+    if solo and retest_pairs:
+        print("\n── 재평가 일치도 (같은 항목 두 번, ±1점) " + "─" * 17)
+        print("  평가자가 1명이라 평가자 간 일치도 대신 **본인과의 일치도**를 낸다.")
+        verdicts = {}
+        for d in DIMENSIONS:
+            hit = total = 0
+            for copy_id, orig_id in retest_pairs.items():
+                a = scores.get(orig_id, {}).get(raters[0], {}).get(d)
+                b = scores.get(copy_id, {}).get(raters[0], {}).get(d)
+                if a is not None and b is not None:
+                    total += 1
+                    hit += abs(a - b) <= 1
+            rate = hit / total * 100 if total else 0.0
+            mark = "🟢" if rate >= AGREE_GREEN else ("🟡" if rate >= AGREE_YELLOW else "🔴")
+            verdicts[d] = rate
+            print(f"  {LABEL[d]:<8} {rate:5.1f}%  {mark}   (재평가쌍 {total})")
+        print("\n  ⚠️ 이건 '앵커를 일관되게 적용했는가'만 말해준다.")
+        print("     '다른 사람도 같게 볼까'는 1인 평가로는 원리적으로 알 수 없다 —")
+        print("     보고서에 한계로 적을 것.")
+    else:
+        print("\n── 평가자 간 일치도 (±1점) " + "─" * 30)
+        verdicts = {}
+        for d in DIMENSIONS:
+            rate, pairs = agreement(scores, d)
+            mark = "🟢" if rate >= AGREE_GREEN else ("🟡" if rate >= AGREE_YELLOW else "🔴")
+            verdicts[d] = rate
+            print(f"  {LABEL[d]:<8} {rate:5.1f}%  {mark}   (비교쌍 {pairs})")
+        if solo:
+            print("\n  ⚠️ 평가자 1명인데 재평가 항목이 없어 일치도를 잴 수 없다.")
+            print("     build_human_eval_sheet.py --raters 1 --retest 10 으로 다시 만들 것.")
 
     blocked = [d for d, r in verdicts.items() if r < AGREE_YELLOW]
     if blocked:
@@ -111,9 +141,15 @@ def main() -> int:
         print("     설계 문서의 1·3·5점 기술을 고쳐 다시 잰다.")
 
     # ── ① 점수 ──
+    # 재평가 사본(R###)은 같은 응답을 두 번 센 것이라 평균에 넣으면 그 항목만 가중된다.
+    # 일치도 계산에서만 쓰고 여기서는 뺀다.
+    scored_items = {k: v for k, v in scores.items() if k not in retest_pairs}
+    if retest_pairs:
+        print(f"\n  (재평가 사본 {len(retest_pairs)}건은 점수 집계에서 제외 — 중복 계상 방지)")
+
     print("\n── 차원별 점수 " + "─" * 42)
     for d in DIMENSIONS:
-        vals = [s[d] for per in scores.values() for s in per.values() if d in s]
+        vals = [s[d] for per in scored_items.values() for s in per.values() if d in s]
         if not vals:
             continue
         if d in blocked:
@@ -131,7 +167,7 @@ def main() -> int:
             if d in blocked:
                 continue
             by = defaultdict(list)
-            for item, per in scores.items():
+            for item, per in scored_items.items():
                 st = strata.get(item)
                 if st:
                     by[st] += [s[d] for s in per.values() if d in s]
@@ -143,7 +179,7 @@ def main() -> int:
     # ── ④ 갈린 항목 ──
     print("\n── 평가자가 갈린 항목 (2점 이상 차이) " + "─" * 20)
     split = []
-    for item, per in scores.items():
+    for item, per in scored_items.items():
         for d in DIMENSIONS:
             vals = [s[d] for s in per.values() if d in s]
             if len(vals) > 1 and max(vals) - min(vals) >= 2:
@@ -171,7 +207,7 @@ def main() -> int:
             if d in blocked:
                 continue
             pairs = []
-            for item, per in scores.items():
+            for item, per in scored_items.items():
                 hv = [s_[d] for s_ in per.values() if d in s_]
                 if hv and item in gv:
                     pairs.append((item, statistics.mean(hv), gv[item][d]))

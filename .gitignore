@@ -83,3 +83,6 @@ tools/map-geometry/맵칠하기_사용법.md
 
 # subagent-driven-development 진행 스크래치 (task brief/report/ledger)
 .superpowers/
+
+# 휴먼 평가 산출물 — 실제 상담 대화(복호화본)와 정답키가 들어 있다. 평가자에게만 전달한다.
+humaneval/
