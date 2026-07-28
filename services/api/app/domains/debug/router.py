@@ -24,11 +24,16 @@ def _num(payload: dict, key: str):
 
 @router.post("/client-metrics")
 async def client_metrics(request: Request) -> dict:
+    # 본문이 깨져도 200으로 조용히 넘기면, 비콘이 망가진 채 오는데도 리포트에는
+    # "0건"으로 보여 "그 기능을 안 썼다"로 오진하게 된다. 실패도 한 줄 남긴다.
     try:
         payload = await request.json()
     except Exception:  # noqa: BLE001 — sendBeacon 등 비정형 본문
+        logger.warning("[CLIENT-METRIC] 본문 파싱 실패 (ua=%s)",
+                       request.headers.get("user-agent", "-")[:60])
         return {"ok": False}
     if not isinstance(payload, dict):
+        logger.warning("[CLIENT-METRIC] dict가 아닌 본문: %s", type(payload).__name__)
         return {"ok": False}
 
     kind = payload.get("kind")
