@@ -118,6 +118,21 @@ def _is_detail_request(text: str) -> bool:
         if _DETAIL_REQUEST_VERB_RE.search(tail):
             return True
     return False
+
+
+# 자해·정신건강 위기 신호. 안전 규칙(SF-011)은 이때 진로상담을 중단하고 전문 도움 경로로
+# 안내하게 하는데, 그 안내에는 상담전화 번호가 들어간다 — 200자 컷이 걸리면 번호가
+# 중간에 잘린다(실측: '1577-0199' → '1577-01', 사용 불가능한 번호가 그대로 전송됨).
+# 위기 응답만은 길이 제한을 풀어 안내가 온전히 나가게 한다.
+_CRISIS_MARKERS = (
+    "죽고 싶", "죽고싶", "자살", "자해", "극단적 선택", "사라지고 싶", "사라지는 게",
+    "없어져버리", "없어지고 싶", "살기 싫", "살고 싶지 않", "끝내버리고 싶", "끝내고 싶",
+    "의미가 없", "다 끝내",
+)
+
+
+def _is_crisis(text: str) -> bool:
+    return any(m in text for m in _CRISIS_MARKERS)
 # 프롬프트의 글자수 지시는 소프트 가이드일 뿐이라 넘길 수 있음 — 토큰 상한은 그 경우의 안전망.
 # 한글은 토큰당 여러 글자를 담는 경우가 많아, 목표 글자수보다 넉넉히 잡아 문장이 중간에 끊기지
 # 않게 한다. 실제 글자수 컷은 스트리밍 중 total_chars 체크(아래)가 담당한다.
@@ -140,8 +155,14 @@ async def _recommended_scope(
 ) -> list[str] | None:
     """추천 직무 + 일반 상담 KB로 검색 스코프를 좁힌다 (없으면 None = 전역검색).
 
-    전역검색은 동일계열 인접 직무가 섞여 최근접이 어긋난다(실측 Recall@1 75%·오염 45%).
-    추천 직무로 좁히면 Recall@1 100%·오염 9%로 개선된다.
+    ⚠️ 재측정(2026-07-27, 골든셋 40건·코퍼스 556청크): 이 함수의 원래 근거였던
+    "전역 Recall@1 75% → 스코프 100%"는 **현재 코퍼스에서 재현되지 않는다**.
+    전역 65.0%(26/40) vs F 스코프 65.0%(26/40)으로 동일하고(McNemar 불일치쌍 0/0),
+    전역 top-1이 이미 97.5%(39/40) 확률로 정답 F 안에 들어 있어 스코프가 잘라낼
+    상위 오염 자체가 거의 없다. 코퍼스가 25건→556건으로 커지며 상황이 바뀐 것으로 보인다.
+    스코프의 실제 이득은 (a) 타 직무군 오염 7.9%→0%, (b) 지식 미주입 10%→2.5%이며,
+    직무 단위 오염은 39.2%→35.4%로 3.8%p만 준다 — 오염의 대부분이 같은 F 안의 인접
+    직무라 스코프로는 못 잡는다(별도 재순위화가 필요).
     ⚠️ 추천의 job_code는 소문자(j047)로 저장되고 doc_chunks는 대문자(J047)라 정규화가 필수다
        — 안 하면 IN 조건이 하나도 안 맞아 오히려 전부 미주입이 된다.
     """
@@ -473,7 +494,9 @@ async def stream_reply(
         # 응답 길이 산정 — 첫 응답은 워밍업으로 더 짧게, 상세 설명 요청은 제한 해제 + TTS 생략
         is_first_reply = not any(m.role == "assistant" for m in history)
         detail_requested = _is_detail_request(user_text)
-        if detail_requested:
+        crisis = _is_crisis(user_text)
+        if crisis or detail_requested:
+            # 위기 응답은 상담전화 안내가 잘리면 안 된다(번호 절단 실측) — 첫 응답이어도 제한 해제.
             char_limit = None
         elif is_first_reply:
             char_limit = GREETING_REPLY_CHAR_LIMIT

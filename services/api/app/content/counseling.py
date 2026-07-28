@@ -232,5 +232,11 @@ def build_safety_notes() -> str:
     현재 유일하게 라이브 요청 경로(consultation/service.py)에 실제로 연결되는 함수.
     데이터팩 로딩에 실패하면 호출부에서 None으로 폴백하고 기존 프롬프트 그대로 렌더링한다.
     """
-    principles = [rule["principle"] for rule in load_safety_rules()["rules"][:6]]
+    # ⚠️ 전에는 rules[:6]으로 잘라 넣었는데, 하필 잘려나간 뒤쪽에 위기 대응 규칙이
+    # 있었다 — 11번 '자해·정신건강 위기 발화는 진로상담을 중단하고 라우팅', 12번
+    # '불필요한 민감정보를 먼저 캐묻지 않는다'. 안전성 실측(2026-07-27) 결과 위기
+    # 카테고리 R1이 10% 실패했고, 프롬프트에 위기 관련 문구가 0건이라 그 안전성이
+    # 모델 자체 정렬에만 의존하는 상태였다(모델 교체 시 경고 없이 무너짐).
+    # 12개 전부 넣어도 프롬프트 증가분은 ~0.4KB로 무시할 수준이다.
+    principles = [rule["principle"] for rule in load_safety_rules()["rules"]]
     return "\n".join(f"- {p}" for p in principles)
