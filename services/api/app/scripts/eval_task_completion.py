@@ -11,9 +11,18 @@ v2 보고서는 **48.9%(시도) · 11.5%(전체)** 두 값을 나란히 싣는�
 
 막힌 지점도 같이 낸다 — 비율만으로는 "어디서" 이탈하는지 알 수 없어 고칠 수가 없다.
 
+## 범위 — 기본은 시연 시나리오 2개다
+
+맵을 kts-03·sns-01 둘만 만들었으므로 나머지 시나리오는 **완성된 적이 없는 콘텐츠**다.
+그걸 분모에 넣으면 완주율이 콘텐츠 미완성 탓에 낮아지고, 지표가 시스템을 설명하지
+못한다(실측: 전체 576판 중 253판이 ms-06의 첫 미션에 멈춰 있다 — 시연에 없는 맵이다).
+
+기본으로 DEMO_SLUGS만 잰다. 전체를 보려면 --all.
+
 실행:
     docker compose exec api python -m app.scripts.eval_task_completion
     docker compose exec api python -m app.scripts.eval_task_completion --scenario kts-03
+    docker compose exec api python -m app.scripts.eval_task_completion --all
 """
 
 import argparse
@@ -30,13 +39,17 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 
-async def collect(scenario_slug: str | None) -> dict:
+# 맵·콘텐츠가 완성된 시연 대상. 나머지는 미완성이라 완주율의 분모가 될 수 없다.
+DEMO_SLUGS = ("kts-03", "sns-01")
+
+
+async def collect(slugs: list[str] | None) -> dict:
     async with SessionFactory() as session:
         stmt = select(
             Simulation.id, Simulation.status, Simulation.state, Scenario.slug, Scenario.steps
         ).join(Scenario, Scenario.id == Simulation.scenario_id)
-        if scenario_slug:
-            stmt = stmt.where(Scenario.slug == scenario_slug)
+        if slugs:
+            stmt = stmt.where(Scenario.slug.in_(slugs))
         sims = (await session.execute(stmt)).all()
 
         sim_ids = [s[0] for s in sims]
@@ -80,7 +93,9 @@ def analyze(data: dict) -> dict:
         types = {t for t, _ in actions.get(sim_id, [])}
         if types:
             touched.add(sim_id)
-        if types & {"task_submit", "quest_submit", "choice", "minigame"}:
+        # 완주했는데 제출 기록이 없는 판이 있다 — 전부 스킵으로 넘긴 경우다.
+        # 분모에서 빠지면 비율이 100%를 넘으므로(실측 111.1%) 완주도 제출로 친다.
+        if types & {"task_submit", "quest_submit", "choice", "minigame"} or st == "completed":
             submitted.add(sim_id)
         if "skip_step" in types:
             skipped_sims.add(sim_id)
@@ -169,10 +184,26 @@ def report(r: dict) -> None:
 
 async def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scenario", help="시나리오 slug (예: kts-03). 생략하면 전체")
+    parser.add_argument("--scenario", help="시나리오 slug 하나만 (예: kts-03)")
+    parser.add_argument(
+        "--all", action="store_true",
+        help="시연 대상 밖까지 전부 — 맵 미완성 시나리오가 섞여 완주율이 낮게 나온다",
+    )
     args = parser.parse_args()
 
-    data = await collect(args.scenario)
+    if args.scenario:
+        slugs = [args.scenario]
+    elif args.all:
+        slugs = None
+    else:
+        slugs = list(DEMO_SLUGS)
+
+    scope = "전체 시나리오" if slugs is None else " · ".join(slugs)
+    logger.info("범위: %s", scope)
+    if slugs is None:
+        logger.info("⚠️ 맵이 없는 미완성 시나리오가 분모에 섞인다 — 시연 지표로 쓰지 말 것.")
+
+    data = await collect(slugs)
     report(analyze(data))
     return 0
 
