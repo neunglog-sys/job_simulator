@@ -1725,7 +1725,10 @@ export function OneToOneConversationPage() {
       } catch (error) {
         if (cancelled) return;
 
-        if (error instanceof ApiError && error.status === 409) {
+        // 409(적성 부족)와 400(아직 대화가 없음)은 실패가 아니라 '더 하면 된다'는 안내다.
+        // 400을 error로 두면 대화를 시작하지 않은 상담에서 "리포트를 만들지 못했어요"가 떠
+        // 이미 만들어 둔 리포트까지 사라진 것처럼 읽힌다(2026-07-28 E2E).
+        if (error instanceof ApiError && (error.status === 409 || error.status === 400)) {
           const detail = error.detail as
             | { message?: string; followup_questions?: string[] }
             | null;
@@ -1733,7 +1736,11 @@ export function OneToOneConversationPage() {
             phase: "needs-more-chat",
             recommendation: null,
             report: null,
-            message: detail?.message ?? "적성 파악이 아직 부족해요. 대화를 조금 더 나눠주세요.",
+            message:
+              detail?.message
+              ?? (error.status === 400
+                ? "이 상담에는 아직 나눈 대화가 없어요. 이야기를 시작하면 리포트를 만들어 드려요."
+                : "적성 파악이 아직 부족해요. 대화를 조금 더 나눠주세요."),
             followupQuestions: detail?.followup_questions ?? [],
           });
         } else {

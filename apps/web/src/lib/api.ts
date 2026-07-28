@@ -197,7 +197,8 @@ export async function fetchProfileAvatar(): Promise<Blob | null> {
     throw new ApiError(0, null, "프로필 이미지 서버에 연결할 수 없어요.");
   }
 
-  if (response.status === 404) return null;
+  // 204 = 등록된 이미지 없음(정상). 404는 이 엔드포인트가 404를 쓰던 시절 배포본 호환.
+  if (response.status === 204 || response.status === 404) return null;
   if (!response.ok) {
     const raw = await response.text();
     const data = raw ? safeJson(raw) : null;
