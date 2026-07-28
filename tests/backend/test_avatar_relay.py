@@ -97,3 +97,37 @@ async def test_upstream_error_midstream_closes_with_failure_code():
     code, reason = client.close_calls[0]
     assert code == 1011
     assert "오류" in reason
+
+
+# ── 다이얼(연결) 실패 경로 ──────────────────────────────────────
+# 위 세 건은 '연결은 됐는데 그 뒤가 잘못된' 경우다. 연결 자체가 실패하면(코랩 미기동·URL
+# 오타·핸드셰이크 거절) 펌프는 아예 시작하지 않으므로 펌프의 finally가 못 닫는다.
+# 이 경로가 뚫려 있으면 브라우저엔 1006(비정상 종료)으로 떨어져, 프론트는 원인을 모른 채
+# 폴백만 탄다. 다이얼 실패도 1011로 닫히는지 여기서 고정한다.
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_upstream_dial_failure_closes_with_failure_code(monkeypatch):
+    from app.core.config import settings
+    from app.domains.avatar.service import relay_musetalk_ws
+
+    # 127.0.0.1:1 = 즉시 connection refused (열려 있을 수 없는 포트)
+    monkeypatch.setattr(settings, "avatar_musetalk_ws_url", "ws://127.0.0.1:1/musetalk")
+    client = FakeClientWS(asyncio.Event())
+    await asyncio.wait_for(relay_musetalk_ws(client), timeout=20)
+    assert client.close_calls, "다이얼 실패인데 닫지 않았다 — 브라우저엔 1006으로 떨어진다"
+    code, reason = client.close_calls[0]
+    assert code == 1011, f"다이얼 실패가 {code}로 닫힘 — 1011이어야 한다"
+    assert reason
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_missing_upstream_url_closes_with_failure_code(monkeypatch):
+    from app.core.config import settings
+    from app.domains.avatar.service import relay_musetalk_ws
+
+    monkeypatch.setattr(settings, "avatar_musetalk_ws_url", "   ")
+    client = FakeClientWS(asyncio.Event())
+    await asyncio.wait_for(relay_musetalk_ws(client), timeout=5)
+    code, _ = client.close_calls[0]
+    assert code == 1011

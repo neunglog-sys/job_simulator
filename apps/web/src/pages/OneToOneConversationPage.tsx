@@ -51,6 +51,11 @@ import {
   saveCoachId,
   type CoachAvatarId,
 } from "../lib/coachPreference";
+import {
+  createSttClock,
+  markSttSegmentStart,
+  reportSttFinal,
+} from "../lib/sttTelemetry";
 import styles from "../styles/oneToOneConversation.module.css";
 import { INITIAL_REPORT_STATE } from "../types/conversation";
 import type {
@@ -388,6 +393,8 @@ export function OneToOneConversationPage() {
   const voiceSessionActiveRef = useRef(false);
   const voiceInputBaseRef = useRef("");
   const voiceFinalTranscriptRef = useRef("");
+  // STT 계측용 구간 시계 — 첫 interim에서 시작, final에서 소비.
+  const sttClockRef = useRef(createSttClock());
   const avatarQueueRef = useRef<AvatarSpeechMedia[]>([]);
   const avatarPlayingRef = useRef(false);
   /** 한 답변을 묶는 식별자와 청크 순번.
@@ -1449,8 +1456,11 @@ export function OneToOneConversationPage() {
             voiceFinalTranscriptRef.current = [voiceFinalTranscriptRef.current, transcript]
               .filter(Boolean)
               .join(" ");
+            // 평가 증빙 — 확정된 문장 하나당 한 줄이 서버 로그에 남는다.
+            reportSttFinal(sttClockRef.current, transcript);
           } else {
             interimTranscript = [interimTranscript, transcript].filter(Boolean).join(" ");
+            markSttSegmentStart(sttClockRef.current);
           }
         }
 
