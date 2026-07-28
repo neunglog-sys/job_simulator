@@ -74,6 +74,24 @@ def _get_client():
     return _client
 
 
+def log_voice_config() -> None:
+    """기동 시 유효 보이스 설정을 한 줄 남긴다 (voice_id는 비밀이 아니라 그대로 찍는다).
+
+    .env에 AVATAR_VOICE_ID_FEMALE이 없으면 여성 아바타가 조용히 남성 보이스로
+    폴백한다 — 화면·API 어디에도 안 드러나서 배포 환경에서만 틀린 목소리가 나가도
+    알 수 없었다(2026-07-28). 배포 로그만 보면 바로 확인되게 남긴다.
+    """
+    catalog = avatar_catalog()
+    male, female = catalog["male"]["voice_id"], catalog["female"]["voice_id"]
+    logger.info(
+        "[VOICE] model=%s male=%s female=%s%s",
+        settings.elevenlabs_model,
+        male or "(미설정)",
+        female or "(미설정)",
+        "" if settings.avatar_voice_id_female else "  ⚠️ AVATAR_VOICE_ID_FEMALE 없음 → 남성 보이스로 폴백",
+    )
+
+
 async def warmup() -> None:
     """앱 기동 시 Gradio Client를 미리 만들어 둔다 (핸드셰이크 ≈2.4초 선지불).
 
