@@ -737,6 +737,10 @@ async def relay_musetalk_ws(client_ws, entered_at: float | None = None) -> None:
     t_ready = time.monotonic()
     epoch = entered_at if entered_at is not None else t_ready
     marks: dict[str, float] = {}
+    # 다이얼(핸드셰이크)을 넘겼는지 — 실패 로그가 어느 구간인지 가리는 데 쓴다.
+    # 예전엔 어떤 실패든 "코랩 서버 연결 실패"로 찍혀서, 펌프 중 끊긴 것까지 연결 실패로
+    # 읽혔다(0728 리허설 오진단). 두 경우는 원인도 조치도 다르다.
+    dialed = False
     try:
         async with websockets.connect(
             ws_url,
@@ -750,6 +754,7 @@ async def relay_musetalk_ws(client_ws, entered_at: float | None = None) -> None:
             ping_timeout=None,
             open_timeout=15,
         ) as upstream:
+            dialed = True
             t_dialed = time.monotonic()
             marks["setup_ms"] = (t_ready - epoch) * 1000
             marks["dial_ms"] = (t_dialed - t_ready) * 1000
@@ -763,10 +768,18 @@ async def relay_musetalk_ws(client_ws, entered_at: float | None = None) -> None:
             await _pump_bidirectional(
                 client_ws, upstream, marks=marks, epoch=epoch, rid=rid
             )
-    except Exception:  # noqa: BLE001 — 코랩 미기동/URL오류/핸드셰이크 실패
-        logger.exception("MuseTalk WS 릴레이 실패(rid=%s): %s", rid, ws_url)
+    except Exception:  # noqa: BLE001 — 코랩 미기동/URL오류/핸드셰이크 실패 또는 펌프 중 예외
+        stage = "펌프" if dialed else "다이얼"
+        logger.exception(
+            "MuseTalk WS 릴레이 실패(rid=%s, 구간=%s): %s", rid, stage, ws_url
+        )
+        # 펌프까지 갔다면 _pump_bidirectional의 finally가 이미 사유를 담아 닫았다 —
+        # 그 경우 이 close는 suppress로 흘러가고 먼저 보낸 코드가 살아남는다.
         with contextlib.suppress(Exception):
-            await client_ws.close(code=1011, reason="코랩 서버 연결 실패")
+            await client_ws.close(
+                code=1011,
+                reason="코랩 서버 연결 실패" if not dialed else "아바타 릴레이 오류",
+            )
     finally:
         if marks:
             logger.info(
