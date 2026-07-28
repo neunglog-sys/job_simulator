@@ -12,6 +12,7 @@ import asyncio
 import io
 import logging
 import math
+import re
 import struct
 import time
 import wave
@@ -70,13 +71,33 @@ async def _elevenlabs_mp3(text: str, voice: str | None = None) -> bytes:
         return res.content
 
 
+_MD_BOLD_RE = re.compile(r"\*{1,3}(.+?)\*{1,3}", re.S)
+_MD_BULLET_RE = re.compile(r"^\s*[-*]\s+", re.M)
+_MD_HEADING_RE = re.compile(r"^\s*#{1,6}\s*", re.M)
+
+
+def strip_markdown(text: str) -> str:
+    """읽어줄 텍스트에서 마크다운 기호를 제거한다.
+
+    상담 프롬프트는 미해결 대응 형식에서 **굵은 라벨**을 의도적으로 쓴다(system.md).
+    화면에서는 굵게 렌더하면 되지만, TTS에 원문을 그대로 넘기면 음성이 별표를
+    문자로 읽거나 어색하게 끊긴다 — 합성 직전에 기호만 벗겨낸다(내용은 보존).
+    """
+    out = _MD_HEADING_RE.sub("", text)
+    out = _MD_BULLET_RE.sub("", out)
+    out = _MD_BOLD_RE.sub(r"\1", out)
+    return out.replace("`", "").strip()
+
+
 def _log_tts(provider: str, text: str, voice: str | None, t0: float, size: int) -> None:
     """어느 단계가 응답했는지 한 줄로 남긴다.
 
     폴백은 조용히 일어난다 — 쿼터가 걸리면 사용자는 그대로 gTTS 로봇 목소리를,
     최악엔 0.6초 비프음을 듣는데 로그만 봐서는 알 수 없었다. 품질 지표(WER·MCD)를
     잴 때도 어느 샘플이 폴백으로 합성됐는지 모르면 결과가 통째로 오염된다.
-    chars는 ElevenLabs 문자 과금 집계에도 그대로 쓴다.
+
+    chars는 **strip_markdown을 거친 뒤**의 길이다 — 실제로 ElevenLabs에 전송돼
+    과금되는 문자수가 그것이라, 과금 집계에 그대로 쓸 수 있다.
     """
     logger.info(
         "[TTS] provider=%s chars=%d voice=%s elapsed_ms=%.0f bytes=%d",
@@ -91,6 +112,7 @@ def _log_tts(provider: str, text: str, voice: str | None, t0: float, size: int) 
 async def synthesize(text: str, voice: str | None = None) -> tuple[bytes, str]:
     """텍스트 → (오디오 바이트, media_type)."""
     t0 = time.monotonic()
+    text = strip_markdown(text)
     # 팀 확정 TTS — 키 있으면 최우선 (gTTS 팝·과도한 쉼 없음)
     if settings.elevenlabs_api_key:
         try:
