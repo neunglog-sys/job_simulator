@@ -38,8 +38,9 @@ logger = logging.getLogger(__name__)
 MEMORY_TURNS = 20
 SCORING_TURNS = 40  # 채점 대화록 상한 — 하루 종일 대화해도 채점 프롬프트가 무한 성장하지 않게
 RAG_TOP_K = 3
-RAG_MAX_DISTANCE = 0.35  # 실측(0722): 정답매칭 ~0.22~0.33 · 오프토픽 ~0.37~0.46 — 그 사이로 낮춤.
+RAG_MAX_DISTANCE = 0.31  # consultation과 같은 코퍼스·같은 근거 — 그쪽 주석 참고(0728 재측정).
 # 여긴 job_code 스코프(kb_jobs_for)라 타직무 교차오염은 해당 없음(consultation과 차이).
+# 두 경로가 같은 doc_chunks를 보므로 컷을 따로 두면 같은 질문에 다른 지식이 붙는다.
 COACH_RAG_TOP_K = 6  # 코치는 가르치는 입장 — NPC(3)보다 넓게 그 직무 전체 그림을 그라운딩
 
 
