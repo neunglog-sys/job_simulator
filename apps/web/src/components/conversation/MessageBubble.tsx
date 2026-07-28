@@ -1,5 +1,6 @@
 import styles from "../../styles/oneToOneConversation.module.css";
 import type { ConversationMessage } from "../../types/conversation";
+import { RichText } from "./RichText";
 import { SurveyStartMessageButton } from "./SurveyStartMessageButton";
 
 type MessageBubbleProps = {
@@ -22,7 +23,8 @@ export function MessageBubble({ message, onOpenSurvey }: MessageBubbleProps) {
     <div className={rowClassName}>
       <div className={bubbleClassName}>
         <span>
-          {message.content}
+          {/* 굵은 라벨·목록은 프롬프트가 의도한 형식이라 원문 노출 대신 렌더한다(RichText) */}
+          <RichText text={message.content} />
           {message.phase === "pending" ? (
             <span className={styles.messageTypingDots} aria-hidden="true">
               <span />
