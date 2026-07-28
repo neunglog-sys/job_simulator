@@ -589,6 +589,9 @@ async def _pump_bidirectional(
     """
     from fastapi import WebSocketDisconnect
 
+    # 아래 finally에서 종료 코드를 가르는 근거 — 프레임을 한 장이라도 내렸는지.
+    saw_binary = False
+
     def mark(key: str) -> None:
         if marks is None or epoch is None or key in marks:
             return
@@ -619,11 +622,14 @@ async def _pump_bidirectional(
                 await upstream.close()
 
     async def upstream_to_client() -> None:
+        nonlocal saw_binary
+        failed = False
         try:
             async for msg in upstream:
                 mark("first_down_ms")
                 if isinstance(msg, (bytes, bytearray)):
                     is_first_binary = marks is not None and "first_binary_ms" not in marks
+                    saw_binary = True
                     mark("first_binary_ms")
                     bump("down_binary")
                     await client_ws.send_bytes(bytes(msg))
@@ -667,10 +673,24 @@ async def _pump_bidirectional(
                     bump("down_text")
                     await client_ws.send_text(msg)
         except Exception:  # noqa: BLE001 — 코랩 끊김 등
+            failed = True
             logger.debug("upstream→client 종료", exc_info=True)
         finally:
+            # 종료 코드를 안 주면 스타렛이 1000(정상 종료)으로 닫는다. 그런데 프론트는
+            # `!streamDone && code !== 1000`일 때만 폴백을 타므로, 코랩이 프레임 한 장
+            # 못 내리고 죽어도 정상 종료로 오인해 **아무 표시 없이 아바타가 멈춘다**.
+            # 실패는 실패 코드로 닫아 프론트가 알아채게 한다.
+            reason = ""
+            if failed:
+                reason = "아바타 업스트림 오류로 중단"
+            elif not saw_binary:
+                reason = "아바타 스트림 시작 전 업스트림 종료"
             with contextlib.suppress(Exception):
-                await client_ws.close()
+                if reason:
+                    logger.warning("아바타 릴레이 비정상 종료(rid=%s): %s", rid, reason)
+                    await client_ws.close(code=1011, reason=reason)
+                else:
+                    await client_ws.close()
 
     await asyncio.gather(client_to_upstream(), upstream_to_client())
 
@@ -705,7 +725,11 @@ async def relay_musetalk_ws(client_ws, entered_at: float | None = None) -> None:
             additional_headers={"ngrok-skip-browser-warning": "true"},
             max_size=None,  # fMP4 프레임이 클 수 있어 프레임 크기 제한 해제
             ping_interval=20,
-            ping_timeout=20,
+            # ping_timeout=None: 코랩은 UNet 추론·ffmpeg가 이벤트 루프를 붙들어 pong이
+            # 늦는다. 콜드 첫 발화가 ~23초라 기본값 20초면 **프레임이 나오기 전에**
+            # keepalive가 연결을 끊는다(= firstBinaryAt:null). ping은 계속 보내 중간
+            # 경로(ngrok)의 idle 종료만 막고, 응답 지연으로는 끊지 않는다.
+            ping_timeout=None,
             open_timeout=15,
         ) as upstream:
             t_dialed = time.monotonic()
@@ -789,6 +813,7 @@ async def _fire_dummy_warmup() -> None:
             max_size=None,
             open_timeout=15,
             ping_interval=20,
+            ping_timeout=None,  # 예열은 콜드 추론 그 자체 — pong 지연으로 끊기면 안 된다
         ) as ws:
             await ws.send(json.dumps(payload))
             async for m in ws:
