@@ -1449,13 +1449,28 @@ def _envelope(
     }
 
 
-def _public_quest(quest_def: dict, npc_name: str | None = None) -> dict:
-    """클라이언트용 퀘스트 정보 — 정답(hints·answer)은 숨김. npc는 npc_id + 표시 이름."""
+def _public_quest(
+    quest_def: dict,
+    npc_name: str | None = None,
+    scenario: Scenario | None = None,
+    state: dict | None = None,
+) -> dict:
+    """클라이언트용 퀘스트 정보 — 정답(hints·answer)은 숨김. npc는 npc_id + 표시 이름.
+
+    intro·task도 본편 mission과 똑같이 개인화한다. 안 그러면 sns-01 원본의 고정 가명이
+    그대로 나가 NPC가 사용자를 "지수 씨"라고 부른다(2026-07-28 E2E에서 실제로 노출).
+    """
+    task = sm.public_task(quest_def["task"])
+    intro = quest_def.get("intro")
+    if scenario is not None:
+        intro = _personalize_text(scenario, state or {}, intro)
+        if task.get("prompt"):
+            task = {**task, "prompt": _personalize_text(scenario, state or {}, task["prompt"])}
     return {
         "npc": quest_def.get("npc"),  # npc_id
         "npc_name": npc_name,
-        "intro": quest_def.get("intro"),
-        "task": sm.public_task(quest_def["task"]),
+        "intro": intro,
+        "task": task,
     }
 
 
@@ -1514,7 +1529,9 @@ async def submit_task(
                 quest = {"status": "active", "attempts": 0}
                 q_roster = await npc_map(session, scenario.id)
                 q_name = (q_roster.get(scenario.sudden_quest.get("npc")) or {}).get("name")
-                quest_fired = _public_quest(scenario.sudden_quest, q_name)
+                quest_fired = _public_quest(
+                    scenario.sudden_quest, q_name, scenario, simulation.state
+                )
     else:
         advice = hints.advice_card(task, attempt_n, result["scores"], result["feedback"])
 
@@ -1633,7 +1650,12 @@ async def _submit_quest(
 
     coach_cards = None
     if qtask.get("kind") not in scoring.RULE_KINDS:  # 통과·실패 모두 리뷰 (2026-07-26 개입 강화)
-        quest_step = {"id": "quest", "title": "돌발 퀘스트", "mission": quest_def.get("intro", "")}
+        quest_step = {
+            "id": "quest",
+            "title": "돌발 퀘스트",
+            # 코치도 개인화된 문장을 봐야 한다 — 원본 가명을 그대로 주면 조언에 그 이름이 섞인다
+            "mission": _personalize_text(scenario, simulation.state, quest_def.get("intro", "")),
+        }
         coach_cards = await coach.generate_cards(coach.build_vars(
             simulation_id=simulation.id, scenario_slug=scenario.slug,
             step=quest_step, task=qtask, submission=submission, result=result,
