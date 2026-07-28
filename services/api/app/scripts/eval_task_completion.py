@@ -61,13 +61,15 @@ logger = logging.getLogger(__name__)
 DEMO_SLUGS = ("kts-03", "sns-01")
 
 
-async def collect(slugs: list[str] | None) -> dict:
+async def collect(slugs: list[str] | None, since=None) -> dict:
     async with SessionFactory() as session:
         stmt = select(
             Simulation.id, Simulation.status, Simulation.state, Scenario.slug, Scenario.steps
         ).join(Scenario, Scenario.id == Simulation.scenario_id)
         if slugs:
             stmt = stmt.where(Scenario.slug.in_(slugs))
+        if since is not None:
+            stmt = stmt.where(Simulation.created_at >= since)
         sims = (await session.execute(stmt)).all()
 
         sim_ids = [s[0] for s in sims]
@@ -238,6 +240,11 @@ async def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--scenario", help="시나리오 slug 하나만 (예: kts-03)")
     parser.add_argument(
+        "--since",
+        help="이 날짜 이후 생성된 세션만 (YYYY-MM-DD). 기능이 완성된 시점부터 재려면 필수 — "
+             "그 전 기록은 미완성 빌드에서 만들어진 것이라 같은 시스템이 아니다",
+    )
+    parser.add_argument(
         "--stale-hours", type=float, default=24.0,
         help="이만큼 조용하면 active를 '방치'로 본다 (기본 24시간)",
     )
@@ -259,7 +266,11 @@ async def main() -> int:
     if slugs is None:
         logger.info("⚠️ 맵이 없는 미완성 시나리오가 분모에 섞인다 — 시연 지표로 쓰지 말 것.")
 
-    data = await collect(slugs)
+    since = None
+    if args.since:
+        since = datetime.strptime(args.since, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        logger.info("기간: %s 이후 생성분", args.since)
+    data = await collect(slugs, since)
     report(analyze(data, args.stale_hours, datetime.now(timezone.utc)))
     return 0
 
