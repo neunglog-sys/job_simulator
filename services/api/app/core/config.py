@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     # LLM 견고성 — 무응답·일시장애 방지
     llm_timeout_ms: int = 60_000  # Gemini 호출 타임아웃(ms). 무응답 시 실패 처리 → 요청 무한대기 차단
     llm_max_retries: int = 2  # 일시오류(429·5xx·타임아웃) 지수백오프 재시도 횟수
+    # HTTP 커넥션 유휴 유지 시간(초). httpx 기본값 5초는 상담 턴 간격(20~40초)보다 짧아
+    # 매 턴 TLS 재수립이 일어났다 — VM 실측으로 임베딩이 330ms → 1,215ms로 뛰었다(+885ms).
+    # 임베딩은 스트리밍 전 직렬 구간이라 이 지연이 TTFB에 그대로 얹힌다.
+    # 300초는 일반적인 상담 세션의 턴 간격을 덮는 값. 환경별로 다르면 .env로 조정한다.
+    llm_keepalive_expiry_s: float = 300.0
     # (출력 길이 제어는 dev PR #131이 소유 — service.py char_limit→max_tokens per-call 방식.
     #  상세요청 시 char_limit=None(무제한)+skip_tts=True. 전역 config 캡은 그 설계와 충돌하므로 두지 않음.)
 

@@ -2,6 +2,7 @@ import asyncio
 import logging
 from typing import AsyncIterator
 
+import httpx
 from google import genai
 from google.genai import errors as genai_errors
 from google.genai import types
@@ -65,7 +66,33 @@ class GeminiProvider:
 
     def __init__(self) -> None:
         # 타임아웃 없으면 무응답 시 요청이 무한 대기 → 클라이언트 레벨로 상한을 건다.
-        http_options = types.HttpOptions(timeout=settings.llm_timeout_ms)
+        #
+        # keepalive_expiry: httpx 기본값이 **5초**라, 유휴 5초를 넘기면 커넥션을 닫고
+        # 다음 호출에서 TLS 핸드셰이크를 다시 한다. 상담은 턴 사이가 20~40초(사용자가 읽고
+        # 타이핑하는 시간)라 **매 턴이 항상 재수립**에 걸렸다.
+        #
+        # VM 실측(2026-07-28, 동일 쿼리·동일 프로세스, 간격만 변경):
+        #     간격  3초 →   330ms      ← 커넥션 재사용
+        #     간격 10초 → 1,215ms      ← 여기서 점프(+885ms)
+        #     간격 20초 → 1,264ms
+        #     간격 40초 → 1,271ms      ← 이후 평평 = 재수립 비용이 상수
+        # 실서버 상담의 임베딩 p50이 1,262ms였던 것이 정확히 이 값이다.
+        # 임베딩은 스트리밍 시작 전 직렬 구간이라 이 지연이 TTFB에 그대로 얹힌다.
+        #
+        # 유휴 만료를 넉넉히 늘려 턴 간격을 넘기게 한다. 더미 요청을 주기적으로 쏘는
+        # keepalive 핑보다 낫다 — 추가 호출·비용·쿼터 소모가 없다.
+        # ⚠️ 이 값은 **실측으로 정할 것**. 로컬 단독 벤치로 정하면 안 된다(같은 날 임베딩
+        #    타임아웃을 그렇게 정했다가 실서버 RAG를 죽인 전례가 있다).
+        http_options = types.HttpOptions(
+            timeout=settings.llm_timeout_ms,
+            async_client_args={
+                "limits": httpx.Limits(
+                    max_connections=100,
+                    max_keepalive_connections=20,
+                    keepalive_expiry=settings.llm_keepalive_expiry_s,
+                )
+            },
+        )
         if settings.google_genai_use_vertexai:
             # Vertex AI (GCP $300 크레딧) — 인증은 GOOGLE_APPLICATION_CREDENTIALS(서비스계정 JSON)
             self._client = genai.Client(
