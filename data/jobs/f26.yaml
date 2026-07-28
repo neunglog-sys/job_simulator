@@ -15,3 +15,27 @@ interest_profile:
   social: 1
   enterprising: 2
   conventional: 4
+# 조사 데이터: jm-04(3등 항해사) 리서치 검증본(2026-07-27) 기준. 값 확정, 딥링크는 제출 전 1회 확인 권장.
+education_requirement:
+  value: >-
+    해기사(항해사) 면허가 필요하다. 상선 3등 항해사에게 요구되는 면허 등급은 선박 톤수·항행구역에
+    따라 다르며, GMDSS 무선설비를 갖춘 선박에서는 무선통신 관련 면허(전파전자급 통신사면허 등)가
+    추가로 요구된다. ※ 선박직원법 시행령상 구체 승무기준(항·급수)은 law.go.kr 원문 확인 필요.
+  evidence_type: descriptive_text
+salary:
+  entry_level:
+    min_krw: null
+    max_krw: null
+    basis: >-
+      공식 통계에서 신입 3등 항해사 초임의 최소·최대값을 확인하지 못함.
+      개별 구인공고 임금은 선종·선사·승선수당·경력조건이 달라 초임으로 쓰지 않음.
+  # 참고(연 단일값 아님·median_annual_krw 기입 불가): KOSWEC 선원 월평균임금(2025.12 기준) —
+  #   외항선 6,176,000원/월, 내항선 4,105,000원/월. 서로 다른 업종이라 합치지 않으며,
+  #   월봉급×12 환산은 승선수당 누락으로 과소표시되어 연봉값으로 쓰지 않음 → reference_statistics: null.
+  reference_statistics: null
+certifications:
+  - name: "해기사(항해사) 면허"
+    tier: related
+  - name: "무선통신 관련 면허(GMDSS 설비 선박 승무 시)"
+    tier: related
+status: provisional
