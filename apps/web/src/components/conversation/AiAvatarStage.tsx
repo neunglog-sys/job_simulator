@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { API_BASE_URL } from "../../config/endpoints";
 import { createAvatarWebSocket, type MuseTalkSpeakRequest } from "../../lib/api";
 import {
   COACH_PROFILES,
@@ -12,6 +13,29 @@ type MuseTalkStageRequest = MuseTalkSpeakRequest & {
   id: number;
   displayCharacters?: number;
 };
+
+/** [CLIENT-FPS] 디버그 패널 1초 스냅샷. avatarFps는 requestVideoFrameCallback으로 센
+ * "실제 표시된" 프레임 수다 — rAF(UI 렌더 루프)와 다르고, 서버 목표치(frame_sync의
+ * fps=25)와 직접 비교할 수 있다. */
+type DebugStats = {
+  at: string;
+  uiFps: number;
+  avatarFps: number;
+  layer: "speak" | "idle";
+  target: number;
+  dropped: number;
+  total: number;
+  bufferedS: number;
+};
+
+function readDebugEnabled(): boolean {
+  try {
+    if (new URLSearchParams(window.location.search).has("debug")) return true;
+    return window.localStorage.getItem("jobiverse-avatar-debug") === "1";
+  } catch {
+    return false;
+  }
+}
 
 type AiAvatarStageProps = {
   children?: ReactNode;
@@ -165,6 +189,12 @@ export function AiAvatarStage({
   const endFrameRef = useRef<number | null>(null);
 
   const [speakReady, setSpeakReady] = useState(false);
+  /** 평가 요구(stt·fps 가시화) 대응 — `?debug=1` 또는 localStorage
+   * 'jobiverse-avatar-debug'="1"일 때만 화면 패널 + 백엔드 비콘([CLIENT-FPS])이 켜진다.
+   * 같은 측정값을 둘에 함께 먹이므로 시연 녹화(화면)와 VM 로그 조회가 동시에 충족된다. */
+  const [debugEnabled] = useState(readDebugEnabled);
+  const [debugStats, setDebugStats] = useState<DebugStats | null>(null);
+  const lastMetricsRef = useRef<Record<string, unknown> | null>(null);
   const safeVolume = Math.min(1, Math.max(0, volume));
   const resolvedAvatarId = resolveAvatarId(avatarId);
   const coach = COACH_PROFILES[resolvedAvatarId];
@@ -181,6 +211,108 @@ export function AiAvatarStage({
   useEffect(() => {
     if (speakRef.current) speakRef.current.volume = safeVolume;
   }, [safeVolume]);
+
+  useEffect(() => {
+    if (!debugEnabled) return;
+    let disposed = false;
+    let uiFrames = 0;
+    let speakFrames = 0;
+    let idleFrames = 0;
+    let rafId = 0;
+    const rafTick = () => {
+      if (disposed) return;
+      uiFrames += 1;
+      rafId = window.requestAnimationFrame(rafTick);
+    };
+    rafId = window.requestAnimationFrame(rafTick);
+
+    // rVFC는 Chrome/Edge 전용 — 미지원(Firefox 등)이면 0.5초 폴링으로 요소만 기다린다.
+    // idle·speak 두 비디오 모두에 건다: idle은 상시 재생, speak는 발화 중에만 프레임을 내므로
+    // "이번 1초 창에서 speak가 프레임을 냈는가"가 곧 화면에 보이는 레이어 판별이 된다.
+    type RVFCVideo = HTMLVideoElement & {
+      requestVideoFrameCallback?: (cb: () => void) => number;
+    };
+    const hookVideo = (get: () => HTMLVideoElement | null, bump: () => void) => {
+      const tick = () => {
+        if (disposed) return;
+        const v = get() as RVFCVideo | null;
+        if (v?.requestVideoFrameCallback) {
+          v.requestVideoFrameCallback(() => {
+            bump();
+            tick();
+          });
+        } else {
+          window.setTimeout(tick, 500);
+        }
+      };
+      tick();
+    };
+    hookVideo(() => speakRef.current, () => { speakFrames += 1; });
+    hookVideo(() => idleRef.current, () => { idleFrames += 1; });
+
+    const interval = window.setInterval(() => {
+      if (disposed) return;
+      const speakVideo = speakRef.current as
+        | (HTMLVideoElement & {
+            getVideoPlaybackQuality?: () => {
+              totalVideoFrames: number;
+              droppedVideoFrames: number;
+            };
+          })
+        | null;
+      const layer: DebugStats["layer"] = speakFrames > 0 ? "speak" : "idle";
+      const avatarFps = layer === "speak" ? speakFrames : idleFrames;
+      const q = speakVideo?.getVideoPlaybackQuality?.();
+      const bufferedS =
+        speakVideo && speakVideo.buffered.length > 0
+          ? Math.max(
+              0,
+              speakVideo.buffered.end(speakVideo.buffered.length - 1) -
+                speakVideo.currentTime,
+            )
+          : 0;
+      const target = frameSyncRef.current?.fps ?? 25;
+      const stats: DebugStats = {
+        at: new Date().toLocaleTimeString(),
+        uiFps: uiFrames,
+        avatarFps,
+        layer,
+        target,
+        dropped: q?.droppedVideoFrames ?? 0,
+        total: q?.totalVideoFrames ?? 0,
+        bufferedS: Number(bufferedS.toFixed(2)),
+      };
+      setDebugStats(stats);
+      const m = lastMetricsRef.current;
+      void fetch(`${API_BASE_URL}/api/debug/client-metrics`, {
+        method: "POST",
+        keepalive: true,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "avatar_fps",
+          coach: resolvedAvatarId,
+          actual_fps: avatarFps,
+          layer,
+          target_fps: target,
+          ui_fps: uiFrames,
+          dropped_frames: stats.dropped,
+          total_frames: stats.total,
+          buffered_s: stats.bufferedS,
+          stall_count: typeof m?.stall_count === "number" ? m.stall_count : null,
+          window: "1s",
+        }),
+      }).catch(() => undefined);
+      uiFrames = 0;
+      speakFrames = 0;
+      idleFrames = 0;
+    }, 1000);
+
+    return () => {
+      disposed = true;
+      window.cancelAnimationFrame(rafId);
+      window.clearInterval(interval);
+    };
+  }, [debugEnabled, resolvedAvatarId]);
 
   useEffect(() => {
     const video = speakRef.current;
@@ -317,6 +449,7 @@ export function AiAvatarStage({
         emitted_at_s: sinceStart(),
       };
       console.info("[MuseTalk]", metrics);
+      lastMetricsRef.current = metrics;
       onMuseTalkMetrics?.(metrics);
       metricsEmitted = true;
     };
@@ -744,6 +877,40 @@ export function AiAvatarStage({
           onEnded={onSpeakingEnd}
           aria-hidden={!speaking}
         />
+        {debugEnabled && debugStats && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              top: 8,
+              left: 8,
+              zIndex: 50,
+              background: "rgba(10, 10, 25, 0.72)",
+              color: "#d9e2ff",
+              font: "11px/1.55 Consolas, monospace",
+              padding: "6px 9px",
+              borderRadius: 6,
+              pointerEvents: "none",
+              whiteSpace: "pre",
+            }}
+          >
+            {[
+              `[${debugStats.at}]`,
+              `UI FPS      ${debugStats.uiFps}`,
+              `Avatar FPS  ${debugStats.avatarFps} / target ${debugStats.target} (${debugStats.layer})`,
+              `Dropped     ${debugStats.dropped} / ${debugStats.total}`,
+              `Buffer      ${debugStats.bufferedS}s · Stalls ${
+                typeof lastMetricsRef.current?.stall_count === "number"
+                  ? lastMetricsRef.current.stall_count
+                  : 0
+              }`,
+              `TTS         ${lastMetricsRef.current?.tts_seconds ?? "-"}s · Gate ${
+                lastMetricsRef.current?.gate_pass_at_s ?? "-"
+              }s`,
+              "STT         (미연동 — 담당자 훅 대기)",
+            ].join("\n")}
+          </div>
+        )}
         {children}
       </div>
     </section>
