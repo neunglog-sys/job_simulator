@@ -101,7 +101,13 @@ def main() -> None:
         print(f"  지식 주입률      {kb}/{len(consult)} ({kb*100//max(1,len(consult))}%)")
         print(f"  RAG 실행 사유    " + " · ".join(f"{k} {v}" for k, v in reasons.most_common()))
         if embed_timeout:
-            print(f"  ⚠️ 임베딩 타임아웃 {embed_timeout}건 — 2초 쓰고 지식 0건으로 진행")
+            share = embed_timeout * 100 // max(1, sum(reasons.values()) - reasons.get("short", 0)
+                                               - reasons.get("chitchat", 0) or 1)
+            print(f"  ⚠️ 임베딩 타임아웃 {embed_timeout}건 — 컷 소진 후 지식 0건으로 진행")
+            if kb == 0 and embed_timeout:
+                print("     🔴 지식 주입 0건 — RAG가 사실상 미동작. 컷(RAG_EMBED_TIMEOUT_S) 상향 검토")
+            elif share >= 30:
+                print(f"     🟡 RAG 실행 턴의 약 {share}%가 타임아웃 — 컷 상향 검토")
         chars = [c["chars"] for c in consult]
         print(f"  응답 길이        p50 {pct(chars,50):>4.0f}자 · max {max(chars)}자")
 

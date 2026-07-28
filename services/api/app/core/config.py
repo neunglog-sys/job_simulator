@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     embedding_dim: int = 1536
     # RAG 선택적 스킵 — 잡담/인사 턴에서 지식검색 생략. False면 기존 동작(len>=8만).
     rag_selective_skip: bool = True
+    # 임베딩 왕복 타임아웃(초). 초과하면 지식 없이 응답을 진행한다.
+    # ⚠️ 이 값은 **단독 벤치가 아니라 실사용 로그로** 정해야 한다 — 1.0s로 낮췄다가
+    # 실서버 지식 주입률이 0%가 된 적이 있다(2026-07-28, 상담 11턴 중 RAG 8건 전부 타임아웃).
+    # 같은 VM에서 임베딩만 단독 측정하면 p50 606ms였다. 요청 처리 중에는 훨씬 느려진다.
+    # 재배포 없이 조정하려고 설정으로 뺐다 — .env의 RAG_EMBED_TIMEOUT_S로 덮어쓴다.
+    rag_embed_timeout_s: float = 3.0
 
     # TTS — OPENAI_API_KEY 없으면 mock(비프음 WAV)으로 폴백
     tts_model: str = "tts-1"
