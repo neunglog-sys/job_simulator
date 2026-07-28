@@ -20,6 +20,8 @@
     [HTTP-LATENCY]  main.py — 엔드포인트 응답시간
     [RELAY-TIMING]  avatar/service.py — 아바타 첫 프레임
     [TTS]           tts/service.py — 합성 문자수·폴백 단계
+    [STT]           debug/router.py — 브라우저 Web Speech 확정 지연(프론트 비콘)
+    [CLIENT-FPS]    debug/router.py — 아바타 실표시 FPS(프론트 비콘)
 """
 
 import re
@@ -38,6 +40,10 @@ RE_TRUNC = re.compile(r"\[LLM-USAGE\] api=stream truncated=1")
 RE_HTTP = re.compile(r"\[HTTP-LATENCY\] (\w+) (\S+) status=(\d+) ms=([\d.]+)")
 RE_RELAY = re.compile(r"\[RELAY-TIMING\] rid=(\w+) first_binary .*first_binary_ms=([\d.]+)")
 RE_TTS = re.compile(r"\[TTS\] provider=(\w+) chars=(\d+) voice=(\S+) elapsed_ms=([\d.]+)")
+# 프론트 비콘(POST /api/debug/client-metrics)이 남기는 두 줄. 브라우저 안에서만 보이던
+# 값이라 서버 로그에 이 줄이 없으면 '측정 안 됨'이지 '동작 안 함'이 아니다.
+RE_STT = re.compile(r"\[STT\] event=(\S+) ms=(\S+) chars=(\d+)")
+RE_FPS = re.compile(r"\[CLIENT-FPS\] coach=(\S+) actual=(\S+) target=(\S+)")
 RE_EMBED_TO = re.compile(r"RAG 임베딩 [\d.]+s 초과")
 RE_ERROR = re.compile(r"(ERROR|Traceback|미처리 예외)")
 
@@ -59,6 +65,7 @@ def line(title=""):
 
 def main() -> None:
     consult, usage, http, relay, tts = [], [], [], [], []
+    stt, fps = [], []
     trunc = embed_timeout = errors = 0
 
     for raw in sys.stdin:
@@ -79,6 +86,15 @@ def main() -> None:
             relay.append(float(m[2]))
         if m := RE_TTS.search(raw):
             tts.append({"provider": m[1], "chars": int(m[2]), "ms": float(m[4])})
+        if m := RE_STT.search(raw):
+            # ms는 interim이 없던 구간에서 None으로 찍힌다 — 지연 표본에서만 빼고
+            # 인식 건수에는 남긴다(동작 증빙이 목적이라 건수를 잃으면 안 된다).
+            ms = None if m[2] in ("None", "-") else float(m[2])
+            stt.append({"event": m[1], "ms": ms, "chars": int(m[3])})
+        if m := RE_FPS.search(raw):
+            actual = None if m[2] in ("None", "-") else float(m[2])
+            target = None if m[3] in ("None", "-") else float(m[3])
+            fps.append({"coach": m[1], "actual": actual, "target": target})
         if RE_EMBED_TO.search(raw):
             embed_timeout += 1
         if RE_ERROR.search(raw):
@@ -141,6 +157,32 @@ def main() -> None:
         if set(prov) - {"elevenlabs"}:
             print("  ⚠️ 폴백 발생 — 품질 지표(WER·MCD) 집계 시 해당 샘플 제외 필요")
 
+    # ── STT ──
+    if stt:
+        line("STT (브라우저 Web Speech)")
+        finals = [s_ for s_ in stt if s_["event"] == "final"]
+        lat = [s_["ms"] for s_ in finals if s_["ms"] is not None]
+        chars = [s_["chars"] for s_ in finals]
+        print(f"  확정 문장 수     {len(finals)}건" + (f"  (기타 이벤트 {len(stt)-len(finals)}건)" if len(stt) > len(finals) else ""))
+        if lat:
+            print(f"  확정까지 지연    p50 {pct(lat,50):>6.0f}ms · p95 {pct(lat,95):>6.0f}ms · max {max(lat):.0f}ms")
+            print("                   └ 첫 interim→확정 구간이라 **말한 시간이 포함**된다")
+        if len(lat) < len(finals):
+            print(f"  지연 미측정      {len(finals)-len(lat)}건 (interim 없이 바로 확정)")
+        if chars:
+            print(f"  문장 길이        p50 {pct(chars,50):>4.0f}자 · max {max(chars)}자 · 총 {sum(chars):,}자")
+
+    # ── 클라이언트 FPS ──
+    if fps:
+        line("아바타 표시 FPS (브라우저 실측)")
+        actual = [f["actual"] for f in fps if f["actual"] is not None]
+        targets = {f["target"] for f in fps if f["target"] is not None}
+        print(f"  표본             {len(fps)}건")
+        if actual:
+            print(f"  실표시 FPS       p50 {pct(actual,50):>5.1f} · p05 {pct(actual,5):>5.1f} · max {max(actual):.1f}")
+        if targets:
+            print(f"  서버 목표(target) {' · '.join(f'{t:.0f}' for t in sorted(targets))}")
+
     # ── HTTP ──
     if http:
         line("엔드포인트")
@@ -163,10 +205,11 @@ def main() -> None:
         line()
         print(f"  ⚠️ 에러/트레이스백 라인 {errors}건 — 원문 확인 권장")
 
-    if not any([consult, usage, http, relay, tts]):
+    if not any([consult, usage, http, relay, tts, stt, fps]):
         print("\n  파싱된 로그가 없습니다.")
         print("  · 계측 로그는 배포 이후 기동분부터 남습니다(LLM-USAGE·HTTP-LATENCY).")
         print("  · docker compose logs 에 --since 를 너무 짧게 준 건 아닌지 확인하세요.")
+        print("  · [STT]·[CLIENT-FPS]는 브라우저 비콘이라 실제로 조작해야 남습니다.")
 
     print()
 
