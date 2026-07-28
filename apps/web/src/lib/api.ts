@@ -302,6 +302,16 @@ export function createConsultation(): Promise<Consultation> {
   return request(API_ENDPOINTS.consultations.create, { method: "POST" });
 }
 
+/** 마이페이지에 저장해 둔 이력서를 상담에 자동 연결(B안). 저장된 이력서가 없거나 분석이
+ * 실패해도 attached=false로 조용히 넘어가므로, 상담 시작을 막지 않는 fire-and-forget용이다. */
+export function attachStoredResume(
+  consultationId: number,
+): Promise<{ attached: boolean }> {
+  return request(API_ENDPOINTS.consultations.resumeFromStorage(consultationId), {
+    method: "POST",
+  });
+}
+
 export function fetchConsultations(): Promise<ConsultationSummary[]> {
   return request(API_ENDPOINTS.consultations.list, { method: "GET" });
 }

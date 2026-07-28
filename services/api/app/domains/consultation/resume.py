@@ -10,15 +10,18 @@
 import io
 import json
 import logging
+from pathlib import Path
 
 from fastapi import HTTPException
 from pypdf import PdfReader
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.llm import get_llm
 from app.llm.base import ChatMessage
 from app.llm.prompts import render_prompt
-from app.models import Consultation
+from app.models import Consultation, User, UserDocument
 
 logger = logging.getLogger(__name__)
 
@@ -113,4 +116,66 @@ def load_analysis(consultation: Consultation) -> dict | None:
     try:
         return json.loads(consultation.resume)
     except (ValueError, TypeError):
+        return None
+
+
+async def _latest_stored_resume(
+    session: AsyncSession, user: User
+) -> UserDocument | None:
+    """마이페이지에 저장된 이력서(kind=resume) 중 가장 최근 것 — 없으면 None."""
+    return (
+        (
+            await session.execute(
+                select(UserDocument)
+                .where(
+                    UserDocument.user_id == user.id,
+                    UserDocument.kind == "resume",
+                )
+                .order_by(
+                    UserDocument.created_at.desc(), UserDocument.id.desc()
+                )
+            )
+        )
+        .scalars()
+        .first()
+    )
+
+
+async def attach_resume_from_storage(
+    session: AsyncSession, consultation: Consultation, user: User
+) -> dict | None:
+    """마이페이지 보관함에 저장된 이력서(kind=resume)를 상담에 자동 연결한다(B안).
+
+    상담 시작 시 호출한다. 흐름:
+      - 이미 분석돼 있으면(consultation.resume) 재분석 없이 기존 결과 반환(멱등 — 새로고침·재진입 안전).
+      - 저장된 이력서가 없으면 None (상담은 그대로 진행 — 이력서는 선택).
+      - 파일이 사라졌거나 분석(파싱/LLM)이 실패해도 None으로 조용히 넘긴다.
+        자동 트리거라 사용자가 명시적으로 올린 게 아니므로, 실패가 상담 시작을 깨선 안 된다.
+    """
+    existing = load_analysis(consultation)
+    if existing is not None:
+        return existing
+
+    document = await _latest_stored_resume(session, user)
+    if document is None:
+        return None
+
+    path = Path(settings.storage_dir) / document.storage_key
+    try:
+        data = path.read_bytes()
+    except OSError:
+        logger.warning(
+            "저장된 이력서 파일을 읽지 못함(자동연결 건너뜀): %s", path
+        )
+        return None
+
+    try:
+        return await attach_resume(session, consultation, data)
+    except HTTPException as exc:
+        # 손상 PDF(400)·LLM 흔들림(503) 등 — 자동연결이라 상담을 막지 않고 조용히 생략.
+        logger.info(
+            "저장 이력서 자동 분석 건너뜀(%s): consultation=%d",
+            exc.detail,
+            consultation.id,
+        )
         return None
