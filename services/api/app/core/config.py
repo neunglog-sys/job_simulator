@@ -132,6 +132,13 @@ class Settings(BaseSettings):
     # 게임이 성립하지 않고, 리포트의 백분위·점수도 무의미해진다 → 시연·운영에서는 반드시 false.
     expose_answers: bool = False
 
+    # 미션 스킵 — 기본 차단. true면 미션 창에 '다음 문제로 스킵' 버튼이 뜨고 WS skip_step이
+    # 받아들여진다. 이 경로는 채점을 건너뛰고 통과 처리하며, 마지막 미션이면 완주로 보고
+    # finalize_score까지 돌아 점수·백분위 풀에 들어간다. 즉 켜두면 expose_answers를 열어둔
+    # 것과 같은 결과가 된다(안 푼 판이 점수가 됨) → 시연·운영에서는 반드시 false.
+    # 로컬에서 미션을 빨리 넘겨야 하면 .env에 ALLOW_SKIP_STEP=true 를 명시한다.
+    allow_skip_step: bool = False
+
     # 개인정보 암호화 (AES-256-GCM) — base64 인코딩된 32바이트 키.
     # 생성: openssl rand -base64 32 / 비우면 개발용 고정키 파생(경고 로그).
     # ⚠️ 팀 전원이 같은 키를 써야 함 (공용 DB의 암호문을 서로 복호화해야 하므로)
