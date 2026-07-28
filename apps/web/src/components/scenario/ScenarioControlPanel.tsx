@@ -11,6 +11,11 @@ import {
 import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { RecordingState } from "../../types/conversation";
+import {
+  createSttClock,
+  markSttSegmentStart,
+  reportSttFinal,
+} from "../../lib/sttTelemetry";
 import styles from "../../styles/scenarioGame.module.css";
 import type { DialogueHistoryEntry } from "./DialogueHistoryPanel";
 
@@ -127,6 +132,8 @@ export function ScenarioControlPanel({
   const voiceInputEnabledRef = useRef(!disabled);
   const voiceInputBaseRef = useRef("");
   const voiceFinalTranscriptRef = useRef("");
+  // STT 계측용 구간 시계 — 첫 interim에서 시작, final에서 소비.
+  const sttClockRef = useRef(createSttClock());
 
   // 스트리밍 중 백엔드 정리 전에 잠깐 새어나올 수 있는 화자 태그("[이름] ")를 표시 단계에서도 제거.
   const displayNpcMessage = npcMessage.replace(/^\s*\[[^\]]{1,20}\]\s*/, "");
@@ -398,8 +405,11 @@ export function ScenarioControlPanel({
             voiceFinalTranscriptRef.current = [voiceFinalTranscriptRef.current, transcript]
               .filter(Boolean)
               .join(" ");
+            // 평가 증빙 — 확정된 문장 하나당 한 줄이 서버 로그에 남는다.
+            reportSttFinal(sttClockRef.current, transcript);
           } else {
             interimTranscript = [interimTranscript, transcript].filter(Boolean).join(" ");
+            markSttSegmentStart(sttClockRef.current);
           }
         }
 

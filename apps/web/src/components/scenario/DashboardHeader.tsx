@@ -138,7 +138,7 @@ export function DashboardHeader({
           type="button"
           onClick={onRestart}
           disabled={restartDisabled}
-          title="테스트용: 시나리오를 처음부터 다시 시작"
+          title="시나리오를 처음부터 다시 시작"
         >
           <ArrowCounterClockwise weight="bold" aria-hidden="true" />
           <span>처음부터</span>

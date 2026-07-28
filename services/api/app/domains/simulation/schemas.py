@@ -72,4 +72,7 @@ class SimulationOut(BaseModel):
     # 한 직무에 게임 2~3개를 붙일 때 쓰는 전체 목록 (단일 게임 시나리오는 1개짜리).
     # 각 항목의 step이 있으면 그 시나리오 스텝에서, 없으면 목록 순서대로 진행한다.
     minigames: list[dict] = []
+    # 미션 스킵 버튼 노출 여부(settings.allow_skip_step). 기본 false — 채점을 건너뛴 판이
+    # 완주로 기록돼 백분위 풀에 섞이므로 시연·운영에서는 꺼둔다.
+    allow_skip: bool = False
     created_at: datetime

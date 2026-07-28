@@ -7,6 +7,7 @@ data/knowledge/<job_code>/*.md|txt 파일을 청크로 쪼개 임베딩 후 doc_
 import asyncio
 import hashlib
 import logging
+import time
 from pathlib import Path
 
 from sqlalchemy import delete, select
@@ -126,7 +127,24 @@ async def search_knowledge(
     embed_call = get_llm().embed([query], task_type="RETRIEVAL_QUERY")
     if embed_timeout:
         embed_call = asyncio.wait_for(embed_call, timeout=embed_timeout)
-    [qvec] = await embed_call
+    # 임베딩 왕복 실측 — 타임아웃 로그는 컷 값만 찍혀서 "실제로 얼마나 걸리는지"를 알 수
+    # 없었고, 그 탓에 로컬 수치로 프로덕션 컷을 정해 VM에서 전건 초과했다(2026-07-28).
+    # 환경별 분포가 남아야 컷을 그 환경 데이터로 정할 수 있다. 초과분도 남긴다.
+    _t0 = time.perf_counter()
+    try:
+        [qvec] = await embed_call
+    except asyncio.TimeoutError:
+        logger.warning(
+            "[RAG-EMBED] ms=%.0f ok=0 timeout_s=%s — 컷 초과(실제 지연은 이보다 김)",
+            (time.perf_counter() - _t0) * 1000,
+            embed_timeout,
+        )
+        raise
+    logger.info(
+        "[RAG-EMBED] ms=%.0f ok=1 timeout_s=%s",
+        (time.perf_counter() - _t0) * 1000,
+        embed_timeout if embed_timeout else "-",
+    )
     distance = DocChunk.embedding.cosine_distance(qvec)
     stmt = select(DocChunk)
     if job_code:

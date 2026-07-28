@@ -636,6 +636,9 @@ export function ScenarioGamePage() {
   const [scenarioSlug, setScenarioSlug] = useState("");
   const [scenarioTitle, setScenarioTitle] = useState("");
   const [stepIds, setStepIds] = useState<string[]>([]); // 본편 미션 순서 (진행률 계산용)
+  // 미션 스킵 허용 여부 — 서버 설정(allow_skip_step)을 그대로 받는다. 기본 false라
+  // 시연·운영에서는 버튼이 아예 뜨지 않는다(채점 건너뛴 판이 백분위 풀에 섞이는 걸 막음).
+  const [allowSkip, setAllowSkip] = useState(false);
   // 진행 페이즈 — "지금 무엇을 하는 중인지"의 단일 출처. 전이는 아래 handle*/소켓 핸들러에서만.
   const [phase, setPhase] = useState<GamePhase>("loading");
   const phaseRef = useRef<GamePhase>("loading");
@@ -1369,6 +1372,7 @@ export function ScenarioGamePage() {
       setScenarioSlug(sim.scenario_slug);
       setScenarioTitle(sim.scenario_title);
       setStepIds(sim.step_ids ?? []);
+      setAllowSkip(Boolean(sim.allow_skip));
       // 여기서 직접 speakCoach를 부르지 않는다 — phase/npcs/activeStep을 세팅하면
       // 아래 반응형 useEffect(520-527행 부근)가 이어서 실행되며 같은 안내를 speakCoach로
       // 내보낸다. 예전엔 여기서도 직접 불러 **같은 접속에 두 번** 발화가 발동됐는데,
@@ -2398,7 +2402,7 @@ export function ScenarioGamePage() {
           submitting={phase === "mission_grading"}
           result={taskResult}
           onSubmit={handleTaskSubmit}
-          onSkip={handleSkip}
+          onSkip={allowSkip ? handleSkip : null}
           onClose={() => setPhase("exploring")}
           onClearResult={() => setTaskResult(null)}
         />

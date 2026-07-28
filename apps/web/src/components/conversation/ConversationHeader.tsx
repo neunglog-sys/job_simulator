@@ -88,7 +88,7 @@ export function ConversationHeader({ onCoachSettingsOpen }: ConversationHeaderPr
             className={styles.glassIconButton}
             type="button"
             onClick={() => setIsScenarioPickerOpen((current) => !current)}
-            aria-label="시나리오 화면 이어가기"
+            aria-label="테스트할 시나리오 선택"
             data-tooltip="시나리오 화면 이어가기"
             aria-haspopup="menu"
             aria-expanded={isScenarioPickerOpen}
@@ -96,8 +96,8 @@ export function ConversationHeader({ onCoachSettingsOpen }: ConversationHeaderPr
             <GameController aria-hidden="true" weight="regular" />
           </button>
           {isScenarioPickerOpen ? (
-            <div className={styles.scenarioPickerMenu} role="menu" aria-label="시나리오 선택">
-              <p>이어갈 시나리오 선택</p>
+            <div className={styles.scenarioPickerMenu} role="menu" aria-label="테스트 시나리오">
+              <p>테스트할 시나리오 선택</p>
               <button type="button" role="menuitem" onClick={() => goToScenario("kts-03")}>
                 <span className={styles.scenarioPickerIcon} aria-hidden="true">
                   <Storefront weight="duotone" />
