@@ -5,6 +5,6 @@ export const initialConversationMessages: ConversationMessage[] = [
   {
     id: "greeting",
     role: "assistant",
-    content: "안녕하세요! 저는 AI 직무 마스터예요. 어떤 일을 할 때 가장 즐겁다고 느끼나요?",
+    content: "안녕하세요! 저는 AI 진로 코치예요. 어떤 일을 할 때 가장 즐겁다고 느끼나요?",
   },
 ];

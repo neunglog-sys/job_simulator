@@ -146,7 +146,7 @@ State Machine 정의(상태·전이·delta 규칙)는 `data/scenarios/*.yaml`에
 ```
 POST /reports → BackgroundTasks:
   action_logs + messages + 최종 state 집계
-  → LLM(직무 마스터 프롬프트): 적합도·강점·보완점·조언 생성(JSON)
+  → LLM(진로 코치 프롬프트): 적합도·강점·보완점·조언 생성(JSON)
   → HTML 템플릿 렌더 → WeasyPrint PDF → storage/reports 저장
 프론트는 status 폴링 → 완료 시 다운로드
 ```
