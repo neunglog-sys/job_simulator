@@ -824,7 +824,7 @@ export function AiAvatarStage({
     <section
       className={styles.avatarStage}
       data-avatar-status={status}
-      aria-label="AI 직무 마스터 화면"
+      aria-label="AI 진로 코치 화면"
     >
       <div className={styles.avatarAmbientLight} aria-hidden="true" />
 

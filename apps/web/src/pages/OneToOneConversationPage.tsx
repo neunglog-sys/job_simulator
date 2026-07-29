@@ -2087,7 +2087,7 @@ export function OneToOneConversationPage() {
   );
 
   return (
-    <main className={styles.screen} aria-label="AI 직무 마스터와의 1대1 대화 화면">
+    <main className={styles.screen} aria-label="AI 진로 코치와의 1대1 대화 화면">
       <div className={styles.cosmicBackground} aria-hidden="true" />
       <div className={styles.starField} aria-hidden="true">
         {STAR_POINTS.map((star, index) => (

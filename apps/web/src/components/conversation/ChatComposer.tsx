@@ -82,7 +82,7 @@ export function ChatComposer({
           onChange={(event) => onInputChange(event.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="메시지를 입력하세요"
-          aria-label="AI 직무 마스터에게 보낼 메시지"
+          aria-label="AI 진로 코치에게 보낼 메시지"
           autoComplete="off"
           rows={1}
         />
