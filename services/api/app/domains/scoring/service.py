@@ -4,6 +4,9 @@
 - 선택지: 시나리오 YAML의 effects 그대로 (룰 기반, 결정적)
 """
 
+import logging
+import statistics
+
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +15,8 @@ from app.llm import get_llm
 from app.llm.base import ChatMessage
 from app.llm.prompts import render_prompt
 from app.models import ActionLog
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["RULE_KINDS"]  # 재노출 — 기존 scoring.RULE_KINDS 참조 유지
 
@@ -79,6 +84,17 @@ _TASK_SCHEMA = {
 }
 
 
+# 합격선에서 이만큼 안쪽이면 한 번 더 채점해 중앙값으로 판정한다.
+#
+# 온도 0 + 사고 토큰 0으로도 점수는 완전히 고정되지 않는다(실측: 같은 답안 8회에 sd 3.5~4.2).
+# Gemini에 seed가 없어 원리적으로 비결정적이다. 그런데 사용자에게 해로운 건 95냐 100이냐가
+# 아니라 **합불이 갈리는 것**이다 — 같은 답안을 내고 어떤 날은 통과, 어떤 날은 미달이면
+# 원인을 알 수가 없다. 그래서 경계 근처에서만 표본을 늘려 그 뒤집힘을 줄인다.
+# 밴드 밖(명백한 통과·명백한 미달)은 한 번으로 끝내 비용을 늘리지 않는다.
+BOUNDARY_BAND = 6
+BOUNDARY_SAMPLES = 3
+
+
 async def evaluate_task(
     mission: str, task: dict, transcript: str, submission: str
 ) -> dict:
@@ -94,13 +110,47 @@ async def evaluate_task(
         [ChatMessage(role="user", content=f"## 제출물\n{submission}")],
         system=system,
         json_schema=_TASK_SCHEMA,
+        # 채점기는 측정 도구다 — 같은 답안은 같은 점수를 받아야 한다. 기본값(0.3)을 그대로
+        # 쓰다가 동일 답안 5회 재채점에서 sd 1.73점, 9답안 중 2개가 합불이 갈렸다(0728 감사).
+        # 사용자는 왜 결과가 달라졌는지 알 방법이 없다.
+        #
+        # ⚠️ temperature만 0으로 내려서는 안 잡힌다(실측: sd 3.78 → 3.81, 변화 없음).
+        # Gemini는 사고 토큰이 기본 활성이고 **그 과정이 온도와 무관하게 흔들리기** 때문이다.
+        # thinking_budget=0이 실제로 재현성을 만드는 쪽이다.
+        temperature=0.0,
+        thinking_budget=0,
     )
     total = max(0, min(100, int(result.get("total", 0))))
+    pass_score = task.get("pass_score", 70)
+
+    # 경계 근처면 표본을 늘려 중앙값으로 판정한다 — 합불 뒤집힘만 겨냥한 조치다.
+    if abs(total - pass_score) <= BOUNDARY_BAND:
+        totals = [total]
+        for _ in range(BOUNDARY_SAMPLES - 1):
+            try:
+                extra = await get_llm().chat_json(
+                    [ChatMessage(role="user", content=f"## 제출물\n{submission}")],
+                    system=system,
+                    json_schema=_TASK_SCHEMA,
+                    temperature=0.0,
+                    thinking_budget=0,
+                )
+            except Exception:  # noqa: BLE001 — 추가 표본 실패가 채점을 막으면 안 된다
+                logger.warning("경계 재채점 실패 — 있는 표본으로 판정한다")
+                break
+            totals.append(max(0, min(100, int(extra.get("total", 0)))))
+        if len(totals) > 1:
+            median = int(statistics.median(totals))
+            logger.info(
+                "[GRADE-BOUNDARY] pass=%d samples=%s -> median=%d", pass_score, totals, median
+            )
+            total = median
+
     return {
         "scores": result.get("scores", []),
         "total": total,
         "feedback": _truncate_feedback(result.get("feedback", "")),
-        "passed": total >= task.get("pass_score", 70),
+        "passed": total >= pass_score,
     }
 
 

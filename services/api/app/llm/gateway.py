@@ -118,12 +118,19 @@ class LLMGateway:
         system: str | None = None,
         json_schema: dict,
         temperature: float = 0.3,
+        thinking_budget: int | None = None,
     ) -> dict:
-        """구조화 출력 — JSON 파싱 + 스키마 검증. 실패 시 1회 재시도."""
+        """구조화 출력 — JSON 파싱 + 스키마 검증. 실패 시 1회 재시도.
+
+        thinking_budget: Gemini는 사고 토큰이 기본 활성이고 **그 과정은 temperature와
+        무관하게 흔들린다.** 채점처럼 같은 입력에 같은 출력이 나와야 하는 용도는 0으로
+        꺼야 한다 — 온도만 0으로 낮춰서는 재현성이 잡히지 않는다(실측).
+        """
         validator = Draft202012Validator(json_schema)
         for attempt in (1, 2):
             raw = await self.chat(
-                messages, system=system, json_schema=json_schema, temperature=temperature
+                messages, system=system, json_schema=json_schema, temperature=temperature,
+                thinking_budget=thinking_budget,
             )
             try:
                 obj = json.loads(raw)
