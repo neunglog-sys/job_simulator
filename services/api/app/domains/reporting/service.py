@@ -1,4 +1,4 @@
-"""리포트 생성 — 상담·추천 종합 → 직무 마스터 분석(LLM) → PDF (설계서 §6-③).
+"""리포트 생성 — 상담·추천 종합 → 진로 코치 분석(LLM) → PDF (설계서 §6-③).
 
 생성은 BackgroundTasks로 비동기 처리, 프론트는 status 폴링 후 PDF 다운로드.
 """
@@ -33,7 +33,7 @@ _REPORT_SCHEMA = {
         # 결정론적으로 계산한다(재현 가능·표의 직무 적합도와 역전 없음). 스키마에서 제외.
         "strengths": {"type": "array", "items": {"type": "string"}},
         "improvements": {"type": "array", "items": {"type": "string"}},
-        # '직무 마스터의 종합 총평' — 상담·추천·수행·소감을 아우르는 긴 서술(6~8문장)
+        # '진로 코치의 종합 총평' — 상담·추천·수행·소감을 아우르는 긴 서술(6~8문장)
         "advice": {"type": "string"},
         # 추천 5개 직무 묶음에 대한 AI 해석(3~4문장) — 표의 점수·근거에만 기반
         "recommendation_insight": {"type": "string"},

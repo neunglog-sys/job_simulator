@@ -117,7 +117,7 @@ async def run(group: str) -> int:
             continue
         if not answer.strip():
             failures += 1
-        print(f"\n[{case_id}] 사용자\n{user_text}\n[{case_id}] 직무 코치\n{answer.strip()}")
+        print(f"\n[{case_id}] 사용자\n{user_text}\n[{case_id}] 진로 코치\n{answer.strip()}")
     return failures
 
 

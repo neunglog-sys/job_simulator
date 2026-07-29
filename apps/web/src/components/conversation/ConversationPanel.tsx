@@ -30,7 +30,7 @@ export function ConversationPanel(props: ConversationPanelProps) {
       className={styles.conversationPanel}
       data-layout={props.variant}
       style={{ "--composer-height": `${composerHeight}px` } as ConversationPanelStyle}
-      aria-label="AI 직무 마스터와의 1대1 대화"
+      aria-label="AI 진로 코치와의 1대1 대화"
     >
       <MessageList messages={props.messages} onOpenSurvey={props.onOpenSurvey} />
       <ChatComposer

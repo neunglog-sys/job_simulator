@@ -24,7 +24,7 @@ export function MessageList({ messages, onOpenSurvey }: MessageListProps) {
         ref={viewportRef}
         className={styles.messagesViewport}
         role="log"
-        aria-label="AI 직무 마스터와의 대화 내역"
+        aria-label="AI 진로 코치와의 대화 내역"
         aria-live="polite"
       >
         <div className={styles.messageList}>
