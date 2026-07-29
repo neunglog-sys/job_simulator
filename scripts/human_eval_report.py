@@ -16,12 +16,15 @@
     python3 scripts/human_eval_report.py humaneval/
 """
 
+import contextlib
 import csv
 import json
 import statistics
 import sys
 from collections import defaultdict
 from pathlib import Path
+
+import openpyxl
 
 # 등급 표시에 이모지를 쓰므로 콘솔이 UTF-8이 아니면 죽는다(Windows cp949).
 # VM은 UTF-8이지만 어디서 돌려도 결과가 나와야 한다.
@@ -33,28 +36,59 @@ LABEL = {"natural": "자연스러움", "relevant": "적절성", "helpful": "도�
 AGREE_GREEN, AGREE_YELLOW = 80.0, 60.0
 
 
+@contextlib.contextmanager
+def _open_rows(path: Path):
+    """csv·xlsx를 같은 모양(dict 이터레이터)으로 읽는다."""
+    if path.suffix.lower() == ".xlsx":
+        wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+        try:
+            rows = wb[wb.sheetnames[0]].iter_rows(values_only=True)
+            header = [str(c).strip() if c is not None else "" for c in next(rows)]
+            yield (
+                {h: ("" if v is None else str(v).strip()) for h, v in zip(header, r)}
+                for r in rows
+            )
+        finally:
+            wb.close()
+    else:
+        with path.open(encoding="utf-8-sig", newline="") as f:
+            yield csv.DictReader(f)
+
+
 def load(folder: Path):
     """평가자별 시트 → {item_id: {rater: {dim: score}}}. 빈 칸은 조용히 건너뛴다."""
     scores: dict[str, dict[str, dict[str, int]]] = defaultdict(dict)
     texts: dict[str, tuple[str, str]] = {}
     memos: list[tuple[str, str, str]] = []
-    sheets = sorted(folder.glob("sheet_*.csv"))
+    # 평가자는 스프레드시트로 채워 돌려주는 게 자연스럽다(구글 시트 → xlsx 내려받기).
+    # xlsx가 있으면 그쪽을 쓰고, 없으면 csv를 읽는다 — 같은 평가자의 빈 csv가 남아 있어도
+    # 채운 xlsx가 덮어쓰게 한다.
+    by_rater: dict[str, Path] = {}
+    for sheet in sorted(folder.glob("sheet_*.csv")) + sorted(folder.glob("sheet_*.xlsx")):
+        by_rater[sheet.stem.replace("sheet_", "")] = sheet
+    sheets = [by_rater[k] for k in sorted(by_rater)]
     if not sheets:
-        sys.exit(f"시트가 없다: {folder}/sheet_*.csv")
+        sys.exit(f"시트가 없다: {folder}/sheet_*.csv|xlsx")
 
     for sheet in sheets:
         rater = sheet.stem.replace("sheet_", "")
-        with sheet.open(encoding="utf-8-sig", newline="") as f:
-            for row in csv.DictReader(f):
+        with _open_rows(sheet) as reader:
+            for row in reader:
                 item = (row.get("item_id") or "").strip()
                 if not item:
                     continue
                 texts.setdefault(item, (row.get("사용자 발화", ""), row.get("상담사 응답", "")))
                 got = {}
                 for d in DIMENSIONS:
+                    # 스프레드시트는 숫자를 실수로 저장한다("5" -> "5.0"). 정수만 받으면
+                    # xlsx로 채운 시트가 통째로 빈 칸으로 읽힌다(실측: 40행 전부 유실).
                     raw = (row.get(d) or "").strip()
-                    if raw.isdigit() and 1 <= int(raw) <= 5:
-                        got[d] = int(raw)
+                    try:
+                        v = int(round(float(raw)))
+                    except (TypeError, ValueError):
+                        continue
+                    if 1 <= v <= 5:
+                        got[d] = v
                 if got:
                     scores[item][rater] = got
                 memo = (row.get("메모") or "").strip()
