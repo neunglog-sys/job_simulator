@@ -19,6 +19,7 @@
 import contextlib
 import csv
 import json
+import math
 import statistics
 import sys
 from collections import defaultdict
@@ -95,6 +96,34 @@ def load(folder: Path):
                 if memo:
                     memos.append((item, rater, memo))
     return scores, texts, memos, [s.stem.replace("sheet_", "") for s in sheets]
+
+
+def _pearson(x, y):
+    """표준편차가 0이면 정의되지 않는다(전원 같은 점수) — None으로 돌려준다."""
+    if len(x) < 2:
+        return None
+    mx, my = statistics.mean(x), statistics.mean(y)
+    dx = math.sqrt(sum((a - mx) ** 2 for a in x))
+    dy = math.sqrt(sum((b - my) ** 2 for b in y))
+    if dx == 0 or dy == 0:
+        return None
+    return sum((a - mx) * (b - my) for a, b in zip(x, y)) / (dx * dy)
+
+
+def _ranks(v):
+    """동점은 평균 순위 — Spearman 계산용."""
+    order = sorted(range(len(v)), key=lambda i: v[i])
+    r = [0.0] * len(v)
+    i = 0
+    while i < len(order):
+        j = i
+        while j + 1 < len(order) and v[order[j + 1]] == v[order[i]]:
+            j += 1
+        avg = (i + j) / 2 + 1
+        for k in range(i, j + 1):
+            r[order[k]] = avg
+        i = j + 1
+    return r
 
 
 def agreement(scores, dim) -> tuple[float, int]:
@@ -237,6 +266,7 @@ def main() -> int:
         print("\n── LLM 심판(G-Eval) 대조 " + "─" * 32)
         print("  이 평가의 본론이다 — 심판이 사람과 같은 방향을 보는지 확인한다.")
         gaps = []
+        corr_notes: list = []
         for d in DIMENSIONS:
             if d in blocked:
                 continue
@@ -251,7 +281,18 @@ def main() -> int:
             gm = statistics.mean(p[2] for p in pairs)
             diff = gm - hm
             tone = "심판이 후하다" if diff > 0.3 else ("심판이 박하다" if diff < -0.3 else "대체로 일치")
+            # 평균이 맞는 것과 항목별로 같은 순서를 매기는 것은 다르다. 가이드가 요구하는
+            # "인간 평가와 상관관계 80%+"는 후자라, 상관계수를 따로 낸다.
+            hv_all = [x[1] for x in pairs]
+            gv_all = [x[2] for x in pairs]
+            r = _pearson(hv_all, gv_all)
+            rho = _pearson(_ranks(hv_all), _ranks(gv_all))
+            spread = statistics.pstdev(hv_all) if len(hv_all) > 1 else 0.0
+            corr_notes.append((d, r, spread))
             print(f"  {LABEL[d]:<8} 사람 {hm:.2f} · 심판 {gm:.2f} · 차이 {diff:+.2f}  → {tone}")
+            print(f"  {'':8}   Pearson {'계산불가' if r is None else format(r, '.3f')} · "
+                  f"Spearman {'계산불가' if rho is None else format(rho, '.3f')} · "
+                  f"사람 점수 분산 {spread:.3f}")
             gaps += [(item, d, h, g) for item, h, g in pairs if abs(g - h) >= 1.5]
         if gaps:
             print(f"\n  1.5점 이상 어긋난 항목 {len(gaps)}건 — **여기가 심판을 고칠 지점이다**")
@@ -262,6 +303,15 @@ def main() -> int:
                 print(f"       A: {reply[:70]}")
         else:
             print("\n  1.5점 이상 어긋난 항목 없음 — 심판을 자동 회귀 지표로 계속 써도 된다.")
+
+        # 상관계수는 점수가 퍼져 있어야 뜻이 있다. 대부분이 4.7~5.0에 몰리면(천장 효과)
+        # 남는 건 잡음뿐이라 계수가 낮게 나온다 — 심판이 틀려서가 아니다.
+        flat = [d for d, _r, sp in corr_notes if sp < 0.5]
+        if flat:
+            print("\n  ⚠️ 상관계수 해석 주의 — " + ", ".join(LABEL[d] for d in flat) + "의")
+            print("     사람 점수 분산이 0.5 미만이다(천장 효과). 이 구간에서는 상관계수가 낮게")
+            print("     나오는 게 정상이며, '심판이 사람과 다르게 본다'로 읽으면 안 된다.")
+            print("     상관을 제대로 재려면 점수가 퍼지는 표본(엣지·위험 위주)이 필요하다.")
     else:
         print("\n  (geval.json 없음 — eval_geval.py --out 로 만들면 심판 대조까지 나온다)")
 
