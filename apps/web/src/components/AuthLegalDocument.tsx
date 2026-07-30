@@ -22,7 +22,7 @@ function TermsDocument() {
   return (
     <>
       <p className="auth-legal-lead">
-        이 약관은 직무 아카데미아·JOBIVERSE(이하 “서비스”)의 이용과 관련하여 서비스
+        이 약관은 JOBIVERSE(이하 “서비스”)의 이용과 관련하여 서비스
         운영자와 이용자 사이의 권리, 의무 및 책임사항을 정합니다.
       </p>
       <section>
@@ -139,7 +139,7 @@ function PrivacyDocument() {
   return (
     <>
       <p className="auth-legal-lead">
-        직무 아카데미아·JOBIVERSE(이하 “서비스”)는 이용자의 개인정보를 서비스 제공에 필요한
+        JOBIVERSE(이하 “서비스”)는 이용자의 개인정보를 서비스 제공에 필요한
         범위에서 처리하고 안전하게 보호하기 위해 이 방침을 마련합니다.
       </p>
       <section>
