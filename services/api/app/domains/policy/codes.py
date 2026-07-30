@@ -155,6 +155,10 @@ YOUTH_NATIONAL_MIN_PREFIXES = 10
 # 한 시도 안에서 이 개수 이하의 시군구만 지정했으면 시군구 전용 정책으로 본다.
 YOUTH_DISTRICT_MAX_CODES = 3
 
+# 온통청년 정책의 연령 상한이 비어 있을 때 쓰는 기본 상한 (청년기본법 만 19~34세).
+# 값 없음을 '제한 없음'으로 두면 청년 전용 제도가 전 연령에 나간다.
+YOUTH_AGE_MAX = 34
+
 
 def normalize_region(value: str | None) -> str:
     """지역명을 비교 가능한 형태로. 값 없음 표기는 전부 빈 문자열로 모은다."""

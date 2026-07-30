@@ -84,9 +84,14 @@ def _filter_gov24(
         if not service or service.get("서비스분야") != codes.FIELD_EMPLOYMENT:
             continue
 
+        # 상·하한을 각각 독립으로 본다. 둘 다 있을 때만 걸면 "만 34세 이하"처럼 상한만
+        # 적힌 청년 제도가 나이와 무관하게 통과한다(실측: 68세 계정에 청년 제도 노출).
         low, high = _as_int(row.get(codes.JA_AGE_MIN)), _as_int(row.get(codes.JA_AGE_MAX))
-        if age is not None and low is not None and high is not None and not (low <= age <= high):
-            continue
+        if age is not None:
+            if high is not None and age > high:
+                continue
+            if low is not None and age < low:
+                continue
         if gender and row.get(gender_key) != "Y":
             continue
 
@@ -180,7 +185,11 @@ def _filter_youth(
         # 플래그 대신 값이 실제로 채워졌을 때만 그 값으로 거른다.
         low, high = _as_int(row.get("sprtTrgtMinAge")), _as_int(row.get("sprtTrgtMaxAge"))
         if age is not None:
-            if high and age > high:
+            # 상한이 비었으면(0/없음) "제한 없음"이 아니라 **적어두지 않은 청년 정책**으로
+            # 본다. 이 API 자체가 청년 정책 출처라서다. 전에는 값 없음을 무제한으로 처리해
+            # 68세 계정에 청년일자리도약장려금이 그대로 나갔다.
+            limit = high if high else codes.YOUTH_AGE_MAX
+            if age > limit:
                 continue
             if low and age < low:
                 continue

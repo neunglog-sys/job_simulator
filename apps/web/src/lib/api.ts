@@ -275,6 +275,9 @@ export function warmupAvatar(): void {
 export type PolicyCard = {
   available: boolean;
   reason?: "not_configured" | "no_match";
+  /** 사용자 만 나이 — 정부 API가 죽어 고정 목록을 쓸 때 연령으로 걸러내는 데 쓴다.
+   *  프로필에 생년이 없으면 null. */
+  age?: number | null;
   title?: string;
   body?: string;
   more_url?: string;
