@@ -6,7 +6,7 @@ type BrandLogoProps = {
 
 export function BrandLogo({ onClick }: BrandLogoProps) {
   return (
-    <button className={styles.brand} type="button" onClick={onClick} aria-label="직무 아카데미아 홈">
+    <button className={styles.brand} type="button" onClick={onClick} aria-label="JOBIVERSE 홈">
       <span className={styles.brandMark} aria-hidden="true">
         <span />
       </span>

@@ -669,7 +669,7 @@ export function CareerLaunch() {
       className={sceneClasses}
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
-      aria-label="직무 아카데미아 AI 직무 체험 랜딩 페이지"
+      aria-label="JOBIVERSE AI 직무 체험 랜딩 페이지"
     >
       <div className="scene-background ground-sky" aria-hidden="true" />
       <div className="scene-background space-sky" aria-hidden="true">
@@ -747,7 +747,7 @@ export function CareerLaunch() {
         <a
           className="brand"
           href={FRONTEND_ENDPOINTS.home}
-          aria-label="직무 아카데미아 홈"
+          aria-label="JOBIVERSE 홈"
         >
           <span className="brand-mark" aria-hidden="true">
             <span />

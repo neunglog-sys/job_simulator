@@ -1,5 +1,5 @@
 export const LANDING_COPY = {
-  brand: "직무 아카데미아",
+  brand: "JOBIVERSE",
   intro: {
     eyebrow: "AI 아바타 직무 시뮬레이션",
     title: "나에게 맞는 일,\n설명보다 경험으로",
