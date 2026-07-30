@@ -42,6 +42,29 @@ def test_age_outside_range_is_dropped():
     assert out == []
 
 
+def test_gov24_one_sided_age_bound_still_filters():
+    """상한만 적힌 제도가 나이를 무시하고 통과하면 안 된다.
+
+    전에는 상·하한이 둘 다 있을 때만 걸렀다. 그래서 "만 34세 이하"처럼 상한만 적힌
+    청년 제도가 68세 계정에도 그대로 나갔다.
+    """
+    upper_only = [_cond(**{codes.JA_AGE_MIN: None, codes.JA_AGE_MAX: "34"})]
+    assert service._filter_gov24(
+        _svc(), upper_only, age=68, gender="male", has_disability=False
+    ) == []
+    assert service._filter_gov24(
+        _svc(), upper_only, age=30, gender="male", has_disability=False
+    ) != []
+
+    lower_only = [_cond(**{codes.JA_AGE_MIN: "60", codes.JA_AGE_MAX: None})]
+    assert service._filter_gov24(
+        _svc(), lower_only, age=30, gender="male", has_disability=False
+    ) == []
+    assert service._filter_gov24(
+        _svc(), lower_only, age=68, gender="male", has_disability=False
+    ) != []
+
+
 def test_gender_only_service_is_dropped():
     """여성 전용 제도가 남성 사용자에게 나가면 안 된다."""
     out = service._filter_gov24(
@@ -158,13 +181,19 @@ def test_youth_age_uses_values_not_the_broken_flag():
     youth_only = _youth(sprtTrgtAgeLmtYn="N", sprtTrgtMinAge="15", sprtTrgtMaxAge="34")
     assert _filter_youth_names(youth_only, age=47, ctpv="경기도", sgg="양주시") == []
 
-    # 상한이 0 = 값 없음 → 연령으로 거르지 않는다
+    # 상한이 0 = 값 없음. 이 API는 청년 정책 출처라 '제한 없음'이 아니라 '안 적은 청년
+    # 정책'으로 본다 — 무제한으로 두면 68세 계정에 청년 제도가 그대로 나간다.
     no_upper = _youth(sprtTrgtAgeLmtYn="Y", sprtTrgtMinAge="0", sprtTrgtMaxAge="0")
-    assert _filter_youth_names(no_upper, age=47, ctpv="경기도", sgg="양주시") != []
+    assert _filter_youth_names(no_upper, age=30, ctpv="경기도", sgg="양주시") != []
+    assert _filter_youth_names(no_upper, age=34, ctpv="경기도", sgg="양주시") != []
+    assert _filter_youth_names(no_upper, age=47, ctpv="경기도", sgg="양주시") == []
+    assert _filter_youth_names(no_upper, age=68, ctpv="경기도", sgg="양주시") == []
 
-    # 15~69처럼 넓은 제도는 47세도 대상이다
+    # 15~69처럼 넓은 제도는 47세도, 68세도 대상이다 (국민취업지원제도가 이 범위다)
     wide = _youth(sprtTrgtAgeLmtYn="N", sprtTrgtMinAge="15", sprtTrgtMaxAge="69")
     assert _filter_youth_names(wide, age=47, ctpv="경기도", sgg="양주시") != []
+    assert _filter_youth_names(wide, age=68, ctpv="경기도", sgg="양주시") != []
+    assert _filter_youth_names(wide, age=70, ctpv="경기도", sgg="양주시") == []
 
 
 def test_youth_other_province_is_dropped():
