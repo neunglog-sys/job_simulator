@@ -343,7 +343,7 @@ export function AuthModal({ mode, onClose, onModeChange, onSuccess }: Props) {
           onScroll={(event) => setIsMainScrolled(event.currentTarget.scrollTop > 4)}
         >
           <div className="auth-scroll-content">
-            <p className="auth-eyebrow">직무 아카데미아</p>
+            <p className="auth-eyebrow">JOBIVERSE</p>
             <h2 className="auth-title">{isSignUp ? "새 계정 만들기" : "다시 오셨네요"}</h2>
             <p className="auth-subtitle">
               {isSignUp
