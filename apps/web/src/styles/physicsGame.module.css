@@ -1,0 +1,611 @@
+/* physics 엔진(rhythm·balance) 전용 스타일.
+   공용 껍데기(HUD·결과)는 minigame.module.css 를 그대로 쓰고, 여기엔
+   레인·노트·게이지·크레인 등 physics 고유 요소만 둔다. */
+
+/* ── 도트 아트 표시 훅 (표시 전용 — 파일이 없으면 전부 조용히 폴백) ──
+   rhythm 배경(track)·balance 배경(scene)은 스테이지에 꽉 채워 깔린다
+   (RouteGame mapLayer 수법 — PixelSprite 인라인 width 를 덮어써야 해서 !important). */
+.trackLayer,
+.sceneLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.trackLayer img,
+.sceneLayer img {
+  width: 100% !important;
+  height: 100% !important;
+  image-rendering: pixelated;
+}
+
+/* 주행뷰 스크림 — 밝은 노면 위에서도 노트·판정선이 읽히게 살짝 어둡힌다.
+   레이어는 프리로드 성공 시에만 그려지므로(useSpriteArt) 폴백 화면에는 안 나온다. */
+.trackLayer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgb(12 16 30 / 0.3);
+}
+
+/* 스프라이트 파일이 없을 때 폴백 칩 대신 아무것도 안 그린다 — 장식이 조용히 빠지고
+   도트 아트 전과 동일한 화면으로 남는다(routeGame .spriteHidden 과 동일 규약) */
+.spriteHidden {
+  display: none;
+}
+
+/* ── rhythm: 레인 스테이지 ── */
+.rhythmStage {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  height: 300px;
+  padding: 8px;
+  border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.2));
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 24% 12%, rgb(255 255 255 / 0.05), transparent 40%),
+    linear-gradient(160deg, rgb(38 44 66 / 0.96), rgb(24 27 44 / 0.98));
+  overflow: hidden;
+}
+
+.lane {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  border-left: 1px dashed rgb(255 255 255 / 0.1);
+  border-right: 1px dashed rgb(255 255 255 / 0.1);
+}
+
+.laneLabel {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.7));
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 판정선 — 노트가 이 선에 닿는 순간이 정타 */
+.judgeLine {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 14%;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--scenario-accent, #8a63ee), var(--scenario-accent-2, #ef71bc));
+  box-shadow: 0 0 12px var(--scenario-accent-soft, rgb(193 126 255 / 0.4));
+  pointer-events: none;
+}
+
+.judgeLine[data-flash="hit"] { box-shadow: 0 0 18px rgb(90 220 180 / 0.9); background: #5adcb4; }
+.judgeLine[data-flash="bad"] { box-shadow: 0 0 18px rgb(255 120 140 / 0.9); background: #ff8fa3; }
+
+/* 히트 밴드 확대(디자이너 확정) — 위아래 2px씩. 3px → 7px, bottom 을 2px 내려
+   밴드 중심은 기존 판정선과 동일하게 유지한다. 타이밍 창 환산은 PhysicsGame.tsx
+   HIT_BAND_EXTRA_PX 와 짝 — 한쪽만 바꾸지 말 것. */
+.judgeLine[data-wide="true"] {
+  height: 7px;
+  bottom: calc(14% - 2px);
+}
+
+/* 노트 — 스프라이트 아트 전까지 라벨 마커(스폿 엔진과 같은 방식) */
+.note {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 56px;
+  max-width: 96%;
+  padding: 5px 8px;
+  border: 1px solid rgb(255 255 255 / 0.3);
+  border-radius: 9px;
+  background: rgb(255 255 255 / 0.1);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  color: rgb(255 255 255 / 0.92);
+  pointer-events: none;
+  will-change: top;
+}
+
+.note[data-kind="avoid"] { border-color: rgb(255 150 120 / 0.6); background: rgb(120 50 40 / 0.4); }
+.note[data-kind="decoy"] { border-style: dashed; opacity: 0.85; }
+.note[data-kind="swap"] { border-color: rgb(120 200 255 / 0.6); background: rgb(40 80 120 / 0.42); }
+.note[data-kind="wash"] { border-color: rgb(120 240 200 / 0.6); background: rgb(20 90 75 / 0.45); }
+.note[data-judged="hit"] { border-color: rgb(120 240 200 / 0.85); background: rgb(30 160 130 / 0.5); }
+.note[data-judged="miss"], .note[data-judged="spoiled"] { border-color: rgb(255 130 150 / 0.85); background: rgb(190 50 80 / 0.5); }
+
+.noteKey {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.35);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+/* 접근성 폴백 — 낙하 대신 순차 프롬프트 */
+.promptList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-height: 300px;
+  padding: 12px;
+  border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.2));
+  border-radius: 14px;
+  background: linear-gradient(160deg, rgb(38 44 66 / 0.96), rgb(24 27 44 / 0.98));
+}
+
+.promptCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.06);
+  font-size: 12px;
+  font-weight: 700;
+  color: rgb(255 255 255 / 0.9);
+  opacity: 0.55;
+}
+
+.promptCard[data-active="true"] {
+  opacity: 1;
+  border-color: var(--scenario-accent, #8a63ee);
+  box-shadow: 0 0 0 3px var(--scenario-accent-soft, rgb(193 126 255 / 0.24));
+}
+
+.promptCard[data-kind="avoid"] { border-color: rgb(255 150 120 / 0.5); }
+
+.promptBarTrack {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.14);
+  overflow: hidden;
+}
+
+.promptBarValue {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--scenario-accent, #8a63ee), var(--scenario-accent-2, #ef71bc));
+}
+
+/* ── 공용: 조작 버튼 줄 ── */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.controlButton {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid rgb(255 255 255 / 0.24);
+  border-radius: 12px;
+  color: #fff;
+  background: rgb(255 255 255 / 0.1);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+
+.controlButton:hover { background: rgb(255 255 255 / 0.16); }
+.controlButton:active { transform: translateY(1px); }
+.controlButton:focus-visible {
+  outline: 2px solid var(--scenario-accent, #8a63ee);
+  outline-offset: 2px;
+}
+
+.controlButton[data-variant="primary"] {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--scenario-accent, #8a63ee), var(--scenario-accent-2, #ef71bc));
+}
+
+.controlButton[data-variant="danger"] {
+  border-color: rgb(255 140 160 / 0.5);
+  background: rgb(150 40 60 / 0.35);
+}
+
+.controlButton:disabled { opacity: 0.45; cursor: default; }
+
+/* 돌발·안내 토스트 — inline-flex 는 아이콘(도트) 정렬용, 텍스트만일 땐 종전과 동일하게 보인다 */
+.toast {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: center;
+  padding: 6px 14px;
+  border: 1px solid rgb(255 210 120 / 0.5);
+  border-radius: 999px;
+  background: rgb(120 90 20 / 0.4);
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffe9b8;
+  animation: toastIn 220ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+/* 토스트 왼쪽 교란 아이콘·버튼 안 도트 아이콘 — 파일 없으면 spriteHidden 으로 조용히 빠진다 */
+.toastIcon,
+.buttonIcon {
+  display: inline-flex;
+  flex: none;
+  vertical-align: middle;
+}
+
+.buttonIcon {
+  margin-right: 7px;
+}
+
+@keyframes toastIn {
+  from { transform: translateY(6px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+/* ── balance: 축 게이지 ── */
+.balanceStage {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  padding: 18px 16px;
+  border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.2));
+  border-radius: 14px;
+  background: linear-gradient(160deg, rgb(38 44 66 / 0.96), rgb(24 27 44 / 0.98));
+}
+
+/* position: relative — (1) 배경 씬 레이어(sceneLayer) 위로 줄을 올리고
+   (2) 기체 도트(axisCraft)의 기준 좌표가 된다. 씬 없는 게임에선 시각 무영향. */
+.axisRow { position: relative; display: flex; flex-direction: column; gap: 6px; }
+
+/* 기체 도트(ys-09) — 게이지 바늘과 같은 x 에서 기울기만큼 회전. 트랙(overflow: hidden)
+   밖(axisRow 기준)에 그려서 회전해도 안 잘린다. bottom 13px = 트랙 높이 26px 의 중앙. */
+.axisCraft {
+  position: absolute;
+  bottom: 13px;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 5px rgb(0 0 0 / 0.45));
+  will-change: left, transform;
+}
+
+.axisLabel {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.74));
+}
+
+.axisVerdict { font-weight: 900; color: #ff8fa3; }
+.axisVerdict[data-ok="true"] { color: #5adcb4; }
+
+.axisTrack {
+  position: relative;
+  height: 26px;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.06);
+  overflow: hidden;
+}
+
+/* 허용범위 밴드 — 숫자 눈금 없이 이 폭으로만 읽힌다 */
+.axisBand {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgb(90 220 180 / 0.18);
+  border-left: 1px solid rgb(90 220 180 / 0.5);
+  border-right: 1px solid rgb(90 220 180 / 0.5);
+}
+
+.axisCenter {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: rgb(255 255 255 / 0.3);
+}
+
+.axisNeedle {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 10px;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  background: #ff8fa3;
+  box-shadow: 0 0 10px rgb(255 143 163 / 0.6);
+  will-change: left;
+}
+
+.axisNeedle[data-ok="true"] { background: #5adcb4; box-shadow: 0 0 10px rgb(90 220 180 / 0.6); }
+
+.holdRow {
+  position: relative; /* 배경 씬 레이어 위로 — 씬 없는 게임에선 시각 무영향 */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.74));
+}
+
+.holdTrack {
+  position: relative;
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.14);
+  overflow: hidden;
+}
+
+.holdValue {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #5adcb4, #17a67f);
+}
+
+/* 시작 게이트(프로펠러 분리 등) — 조작 전 확인 카드 */
+.gateOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  text-align: center;
+  border-radius: inherit;
+  background: rgb(10 12 24 / 0.72);
+  backdrop-filter: blur(2px);
+  z-index: 3;
+}
+
+.gateText {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: rgb(255 255 255 / 0.9);
+  max-width: 420px;
+}
+
+/* ── balance: 크레인(settle) 스테이지 ── */
+.craneStage {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.2));
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgb(38 44 66 / 0.96) 78%, rgb(52 46 40 / 0.98) 78%),
+    linear-gradient(160deg, rgb(38 44 66 / 0.96), rgb(24 27 44 / 0.98));
+  overflow: hidden;
+}
+
+.craneRail {
+  position: absolute;
+  top: 18px;
+  left: 4%;
+  right: 4%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.22);
+}
+
+.craneTrolley {
+  position: absolute;
+  top: 10px;
+  width: 34px;
+  height: 20px;
+  border-radius: 6px;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, var(--scenario-accent, #8a63ee), var(--scenario-accent-2, #ef71bc));
+  will-change: left;
+}
+
+.craneWire {
+  position: absolute;
+  width: 2px;
+  background: rgb(255 255 255 / 0.5);
+  transform-origin: top center;
+  will-change: left, height, transform;
+}
+
+.craneLoad {
+  position: absolute;
+  width: 52px;
+  height: 34px;
+  border: 1px solid rgb(255 255 255 / 0.35);
+  border-radius: 6px;
+  transform: translate(-50%, 0);
+  background: linear-gradient(180deg, rgb(196 162 96 / 0.95), rgb(150 116 62 / 0.95));
+  will-change: left, top;
+}
+
+.craneLoad[data-warn="true"] { border-color: #ff8fa3; box-shadow: 0 0 14px rgb(255 143 163 / 0.6); }
+
+/* 화물 도트 모드(jm-05, 프리로드 성공 시에만) — 박스 배경·테두리를 걷어내고
+   스프라이트로 채운다. 경고 글로(data-warn 의 box-shadow)는 그대로 남는다. */
+.craneLoad[data-art="true"] {
+  border-color: transparent;
+  background: none;
+  border-radius: 0;
+}
+
+.craneLoad img {
+  width: 100% !important;
+  height: 100% !important;
+  image-rendering: pixelated;
+}
+
+/* 착지 목표 표시물(jm-05 도트 패드) — 지면(높이 22%) 위에 얹는 장식.
+   판정 밴드(craneZone)가 DOM 뒤에 와서 그 위에 그려진다. */
+.zonePad {
+  position: absolute;
+  bottom: 22%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.craneZone {
+  position: absolute;
+  bottom: calc(22% - 8px);
+  height: 8px;
+  border-radius: 4px 4px 0 0;
+  transform: translateX(-50%);
+  background: rgb(255 215 110 / 0.5);
+  border: 1px solid rgb(255 215 110 / 0.8);
+}
+
+.craneZone[data-locked="true"] { background: rgb(90 220 180 / 0.5); border-color: rgb(90 220 180 / 0.9); }
+
+.craneGround {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 22%;
+  border-top: 2px solid rgb(255 255 255 / 0.25);
+}
+
+.speedHint {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  color: #06231d;
+  background: #5adcb4;
+}
+
+.speedHint[data-fast="true"] { color: #2a0f16; background: #ff8fa3; }
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+  .note { transition: none; }
+}
+
+/* ── 2026 visual pass: 물리·리듬 시뮬레이터 ── */
+.rhythmStage,
+.balanceStage,
+.craneStage {
+  border-radius: 18px;
+  border-color: color-mix(in srgb, var(--scenario-accent) 34%, rgb(255 255 255 / 0.2));
+  background:
+    radial-gradient(circle at 50% 0%, var(--scenario-accent-soft), transparent 40%),
+    linear-gradient(155deg, #10182d, #171125);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), inset 0 -42px 72px rgb(0 0 0 / 0.24), 0 16px 34px rgb(0 0 0 / 0.24);
+  overflow: hidden;
+}
+.lane { border-color: rgb(255 255 255 / 0.12); background: linear-gradient(180deg, rgb(255 255 255 / 0.055), rgb(4 6 20 / 0.22)); }
+.judgeLine { filter: drop-shadow(0 0 8px var(--scenario-progress-glow)); }
+.promptCard,
+.toast,
+.gateOverlay { border-color: rgb(255 255 255 / 0.18); background: linear-gradient(145deg, rgb(255 255 255 / 0.12), rgb(8 10 28 / 0.82)); box-shadow: 0 12px 28px rgb(0 0 0 / 0.28); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.axisTrack,
+.holdTrack,
+.promptBarTrack { border: 1px solid rgb(255 255 255 / 0.08); background: rgb(255 255 255 / 0.1); box-shadow: inset 0 2px 5px rgb(0 0 0 / 0.28); }
+.axisBand,
+.holdValue,
+.promptBarValue { box-shadow: 0 0 15px var(--scenario-progress-glow); }
+.axisCraft,
+.craneLoad { filter: drop-shadow(0 12px 18px rgb(0 0 0 / 0.34)); }
+.controlButton { border-color: rgb(255 255 255 / 0.2); background: linear-gradient(145deg, rgb(255 255 255 / 0.13), rgb(8 10 28 / 0.62)); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1), 0 8px 18px rgb(0 0 0 / 0.2); }
+.controlButton:hover { border-color: var(--scenario-accent-2); box-shadow: 0 9px 20px rgb(0 0 0 / 0.26), 0 0 18px var(--scenario-accent-soft); }
+
+/* Cartoon surface pass: physical sprites and timing geometry are unchanged. */
+.rhythmStage,
+.balanceStage,
+.craneStage {
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 18px;
+  background: #334363;
+  box-shadow: 0 5px 0 var(--cartoon-ink), inset 0 2px 0 rgb(255 255 255 / 0.12);
+}
+
+:global([data-cartoon-background="true"]) .rhythmStage,
+:global([data-cartoon-background="true"]) .balanceStage,
+:global([data-cartoon-background="true"]) .craneStage {
+  background-image:
+    linear-gradient(rgb(8 12 26 / 0.08), rgb(8 12 26 / 0.16)),
+    var(--minigame-background-image);
+  height: auto;
+  aspect-ratio: 24 / 11;
+  background-position: center, center;
+  background-size: 100% 100%, contain;
+  background-repeat: no-repeat, no-repeat;
+}
+
+:global([data-cartoon-background="true"]) .sceneLayer {
+  display: none;
+}
+.lane,
+.promptCard,
+.toast,
+.gateOverlay {
+  border: 2px solid var(--cartoon-ink);
+  background: #fff2d6;
+  color: var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.note { border: 2px solid var(--cartoon-ink); box-shadow: 0 3px 0 var(--cartoon-ink); }
+.axisTrack,
+.holdTrack,
+.promptBarTrack { border: 2px solid var(--cartoon-ink); background: #c9c1b3; box-shadow: inset 0 2px 0 rgb(23 24 42 / 0.2); }
+.axisBand,
+.holdValue,
+.promptBarValue { box-shadow: none; }
+.axisCraft,
+.craneLoad { filter: drop-shadow(3px 5px 0 var(--cartoon-ink)); }
+.controlButton {
+  border: 2px solid var(--cartoon-ink);
+  color: var(--cartoon-ink);
+  background: #fff2d6;
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+.controlButton:hover { border-color: var(--cartoon-ink); background: #ffffff; box-shadow: 0 5px 0 var(--cartoon-ink); }
+.controlButton:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--cartoon-ink); }
+
+/* Cartoon contrast pass: paper overlays use ink; action variants keep semantic color. */
+.laneLabel,
+.gateText {
+  color: var(--cartoon-ink);
+}
+.controlButton[data-variant="primary"] {
+  border-color: var(--cartoon-ink);
+  background: var(--cartoon-gold);
+  color: var(--cartoon-ink);
+}
+.controlButton[data-variant="danger"] {
+  border-color: var(--cartoon-ink);
+  background: #8f233d;
+  color: #ffffff;
+}

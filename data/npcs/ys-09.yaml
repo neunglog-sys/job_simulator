@@ -1,0 +1,82 @@
+# 손편집본 — 시나리오에 수동 추가된 m1b 배치를 보존하기 위해 자동 재생성 대상에서 제외.
+scenario_id: ys-09
+npcs:
+- npc_id: npc_ys-09_01
+  name: 한지호
+  role: 박팀장
+  rank: 팀장
+  personality:
+  - 승인·보고를 받는 책임자
+  - 꼼꼼하고 근거를 요구한다
+  - 형식을 갖춘 보고엔 협조적
+  likes:
+  - 사실·근거·다음 조치가 갖춰진 보고
+  - 우선순위 기준이 분명한 판단
+  dislikes:
+  - 두루뭉술한 보고
+  - 확인 없는 단정
+  speech_habits:
+  - 근거가 뭐예요?
+  - 우선순위 기준은요?
+  responsibilities:
+  - 불일치 지점 표시본
+  - 확인 질문 목록(3건)
+  - 우선순위표(순서+근거)
+  - 배터리 격리 조치 기록
+  appearance:
+    location: teamjang
+    available_steps:
+    - m2
+    - m3
+    - m4
+- npc_id: npc_ys-09_02
+  name: 박하은
+  role: 김선임
+  rank: 선임
+  personality:
+  - 경험 많고 실무에 밝다
+  - 차분하고 원칙적
+  - 후배를 챙기되 답을 대신 정해주지 않는다
+  likes:
+  - 구체적으로 파고드는 질문
+  - 스스로 고민한 흔적
+  dislikes:
+  - 고민 없이 결정부터 하는 태도
+  - 정답만 떠먹여 달라는 요구
+  speech_habits:
+  - 그렇게 하면 어떻게 될 것 같아요?
+  - 핵심부터 봅시다.
+  responsibilities:
+  - 점검 체크리스트(항목별 판정)
+  - 셀전압 측정 기록표
+  - 이상발생 보고(시각·증상·측정값·조치 순)
+  - 시험중단 기록
+  appearance:
+    location: sasu
+    available_steps:
+    - m1
+    - m1b
+    - quest
+    conditions:
+    - quest_started
+- npc_id: npc_ys-09_03
+  name: 백수빈
+  role: 운용고객
+  rank: null
+  personality:
+  - 응대 대상
+  - 자기 요구와 상황은 잘 알지만 내부 절차는 모른다
+  - 응대 태도에 민감
+  likes:
+  - 성의 있고 공감하는 응대
+  - 쉬운 말로 풀어주는 설명
+  dislikes:
+  - 절차만 따지는 태도
+  - 성의 없는 응대
+  speech_habits:
+  - 아니 그게 무슨 말이에요?
+  - 빨리 좀 처리해줘요.
+  responsibilities: []
+  appearance:
+    location: bujang
+    available_steps: []

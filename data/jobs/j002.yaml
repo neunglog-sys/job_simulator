@@ -1,0 +1,35 @@
+# J002 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J002_*.yaml
+code: j002
+title: 행정지원 담당
+description: 조직 내 행정 프로세스가 규정에 맞게 원활히 작동하도록 각종 서류 검토, 공문 처리, 부서 간 조율을 담당하는 직무입니다. 기한이 급박한 여러 행정 요청의 우선순위를
+  설정하고 누락 없이 처리하는 역할을 수행합니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 4
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 2
+  investigative: 3
+  artistic: 1
+  social: 3
+  enterprising: 3
+  conventional: 5
+# 공식 매핑: K000007517 총무사무원 (docs/jobs/batch1_mapping_candidates.md)
+education_requirement:
+  value: "고졸 이상(소규모·중소기업), 관련분야 대졸 이상(대기업) — 사업체 규모에 따라 상이"
+  source_field: needKnwgCn
+  evidence_type: descriptive_text
+  note: "경영/경제/법/회계/행정/교육/광고/홍보/무역 전공 시 취업 유리 — 원문 요약."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics:
+    median_annual_krw: 52500000
+    statistic_type: median
+    population: "재직자 약 30명 설문조사"
+    reference_year: 2025
+certifications:
+  - name: "ERP정보관리사《물류/생산/인사/회계》(국가공인 민간)"
+    tier: related
+status: provisional

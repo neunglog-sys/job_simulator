@@ -1,0 +1,28 @@
+# J081 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J081_*.yaml
+code: j081
+title: 피킹·패킹 작업자
+description: 주문서에 맞춰 창고 내 로케이션에서 물품을 정확히 찾아내어 안전하게 포장하는 직무. 마감 시간에 맞추어 신속하게 움직이면서도 오피킹이나 포장재 누락, 라벨 오부착
+  등의 실수가 없도록 꼼꼼하게 작업합니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 2
+  communication: 3
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 1
+  artistic: 1
+  social: 2
+  enterprising: 1
+  conventional: 4
+# 공식 매핑: K000005061 창고작업원(일반) (docs/jobs/batch2_mapping_review.md #29)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

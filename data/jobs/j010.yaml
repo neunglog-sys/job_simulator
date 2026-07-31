@@ -1,0 +1,28 @@
+# J010 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J010_*.yaml
+code: j010
+title: 급여정산 보조
+description: 임직원의 급여 지급을 위한 이체 데이터와 원천세 신고 기초 자료를 검토하는 직무. 급여 오류로 인한 리스크를 최소화하기 위해 지급 기한과 승인 조건을 철저히 관리하며
+  마감을 수행한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 3
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 2
+  investigative: 2
+  artistic: 1
+  social: 3
+  enterprising: 2
+  conventional: 5
+# 공식 매핑: K000003735 인사사무원 — 상세조사 데이터 없음 (docs/jobs/batch1_mapping_candidates.md)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 조사 필드(avwgCnvAmt/konetOccpNm/stdrYear) 전부 0/null — 임금 조사 대상 아님. 대안 검토했던 노무사무원(K000002096)도 동일하게 공백 확인됨."
+certifications: []
+status: not_found

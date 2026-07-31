@@ -1,0 +1,28 @@
+# J035 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J035_*.yaml
+code: j035
+title: 상품기획·MD 보조
+description: 시장 트렌드와 경쟁사 데이터를 기반으로 매력적인 상품 구성을 기획하고 원가 및 납기를 관리하는 직무. 가격 경쟁력과 공급 가능성을 철저히 대조하여 시장성 있는
+  상품 출시 프로세스를 지원한다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 4
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 2
+  investigative: 4
+  artistic: 2
+  social: 2
+  enterprising: 4
+  conventional: 5
+# 공식 매핑: K000001247 머천다이저 (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

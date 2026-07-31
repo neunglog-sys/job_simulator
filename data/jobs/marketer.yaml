@@ -1,0 +1,33 @@
+code: marketer
+title: 마케터
+description: '시장과 고객을 분석해 제품·서비스의 가치를 전달하는 직무. 캠페인 기획, 콘텐츠 제작, 성과 분석을 수행하며 여러 부서와 협업한다.
+
+  '
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 5
+  collaboration: 4
+  task_management: 3
+interest_profile:
+  realistic: 1
+  investigative: 3
+  artistic: 4
+  social: 4
+  enterprising: 5
+  conventional: 2
+# 공식 매핑: K000001069 광고·홍보·마케팅사무원 — 팀 검수 승인(권장안, 실데이터 확인됨)
+# (docs/jobs/batch1_mapping_review.md #2)
+education_requirement:
+  value: "고졸 이상 — 대기업은 법학/경제학/경영학/무역학/회계학 등 대졸 이상"
+  source_field: needKnwgCn
+  evidence_type: descriptive_text
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics:
+    median_annual_krw: 55500000
+    statistic_type: median
+    population: "재직자 약 30명 설문조사"
+    reference_year: 2025
+certifications: []
+status: provisional

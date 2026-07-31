@@ -1,0 +1,323 @@
+.screen {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: grid;
+  min-height: 100dvh;
+  overflow: hidden;
+  place-items: center;
+  color: #ffffff;
+  background: #080d35;
+  isolation: isolate;
+}
+
+.screen::before {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(circle at 50% 46%, transparent 28%, rgb(3 5 29 / 0.2) 100%),
+    linear-gradient(180deg, rgb(3 5 29 / 0.05), rgb(3 5 29 / 0.18));
+  content: "";
+  pointer-events: none;
+}
+
+.spaceBackdrop {
+  position: absolute;
+  inset: -4%;
+  z-index: -3;
+  background: url("/assets/space-loading-background.webp") center / cover no-repeat;
+  animation: spaceDrift 28s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.nebula {
+  position: absolute;
+  inset: -15%;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse at 35% 45%, rgb(224 104 211 / 0.13), transparent 26%),
+    radial-gradient(ellipse at 66% 40%, rgb(76 129 246 / 0.13), transparent 30%);
+  opacity: 0.34;
+  transform: rotate(-7deg);
+}
+
+.starField {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.star {
+  position: absolute;
+  top: var(--star-y);
+  right: -12vw;
+  width: var(--star-width);
+  height: var(--star-size);
+  border-radius: 999px;
+  opacity: var(--star-opacity);
+  background: linear-gradient(
+    90deg,
+    rgb(238 245 255 / 0.96) 0%,
+    rgb(210 226 255 / 0.7) 18%,
+    transparent 100%
+  );
+  box-shadow: 0 0 8px rgb(179 204 255 / 0.48);
+  animation: starPass var(--star-duration) linear var(--star-delay) infinite;
+  will-change: transform;
+}
+
+.content {
+  width: min(620px, calc(100vw - 48px));
+  transform: translateY(-2vh);
+}
+
+.rocketStage {
+  display: grid;
+  height: clamp(210px, 31vh, 290px);
+  place-items: end center;
+}
+
+.rocketFloat {
+  position: relative;
+  display: grid;
+  width: 164px;
+  height: 164px;
+  place-items: center;
+  animation: rocketDrift 3.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
+  will-change: transform;
+}
+
+.rocketBody {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: 132px;
+  height: 132px;
+  place-items: center;
+  color: #f9f5ff;
+  filter: drop-shadow(0 18px 24px rgb(7 4 30 / 0.44));
+  transform: translateX(-12px);
+}
+
+.rocketBody::after {
+  position: absolute;
+  z-index: 2;
+  width: 94px;
+  aspect-ratio: 1168 / 1784;
+  background: linear-gradient(180deg, rgb(128 167 255 / 0.36), rgb(184 137 245 / 0.26));
+  content: "";
+  mix-blend-mode: multiply;
+  opacity: 0.42;
+  pointer-events: none;
+  transform: rotate(90deg);
+  -webkit-mask: url("/assets/rocket.webp") center / contain no-repeat;
+  mask: url("/assets/rocket.webp") center / contain no-repeat;
+}
+
+.rocketBody img {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 94px;
+  height: auto;
+  filter:
+    saturate(0.82)
+    contrast(0.97)
+    drop-shadow(0 0 7px rgb(153 119 255 / 0.4));
+  transform: rotate(90deg);
+}
+
+.rocketWake {
+  position: absolute;
+  top: 50%;
+  right: calc(50% + 74px);
+  z-index: 1;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.wakeStars {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.wakeStars i {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: var(--wake-size);
+  height: var(--wake-size);
+  opacity: 0;
+  will-change: opacity, transform;
+}
+
+.wakeStars i {
+  background: linear-gradient(135deg, rgb(255 235 249 / 0.9), rgb(175 151 255 / 0.68));
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+  filter: drop-shadow(0 0 4px rgb(175 135 255 / 0.55));
+  animation: wakeStar var(--wake-duration) linear var(--wake-delay) infinite;
+}
+
+.loadingCopy {
+  margin-top: 34px;
+}
+
+.loadingCopy p {
+  margin: 0 0 12px;
+  color: rgb(250 247 255 / 0.96);
+  font-size: clamp(15px, 1.15vw, 18px);
+  font-weight: 650;
+  line-height: 1.45;
+  letter-spacing: -0.015em;
+  text-align: left;
+  text-shadow: 0 2px 14px rgb(0 0 0 / 0.42);
+}
+
+.loadingTrack {
+  position: relative;
+  height: 13px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.48);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.1);
+  box-shadow:
+    inset 0 1px 4px rgb(0 0 0 / 0.28),
+    0 0 24px rgb(174 89 239 / 0.16);
+}
+
+.loadingTrack span {
+  position: absolute;
+  inset: 1px auto 1px 1px;
+  width: 33.333%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #9a64ed, #e46ccc 58%, #ffb4e8);
+  box-shadow: 0 0 16px rgb(226 108 204 / 0.58);
+  animation: loadingSweep 2.1s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  transform-origin: left center;
+  will-change: transform;
+}
+
+.loadingCopy small {
+  display: block;
+  margin-top: 10px;
+  color: rgb(222 218 246 / 0.72);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+}
+
+@keyframes starPass {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-130vw, 0, 0);
+  }
+}
+
+@keyframes spaceDrift {
+  from {
+    transform: translate3d(-2.5%, 0, 0);
+  }
+  to {
+    transform: translate3d(2.5%, 0, 0);
+  }
+}
+
+@keyframes rocketDrift {
+  0% {
+    transform: translate3d(-9px, 8px, 0) rotate(-2deg);
+  }
+  50% {
+    transform: translate3d(7px, -7px, 0) rotate(1.5deg);
+  }
+  100% {
+    transform: translate3d(13px, 3px, 0) rotate(3deg);
+  }
+}
+
+@keyframes wakeStar {
+  0% {
+    opacity: 0;
+    transform: translate3d(-4px, -50%, 0) scale(0.35) rotate(0deg);
+  }
+  24% { opacity: 0.82; }
+  70% { opacity: 0.42; }
+  100% {
+    opacity: 0;
+    transform: translate3d(-138px, calc(-50% + var(--wake-y)), 0) scale(0.8) rotate(90deg);
+  }
+}
+
+@keyframes loadingSweep {
+  0% {
+    transform: translate3d(-112%, 0, 0) scaleX(0.58);
+  }
+  48% {
+    transform: translate3d(96%, 0, 0) scaleX(1.05);
+  }
+  100% {
+    transform: translate3d(310%, 0, 0) scaleX(0.62);
+  }
+}
+
+@media (max-width: 640px) {
+  .content {
+    width: min(520px, calc(100vw - 36px));
+  }
+
+  .rocketStage {
+    height: 220px;
+  }
+
+  .rocketFloat {
+    width: 140px;
+    height: 140px;
+  }
+
+  .rocketBody {
+    width: 116px;
+    height: 116px;
+  }
+
+  .rocketBody img {
+    width: 84px;
+  }
+
+  .rocketBody::after {
+    width: 84px;
+  }
+
+  .loadingCopy {
+    margin-top: 26px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spaceBackdrop,
+  .star,
+  .rocketFloat,
+  .wakeStars i,
+  .loadingTrack span {
+    animation: none;
+  }
+
+  .spaceBackdrop {
+    transform: none;
+  }
+
+  .star {
+    opacity: 0.22;
+  }
+
+  .loadingTrack span {
+    width: 33.333%;
+    transform: none;
+  }
+}

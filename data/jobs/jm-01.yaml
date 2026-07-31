@@ -1,0 +1,25 @@
+code: jm-01
+title: 육상 운전·배송 대응
+description: (버스) 배차확인·음주측정 → 운행 전 일상점검 → 차량 인수·출고 → 노선운행(정류장 승하차·규정 준수) → 돌발대응(정차·구호·보고) → 회차·대기 → 입고·운행일지·인계
+  / (택배) 분류·상차(송장 대조) → 배송 순서 계획 → 배송·스캔 기록 → 집화·반송 → 마감·인계
+competencies:
+  situation_judgment: 5
+  problem_solving: 3
+  communication: 4
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 5
+  investigative: 1
+  artistic: 1
+  social: 3
+  enterprising: 2
+  conventional: 3
+# dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
+dimension_weights:
+  interest.enterprising: 1.0
+  work_target.environment: 0.8
+  work_style.field: 0.8
+  work_style.time_pressure: 0.8
+  skill.risk_detection: 0.6
+  skill.priority_judgment: 0.6

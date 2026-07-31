@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 144" role="img" aria-label="현재 화면흐름 근거 카드">
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fffdf3"/><stop offset="1" stop-color="#eee5fa"/></linearGradient>
+    <linearGradient id="purple" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#b785ff"/><stop offset="1" stop-color="#7444da"/></linearGradient>
+  </defs>
+  <path d="M27 10h74c10 0 18 8 18 18v92c0 10-8 18-18 18H27c-10 0-18-8-18-18V28c0-10 8-18 18-18Z" fill="#171a2a" opacity=".24" transform="translate(2 3)"/>
+  <rect x="9" y="7" width="110" height="128" rx="18" fill="url(#paper)" stroke="#171a2a" stroke-width="8"/>
+  <path d="M45 7h38v18c0 5-4 9-9 9H54c-5 0-9-4-9-9V7Z" fill="#8d57e8" stroke="#171a2a" stroke-width="7" stroke-linejoin="round"/>
+  <rect x="28" y="34" width="72" height="63" rx="10" fill="url(#purple)" stroke="#171a2a" stroke-width="7"/>
+  <path d="M29 50h70" stroke="#171a2a" stroke-width="7"/><circle cx="40" cy="42" r="3" fill="#ffe76a"/><circle cx="50" cy="42" r="3" fill="#7ce1da"/>
+  <path d="M42 74h29M65 63l12 11-12 11" fill="none" stroke="#fff9dc" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M64 98v15M45 114h38" fill="none" stroke="#171a2a" stroke-width="8" stroke-linecap="round"/>
+</svg>

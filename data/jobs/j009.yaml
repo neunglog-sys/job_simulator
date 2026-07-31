@@ -1,0 +1,38 @@
+# J009 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J009_*.yaml
+code: j009
+title: 세금계산서 관리 보조
+description: 세금계산서의 발행, 수취 상태를 점검하고 국세청 신고 전 증빙의 적격성을 검토하는 직무. 거래처와의 소통을 통해 누락되거나 잘못 발행된 세금계산서를 바로잡고 증빙
+  자료를 체계적으로 보관한다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 5
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 1
+  investigative: 2
+  artistic: 1
+  social: 3
+  enterprising: 3
+  conventional: 5
+# 공식 매핑: K000007466 경리사무원 (docs/jobs/batch1_mapping_candidates.md)
+education_requirement:
+  value: "고졸 이상"
+  source_field: needKnwgCn
+  evidence_type: descriptive_text
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics:
+    median_annual_krw: 35000000
+    statistic_type: median
+    population: "재직자 약 30명 설문조사"
+    reference_year: 2025
+certifications:
+  - name: "ERP정보관리사《물류/생산/인사/회계》(국가공인 민간)"
+    tier: related
+  - name: "전산세무회계(국가공인 민간)"
+    tier: related
+  - name: "전산회계운용사 1,2,3급(국가기술)"
+    tier: related
+status: provisional

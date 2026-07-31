@@ -1,0 +1,28 @@
+# J075 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J075_*.yaml
+code: j075
+title: QA 테스터
+description: 소프트웨어 및 시스템이 요구사항에 맞춰 올바르게 작동하는지 검증하고 품질을 보증하는 직무. 정교한 테스트케이스를 바탕으로 결함을 찾아내고, 분석 리포트를 작성하여
+  개발팀과 긴밀히 소통한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 4
+  communication: 3
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 2
+  investigative: 4
+  artistic: 1
+  social: 2
+  enterprising: 2
+  conventional: 5
+# 공식 매핑: K000005026 소프트웨어테스터 (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

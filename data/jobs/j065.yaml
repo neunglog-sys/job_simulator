@@ -1,0 +1,27 @@
+# J065 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J065_*.yaml
+code: j065
+title: 썸네일 디자이너
+description: 유튜브를 비롯한 영상 플랫폼에서 시청자의 클릭을 유도하는 매력적인 썸네일 이미지를 제작하는 직무. 영상의 핵심 주제를 직관적으로 전달할 수 있는 타이포그래피와
+  이미지 합성 및 레이아웃을 기획하고 디자인한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 4
+  collaboration: 3
+  task_management: 3
+interest_profile:
+  realistic: 1
+  investigative: 3
+  artistic: 5
+  social: 2
+  enterprising: 4
+  conventional: 3
+# 공식 매핑 없음 — 팀 검수 결과 반려(적합한 공식 직업사전 항목 없음) (docs/jobs/batch2_mapping_review.md #22)
+education_requirement:
+  value: null
+  note: "적합한 공식 직업사전 매핑 없음 — 후보 검토 결과 업무 성격 불일치 또는 후보 부재로 반려."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+certifications: []
+status: not_found

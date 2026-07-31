@@ -1,0 +1,283 @@
+schema_version: npc.job-override.v1
+job:
+  job_id: J036
+  job_name: 프로젝트관리 보조
+  family_id: F08
+  family_name: 서비스·상품기획·PM보조
+  module: 정보·판단형
+review:
+  status: researched_needs_human_review
+  generated: true
+  human_review_required: true
+prompt_contract:
+  npc_visible:
+    work_targets:
+    - 요구사항
+    - 사용자 불편
+    - 기능목록
+    - 우선순위
+    npc_roles:
+    - PM
+    - 개발자
+    - 디자이너
+    - 고객
+    outputs:
+    - 요구사항정리표
+    - 우선순위표
+    - 회의록
+    forbidden:
+    - 플레이어를 채점하거나 점수·통과 여부를 말하지 않는다.
+    - 오류의 정답·모범답안·단계별 해설을 제공하지 않는다.
+    - 업무상 필요한 지시·사실·자료·권한 범위만 전달한다.
+  coach_private:
+    success_criteria:
+    - 목적·자료·기준·결과·다음액션 포함
+    failure_patterns:
+    - 추측 진행
+    - 질문 누락
+    - 산출물 혼동
+kb_stages:
+- chunk_id: J036-S1
+  stage_id: S1
+  name: 업무요청 이해
+  goal: 요청자의 목적, 결과물, 마감, 제한조건을 확인한다.
+  rag_chunk_text: '[프로젝트관리 보조/서비스·상품기획·PM보조/정보·판단형] 업무요청 이해: 요청자의 목적, 결과물, 마감, 제한조건을 확인한다. 업무대상은 요구사항, 사용자 불편, 기능목록, 우선순위.
+    주요상대/NPC는 PM, 개발자, 디자이너, 고객. 핵심산출물은 요구사항정리표, 우선순위표, 회의록. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 서비스·상품기획·PM보조의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J036-S2
+  stage_id: S2
+  name: 자료·현황 확인
+  goal: 업무대상 자료를 읽고 누락/불일치/위험요소를 표시한다.
+  rag_chunk_text: '[프로젝트관리 보조/서비스·상품기획·PM보조/정보·판단형] 자료·현황 확인: 업무대상 자료를 읽고 누락/불일치/위험요소를 표시한다. 업무대상은 요구사항, 사용자 불편, 기능목록, 우선순위.
+    주요상대/NPC는 PM, 개발자, 디자이너, 고객. 핵심산출물은 요구사항정리표, 우선순위표, 회의록. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 서비스·상품기획·PM보조의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J036-S3
+  stage_id: S3
+  name: 처리·제작·응대
+  goal: 직무별 기준에 맞춰 문서/응대/작업/산출물을 만든다.
+  rag_chunk_text: '[프로젝트관리 보조/서비스·상품기획·PM보조/정보·판단형] 처리·제작·응대: 직무별 기준에 맞춰 문서/응대/작업/산출물을 만든다. 업무대상은 요구사항, 사용자 불편, 기능목록, 우선순위.
+    주요상대/NPC는 PM, 개발자, 디자이너, 고객. 핵심산출물은 요구사항정리표, 우선순위표, 회의록. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 서비스·상품기획·PM보조의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J036-S4
+  stage_id: S4
+  name: 검수·판단
+  goal: 오류, 안전, 고객영향, 비용, 일정, 품질을 점검한다.
+  rag_chunk_text: '[프로젝트관리 보조/서비스·상품기획·PM보조/정보·판단형] 검수·판단: 오류, 안전, 고객영향, 비용, 일정, 품질을 점검한다. 업무대상은 요구사항, 사용자 불편, 기능목록, 우선순위.
+    주요상대/NPC는 PM, 개발자, 디자이너, 고객. 핵심산출물은 요구사항정리표, 우선순위표, 회의록. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 서비스·상품기획·PM보조의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J036-S5
+  stage_id: S5
+  name: 보고·인계
+  goal: 결과, 근거, 남은 이슈, 다음 액션을 공유한다.
+  rag_chunk_text: '[프로젝트관리 보조/서비스·상품기획·PM보조/정보·판단형] 보고·인계: 결과, 근거, 남은 이슈, 다음 액션을 공유한다. 업무대상은 요구사항, 사용자 불편, 기능목록, 우선순위. 주요상대/NPC는
+    PM, 개발자, 디자이너, 고객. 핵심산출물은 요구사항정리표, 우선순위표, 회의록. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 서비스·상품기획·PM보조의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+content_variants:
+- category: 프로젝트 일정·과업·이슈·의사결정 기록 관리 보조
+  module: null
+  rag_status: researched
+  workflow: 범위·마일스톤·보고기준 확인 → 과업·담당·의존성 수집 → 일정과 로그 갱신 → 지연·범위변경·미승인 결정 점검 → 영향과 대응안을 포함해 보고
+  npc_visible:
+    npc_roles:
+    - role: 프로젝트 매니저
+      instruction_scope: 범위·우선순위·보고주기 지시
+    - role: 실무 담당자
+      instruction_scope: 진행률·차단요인·예상일 전달
+    - role: 이해관계자
+      instruction_scope: 변경요청·승인·질문 전달
+    input_materials: &id001
+    - 프로젝트 범위
+    - WBS
+    - 일정
+    - 담당자
+    - 이슈·리스크
+    - 회의 결정사항
+    outputs: &id002
+    - 일정표
+    - 이슈·리스크 로그
+    - 회의록
+    - 주간현황 보고
+    sudden_events: &id003
+    - 근거 없이 진행률 100%
+    - 변경요청을 원범위로 처리
+    - 지연을 일정표에 미반영
+    constraints:
+    - 범위·일정·비용 변경은 담당 PM 또는 승인권자에게 보고한다.
+    - 요구사항과 결정사항은 근거·담당자·기한을 남기며 임의 확정하지 않는다.
+  stages:
+  - stage_id: S1
+    name: 범위·마일스톤·보고기준 확인
+    goal: 범위·마일스톤·보고기준 확인
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 프로젝트 매니저
+      - 실무 담당자
+      - 이해관계자
+      outputs: *id002
+      mission_candidate: 범위·마일스톤·보고기준 확인
+    coach_private:
+      success_criteria: &id004
+      - 상태 근거와 기준일 명시
+      - 이슈와 리스크 구분
+      - 변경승인 기록
+      - 지연영향 투명 보고
+      failure_patterns: *id003
+  - stage_id: S2
+    name: 과업·담당·의존성 수집
+    goal: 과업·담당·의존성 수집
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 프로젝트 매니저
+      - 실무 담당자
+      - 이해관계자
+      outputs: *id002
+      mission_candidate: 과업·담당·의존성 수집
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  - stage_id: S3
+    name: 일정과 로그 갱신
+    goal: 일정과 로그 갱신
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 프로젝트 매니저
+      - 실무 담당자
+      - 이해관계자
+      outputs: *id002
+      mission_candidate: 일정과 로그 갱신
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  - stage_id: S4
+    name: 지연·범위변경·미승인 결정 점검
+    goal: 지연·범위변경·미승인 결정 점검
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 프로젝트 매니저
+      - 실무 담당자
+      - 이해관계자
+      outputs: *id002
+      mission_candidate: 지연·범위변경·미승인 결정 점검
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  - stage_id: S5
+    name: 영향과 대응안을 포함해 보고
+    goal: 영향과 대응안을 포함해 보고
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 프로젝트 매니저
+      - 실무 담당자
+      - 이해관계자
+      outputs: *id002
+      mission_candidate: 영향과 대응안을 포함해 보고
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  missions:
+  - mission_id: null
+    situation_type: 정상업무
+    difficulty: 보통
+    npc_visible:
+      npc: 프로젝트 매니저
+      request_line: 범위·마일스톤·보고기준 확인 업무를 진행해 주세요. 범위·우선순위·보고주기 지시 기준을 확인하세요.
+      materials: *id001
+      user_mission: 범위·마일스톤·보고기준 확인
+      outputs: *id002
+      sudden_event: 근거 없이 진행률 100%
+    coach_private:
+      required_actions:
+      - 범위·마일스톤·보고기준 확인
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 자료·정보 누락
+    difficulty: 어려움
+    npc_visible:
+      npc: 실무 담당자
+      request_line: 과업·담당·의존성 수집 업무를 진행해 주세요. 진행률·차단요인·예상일 전달 기준을 확인하세요.
+      materials: *id001
+      user_mission: 과업·담당·의존성 수집
+      outputs: *id002
+      sudden_event: 변경요청을 원범위로 처리
+    coach_private:
+      required_actions:
+      - 과업·담당·의존성 수집
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 우선순위 충돌
+    difficulty: 어려움
+    npc_visible:
+      npc: 이해관계자
+      request_line: 일정과 로그 갱신 업무를 진행해 주세요. 변경요청·승인·질문 전달 기준을 확인하세요.
+      materials: *id001
+      user_mission: 일정과 로그 갱신
+      outputs: *id002
+      sudden_event: 지연을 일정표에 미반영
+    coach_private:
+      required_actions:
+      - 일정과 로그 갱신
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 오류·안전위험
+    difficulty: 어려움
+    npc_visible:
+      npc: 프로젝트 매니저
+      request_line: 지연·범위변경·미승인 결정 점검 업무를 진행해 주세요. 범위·우선순위·보고주기 지시 기준을 확인하세요.
+      materials: *id001
+      user_mission: 지연·범위변경·미승인 결정 점검
+      outputs: *id002
+      sudden_event: 근거 없이 진행률 100%
+    coach_private:
+      required_actions:
+      - 지연·범위변경·미승인 결정 점검
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 보고·인계
+    difficulty: 보통
+    npc_visible:
+      npc: 실무 담당자
+      request_line: 영향과 대응안을 포함해 보고 업무를 진행해 주세요. 진행률·차단요인·예상일 전달 기준을 확인하세요.
+      materials: *id001
+      user_mission: 영향과 대응안을 포함해 보고
+      outputs: *id002
+      sudden_event: 변경요청을 원범위로 처리
+    coach_private:
+      required_actions:
+      - 영향과 대응안을 포함해 보고
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+provenance:
+  excel:
+  - file: 입문직무_RAG_KB_v5_정리본.xlsx
+    sheet: 01_직무마스터
+    rows: job_id=J036
+  - file: 입문직무_RAG_KB_v5_정리본.xlsx
+    sheet: 02_RAG프로세스
+    rows: job_id=J036
+  - file: 팀통합_8모듈_조사자료_표준화완료.xlsx
+    sheet: 01_연결맵/02_단계별프로세스/05_상황별미션
+    rows: job_id=J036
+  research_sources:
+  - source_id: NCS-PROJECT
+    title: 프로젝트 통합·일정·리스크·의사소통관리 능력단위
+    url: https://ncs.go.kr/blind/bl04/JdsptList.do
+    publisher: 한국산업인력공단 NCS 공정채용

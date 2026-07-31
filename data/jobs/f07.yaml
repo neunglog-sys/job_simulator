@@ -1,0 +1,17 @@
+# F07 콘텐츠·SNS·웹 운영 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f07
+title: 콘텐츠·SNS·웹 운영
+description: SNS·웹 채널에 콘텐츠를 만들어 올리고 고객 반응을 살피며 채널을 꾸준히 가꾸는 분야입니다. 트렌드에 민감하고 사람들과 콘텐츠로 소통하기를 즐기는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 4
+  collaboration: 2
+  task_management: 5
+interest_profile:
+  realistic: 1
+  investigative: 2
+  artistic: 5
+  social: 4
+  enterprising: 2
+  conventional: 3

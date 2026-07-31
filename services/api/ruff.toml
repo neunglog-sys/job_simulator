@@ -1,0 +1,14 @@
+# 백엔드 린트 설정 — 실행: docker compose exec api ruff check app tests
+line-length = 100
+
+[lint]
+select = [
+    "F",   # pyflakes (미사용 임포트·변수, 미정의 이름)
+    "E",   # pycodestyle 오류
+    "W",   # pycodestyle 경고
+    "B",   # bugbear (버그 패턴)
+    "SIM", # 단순화 가능 코드
+]
+ignore = [
+    "B008", # FastAPI Depends() 관용구 — 기본 인자에서 함수 호출 허용
+]

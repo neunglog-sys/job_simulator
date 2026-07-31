@@ -1,0 +1,88 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Build output
+dist/
+build/
+output/
+.vite/
+output/playwright/
+.playwright-cli/
+.tmp/
+
+# Logs
+*.log
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Private hackathon documents
+docs/hackathon/*.pdf
+*.hwp
+*.pdf
+
+# Generated project storage
+storage/logs/*
+!storage/logs/.gitkeep
+storage/reports/*
+!storage/reports/.gitkeep
+
+# Local tooling / personal scratch
+.claude/
+personal/
+
+# GCP 서비스계정 키 (Vertex AI) — 절대 커밋 금지
+secrets/
+*service-account*.json
+*gcp*key*.json
+
+# ── 게임 맵 (maps/) ──
+# 커밋하는 것: .tmx(제작 원본) + geometry.json(게임이 읽는 좌표)
+# 배경 PNG는 용량이 커서 구글드라이브로 공유, 검수 산출물은 변환기가 언제든 재생성
+maps/**/*.png
+# 오클루더 픽셀 마스크는 작은 알파 파일 — 게임 런타임에 필요하므로 커밋 (인라인 주석 금지: gitignore 미지원)
+!maps/**/mask_*.png
+maps/**/review.csv
+maps/**/debug-overlay.html
+maps/**/playtest.html
+maps/**/*.mp4
+maps/**/*.webm
+# paint 툴 내보내기 원본 — 압축 풀어 tmx/mask만 커밋하므로 zip 자체는 제외
+maps/**/*.zip
+
+# Playwright MCP 검증 산출물 (스냅샷·콘솔 로그)
+.playwright-mcp/
+
+# Codex 검증 산출물 (임시)
+data/codex_validate_*/
+assets_by_map/
+
+storage/user-avatars/
+
+# 아바타 파이프라인 코랩 노트북 — 코랩에서 관리(레포에 안 넣음)
+/JOBIVERSE_*.ipynb
+/JOBIVERSE_*.ipynb.bak
+
+# 음성 클로닝 원본 녹음 — 실존 인물 음성이라 레포 커밋 금지 (팀 드라이브 보관)
+/*.mp3
+
+# 맵 칠하기 사용법 — 디스코드 공유용 문서
+tools/map-geometry/맵칠하기_사용법.md
+
+# subagent-driven-development 진행 스크래치 (task brief/report/ledger)
+.superpowers/
+
+# 휴먼 평가 산출물 — 실제 상담 대화(복호화본)와 정답키가 들어 있다. 평가자에게만 전달한다.
+humaneval/

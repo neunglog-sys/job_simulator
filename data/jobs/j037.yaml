@@ -1,0 +1,28 @@
+# J037 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J037_*.yaml
+code: j037
+title: 행사·전시 운영 보조
+description: 행사와 전시의 동선 배치, 준비물 및 협력사 조율을 통해 현장이 원활하게 운영되도록 지원하는 직무. 혼잡도와 시설 위험 요소를 실시간으로 점검하고 안전 수칙을
+  준수하여 성공적인 오프라인 경험을 설계한다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 3
+  communication: 4
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 5
+  investigative: 1
+  artistic: 2
+  social: 4
+  enterprising: 3
+  conventional: 3
+# 공식 매핑: K000004998 행사기획연출가 (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

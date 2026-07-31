@@ -1,0 +1,23 @@
+code: ys-02
+title: 군사·국가안보 작전
+description: 근무명령 수령 → 임무·수칙 확인 → 장비·물자 점검 → 투입신고 → 경계·상황감시 → 수하·위험징후 판단 → 무전보고·조치 보조 → 교대·상황일지 인계
+competencies:
+  situation_judgment: 5
+  problem_solving: 3
+  communication: 3
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 5
+  investigative: 1
+  artistic: 1
+  social: 1
+  enterprising: 2
+  conventional: 4
+# dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
+dimension_weights:
+  interest.realistic: 1.0
+  work_target.environment: 0.8
+  work_style.time_pressure: 0.8
+  skill.risk_detection: 0.6
+  skill.priority_judgment: 0.6

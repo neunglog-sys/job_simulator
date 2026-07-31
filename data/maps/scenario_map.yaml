@@ -1,0 +1,46 @@
+# 시나리오 → 게임 맵 매핑
+#
+# 값 = maps/ 아래 폴더명 = 시나리오 slug (2026-07-20 재제작부터 slug로 통일).
+# null = 아직 맵 없음.
+#
+# 새 맵 규격: maps/맵_제작_가이드.md 참고.
+
+cln-01: cln-01
+gm-01: gm-01
+hr-01: hr-01
+jm-01: jm-01
+jm-02: jm-02
+jm-03: jm-03
+jm-04: jm-04
+jm-05: jm-05
+kts-01: kts-01
+kts-02: kts-02
+kts-03: kts-03
+kts-04: kts-04
+kts-05: kts-05
+# F 개편(2026-07-27): ms-01·ms-05·stn-02·ys-06·ys-07·ys-08·ys-10은
+# data/scenarios/_disabled/로 비활성 — 이 맵에서도 제외한다(테스트가 활성 목록과 대조).
+ms-02: ms-02
+ms-03: ms-03
+ms-04: ms-04
+ms-06: ms-06
+ms-07: ms-07
+ms-08: ms-08
+ms-09: ms-09
+ms-10: ms-10
+sns-01: sns-01
+stn-01: stn-01
+stn-03: stn-03
+stn-04: stn-04
+stn-05: stn-05
+wh-01: wh-01
+yg-01: yg-01
+yg-02: yg-02
+yg-03: yg-03
+yg-04: yg-04
+ys-01: ys-01
+ys-02: ys-02
+ys-03: ys-03
+ys-04: ys-04
+ys-05: ys-05
+ys-09: ys-09

@@ -1,0 +1,23 @@
+code: yg-03
+title: 웹·앱·소프트웨어 개발
+description: 문제·범위 정의 → 요구사항 분석 → 구조·데이터 설계 → 개발환경 구성 → 기능 구현 → 통합·리뷰 → 테스트 → 배포 → 운영·개선
+competencies:
+  situation_judgment: 4
+  problem_solving: 5
+  communication: 3
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 2
+  investigative: 5
+  artistic: 3
+  social: 1
+  enterprising: 2
+  conventional: 3
+# dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
+dimension_weights:
+  interest.artistic: 1.0
+  work_target.ideas: 0.8
+  work_style.novelty: 0.8
+  work_style.autonomy: 0.8
+  skill.creative_production: 0.6

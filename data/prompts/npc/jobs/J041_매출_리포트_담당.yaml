@@ -1,0 +1,281 @@
+schema_version: npc.job-override.v1
+job:
+  job_id: J041
+  job_name: 매출 리포트 담당
+  family_id: F09
+  family_name: 데이터·CRM·매출분석
+  module: 정보·판단형
+review:
+  status: researched_needs_human_review
+  generated: true
+  human_review_required: true
+prompt_contract:
+  npc_visible:
+    work_targets:
+    - 매출표
+    - 고객데이터
+    - 캠페인 결과
+    - 대시보드
+    npc_roles:
+    - 마케팅팀장
+    - 영업팀
+    - 데이터담당
+    outputs:
+    - 분석요약표
+    - 인사이트 메모
+    - 리포트
+    forbidden:
+    - 플레이어를 채점하거나 점수·통과 여부를 말하지 않는다.
+    - 오류의 정답·모범답안·단계별 해설을 제공하지 않는다.
+    - 업무상 필요한 지시·사실·자료·권한 범위만 전달한다.
+  coach_private:
+    success_criteria:
+    - 목적·자료·기준·결과·다음액션 포함
+    failure_patterns:
+    - 추측 진행
+    - 질문 누락
+    - 산출물 혼동
+kb_stages:
+- chunk_id: J041-S1
+  stage_id: S1
+  name: 업무요청 이해
+  goal: 요청자의 목적, 결과물, 마감, 제한조건을 확인한다.
+  rag_chunk_text: '[매출 리포트 담당/데이터·CRM·매출분석/정보·판단형] 업무요청 이해: 요청자의 목적, 결과물, 마감, 제한조건을 확인한다. 업무대상은 매출표, 고객데이터, 캠페인 결과, 대시보드.
+    주요상대/NPC는 마케팅팀장, 영업팀, 데이터담당. 핵심산출물은 분석요약표, 인사이트 메모, 리포트. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 데이터·CRM·매출분석의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J041-S2
+  stage_id: S2
+  name: 자료·현황 확인
+  goal: 업무대상 자료를 읽고 누락/불일치/위험요소를 표시한다.
+  rag_chunk_text: '[매출 리포트 담당/데이터·CRM·매출분석/정보·판단형] 자료·현황 확인: 업무대상 자료를 읽고 누락/불일치/위험요소를 표시한다. 업무대상은 매출표, 고객데이터, 캠페인 결과, 대시보드.
+    주요상대/NPC는 마케팅팀장, 영업팀, 데이터담당. 핵심산출물은 분석요약표, 인사이트 메모, 리포트. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 데이터·CRM·매출분석의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J041-S3
+  stage_id: S3
+  name: 처리·제작·응대
+  goal: 직무별 기준에 맞춰 문서/응대/작업/산출물을 만든다.
+  rag_chunk_text: '[매출 리포트 담당/데이터·CRM·매출분석/정보·판단형] 처리·제작·응대: 직무별 기준에 맞춰 문서/응대/작업/산출물을 만든다. 업무대상은 매출표, 고객데이터, 캠페인 결과, 대시보드.
+    주요상대/NPC는 마케팅팀장, 영업팀, 데이터담당. 핵심산출물은 분석요약표, 인사이트 메모, 리포트. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 데이터·CRM·매출분석의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J041-S4
+  stage_id: S4
+  name: 검수·판단
+  goal: 오류, 안전, 고객영향, 비용, 일정, 품질을 점검한다.
+  rag_chunk_text: '[매출 리포트 담당/데이터·CRM·매출분석/정보·판단형] 검수·판단: 오류, 안전, 고객영향, 비용, 일정, 품질을 점검한다. 업무대상은 매출표, 고객데이터, 캠페인 결과, 대시보드.
+    주요상대/NPC는 마케팅팀장, 영업팀, 데이터담당. 핵심산출물은 분석요약표, 인사이트 메모, 리포트. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 데이터·CRM·매출분석의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J041-S5
+  stage_id: S5
+  name: 보고·인계
+  goal: 결과, 근거, 남은 이슈, 다음 액션을 공유한다.
+  rag_chunk_text: '[매출 리포트 담당/데이터·CRM·매출분석/정보·판단형] 보고·인계: 결과, 근거, 남은 이슈, 다음 액션을 공유한다. 업무대상은 매출표, 고객데이터, 캠페인 결과, 대시보드. 주요상대/NPC는
+    마케팅팀장, 영업팀, 데이터담당. 핵심산출물은 분석요약표, 인사이트 메모, 리포트. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 데이터·CRM·매출분석의 업무대상과
+    산출물을 벗어난 미션 생성 금지.'
+content_variants:
+- category: 매출자료의 마감기준·구분·증감·이상내역 리포팅
+  module: null
+  rag_status: researched
+  workflow: 기준일·단위·매출정의 확인 → 원장·취소·기준정보 대조 → 채널·상품별 집계와 증감 계산 → 중복·누락·단위·마감차이 점검 → 사실·원인추정·미확인을 구분해 보고
+  npc_visible:
+    npc_roles:
+    - role: 영업기획 팀장
+      instruction_scope: 마감일·집계기준·비교기준 지시
+    - role: 재무 담당자
+      instruction_scope: 매출인식·취소·환불 기준 전달
+    - role: 채널 담당자
+      instruction_scope: 채널별 실적과 특이사항 전달
+    input_materials: &id001
+    - 매출원장
+    - 환불·취소내역
+    - 상품·채널 기준정보
+    - 목표
+    - 전기 실적
+    outputs: &id002
+    - 매출 집계표
+    - 증감표
+    - 이상내역
+    - 마감 리포트
+    sudden_events: &id003
+    - 총매출과 순매출 혼용
+    - 다른 기간 증감률 비교
+    - 미확인 원인을 단정
+    constraints:
+    - 원본 데이터와 가공 데이터를 구분하고 결측·중복·필터 조건을 기록한다.
+    - 개인정보가 포함된 원자료를 대화나 산출물에 그대로 노출하지 않는다.
+  stages:
+  - stage_id: S1
+    name: 기준일·단위·매출정의 확인
+    goal: 기준일·단위·매출정의 확인
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 영업기획 팀장
+      - 재무 담당자
+      - 채널 담당자
+      outputs: *id002
+      mission_candidate: 기준일·단위·매출정의 확인
+    coach_private:
+      success_criteria: &id004
+      - 총계와 상세 합계 일치
+      - 취소·환불 반영
+      - 비교기간 동일
+      - 추정 원인 표시
+      failure_patterns: *id003
+  - stage_id: S2
+    name: 원장·취소·기준정보 대조
+    goal: 원장·취소·기준정보 대조
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 영업기획 팀장
+      - 재무 담당자
+      - 채널 담당자
+      outputs: *id002
+      mission_candidate: 원장·취소·기준정보 대조
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  - stage_id: S3
+    name: 채널·상품별 집계와 증감 계산
+    goal: 채널·상품별 집계와 증감 계산
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 영업기획 팀장
+      - 재무 담당자
+      - 채널 담당자
+      outputs: *id002
+      mission_candidate: 채널·상품별 집계와 증감 계산
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  - stage_id: S4
+    name: 중복·누락·단위·마감차이 점검
+    goal: 중복·누락·단위·마감차이 점검
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 영업기획 팀장
+      - 재무 담당자
+      - 채널 담당자
+      outputs: *id002
+      mission_candidate: 중복·누락·단위·마감차이 점검
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  - stage_id: S5
+    name: 사실·원인추정·미확인을 구분해 보고
+    goal: 사실·원인추정·미확인을 구분해 보고
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 영업기획 팀장
+      - 재무 담당자
+      - 채널 담당자
+      outputs: *id002
+      mission_candidate: 사실·원인추정·미확인을 구분해 보고
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  missions:
+  - mission_id: null
+    situation_type: 정상업무
+    difficulty: 보통
+    npc_visible:
+      npc: 영업기획 팀장
+      request_line: 기준일·단위·매출정의 확인 업무를 진행해 주세요. 마감일·집계기준·비교기준 지시 기준을 확인하세요.
+      materials: *id001
+      user_mission: 기준일·단위·매출정의 확인
+      outputs: *id002
+      sudden_event: 총매출과 순매출 혼용
+    coach_private:
+      required_actions:
+      - 기준일·단위·매출정의 확인
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 자료·정보 누락
+    difficulty: 어려움
+    npc_visible:
+      npc: 재무 담당자
+      request_line: 원장·취소·기준정보 대조 업무를 진행해 주세요. 매출인식·취소·환불 기준 전달 기준을 확인하세요.
+      materials: *id001
+      user_mission: 원장·취소·기준정보 대조
+      outputs: *id002
+      sudden_event: 다른 기간 증감률 비교
+    coach_private:
+      required_actions:
+      - 원장·취소·기준정보 대조
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 우선순위 충돌
+    difficulty: 어려움
+    npc_visible:
+      npc: 채널 담당자
+      request_line: 채널·상품별 집계와 증감 계산 업무를 진행해 주세요. 채널별 실적과 특이사항 전달 기준을 확인하세요.
+      materials: *id001
+      user_mission: 채널·상품별 집계와 증감 계산
+      outputs: *id002
+      sudden_event: 미확인 원인을 단정
+    coach_private:
+      required_actions:
+      - 채널·상품별 집계와 증감 계산
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 오류·안전위험
+    difficulty: 어려움
+    npc_visible:
+      npc: 영업기획 팀장
+      request_line: 중복·누락·단위·마감차이 점검 업무를 진행해 주세요. 마감일·집계기준·비교기준 지시 기준을 확인하세요.
+      materials: *id001
+      user_mission: 중복·누락·단위·마감차이 점검
+      outputs: *id002
+      sudden_event: 총매출과 순매출 혼용
+    coach_private:
+      required_actions:
+      - 중복·누락·단위·마감차이 점검
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 보고·인계
+    difficulty: 보통
+    npc_visible:
+      npc: 재무 담당자
+      request_line: 사실·원인추정·미확인을 구분해 보고 업무를 진행해 주세요. 매출인식·취소·환불 기준 전달 기준을 확인하세요.
+      materials: *id001
+      user_mission: 사실·원인추정·미확인을 구분해 보고
+      outputs: *id002
+      sudden_event: 다른 기간 증감률 비교
+    coach_private:
+      required_actions:
+      - 사실·원인추정·미확인을 구분해 보고
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+provenance:
+  excel:
+  - file: 입문직무_RAG_KB_v5_정리본.xlsx
+    sheet: 01_직무마스터
+    rows: job_id=J041
+  - file: 입문직무_RAG_KB_v5_정리본.xlsx
+    sheet: 02_RAG프로세스
+    rows: job_id=J041
+  - file: 팀통합_8모듈_조사자료_표준화완료.xlsx
+    sheet: 01_연결맵/02_단계별프로세스/05_상황별미션
+    rows: job_id=J041
+  research_sources:
+  - source_id: NCS-DATA
+    title: 통계조사·자료처리·분석·보고서 작성 요구능력단위 사례
+    url: https://www.ncs.go.kr/blind/bl04/RecrtNotifDetail.do?recrtNo=20250207112506
+    publisher: 한국산업인력공단 NCS 공정채용

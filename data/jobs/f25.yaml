@@ -1,0 +1,17 @@
+# F25 항공 운항·관제 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f25
+title: 항공 운항·관제
+description: 항공기의 운항과 관제 절차를 수행하며 하늘길의 안전을 책임지는 분야입니다. 복잡한 정보를 빠르게 분석하고 규정과 절차를 정확하게 따르는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 5
+  communication: 4
+  collaboration: 2
+  task_management: 5
+interest_profile:
+  realistic: 3
+  investigative: 4
+  artistic: 1
+  social: 1
+  enterprising: 2
+  conventional: 5

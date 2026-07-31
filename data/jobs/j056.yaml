@@ -1,0 +1,28 @@
+# J056 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J056_*.yaml
+code: j056
+title: 접수·예약 담당
+description: 다양한 서비스 시설에서 고객의 예약 문의를 처리하고 이용 일정을 체계적으로 조율하는 직무. 정확한 데이터 대조를 통해 예약 오류를 방지하고, 고객 요청 사항을
+  유관 부서에 신속하게 전달하여 혼선 없는 서비스를 제공한다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 4
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 1
+  investigative: 2
+  artistic: 1
+  social: 4
+  enterprising: 3
+  conventional: 5
+# 공식 매핑: K000005000 예약접수원 (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

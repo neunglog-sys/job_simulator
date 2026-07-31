@@ -1,0 +1,28 @@
+# J054 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J054_*.yaml
+code: j054
+title: 프론트 데스크 담당
+description: 호텔이나 숙박시설의 첫인상을 결정하며 고객의 체크인과 체크아웃을 매끄럽게 돕는 직무. 다양한 고객 요청과 예기치 못한 민원에 신속하게 대처하고, 투숙객이 편안하게
+  머무를 수 있도록 관련 부서와 긴밀히 소통하며 현장을 관리한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 5
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 2
+  investigative: 1
+  artistic: 1
+  social: 5
+  enterprising: 4
+  conventional: 4
+# 공식 매핑: K000006870 호텔프런트사무원 (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

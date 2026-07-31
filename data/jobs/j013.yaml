@@ -1,0 +1,28 @@
+# J013 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J013_*.yaml
+code: j013
+title: 자재관리 보조
+description: 기업의 자산인 자재의 입출고 흐름을 추적하고 최적의 재고 수준을 유지·관리하는 직무. 창고 담당자와 협업하여 실물 자재와 시스템 데이터의 일치 여부를 점검하고
+  보관 효율을 높인다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 3
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 4
+  investigative: 3
+  artistic: 1
+  social: 2
+  enterprising: 2
+  conventional: 5
+# 공식 매핑: K000002274 자재관리사무원(일반) (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

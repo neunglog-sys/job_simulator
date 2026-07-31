@@ -1,0 +1,28 @@
+# J063 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J063_*.yaml
+code: j063
+title: 영상편집자 보조
+description: 영상 제작의 후반 작업 단계에서 컷 편집, 자막 삽입, 효과 적용 등을 지원하는 직무. 원본 소스를 체계적으로 분류 및 검수하고 메인 편집자의 의도와 가이드라인에
+  맞추어 신속하고 정확하게 편집을 보조한다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 3
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 3
+  investigative: 2
+  artistic: 4
+  social: 2
+  enterprising: 2
+  conventional: 5
+# 공식 매핑: K000003236 방송편집기사 (docs/jobs/batch2_mapping_review.md #21)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

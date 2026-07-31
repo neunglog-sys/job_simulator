@@ -1,0 +1,17 @@
+# F39 중장비·특수장비 조종 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f39
+title: 중장비·특수장비 조종
+description: 크레인·드론 등 중장비와 특수장비를 조종해 정밀한 작업을 수행하는 분야입니다. 기계 다루기를 좋아하고 안전을 최우선으로 신중하게 판단하는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 1
+  collaboration: 2
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 2
+  artistic: 1
+  social: 1
+  enterprising: 1
+  conventional: 3

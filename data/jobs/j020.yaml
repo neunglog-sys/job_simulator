@@ -1,0 +1,28 @@
+# J020 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J020_*.yaml
+code: j020
+title: 채용운영 보조
+description: 채용 공고의 시작부터 서류 검토, 전형 결과 기록까지 채용의 전반적인 과정을 매끄럽게 보조하는 직무입니다. 지원자와 면접관 사이에서 일정을 조율하고, 개인정보
+  유출이나 안내 오류가 없도록 꼼꼼하게 점검하여 원활한 채용 경험을 제공합니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 4
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 1
+  investigative: 2
+  artistic: 1
+  social: 4
+  enterprising: 3
+  conventional: 4
+# 공식 매핑: K000003735 인사사무원 (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

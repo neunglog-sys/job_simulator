@@ -1,0 +1,25 @@
+code: stn-01
+title: 마케팅·광고·홍보 운영
+description: 캠페인 과제·목표 정의 → 시장·고객·채널 자료 수집 → 전략·콘텐츠·실행안 기획 → 표현·예산·성과기준 검수 → 실행 지원·성과 보고
+competencies:
+  situation_judgment: 3
+  problem_solving: 4
+  communication: 5
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 1
+  investigative: 3
+  artistic: 4
+  social: 3
+  enterprising: 5
+  conventional: 2
+# dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
+dimension_weights:
+  interest.investigative: 1.0
+  interest.enterprising: 1.0
+  work_target.data: 0.8
+  work_target.ideas: 0.8
+  work_style.novelty: 0.8
+  work_style.autonomy: 0.8
+  skill.data_analysis: 0.6

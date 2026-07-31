@@ -1,0 +1,27 @@
+{
+  "gate_version": "counseling-gate-v1-target",
+  "note": "PR#7의 실제 라이브 게이트(aptitude_clarity<50 → 409)는 이 파일로 대체되지 않는다. 이 파일은 §counseling_process.md에서 정의한 목표 다축 게이트의 데이터 표현이며, evaluate_gate()는 순수 함수로만 제공되고 /api/recommendations 라우터에서 호출되지 않는다.",
+  "required_conditions": {
+    "purpose_confirmed": true,
+    "min_interest_evidence_count": 3,
+    "min_work_style_evidence_count": 3,
+    "top_work_values_confirmed": true,
+    "constraints_confirmed": true,
+    "min_independent_evidence_per_top_module": 2,
+    "user_interim_summary_confirmed": true,
+    "key_contradictions_resolved": true
+  },
+  "on_pass": {
+    "action": "proceed_to_module_recommendation",
+    "next_step": "map_to_modules() 호출 → module_mapping.json 기준 상위 모듈·중분류·대표미션 연결"
+  },
+  "on_fail": {
+    "action": "continue_counseling",
+    "return_fields": [
+      "interim_conclusion",
+      "missing_evidence",
+      "followup_questions"
+    ],
+    "message_principle": "무엇이 부족한지 구체적으로 안내하고, 진단이 아니라 '조금 더 알아가는 중'이라는 톤을 유지한다."
+  }
+}

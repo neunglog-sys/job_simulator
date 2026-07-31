@@ -1,0 +1,28 @@
+# J034 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J034_*.yaml
+code: j034
+title: 서비스기획 보조
+description: 사용자의 목소리와 요구사항을 분석하여 서비스의 핵심 기능을 정의하고 우선순위를 조율하는 직무. 개발팀 및 디자인팀과의 소통을 통해 모호한 요구사항을 구체적인 명세로
+  정리하며, 실현 가능한 서비스 스펙을 정립한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 4
+  communication: 4
+  collaboration: 4
+  task_management: 3
+interest_profile:
+  realistic: 1
+  investigative: 4
+  artistic: 3
+  social: 3
+  enterprising: 4
+  conventional: 3
+# 공식 매핑: K000007119 클라우드서비스기획자 (docs/jobs/batch2_mapping_review.md #10)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

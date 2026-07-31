@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 144" role="img" aria-label="회색 과녁 막개">
+  <defs><linearGradient id="metal" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#9ca5b4"/><stop offset="1" stop-color="#525b6a"/></linearGradient><linearGradient id="target" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#edf2f5"/><stop offset="1" stop-color="#9da8b6"/></linearGradient></defs>
+  <rect x="8" y="17" width="112" height="84" rx="28" fill="url(#metal)" stroke="#171a2a" stroke-width="8"/>
+  <rect x="20" y="29" width="88" height="60" rx="21" fill="#303640" stroke="#c6ced9" stroke-width="5"/>
+  <circle cx="64" cy="59" r="27" fill="url(#target)" stroke="#171a2a" stroke-width="5"/>
+  <circle cx="64" cy="59" r="17" fill="#596474" stroke="#171a2a" stroke-width="5"/>
+  <circle cx="64" cy="59" r="7" fill="#75d7d6" stroke="#171a2a" stroke-width="4"/>
+  <path d="M64 29v10M64 79v10M34 59h10M84 59h10" stroke="#ecf4f5" stroke-width="4" stroke-linecap="round"/>
+  <path d="M47 101h34v27c0 6-5 10-10 10H57c-5 0-10-4-10-10v-27Z" fill="url(#metal)" stroke="#171a2a" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M57 112h14" stroke="#d5dce5" stroke-width="5" stroke-linecap="round"/>
+</svg>

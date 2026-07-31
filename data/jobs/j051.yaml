@@ -1,0 +1,28 @@
+# J051 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J051_*.yaml
+code: j051
+title: 영업지원 사무
+description: 영업 부서가 원활하게 운영될 수 있도록 전산 관리, 재고 대조, 정산 및 행정 업무를 지원하는 직무. 영업 현장에서 발생하는 데이터를 정리하고 정해진 규정에 따라
+  서류와 실무를 꼼꼼하게 조율한다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 4
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 2
+  investigative: 3
+  artistic: 1
+  social: 3
+  enterprising: 2
+  conventional: 5
+# 공식 매핑: K000003787 영업지원사무원 (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

@@ -1,0 +1,45 @@
+# F32 치안·범죄현장 대응 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f32
+title: 치안·범죄현장 대응
+description: 사건·사고 현장에 출동해 초동조치와 현장 보존, 질서 유지를 수행하는 분야입니다. 긴박한 상황에서도 침착하게 판단하고 움직이는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 4
+  collaboration: 3
+  task_management: 2
+interest_profile:
+  realistic: 4
+  investigative: 3
+  artistic: 1
+  social: 3
+  enterprising: 3
+  conventional: 2
+# 조사 데이터: ys-01(지역경찰 순찰요원·신입 순경) 리서치 검증본(2026-07-27) 기준.
+# 봉급(월)과 재직 중위(연)는 단위·성격이 다른 별도 통계 — 혼용·환산 금지.
+education_requirement:
+  value: >-
+    경찰공무원(순경) 공개경쟁채용시험 합격으로 임용된다. 법정 학력 제한은 없고, 응시연령 18~40세,
+    제1종 대형 또는 보통 운전면허 소지가 응시요건이다. 별도 국가자격증이 필수는 아니다(공무원 임용 경로).
+  evidence_type: descriptive_text
+salary:
+  entry_level:
+    min_krw: null
+    max_krw: null
+    basis: >-
+      초임은 공무원 봉급표상 순경 1호봉 월 2,133,000원(2026, 수당 제외 기본급).
+      월 봉급이라 연봉(median_annual_krw)과 단위가 다르며, ×12 환산은 각종 수당 누락으로
+      실제 첫해 총액을 과소표시하므로 환산하지 않는다.
+  reference_statistics:
+    median_annual_krw: 39000000
+    statistic_type: median
+    population: "경찰관 재직자 전체 중위(신입 아님); 순경 특정 아님 — 대체 참고값"
+    reference_year: 2021
+    cross_check_flag: true
+    cross_check_note: >-
+      경찰관 재직 중위 39,000,000원/2021(커리어넷·워크넷). 순경 초임 봉급(월 2,133,000원, 2026)과는
+      단위·성격이 다른 별도 통계. 재직 중위값 원페이지가 JS렌더라 제출 전 1회 확인 권장.
+certifications:
+  - name: "자동차운전면허 제1종(대형 또는 보통) — 순경 공채 응시요건"
+    tier: related
+status: cross_check_required

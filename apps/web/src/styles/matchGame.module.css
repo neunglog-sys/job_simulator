@@ -1,0 +1,3624 @@
+/* 4단계 match 엔진 전용 스타일 — 공용 껍데기(shell/hud/result/mark)는 minigame.module.css 를
+   그대로 쓴다. 카드·구슬·키·돌발 마커는 PixelSprite 도트 아트로 그리고, 파일이 없으면
+   라벨 칩(카드)·색 원(키)·텍스트 버튼(휴지통)으로 폴백한다.
+   글자 대비는 어두운 판 기준 4.5:1 이상을 목표로 잡았다(디자이너 가시성 지침). */
+
+/* ── 매칭 보드: 좌/우 카드 열 + 연결선 레이어 ── */
+.board {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 72px;
+  padding: 14px;
+  border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.2));
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 22% 18%, rgb(255 255 255 / 0.05), transparent 42%),
+    linear-gradient(160deg, rgb(38 44 66 / 0.96), rgb(24 27 44 / 0.98));
+
+  /* 카드 밀도 토큰 — 기본값은 카드 적은 판(5장 이하). data-density 로 카드가 많은 판일수록
+     세로(패딩·행 간격·라벨)를 조인다. 스프라이트 크기는 엔진(cardSpriteSize)이 함께 낮춘다. */
+  --m-card-pad-y: 6px;
+  --m-card-pad-x: 10px;
+  --m-card-gap: 2px;
+  --m-col-gap: 7px;
+  --m-cell-gap: 4px;
+  --m-label: 10px;
+}
+
+/* 카드 6장 이상(kts-05 6·kts-03 7·kts-02 8 등) — 세로를 조여 잘림 없이 더 담고, 남으면 스크롤 병행.
+   가로 골(column-gap)은 base·반응형 breakpoint 에 맡기고 여기선 세로만 조인다(row-gap). */
+.board[data-density="compact"] {
+  row-gap: 8px;
+  --m-card-pad-y: 4px;
+  --m-card-pad-x: 8px;
+  --m-card-gap: 1px;
+  --m-col-gap: 5px;
+  --m-cell-gap: 3px;
+  --m-label: 9px;
+}
+
+/* 카드 12장 이상(ms-02 15) — 최대로 조인다. 스크롤과 병행해 전부 보이게 */
+.board[data-density="dense"] {
+  row-gap: 6px;
+  --m-card-pad-y: 3px;
+  --m-card-pad-x: 7px;
+  --m-card-gap: 0px;
+  --m-col-gap: 4px;
+  --m-cell-gap: 2px;
+  --m-label: 9px;
+}
+
+/* 연결선 — 카드 모서리에서 출발해 두 열 사이 골을 지난다. 열 배경 위로 온전히 보이도록
+   열(z-index 1)보다 위(2)에 깐다. 선의 x 범위는 좌 카드 오른쪽 끝~우 카드 왼쪽 끝이라
+   카드 본문을 가리지 않고, pointer-events 는 없다. */
+.wires {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* 선 색은 좌 카드별 고정 색을 stroke 속성으로 받는다(연결마다 색 유지).
+   여기서는 굵기·형태만 정의한다 — CSS 에 stroke 를 두면 속성 색을 덮어쓴다. */
+.wire {
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  opacity: 0.95;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.45));
+}
+
+/* 끝점 도트 — 선이 어느 카드에 꽂혔는지 명확하게 */
+.wireDot {
+  opacity: 0.95;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.45));
+}
+
+/* 종료 후 판정 색 — 카드별 색보다 우선(속성 stroke/fill 은 CSS 가 이긴다) */
+.wireGroup[data-verdict="ok"] .wire,
+.wireGroup[data-verdict="ok"] .wireDot {
+  stroke: #35d6a6;
+  fill: #35d6a6;
+}
+
+.wireGroup[data-verdict="bad"] .wire,
+.wireGroup[data-verdict="bad"] .wireDot {
+  stroke: #ff7b93;
+  fill: #ff7b93;
+}
+
+/* 임시선 — 카드를 하나 고른 상태에서 포인터를 따라오는 점선 */
+.wirePreview {
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 7 6;
+  opacity: 0.85;
+  animation: wireDash 700ms linear infinite;
+}
+
+@keyframes wireDash {
+  to {
+    stroke-dashoffset: -13;
+  }
+}
+
+/* ── 좌/우 컬럼 — 헤더 + 서로 다른 톤으로 좌우를 즉시 구분 ── */
+.columnWrap {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid;
+  border-radius: 12px;
+}
+
+.columnWrap[data-side="left"] {
+  border-color: rgb(122 168 255 / 0.42);
+  background: linear-gradient(180deg, rgb(97 138 224 / 0.16), rgb(97 138 224 / 0.05));
+}
+
+.columnWrap[data-side="right"] {
+  border-color: rgb(255 193 120 / 0.42);
+  background: linear-gradient(180deg, rgb(233 168 92 / 0.15), rgb(233 168 92 / 0.04));
+}
+
+.columnHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 4px 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.columnWrap[data-side="left"] .columnHead {
+  color: #cfe0ff;
+}
+
+.columnWrap[data-side="right"] .columnHead {
+  color: #ffe3bd;
+}
+
+.columnCount {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.14);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--m-col-gap, 8px);
+  min-width: 0;
+}
+
+.cardCell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--m-cell-gap, 4px);
+}
+
+/* ── 카드 — 아트 전이라 sprite id 를 마커로 그린다 ── */
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--m-card-gap, 2px);
+  width: 100%;
+  padding: var(--m-card-pad-y, 7px) var(--m-card-pad-x, 10px);
+  border: 1px solid rgb(255 255 255 / 0.28);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.08);
+  color: rgb(255 255 255 / 0.95);
+  font-size: 11px;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.card:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.14);
+}
+
+.card:disabled {
+  cursor: default;
+}
+
+/* 선택 중인 카드 — 임시선의 출발점. 링을 굵게 해 확실히 띄운다 */
+.card[data-state="selected"] {
+  border-color: var(--scenario-accent, #8a63ee);
+  background: rgb(255 255 255 / 0.15);
+  box-shadow:
+    0 0 0 3px var(--scenario-accent-soft, rgb(193 126 255 / 0.28)),
+    0 0 14px rgb(193 126 255 / 0.3);
+}
+
+.card[data-state="linked"] {
+  border-color: rgb(148 178 255 / 0.7);
+  background: rgb(97 130 214 / 0.25);
+}
+
+.card[data-state="stamped"] {
+  border-style: dashed;
+  border-color: rgb(255 215 110 / 0.55);
+  background: rgb(255 215 110 / 0.12);
+}
+
+/* 흐림 처리해도 라벨이 읽혀야 한다 — 0.55 는 대비가 4.5:1 밑으로 떨어져 0.68 로 */
+.card[data-state="discarded"] {
+  border-style: dashed;
+  opacity: 0.68;
+}
+
+.card[data-state="escalated"] {
+  border-color: rgb(255 171 112 / 0.7);
+  background: rgb(214 130 60 / 0.2);
+}
+
+/* 종료 후 판정 색 — 상태색보다 우선 */
+.card[data-verdict="ok"] {
+  border-color: rgb(120 240 200 / 0.75);
+  background: rgb(30 160 130 / 0.35);
+}
+
+.card[data-verdict="bad"] {
+  border-color: rgb(255 130 150 / 0.8);
+  background: rgb(190 50 80 / 0.35);
+}
+
+.cardSprite {
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+/* muted 토큰(0.74)은 10px 글자에서 대비가 모자라 밝은 고정색으로 */
+.cardLabel {
+  font-size: var(--m-label, 10px);
+  font-weight: 600;
+  line-height: 1.25;
+  color: rgb(233 236 255 / 0.9);
+}
+
+/* 보조 시각 단서(kts-03 가격표 개수 등) */
+.cardCue {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border: 1px dashed rgb(255 255 255 / 0.5);
+  border-radius: 999px;
+  color: rgb(255 255 255 / 0.92);
+}
+
+/* ── 탐지기 경보(ys-03) — 시각 단서, 글자 없이 판별. 디자이너 피드백(2026-07-20)으로 강화:
+   램프 하드 점멸 + 확산 링(ping) + 카드 흔들림·붉은 펄스. 셋 다 1.8s 주기로 동기 —
+   "울리고(0~24%) 쉬는(24~100%)" 사이렌 리듬. '벨이 정답'을 가리키는 화살표·강조 등
+   정답 유도 표시는 넣지 않는다 — 울림만 잘 보이게, 판단은 유저 몫. ── */
+.lamp {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgb(255 255 255 / 0.9);
+  border-radius: 50%;
+  background: #ff4d6d;
+  box-shadow: 0 0 10px rgb(255 77 109 / 0.9);
+  animation: lampFlash 0.9s steps(1, end) infinite;
+}
+
+/* 하드 온/오프 점멸 — ease 페이드(구 lampPulse)보다 '경보등'으로 읽힌다 */
+@keyframes lampFlash {
+  0% {
+    background: #ff2447;
+    box-shadow: 0 0 14px 3px rgb(255 60 90 / 0.95);
+  }
+
+  50% {
+    background: #8a1730;
+    box-shadow: 0 0 4px rgb(255 60 90 / 0.35);
+  }
+}
+
+/* 확산 링 — 램프에서 음파처럼 퍼져나가는 원 (울림의 시각화) */
+.lamp::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border: 2px solid rgb(255 90 115 / 0.9);
+  border-radius: 50%;
+  opacity: 0;
+  animation: lampPing 1.8s ease-out infinite;
+}
+
+@keyframes lampPing {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.6);
+  }
+
+  45% {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+
+/* 카드 흔들림 — 주기 앞 24%만 좌우 미세 진동(±1.5px), 나머지는 정지(울림-휴지 리듬).
+   진폭이 작아 연결선 앵커(카드 모서리 측정값)와의 오차는 시각적으로 무시 가능하다. */
+.card[data-detector] {
+  animation: detectorShake 1.8s linear infinite;
+}
+
+@keyframes detectorShake {
+  0% {
+    transform: translateX(0);
+  }
+
+  4% {
+    transform: translateX(-1.5px);
+  }
+
+  8% {
+    transform: translateX(1.5px);
+  }
+
+  12% {
+    transform: translateX(-1.5px);
+  }
+
+  16% {
+    transform: translateX(1.5px);
+  }
+
+  20% {
+    transform: translateX(-1px);
+  }
+
+  24%,
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* 붉은 펄스 링 — 카드 둘레를 감싸는 경보 광. 선택/판정 등 상태색(border·box-shadow)과
+   싸우지 않도록 pseudo-element 로 얹는다. 흔들림과 같은 주기로 밝아졌다 잦아든다. */
+.card[data-detector]::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border: 2px solid rgb(255 77 109 / 0.8);
+  border-radius: 13px;
+  box-shadow:
+    0 0 16px rgb(255 77 109 / 0.5),
+    inset 0 0 12px rgb(255 77 109 / 0.18);
+  opacity: 0.2;
+  pointer-events: none;
+  animation: detectorRing 1.8s ease-in-out infinite;
+}
+
+@keyframes detectorRing {
+
+  0%,
+  24% {
+    opacity: 1;
+  }
+
+  60%,
+  100% {
+    opacity: 0.2;
+  }
+}
+
+/* 카드가 처리되면(선·도장·인계 어느 쪽이든 동일 — 정답 유출 없음) 또는 게임 종료(:disabled)
+   후에는 경보가 잦아든다: 흔들림·점멸 정지, 링은 옅은 상시 표시, 램프는 켜진 채 고정. */
+.card[data-detector][data-state="linked"],
+.card[data-detector][data-state="stamped"],
+.card[data-detector][data-state="escalated"],
+.card[data-detector]:disabled {
+  animation: none;
+}
+
+.card[data-detector][data-state="linked"]::after,
+.card[data-detector][data-state="stamped"]::after,
+.card[data-detector][data-state="escalated"]::after,
+.card[data-detector]:disabled::after {
+  animation: none;
+  opacity: 0.25;
+}
+
+.card[data-detector][data-state="linked"] .lamp,
+.card[data-detector][data-state="stamped"] .lamp,
+.card[data-detector][data-state="escalated"] .lamp,
+.card[data-detector]:disabled .lamp {
+  animation: none;
+}
+
+.card[data-detector][data-state="linked"] .lamp::after,
+.card[data-detector][data-state="stamped"] .lamp::after,
+.card[data-detector][data-state="escalated"] .lamp::after,
+.card[data-detector]:disabled .lamp::after {
+  animation: none;
+  opacity: 0;
+}
+
+/* 도장·폐기·인계 배지 — 판정 마크(공용 .mark, 우상단)와 겹치지 않게 우하단 */
+.stampBadge {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  color: #3a2905;
+  background: #ffd76e;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+  white-space: nowrap;
+}
+
+/* #6b7387 배경은 흰 글자와 4.6:1 턱걸이 — 어둡게 내려 7.5:1 */
+.stampBadge[data-kind="discard"] {
+  color: #fff;
+  background: #4c5468;
+}
+
+.stampBadge[data-kind="escalate"] {
+  color: #33160a;
+  background: #ffab70;
+}
+
+/* ── 객실 키 팔레트(kts-05) — 매칭한 손님 카드 밑에 색 키 선택 ── */
+.keyRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 2px;
+}
+
+.keyHint {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgb(233 236 255 / 0.9);
+}
+
+.keyDot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 2px solid rgb(255 255 255 / 0.45);
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+/* 도트 키 아트(kts-05 객실키_*.svg — 세로 10×14 그리드)가 있으면 색 원을 세로 칩으로 키워
+   담는다. 색 배경(인라인 KEY_COLORS)은 아트 뒤에도 그대로 깔려, 파일이 없으면 폴백 스팬
+   (.spriteFallbackHidden)이 숨고 색 표시만 남는다 — 기존과 같은 정보량. */
+.keyDot[data-sprite="true"] {
+  width: 28px;
+  height: 34px;
+  border-radius: 9px;
+}
+
+/* '없어도 정보 손실이 없는' 자리(색 원·텍스트 버튼이 이미 정보를 다 주는 곳)의 폴백 —
+   파일 부재 시 아무것도 그리지 않아 기존 표시가 그대로 남는다. */
+.spriteFallbackHidden {
+  display: none;
+}
+
+.keyDot[data-active="true"] {
+  border-color: #fff;
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 0.3);
+}
+
+.keyDot:disabled {
+  cursor: default;
+}
+
+/* ── 흐름 검수 밴드(stn-03) — 구슬이 좌→우로 흐른다 ── */
+.streamWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.2));
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.05);
+}
+
+.streamHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  color: rgb(233 236 255 / 0.92);
+}
+
+/* 3행 × (구슬 도트 22px + 패딩·테두리 ≈ 32px), 행 간격 30px(인라인 top 8/38/68) */
+.streamTrack {
+  position: relative;
+  height: 104px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgb(97 130 214 / 0.16), rgb(97 130 214 / 0.05));
+  overflow: hidden;
+}
+
+.bead {
+  position: absolute;
+  left: -20%;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border: 1px solid rgb(255 255 255 / 0.32);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.1);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  animation: beadFlow 9s linear infinite;
+}
+
+.bead:disabled {
+  cursor: default;
+}
+
+.bead[data-judged="caught"] {
+  border-color: rgb(120 240 200 / 0.75);
+  background: rgb(30 160 130 / 0.5);
+}
+
+.bead[data-judged="wrong"] {
+  border-color: rgb(255 130 150 / 0.8);
+  background: rgb(190 50 80 / 0.5);
+}
+
+/* 종료 후 놓친 이상치 표시 */
+.bead[data-judged="missed"] {
+  border-color: rgb(255 215 110 / 0.8);
+  background: rgb(255 215 110 / 0.2);
+}
+
+.beadMark {
+  font-weight: 900;
+}
+
+@keyframes beadFlow {
+  from {
+    left: -18%;
+  }
+
+  to {
+    left: 104%;
+  }
+}
+
+/* ── 돌발 패널(kts-03) — 단계 버튼 → 호출 ── */
+.sudden {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid rgb(255 171 112 / 0.55);
+  border-radius: 12px;
+  background: rgb(214 120 60 / 0.14);
+  animation: suddenIn 260ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+.sudden[data-settled="true"] {
+  opacity: 0.82;
+}
+
+@keyframes suddenIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.suddenHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.suddenSprite {
+  padding: 3px 9px;
+  border: 1px solid rgb(255 171 112 / 0.6);
+  border-radius: 8px;
+  background: rgb(255 171 112 / 0.16);
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffd9bd;
+}
+
+.suddenLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgb(255 236 224 / 0.95);
+}
+
+.suddenActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stageBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 7px 11px;
+  border: 1px solid rgb(255 255 255 / 0.26);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.09);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.stageBtn:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.16);
+}
+
+.stageBtn:disabled {
+  cursor: default;
+}
+
+.stageBtn[data-done="true"] {
+  border-color: rgb(120 240 200 / 0.7);
+  background: rgb(30 160 130 / 0.35);
+}
+
+.stageBtn[data-kind="escalate"] {
+  border-color: rgb(255 171 112 / 0.7);
+  background: rgb(255 171 112 / 0.14);
+}
+
+.stageLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgb(233 236 255 / 0.9);
+}
+
+/* ── 하단 조작 바 — 도장·휴지통·호출·제출 ── */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgb(255 255 255 / 0.24);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.1);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.actionBtn:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.18);
+}
+
+/* 비활성은 대비 기준 예외지만 0.45 는 읽기 어렵다 — 비활성 티는 유지하며 소폭 상향 */
+.actionBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.actionsSpacer {
+  flex: 1;
+}
+
+/* 전판 판정 완료 안내 — 자동 종료가 없으니 제출을 눌러야 한다는 신호 */
+.readyHint {
+  font-size: 12px;
+  font-weight: 700;
+  color: #a7f0d4;
+}
+
+/* 미완 제출 가능해야 방치 감점(missed_*)이 작동한다 — 항상 노출.
+   accent 그라데이션 원색은 흰 글자와 2.7:1 까지 떨어져, 어두운 덧칠로 4.5:1 이상 확보. */
+.submitBtn {
+  min-height: 42px;
+  padding: 0 22px;
+  border: 1px solid rgb(255 255 255 / 0.3);
+  border-radius: 12px;
+  color: #fff;
+  background:
+    linear-gradient(rgb(16 12 30 / 0.35), rgb(16 12 30 / 0.35)),
+    linear-gradient(135deg, var(--scenario-accent, #8a63ee), var(--scenario-accent-2, #ef71bc));
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.submitBtn:active {
+  transform: translateY(1px);
+}
+
+/* 전판 판정 완료 — 제출이 남았음을 링으로 강조 */
+.submitBtn[data-ready="true"] {
+  border-color: rgb(122 240 190 / 0.8);
+  box-shadow: 0 0 0 3px rgb(122 240 190 / 0.3);
+}
+
+/* ── 접근성 ── */
+.card:focus-visible,
+.actionBtn:focus-visible,
+.submitBtn:focus-visible,
+.stageBtn:focus-visible,
+.bead:focus-visible,
+.keyDot:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .board {
+    gap: 8px 30px;
+    padding: 10px;
+  }
+
+  .columnWrap {
+    padding: 6px;
+  }
+}
+
+/* 모션 최소화 — 구슬 흐름을 멈추고 전부 펼쳐 보여준다(넘김 조작 불필요).
+   left/top 애니메이션 좌표는 !important 로 무력화해 인라인 delay/top 값을 이긴다. */
+@media (prefers-reduced-motion: reduce) {
+  .bead {
+    animation: none;
+    position: static;
+    top: auto !important;
+  }
+
+  .streamTrack {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    height: auto;
+    min-height: 46px;
+    padding: 8px 10px;
+    overflow: visible;
+  }
+
+  .lamp,
+  .lamp::after,
+  .card[data-detector],
+  .card[data-detector]::after,
+  .sudden,
+  .wirePreview {
+    animation: none;
+  }
+
+  /* 모션 없이도 경보 단서는 유지 — 램프는 켜진 채(기본색), 카드 링은 상시 진하게.
+     확산 링(.lamp::after)은 모션 그 자체라 표시하지 않는다(기본 opacity 0). */
+  .card[data-detector]::after {
+    opacity: 0.85;
+  }
+
+  .card,
+  .actionBtn,
+  .stageBtn {
+    transition: none;
+  }
+}
+
+/* ── 2026 visual pass: 데이터 매칭 콘솔 ── */
+.board {
+  position: relative;
+  border-radius: 18px;
+  border-color: color-mix(in srgb, var(--scenario-accent) 30%, rgb(255 255 255 / 0.2));
+  background:
+    radial-gradient(circle at 50% 0%, var(--scenario-accent-soft), transparent 38%),
+    linear-gradient(155deg, rgb(18 20 47 / 0.96), rgb(10 12 30 / 0.98));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), 0 16px 34px rgb(0 0 0 / 0.24);
+  overflow: hidden;
+}
+
+.board::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgb(255 255 255 / 0.09) 1px, transparent 1px);
+  background-size: 18px 18px;
+  mask-image: linear-gradient(to bottom, #000, transparent 70%);
+  opacity: 0.24;
+}
+
+.column,
+.columnWrap {
+  position: relative;
+  z-index: 1;
+}
+
+.columnHead {
+  border-color: rgb(255 255 255 / 0.15);
+  background: linear-gradient(110deg, rgb(255 255 255 / 0.11), rgb(255 255 255 / 0.035));
+}
+
+.card {
+  border-color: rgb(255 255 255 / 0.19);
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 0.13), transparent 54%),
+    rgb(18 18 43 / 0.88);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.09), 0 10px 24px rgb(0 0 0 / 0.22);
+}
+
+.card:hover {
+  border-color: var(--scenario-accent-2);
+  box-shadow: 0 12px 28px rgb(0 0 0 / 0.3), 0 0 20px var(--scenario-accent-soft);
+}
+
+.card[data-selected="true"] {
+  box-shadow: 0 0 0 2px var(--scenario-accent), 0 0 28px var(--scenario-accent-soft);
+}
+
+.wire {
+  filter: drop-shadow(0 0 5px var(--scenario-progress-glow));
+}
+
+.streamWrap,
+.sudden,
+.forbiddenAlert {
+  border-color: rgb(255 255 255 / 0.16);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 10px 24px rgb(0 0 0 / 0.16);
+}
+
+.submitBtn,
+.actionBtn {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 9px 22px var(--scenario-accent-soft);
+}
+
+/* ── 금지 버튼 즉각 제지 배너 (2026-07-20 디자이너 확정 (a)안) ──
+   감점 자체는 최종 채점에서 반영 — 여기서는 '방금 그게 금지행동'임을 그 자리에서 알린다. */
+.forbiddenAlert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid rgb(255 110 130 / 0.65);
+  border-radius: 12px;
+  background: rgb(150 30 55 / 0.38);
+  color: #ffd9e0;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+  animation: forbiddenFlash 640ms ease-out;
+}
+
+.forbiddenAlertBadge {
+  flex: none;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #d1365f;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+@keyframes forbiddenFlash {
+  0% {
+    background: rgb(220 45 80 / 0.75);
+    transform: translateY(2px);
+  }
+
+  100% {
+    background: rgb(150 30 55 / 0.38);
+    transform: none;
+  }
+}
+
+/* 누른 금지 버튼 — 빨간 상태로 남겨 '이건 잘못 누른 것'을 표시 */
+.actionBtn[data-forbidden-pressed],
+.stageBtn[data-forbidden-pressed] {
+  border-color: rgb(255 110 130 / 0.7);
+  background: rgb(160 35 60 / 0.4);
+  color: #ffb9c6;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .forbiddenAlert {
+    animation: none;
+  }
+}
+
+:global([data-cartoon-background="true"]) .board {
+  background-image:
+    linear-gradient(rgb(8 12 26 / 0.14), rgb(8 12 26 / 0.22)),
+    var(--minigame-background-image);
+  /* Dense matching sets need more than one scene-height. Keep the complete
+     artwork with `contain`, but let the board grow so no interactive card is
+     clipped by the inked frame. */
+  min-height: 0;
+  background-position: center, center;
+  background-size: 100% 100%, contain;
+  background-repeat: no-repeat, no-repeat;
+}
+
+/* Cartoon surface pass: cards and wiring get inked UI framing only. */
+.board {
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 18px;
+  background: #334363;
+  box-shadow: 0 5px 0 var(--cartoon-ink), inset 0 2px 0 rgb(255 255 255 / 0.12);
+}
+
+.board::before {
+  opacity: 0.18;
+  background-image: radial-gradient(rgb(255 242 214 / 0.52) 1.2px, transparent 1.4px);
+  background-size: 17px 17px;
+}
+
+.columnHead,
+.streamWrap,
+.sudden,
+.forbiddenAlert {
+  border: 2px solid var(--cartoon-ink);
+  background: #fff2d6;
+  color: var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+
+.card {
+  border: 2px solid var(--cartoon-ink);
+  border-radius: 13px;
+  background: #fff2d6;
+  color: var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+
+.card:hover {
+  border-color: var(--cartoon-ink);
+  box-shadow: 0 6px 0 var(--cartoon-ink);
+  transform: translateY(-2px);
+}
+
+.card[data-state="selected"] {
+  background: #d7c6ff;
+  box-shadow: 0 4px 0 var(--cartoon-ink), 0 0 0 3px var(--cartoon-purple);
+}
+
+.wire {
+  filter: drop-shadow(2px 3px 0 var(--cartoon-ink));
+}
+
+.stageBtn,
+.submitBtn,
+.actionBtn {
+  border: 2px solid var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+
+.stageBtn:active,
+.submitBtn:active,
+.actionBtn:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--cartoon-ink);
+}
+
+/* Cartoon contrast pass: remove legacy pale copy from paper cards and headers. */
+.columnWrap[data-side="left"] .columnHead,
+.columnWrap[data-side="right"] .columnHead,
+.columnHead>b,
+.columnHead>strong,
+.columnCount,
+.cardLabel,
+.cardCue,
+.card>b,
+.card>strong,
+.card>span,
+.streamHead,
+.streamHead>b,
+.streamHead>span,
+.suddenSprite,
+.suddenLabel {
+  color: var(--cartoon-ink);
+}
+
+.columnCount,
+.cardCue {
+  border-color: var(--cartoon-ink);
+  background: var(--cartoon-paper-muted);
+}
+
+.bead {
+  border: 2px solid var(--cartoon-ink);
+  background: var(--cartoon-paper);
+  color: var(--cartoon-ink);
+}
+
+.bead[data-judged="caught"] {
+  background: var(--cartoon-mint);
+  color: var(--cartoon-ink);
+}
+
+.bead[data-judged="wrong"] {
+  background: var(--cartoon-coral);
+  color: var(--cartoon-ink);
+}
+
+.bead[data-judged="missed"] {
+  background: var(--cartoon-gold);
+  color: var(--cartoon-ink);
+}
+
+/* kts-03 customer-floor presentation
+   The 1920x880 artwork, matching cards, and incident UI share one 24:11 canvas. */
+.board[data-layout="customer-floor"] {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  aspect-ratio: 24 / 11;
+  padding: 0;
+  overflow: hidden;
+}
+
+:global([data-cartoon-background="true"]) .board[data-layout="customer-floor"] {
+  background-position: center, center;
+  background-size: 100% 100%, 100% 100%;
+}
+
+.board[data-layout="customer-floor"] .wires {
+  display: none;
+}
+
+/* 와인 선택지는 말풍선, 손님은 투명 누끼로 분리한다. 선 상태는 채점에만 남고 화면에는 그리지 않는다. */
+.customerFloorWineShelf {
+  position: absolute;
+  top: 3%;
+  right: 2%;
+  bottom: 3%;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  width: 39%;
+  padding: 8px;
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 18px;
+  background: rgb(24 30 47 / 0.72);
+  box-shadow: 0 6px 0 var(--cartoon-ink);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+.customerFloorWineShelfHead {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 7px 5px;
+  border: 2px solid var(--cartoon-ink);
+  border-radius: 11px;
+  background: #fff2d6;
+  color: var(--cartoon-ink);
+  box-shadow: 0 3px 0 var(--cartoon-ink);
+}
+
+.customerFloorWineShelfHead strong {
+  flex: none;
+  font-size: 10px;
+}
+
+.customerFloorWineShelfHead span {
+  overflow: hidden;
+  font-size: 7px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customerFloorWine {
+  position: relative;
+  display: grid;
+  grid-template-columns: 50% minmax(0, 1fr);
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  padding: 3px 5px;
+  border: 2px solid var(--cartoon-ink);
+  border-radius: 13px;
+  background: rgb(255 249 233 / 0.95);
+  color: var(--cartoon-ink);
+  font-family: inherit;
+  text-align: left;
+  box-shadow: 0 3px 0 var(--cartoon-ink);
+  cursor: pointer;
+}
+
+.customerFloorWine::after {
+  content: "";
+  position: absolute;
+  right: 18%;
+  bottom: -6px;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--cartoon-ink);
+  border-bottom: 2px solid var(--cartoon-ink);
+  background: #fff9e9;
+  transform: rotate(45deg);
+}
+
+.customerFloorWine>img {
+  /* 진열대 와인 병이 작아 잘 안 보여 약 1.25배 확대 (92→115px, 76→95px) */
+  width: 115px !important;
+  max-width: 100%;
+  max-height: 95px;
+  margin: auto;
+  object-fit: contain;
+}
+
+.customerFloorWineInfo {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.customerFloorWine strong {
+  font-size: 8px;
+  line-height: 1.2;
+}
+
+.customerFloorWine small {
+  font-size: 7px;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.customerFloorWine em {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  padding: 1px 4px;
+  border: 1px solid var(--cartoon-ink);
+  border-radius: 999px;
+  background: var(--cartoon-mint);
+  font-size: 6px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.customerFloorWine[data-state="selected"],
+.customerFloorWine[data-state="linked"] {
+  background: #dffff6;
+  box-shadow: 0 3px 0 var(--cartoon-ink), 0 0 0 3px #38d9b4;
+}
+
+.customerFloorWine[data-used="true"] {
+  filter: saturate(0.35);
+  opacity: 0.5;
+}
+
+.customerFloorWine:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.customerFloorWine[data-used="true"]:disabled {
+  opacity: 0.5;
+}
+
+.customerFloorCast {
+  position: absolute;
+  top: 3%;
+  right: 43%;
+  bottom: 2%;
+  left: 2%;
+  z-index: 2;
+  display: block;
+  min-width: 0;
+}
+
+.customerFloorProgress {
+  position: absolute;
+  top: 0;
+  left: 1%;
+  z-index: 5;
+  display: flex;
+  gap: 6px;
+  padding: 5px 7px;
+  border: 2px solid var(--cartoon-ink);
+  border-radius: 999px;
+  background: rgb(255 242 214 / 0.94);
+  box-shadow: 0 3px 0 var(--cartoon-ink);
+}
+
+.customerFloorProgress button {
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  padding: 0;
+  border: 2px solid var(--cartoon-ink);
+  border-radius: 50%;
+  background: #fff9e9;
+  color: var(--cartoon-ink);
+  font-size: 8px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.customerFloorProgress button[data-complete="true"] {
+  background: var(--cartoon-mint);
+}
+
+.customerFloorProgress button[data-active="true"] {
+  background: var(--cartoon-gold);
+  box-shadow: 0 0 0 3px rgb(255 213 92 / 0.45);
+}
+
+.customerFloorProgress button:disabled {
+  cursor: default;
+}
+
+.customerFloorCustomer {
+  position: absolute;
+  inset: 10% 0 0;
+  display: block;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cartoon-ink);
+  font-family: inherit;
+}
+
+.customerFloorCustomer[data-matched="true"] {
+  animation: customerMatched 650ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@keyframes customerMatched {
+  0% {
+    transform: none;
+  }
+
+  35% {
+    transform: translateY(-3px) scale(1.025);
+  }
+
+  100% {
+    transform: none;
+  }
+}
+
+.customerFloorBubble {
+  position: absolute;
+  top: 3%;
+  left: 1%;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 60% minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+  width: 43%;
+  height: 40%;
+  min-height: 104px;
+  padding: 7px;
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 17px;
+  background: rgb(255 249 233 / 0.96);
+  text-align: left;
+  box-shadow: 0 5px 0 var(--cartoon-ink);
+}
+
+.customerFloorBubble::after {
+  content: "";
+  position: absolute;
+  right: -11px;
+  bottom: 20%;
+  left: auto;
+  width: 17px;
+  height: 17px;
+  border-right: 3px solid var(--cartoon-ink);
+  border-bottom: 3px solid var(--cartoon-ink);
+  background: #fff9e9;
+  transform: rotate(-45deg);
+}
+
+.customerFloorBubble>img {
+  width: 142px !important;
+  max-width: 100%;
+  max-height: 118px;
+  margin: auto;
+  object-fit: contain;
+}
+
+.customerFloorBubbleInfo {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.customerFloorBubble strong {
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.customerFloorBubble small {
+  font-size: 7.5px;
+  font-weight: 900;
+  line-height: 1.18;
+}
+
+.customerFloorBubble[data-linked="true"] {
+  background: #dffff6;
+}
+
+.customerFloorCutout {
+  position: absolute;
+  right: 3%;
+  bottom: 0;
+  left: 34%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 94%;
+  overflow: hidden;
+  filter: drop-shadow(2px 3px 0 rgb(15 20 41 / 0.8));
+}
+
+.customerFloorCutout img {
+  /* 전체 손님 축소 (원본 92%,238 → 60%,154 : 누적 약 35%↓) */
+  width: min(60%, 154px) !important;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+/* 손님_와인초보만 가로형(1506×1044, AR 1.44)이라 인물이 확대돼 다른 세로형 손님보다 커 보인다.
+   폭을 줄여 눈높이를 맞춘다. (값은 시각 기준 — 필요 시 이 한 줄만 조정) */
+.customerFloorCutout[data-sprite="손님_와인초보_카툰"] img {
+  width: min(54%, 130px) !important;
+}
+
+.customerFloorCustomer[data-state="selected"] .customerFloorBubble,
+.customerFloorCustomer[data-state="linked"] .customerFloorBubble {
+  box-shadow: 0 3px 0 var(--cartoon-ink), 0 0 0 3px #38d9b4;
+}
+
+.customerFloorCustomer[data-state="selected"] .customerFloorCutout,
+.customerFloorCustomer[data-state="linked"] .customerFloorCutout {
+  filter: drop-shadow(0 0 6px #55e7c6) drop-shadow(2px 3px 0 rgb(15 20 41 / 0.8));
+}
+
+.board[data-layout="customer-floor"] .columnWrap {
+  position: absolute;
+  z-index: 2;
+  gap: 4px;
+  padding: 6px;
+  border: 2px solid var(--cartoon-ink);
+  background: rgb(255 242 214 / 0.9);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+.board[data-layout="customer-floor"] .columnWrap[data-side="left"] {
+  top: 4%;
+  left: 2.5%;
+  width: 29%;
+  max-height: 57%;
+}
+
+.board[data-layout="customer-floor"] .columnWrap[data-side="right"] {
+  top: 4%;
+  right: 2.5%;
+  width: 37%;
+  max-height: 91%;
+}
+
+.board[data-layout="customer-floor"] .columnHead {
+  padding: 1px 3px;
+  font-size: 9px;
+}
+
+.board[data-layout="customer-floor"] .columnCount {
+  padding: 0 5px;
+  font-size: 8px;
+}
+
+.board[data-layout="customer-floor"] .column {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.board[data-layout="customer-floor"] .card {
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  padding: 3px 4px;
+  text-align: center;
+  background: rgb(255 249 233 / 0.94);
+}
+
+.board[data-layout="customer-floor"] .card img {
+  width: 30px !important;
+}
+
+.board[data-layout="customer-floor"] .cardLabel {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 7.5px;
+  line-height: 1.15;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.board[data-layout="customer-floor"] .cardCue {
+  max-width: 100%;
+  padding: 0 4px;
+  overflow: hidden;
+  font-size: 7px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.customerFloorNormal {
+  position: absolute;
+  top: 24%;
+  left: 35%;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 25%;
+  height: 48%;
+  padding: 12px;
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 20px;
+  background: rgb(255 242 214 / 0.88);
+  color: var(--cartoon-ink);
+  text-align: center;
+  box-shadow: 0 6px 0 var(--cartoon-ink);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+.customerFloorNormalAvatar {
+  display: grid;
+  place-items: center;
+  width: clamp(62px, 9vw, 96px);
+  aspect-ratio: 1;
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 50% 50% 42% 42%;
+  background: var(--cartoon-aqua);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.customerFloorNormal strong {
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.customerFloorIncident {
+  position: absolute;
+  left: 2.5%;
+  bottom: 3.5%;
+  z-index: 4;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  width: 21%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cartoon-ink);
+  text-align: left;
+  cursor: pointer;
+  opacity: 1;
+  animation: customerIncidentEnter 850ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  transition: filter 160ms ease, transform 160ms ease;
+}
+
+@keyframes customerIncidentEnter {
+  from {
+    transform: translateX(-118%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.customerFloorIncident[data-settled="true"] {
+  pointer-events: none;
+  animation: customerIncidentExit 680ms cubic-bezier(0.55, 0, 1, 0.45) both;
+}
+
+@keyframes customerIncidentExit {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-128%);
+  }
+}
+
+.customerFloorIncident:hover:not(:disabled),
+.customerFloorIncident:focus-visible {
+  z-index: 7;
+  filter: drop-shadow(0 0 9px rgb(255 213 92 / 0.95));
+}
+
+.customerFloorIncident:hover:not(:disabled) .customerFloorSpeech,
+.customerFloorIncident:hover:not(:disabled) .customerFloorPerson,
+.customerFloorIncident:focus-visible .customerFloorSpeech,
+.customerFloorIncident:focus-visible .customerFloorPerson {
+  transform: translateY(-4px) scale(1.035);
+}
+
+.customerFloorIncident:disabled {
+  cursor: default;
+}
+
+.customerFloorIncident:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+.customerFloorHoverCue {
+  position: absolute;
+  right: 4%;
+  bottom: -5px;
+  z-index: 3;
+  padding: 3px 8px;
+  border: 2px solid var(--cartoon-ink);
+  border-radius: 999px;
+  background: var(--cartoon-gold);
+  color: var(--cartoon-ink);
+  font-size: 8px;
+  font-weight: 900;
+  white-space: nowrap;
+  box-shadow: 0 3px 0 var(--cartoon-ink);
+  opacity: 0;
+  transform: translateY(5px);
+  transition: opacity 140ms ease, transform 140ms ease;
+  pointer-events: none;
+}
+
+.customerFloorIncident:hover:not(:disabled) .customerFloorHoverCue,
+.customerFloorIncident:focus-visible .customerFloorHoverCue {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.customerFloorSpeech {
+  position: relative;
+  align-self: flex-start;
+  flex: 1;
+  padding: 7px 8px;
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 14px;
+  background: #fff9e9;
+  font-size: 7px;
+  font-weight: 800;
+  line-height: 1.28;
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+  transition: transform 160ms ease;
+}
+
+.customerFloorSpeech::after {
+  content: "";
+  position: absolute;
+  right: -10px;
+  bottom: 12px;
+  width: 15px;
+  height: 15px;
+  border-right: 3px solid var(--cartoon-ink);
+  border-bottom: 3px solid var(--cartoon-ink);
+  background: #fff9e9;
+  transform: rotate(-45deg);
+}
+
+.customerFloorPerson {
+  display: flex;
+  flex: 0 0 42%;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: #fff;
+  filter: drop-shadow(2px 3px 0 var(--cartoon-ink));
+  transition: transform 160ms ease;
+}
+
+.customerFloorPerson img {
+  max-width: 100%;
+}
+
+.customerFloorPerson strong {
+  padding: 2px 7px;
+  border: 2px solid var(--cartoon-ink);
+  border-radius: 999px;
+  background: var(--cartoon-coral);
+  color: var(--cartoon-ink);
+  font-size: 9px;
+  filter: none;
+}
+
+.customerFloorIncident[data-settled="true"] .customerFloorPerson strong {
+  background: var(--cartoon-mint);
+}
+
+.customerResponse {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  padding: 4%;
+  background: rgb(8 12 26 / 0.48);
+  color: var(--cartoon-ink);
+  -webkit-backdrop-filter: blur(8px) saturate(0.65);
+  backdrop-filter: blur(8px) saturate(0.65);
+  animation: suddenIn 180ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+.customerResponsePanel {
+  position: relative;
+  width: min(88%, 960px);
+  height: 86%;
+  min-height: 0;
+  overflow: hidden;
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 22px;
+  background: rgb(255 242 214 / 0.92);
+  box-shadow: 0 8px 0 var(--cartoon-ink), 0 20px 46px rgb(0 0 0 / 0.38);
+}
+
+.customerResponseSpeech {
+  position: absolute;
+  top: 6%;
+  left: 4%;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 28%;
+  padding: 11px 13px;
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 16px;
+  background: #fff9e9;
+  font-size: 10px;
+  line-height: 1.4;
+  box-shadow: 0 5px 0 var(--cartoon-ink);
+}
+
+.customerResponseSpeech strong {
+  font-size: 12px;
+}
+
+.customerResponsePerson {
+  position: absolute;
+  top: 5%;
+  left: 35%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  width: 30%;
+  height: 56%;
+  min-height: 0;
+  padding: 8px 12px 4px;
+  border: 0;
+  border-radius: 20px;
+  background: transparent;
+  text-align: center;
+  box-shadow: none;
+}
+
+.customerResponsePerson img {
+  flex: 0 1 auto;
+  max-width: 78%;
+  max-height: 150px;
+  height: auto !important;
+  object-fit: contain;
+}
+
+.customerResponsePerson>strong {
+  max-width: 100%;
+  margin-top: 1px;
+  font-size: 9px;
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.customerResponseBack {
+  position: absolute;
+  top: 4%;
+  right: 3%;
+  z-index: 3;
+  min-height: 25px;
+  padding: 2px 10px;
+  border: 2px solid var(--cartoon-ink);
+  border-radius: 999px;
+  background: var(--cartoon-paper-muted);
+  color: var(--cartoon-ink);
+  font-size: 9px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.customerResponseActions {
+  position: absolute;
+  right: 3%;
+  bottom: 4%;
+  left: 3%;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.customerResponseAction {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 60px;
+  padding: 5px;
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 12px;
+  background: #fff2d6;
+  color: var(--cartoon-ink);
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: center;
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+  cursor: pointer;
+}
+
+.customerResponseAction:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 var(--cartoon-ink);
+}
+
+.customerResponseAction:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--cartoon-ink);
+}
+
+.customerResponseAction:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.customerResponseAction[data-done="true"] {
+  background: var(--cartoon-mint);
+}
+
+.customerResponseAction[data-forbidden-pressed="true"] {
+  background: var(--cartoon-coral);
+}
+
+.customerResponseAction[data-kind="escalate"] {
+  background: var(--cartoon-gold);
+}
+
+.customerResponseAction img {
+  max-width: 30px;
+}
+
+@media (max-width: 700px) {
+  .board[data-layout="customer-floor"] {
+    aspect-ratio: auto;
+    min-height: 360px;
+  }
+
+  :global([data-cartoon-background="true"]) .board[data-layout="customer-floor"] {
+    background-size: 100% 100%, contain;
+  }
+
+  .customerResponseActions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* ── kts-03 고객 응대 v2 — 전달받은 1920×880 SVG 레이아웃 ───────────── */
+.board[data-layout="customer-floor"] {
+  isolation: isolate;
+  font-size: clamp(8px, 0.72vw, 14px);
+}
+
+.board[data-layout="customer-floor"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(90deg, rgb(3 10 24 / 0.22), transparent 35%, transparent 70%, rgb(2 7 18 / 0.32));
+  pointer-events: none;
+}
+
+.customerFloorWineShelf {
+  top: 13.18%;
+  right: 2.81%;
+  bottom: 3.98%;
+  z-index: 3;
+  container-type: inline-size;
+  display: block;
+  width: 27.34%;
+  padding: 0;
+  border: 0.55em solid #76033c;
+  border-radius: 2.9em;
+  background: rgb(0 0 0 / 0.64);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.customerFloorLegend {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% - 3.5cqi + 16px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35em;
+  width: 100%;
+  padding: 0 0 1.5%;
+  color: #fffdf6;
+  font-family: "New Rocker", Georgia, serif;
+  font-size: clamp(7px, 3.8cqi, 22px);
+  font-weight: 400;
+  line-height: 1.1;
+  text-shadow: 0 2px 2px #080713;
+}
+
+.customerFloorLegendRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1em;
+  width: 100%;
+}
+
+.customerFloorLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38em;
+  white-space: nowrap;
+}
+
+.customerFloorLegend i {
+  width: 1.15em;
+  height: 1.15em;
+  border-radius: 50%;
+  background: #9a0450;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.16);
+}
+
+.customerFloorLegend span[data-kind="white"] i {
+  background: #0bd01f;
+}
+
+.customerFloorLegend span[data-kind="sweet"] i {
+  background: #fff019;
+}
+
+.customerFloorLegend span[data-kind="rose"] i {
+  background: #f235a8;
+}
+
+.customerFloorLegend span[data-kind="sparkling"] i {
+  background: #c3ff8a;
+}
+
+.customerFloorWineGroup {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
+
+.customerFloorWineGroup h3 {
+  position: absolute;
+  left: 70%;
+  z-index: 2;
+  box-sizing: border-box;
+  width: 28.5%;
+  margin: 0;
+  overflow: hidden;
+  color: #fffdf6;
+  font-family: "New Rocker", Georgia, serif;
+  font-size: clamp(8px, 5.2cqi, 30px);
+  font-weight: 400;
+  line-height: 1.14;
+  text-align: center;
+  text-wrap: balance;
+  text-shadow: 0 2px 2px #080713;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.customerFloorWineSlots {
+  position: absolute;
+  display: grid;
+  grid-template-columns: repeat(2, 41.98%);
+  justify-content: space-between;
+  width: 39.43%;
+  height: 27.58%;
+  padding: 0;
+  pointer-events: auto;
+}
+
+.customerFloorWineGroup[data-tier="premium"] .customerFloorWineSlots {
+  top: 4.12%;
+  left: 19.24%;
+}
+
+.customerFloorWineGroup[data-tier="premium"] h3 {
+  top: 18%;
+}
+
+.customerFloorWineGroup[data-tier="favorite"] .customerFloorWineSlots {
+  top: 36.09%;
+  left: 8%;
+  grid-template-columns: repeat(3, 26.74%);
+  width: 61.9%;
+}
+
+.customerFloorWineGroup[data-tier="favorite"] h3 {
+  top: 50%;
+}
+
+.customerFloorWineGroup[data-tier="house"] .customerFloorWineSlots {
+  top: 68.24%;
+  left: 19.24%;
+}
+
+.customerFloorWineGroup[data-tier="house"] h3 {
+  top: 82%;
+}
+
+.customerFloorWine {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0.21em solid var(--wine-color, #9a0450);
+  border-radius: 1.2em;
+  background: rgb(3 5 14 / 0.18);
+  color: #fff;
+  box-shadow: none;
+}
+
+.customerFloorWine::after {
+  display: none;
+}
+
+.customerFloorWine>img {
+  width: 175% !important;
+  max-width: none;
+  max-height: none;
+  margin: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 2px rgb(0 0 0 / 0.55));
+  transform: scale(1);
+  transition: transform 150ms ease, filter 150ms ease;
+  pointer-events: none;
+}
+
+.customerFloorWineInfo {
+  position: absolute;
+  top: calc(100% + 0.2em);
+  left: 50%;
+  z-index: 3;
+  display: none;
+  width: max-content;
+  max-width: 170%;
+  padding: 0.3em 0.55em;
+  border-radius: 0.5em;
+  background: rgb(5 8 19 / 0.9);
+  color: #fff;
+  text-align: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.customerFloorWineInfo small {
+  display: none;
+}
+
+.customerFloorWine:hover:not(:disabled) .customerFloorWineInfo,
+.customerFloorWine:focus-visible .customerFloorWineInfo {
+  display: none;
+}
+
+.customerFloorWine:hover:not(:disabled)>img,
+.customerFloorWine:focus-visible>img {
+  filter: drop-shadow(0 0 8px var(--wine-color, #fff)) drop-shadow(0 4px 2px rgb(0 0 0 / 0.55));
+  transform: scale(1.07);
+}
+
+.customerFloorWine[data-detail="true"] {
+  background: rgb(255 255 255 / 0.2);
+  box-shadow: 0 0 0 0.24em #fff, 0 0 1.2em var(--wine-color, #fff);
+}
+
+.customerFloorWine[data-state="selected"],
+.customerFloorWine[data-state="linked"] {
+  background: rgb(255 255 255 / 0.14);
+  box-shadow: 0 0 0 0.25em rgb(255 255 255 / 0.78), 0 0 1.2em var(--wine-color, #fff);
+}
+
+.customerFloorWine[data-stock="soldout"]>img {
+  filter: grayscale(0.65) brightness(0.7);
+}
+
+.customerFloorCast {
+  top: 1%;
+  right: 31%;
+  bottom: 2%;
+  left: 1.5%;
+  z-index: 2;
+}
+
+.customerFloorProgress {
+  top: 0;
+  left: 57%;
+  gap: 0.55em;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: translateX(-50%);
+}
+
+.customerFloorProgress button {
+  width: 2.6em;
+  height: 2.6em;
+  border: 0.22em solid #fff;
+  background: rgb(3 7 18 / 0.56);
+  color: #fff;
+  font-size: 1.15em;
+  box-shadow: none;
+}
+
+.customerFloorProgress button[data-complete="true"] {
+  background: #138d70;
+}
+
+.customerFloorProgress button[data-active="true"] {
+  border-color: #fff019;
+  background: rgb(3 7 18 / 0.7);
+  box-shadow: 0 0 0 0.16em rgb(255 240 25 / 0.28);
+}
+
+.customerFloorCustomer {
+  inset: 7% 0 0;
+}
+
+.customerFloorBubble {
+  top: calc(-5% - 10px);
+  left: 12.5%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  gap: 5%;
+  width: 54%;
+  height: 35%;
+  min-height: 0;
+  padding: clamp(10px, 1.8vw, 24px) clamp(18px, 4vw, 56px) clamp(16px, 2.4vw, 32px);
+  border: 0;
+  border-radius: 0;
+  background: transparent url("/assets/minigames/ui/kts-03-customer-speech-bubble-rounded-v1.webp") center / 100% 100% no-repeat;
+  box-shadow: none;
+}
+
+.customerFloorBubble[data-linked="true"],
+.customerFloorCustomer[data-state="selected"] .customerFloorBubble,
+.customerFloorCustomer[data-state="linked"] .customerFloorBubble {
+  background: transparent url("/assets/minigames/ui/kts-03-customer-speech-bubble-rounded-v1.webp") center / 100% 100% no-repeat;
+  box-shadow: none;
+  filter: drop-shadow(0 0 0.45em rgb(56 217 180 / 0.72));
+}
+
+.customerFloorBubble::after {
+  display: none;
+}
+
+.customerFloorRequest {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 0.55em;
+  height: 100%;
+  color: #13131a;
+  text-align: left;
+  /* 손님 대사가 '마시기'처럼 단어 중간에서 쪼개지고 자간이 들쭉날쭉했다.
+     단어 단위 줄바꿈 + 일관된 자간으로 통일 (전체 손님 공통). */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  letter-spacing: -0.02em;
+  /* 손님 대사 폰트 — HUD 라벨('추천 0 · 확인 필요 5', .hudLabel 12px)과 동일 크기로 통일.
+     em은 보드 clamp(8px,0.72vw,14px)에 묶여 화면 크기에 따라 달라지므로 px로 고정한다. */
+  font-size: 12px;
+}
+
+.customerFloorRequest strong {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.customerFloorWineDetail {
+  position: absolute;
+  top: 7%;
+  right: auto;
+  bottom: 1%;
+  left: 35.5%;
+  z-index: 12;
+  display: grid;
+  grid-template-rows: minmax(0, 40%) minmax(0, 1fr) auto;
+  row-gap: 0.75em;
+  justify-items: center;
+  width: 29%;
+  padding: 2.2% 2% 1.6%;
+  overflow: hidden;
+  border: 0;
+  border-radius: 2.3em;
+  background: rgb(8 11 24 / 0.92);
+  color: #fff;
+  box-shadow: 0 0 0 0.45em #76033c, 0 1.2em 2.8em rgb(0 0 0 / 0.46);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  animation: suddenIn 180ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+.customerFloorWineDetail>img {
+  width: min(13em, 92%) !important;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0.7em 0.5em rgb(0 0 0 / 0.55));
+}
+
+.customerFloorWineDetailClose {
+  position: absolute;
+  top: 0.65em;
+  right: 0.75em;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 2.2em;
+  height: 2.2em;
+  padding: 0;
+  border: 0.18em solid #fff;
+  border-radius: 50%;
+  background: rgb(117 3 60 / 0.84);
+  color: #fff;
+  font: 900 1.2em/1 inherit;
+  cursor: pointer;
+}
+
+.customerFloorWineDetailInfo {
+  display: grid;
+  align-content: start;
+  gap: 0.35em;
+  width: 100%;
+  min-height: 0;
+  text-align: center;
+}
+
+.customerFloorWineDetailInfo>span {
+  color: #ffd55c;
+  font-family: "New Rocker", Georgia, serif;
+  font-size: 1.05em;
+}
+
+.customerFloorWineDetailInfo h3 {
+  margin: 0;
+  font-size: 1.28em;
+  line-height: 1.2;
+}
+
+.customerFloorWineDetailInfo dl {
+  display: grid;
+  gap: 0.2em;
+  margin: 0;
+}
+
+.customerFloorWineDetailInfo dl>div {
+  display: grid;
+  grid-template-columns: 30% 70%;
+  padding: 0.25em 0.7em;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.08);
+  text-align: left;
+}
+
+.customerFloorWineDetailInfo dt {
+  color: #c6c9d8;
+  font-weight: 800;
+}
+
+.customerFloorWineDetailInfo dd {
+  margin: 0;
+  font-weight: 900;
+}
+
+.customerFloorWineDetailInfo small {
+  color: #d9dded;
+  font-weight: 800;
+}
+
+.customerFloorWineRecommend {
+  align-self: end;
+  min-width: 72%;
+  margin-top: 0.45em;
+  padding: 0.4em 1.1em;
+  border: 0.24em solid #fff;
+  border-radius: 999px;
+  background: #ffd55c;
+  color: #131527;
+  font: 900 1em/1 inherit;
+  box-shadow: 0 0.35em 0 #111426;
+  cursor: pointer;
+}
+
+.customerFloorWineRecommend:disabled {
+  background: #8c8994;
+  color: #e9e6ef;
+  cursor: default;
+  opacity: 0.82;
+}
+
+
+.customerFloorNeedCard {
+  display: grid;
+  grid-template-columns: 34% minmax(0, 1fr);
+  align-items: center;
+  gap: 0.55em;
+  min-height: 0;
+}
+
+.customerFloorNeedCard>img {
+  width: 100% !important;
+  max-height: 6em;
+  object-fit: contain;
+}
+
+.customerFloorBubbleInfo {
+  display: grid;
+  gap: 0.25em;
+  color: #13131a;
+}
+
+.customerFloorBubbleInfo strong {
+  font-size: 0.98em;
+}
+
+.customerFloorBubbleInfo small {
+  font-size: 0.8em;
+}
+
+.customerFloorCutout {
+  right: 2%;
+  bottom: 0;
+  left: 48%;
+  height: 100%;
+}
+
+.customerFloorCutout img {
+  width: min(100%, 32em) !important;
+  max-height: 100%;
+}
+
+.customerFloorCutout[data-sprite="손님_와인초보_카툰"] img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+  object-position: center bottom;
+  transform: scale(1.04);
+  transform-origin: center bottom;
+}
+
+.customerFloorBrief {
+  position: absolute;
+  bottom: 2%;
+  left: calc(-2.25% - 0.2em);
+  z-index: 5;
+  display: grid;
+  gap: 0.7em;
+  width: 34%;
+  /* 고정 height는 좁은 폭에서 안내문이 여러 줄이 되면 박스를 뚫는다(일반·외국인 손님 공통).
+     bottom 앵커라 min-height로 두면 짧을 땐 그대로, 길면 위로 자라 내용이 다 들어간다. */
+  min-height: 8.515em;
+  padding: 1.4em 1.6em;
+  border: 0.28em solid #fff;
+  border-radius: 0 2.2em 2.2em 0;
+  background: rgb(5 9 20 / 0.7);
+  color: #fff;
+  line-height: 1.45;
+}
+
+.customerFloorBrief strong {
+  font-size: 1.28em;
+}
+
+.customerFloorBrief span {
+  font-size: 0.94em;
+  overflow-wrap: break-word;
+}
+
+.customerFloorBrief[data-foreign="true"] {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  gap: 0.45em;
+}
+
+.customerFloorBrief[data-foreign="true"] strong {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.customerFloorBrief[data-foreign="true"] span {
+  width: 100%;
+  /* padding-right:7em(버튼 자리 확보)이 좁은 폭에서 텍스트 폭을 0 이하로 만들어 글자단위로
+     쪼개졌다. 버튼을 흐름 배치(아래 규칙)로 내려 예약폭을 없앤다. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.customerFloorBriefTranslate {
+  position: absolute;
+  right: 1.6em;
+  bottom: 1.2em;
+  padding: 0.48em 1.05em;
+  border: 0;
+  border-radius: 999px;
+  background: #f4f4f4;
+  color: #191827;
+  font: 800 0.82em/1.1 inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* 외국인 안내에서는 절대배치를 풀고 텍스트 아래 흐름에 둔다 — 텍스트가 전체 폭을 쓰고
+   버튼과 겹치지 않아 카드 안에 전부 들어간다. */
+.customerFloorBrief[data-foreign="true"] .customerFloorBriefTranslate {
+  position: static;
+  justify-self: start;
+  margin-top: 0.15em;
+}
+
+.customerFloorBrief[data-sudden-active="true"] {
+  display: none;
+}
+
+.customerFloorBrief[data-returning="true"] {
+  animation: customerFloorBriefReturn 480ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes customerFloorBriefReturn {
+  from {
+    opacity: 0;
+    transform: translateX(118%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.customerFloorTranslate {
+  position: absolute;
+  bottom: 2%;
+  left: calc(-2.25% - 0.2em);
+  z-index: 7;
+  display: grid;
+  grid-template-columns: 2.6em minmax(0, 1fr);
+  align-items: center;
+  gap: 0.7em;
+  width: 34%;
+  height: 8.515em;
+  padding: 0.75em 1.6em;
+  border: 0.28em solid #fff;
+  border-radius: 0 2.2em 2.2em 0;
+  background: rgb(5 9 20 / 0.7);
+  color: #fff;
+}
+
+.customerFloorTranslate>strong {
+  display: grid;
+  place-items: center;
+  width: 2.4em;
+  height: 2.4em;
+  border: 0.2em solid #fff019;
+  border-radius: 50%;
+  font-size: 1.3em;
+}
+
+.customerFloorTranslate div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.25em 0.6em;
+  min-width: 0;
+}
+
+.customerFloorTranslate b {
+  grid-column: 1 / -1;
+  font-size: 1.05em;
+}
+
+.customerFloorTranslate span {
+  min-width: 0;
+  font-size: 0.74em;
+  line-height: 1.28;
+}
+
+.customerFloorTranslate button {
+  justify-self: start;
+  padding: 0.38em 0.82em;
+  border: 0;
+  border-radius: 999px;
+  background: #f4f4f4;
+  color: #191827;
+  font: 800 0.74em inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.customerFloorIncident {
+  left: 1.5%;
+  bottom: 3%;
+  z-index: 8;
+  flex-direction: row-reverse;
+  width: 35%;
+  min-height: 48%;
+  color: #fff;
+}
+
+.customerFloorIncidentTitle {
+  position: absolute;
+  top: -78px;
+  left: 0;
+  z-index: 5;
+  display: grid;
+  gap: 0.7em;
+  width: 15em;
+  padding: 0;
+  color: #fff;
+  text-align: left;
+  pointer-events: none;
+}
+
+.customerFloorIncidentHeading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.45em;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.customerFloorIncidentWarning {
+  display: grid;
+  justify-items: center;
+  gap: 0.28em;
+}
+
+.customerFloorIncidentTimer {
+  color: #fff;
+  font-size: 0.72em;
+  font-weight: 950;
+  line-height: 1;
+  text-shadow: 0 0.12em 0.25em #000;
+}
+
+.customerFloorIncidentTimer[data-urgent="true"] {
+  color: #ff5160;
+}
+
+.customerFloorIncidentIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 2em;
+  height: 2em;
+  border: 0.18em solid #ff2638;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 950;
+  box-shadow: 0 0 0.9em rgb(255 38 56 / 0.38);
+}
+
+.customerFloorIncidentDescription {
+  font-size: 0.82em;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.customerFloorSpeech {
+  align-self: flex-start;
+  flex: 0 0 53%;
+  z-index: 0;
+  isolation: isolate;
+  top: -4em;
+  left: calc(-1.8em + 20px);
+  margin-top: 0;
+  min-height: 11.5em;
+  padding: 2.3em 2.15em;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #171722;
+  box-shadow: none;
+}
+
+.customerFloorSpeech::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: transparent url("/assets/minigames/ui/kts-03-customer-speech-bubble-spiky-flipped-v1.webp") center / 100% 100% no-repeat;
+  transform: translateY(-10px);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.customerFloorSpeech::after {
+  display: none;
+}
+
+.customerFloorRequest,
+.customerFloorSpeech {
+  font-size: clamp(7px, 0.72vw, 12px);
+  font-weight: 800;
+  line-height: 1.28;
+}
+
+.customerFloorPerson {
+  flex-basis: 52%;
+}
+
+.customerFloorPerson strong {
+  position: relative;
+  left: -8px;
+  border-color: #fff;
+  background: #e44d66;
+  color: #fff;
+  font-size: 0.95em;
+}
+
+.board[data-layout="customer-floor"]:has(.customerFloorIncident) .customerFloorBrief,
+.board[data-layout="customer-floor"]:has(.customerFloorIncident) .customerFloorTranslate {
+  display: none;
+}
+
+.customerResponse {
+  z-index: 20;
+  padding: 0;
+  background: rgb(2 5 15 / 0.24);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.board[data-layout="customer-floor"][data-sudden-focused="true"]>.customerFloorWineShelf,
+.board[data-layout="customer-floor"][data-sudden-focused="true"]>.customerFloorCast {
+  visibility: hidden;
+}
+
+.customerResponsePanel {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: rgb(2 6 16 / 0.22);
+  box-shadow: none;
+}
+
+.customerResponseTitle {
+  position: absolute;
+  top: 4%;
+  left: 50%;
+  margin: 0;
+  /* 도착 배지(customerFloorIncidentHeading)와 같은 폰트 굵기·"!" 빨간원 아이콘으로 통일 */
+  display: flex;
+  align-items: center;
+  gap: 0.32em;
+  color: #fff;
+  font-size: 2.15em;
+  font-weight: 800;
+  transform: translateX(-50%);
+  text-shadow: 0 3px 3px #070610;
+}
+
+/* 스크린샷2 도착 배지의 빨간 원 "!" 아이콘과 동일 스타일 */
+.customerResponseTitleIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 1.5em;
+  height: 1.5em;
+  border: 0.1em solid #ff2638;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.6em;
+  font-weight: 950;
+  text-shadow: none;
+}
+
+.customerResponseSpeech {
+  /* 캐릭터(left 37%) 쪽으로 위·오른쪽 이동. 우측끝(left+width=37%)은 유지해 캐릭터 침범 방지. */
+  top: 4%;
+  left: 8%;
+  width: 29%;
+  min-height: 31%;
+  padding: 3em 3.25em 2.6em;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #171722;
+  font-size: 1.05em;
+  font-weight: 800;
+  box-shadow: none;
+  isolation: isolate;
+  /* 멘트를 말풍선 안에서 상하·좌우 중앙 정렬 */
+  display: grid;
+  place-content: center;
+  text-align: center;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.customerResponseSpeech::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: transparent url("/assets/minigames/ui/kts-03-customer-speech-bubble-spiky-flipped-v1.webp") center / 100% 100% no-repeat;
+  /* 말풍선 좌우반전 (텍스트는 부모라 영향 없음 — 배경만 미러) */
+  transform: scaleX(-1);
+  pointer-events: none;
+}
+
+.customerResponsePerson {
+  top: 15%;
+  left: 37%;
+  width: 25%;
+  height: 56%;
+  padding: 0;
+}
+
+.customerResponsePerson img {
+  max-width: 100%;
+  max-height: 86%;
+}
+
+.customerResponsePerson>strong {
+  display: block;
+  color: #fff;
+  font-size: 1.25em;
+  text-align: center;
+  /* keep-all이 없어 '요구'가 '요/구'로 쪼개졌다. 단어 단위로만 줄바꿈 + 자간 살짝 조임. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 2px #050611;
+}
+
+.customerResponseGuide {
+  position: absolute;
+  /* 돌아가기 버튼(top:3%, 우측 상단)과 금색 테두리가 겹쳐 보였다.
+     가이드를 아래로 내려 버튼 아래에서 시작하게 한다. */
+  top: 15%;
+  right: 3%;
+  bottom: 5%;
+  width: 26%;
+  padding: 1.45em 1.7em;
+  border: 0.55em solid #ad7800;
+  border-radius: 3em;
+  background: rgb(5 8 18 / 0.67);
+  color: #fffdf7;
+  font-family: "New Rocker", Georgia, serif;
+}
+
+.customerResponseGuide h3 {
+  margin: 0 0 0.55em;
+  font-size: 1.48em;
+  font-weight: 400;
+  text-align: center;
+}
+
+.customerResponseGuide ol {
+  display: grid;
+  gap: 0.36em;
+  margin: 0;
+  padding-left: 1.35em;
+  font-family: "Pretendard Variable", Pretendard, "Noto Sans KR", system-ui, sans-serif;
+  /* Service Guidelines 항목 — HUD 라벨(.hudLabel 12px)과 동일 크기. */
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.customerResponseGuide li[data-done="true"] {
+  color: #8ff0c9;
+  text-decoration: line-through;
+}
+
+.customerResponseBack {
+  top: 3%;
+  right: 2%;
+  border-color: #fff;
+  background: rgb(7 10 21 / 0.72);
+  color: #fff;
+}
+
+.customerResponseActions {
+  /* 우측 가이드(customerResponseGuide)가 좌측 71%에서 시작 → 기존 right:25%(우측끝 75%)면
+     마지막 원(호출)이 가이드와 겹쳤다. right:31%(우측끝 69%)로 당겨 가이드 앞에서 끝나게. */
+  right: 31%;
+  bottom: 5%;
+  left: 8%;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.7em;
+}
+
+.customerResponseAction {
+  justify-self: center;
+  /* 고정 7.8em이 큰 화면에서 그리드 칸(1fr)보다 커져 가운데정렬로 양옆과 겹쳤다.
+     칸을 채우되(width:100%) 7.8em로 상한을 두고, aspect-ratio로 원형을 유지한다.
+     이러면 원은 항상 칸 폭 이하 → 어느 브라우저 크기에서도 겹치지 않는다. */
+  /* 살짝 축소 — 칸이 넓을 땐 max-width가, 좁을 땐 width가 걸리므로 둘 다 내린다. */
+  width: 88%;
+  max-width: 6.8em;
+  aspect-ratio: 1 / 1;
+  height: auto;
+  min-height: 0;
+  padding: 0.45em;
+  border: 0.23em solid #fff;
+  border-radius: 999px;
+  background: rgb(7 10 21 / 0.78);
+  color: #fff;
+  /* 원 안 라벨(규정안내 등) — HUD 라벨(.hudLabel 12px)과 동일 크기. px 고정. */
+  font-size: 12px;
+  box-shadow: none;
+}
+
+.customerResponseAction span {
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  /* 원이 칸에 맞춰 작아져도 4글자 라벨(규정안내 등)이 넘치지 않게 자간을 조인다. */
+  letter-spacing: -0.06em;
+}
+
+.customerResponseAction img {
+  display: none !important;
+}
+
+.customerResponseAction[data-done="true"] {
+  border-color: rgb(255 255 255 / 0.72);
+  background: rgb(255 255 255 / 0.16);
+}
+
+.customerResponseAction[data-forbidden-pressed="true"] {
+  border-color: rgb(255 255 255 / 0.72);
+  background: rgb(255 255 255 / 0.16);
+}
+
+.customerResponseAction[data-kind="escalate"] {
+  border-color: #fff;
+  background: rgb(7 10 21 / 0.78);
+}
+
+.customerResponseAction[data-kind="escalate"][data-done="true"] {
+  border-color: rgb(255 255 255 / 0.72);
+  background: rgb(255 255 255 / 0.16);
+}
+
+@media (max-width: 850px) {
+  .customerFloorBrief span,
+  .customerFloorTranslate span,
+  .customerResponseGuide ol {
+    font-size: 0.72em;
+  }
+}
+
+/* ── kts-03 와인 출고 프롤로그
+   SVG 기획안 순서: 목록 기억 → 창고 피킹 → 카트 안전 운반 → 기존 고객 응대. */
+.supplyBoard {
+  position: relative;
+  width: 100%;
+  min-height: 0;
+  aspect-ratio: 24 / 11;
+  overflow: hidden;
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 20px;
+  background-image:
+    linear-gradient(rgb(9 10 25 / 0.27), rgb(9 10 25 / 0.42)),
+    var(--supply-background);
+  background-position: center;
+  background-size: 100% 100%;
+  color: #fff9e9;
+  box-shadow: 0 6px 0 var(--cartoon-ink), inset 0 2px 0 rgb(255 255 255 / 0.12);
+}
+
+.supplyBoard::after {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(circle at 50% 42%, transparent 22%, rgb(5 8 20 / 0.25) 100%);
+  content: "";
+  pointer-events: none;
+}
+
+.supplyBoard[data-phase="transport"] {
+  background-image:
+    linear-gradient(rgb(13 17 31 / 0.04), rgb(13 17 31 / 0.13)),
+    var(--supply-background);
+}
+
+.supplyBoard[data-phase="transport"]::after {
+  background:
+    linear-gradient(90deg, rgb(10 13 26 / 0.1), transparent 26%, transparent 76%, rgb(10 13 26 / 0.08)),
+    linear-gradient(180deg, transparent 44%, rgb(255 236 193 / 0.05) 100%);
+}
+
+.supplyMemoryCard {
+  position: absolute;
+  top: 10%;
+  bottom: 8%;
+  left: 50%;
+  z-index: 4;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  width: min(36%, 430px);
+  padding: 18px 28px 16px;
+  border: 3px solid #9a0057;
+  border-radius: 27px;
+  background: linear-gradient(145deg, rgb(18 9 16 / 0.9), rgb(38 7 27 / 0.88));
+  box-shadow: 0 18px 48px rgb(0 0 0 / 0.44);
+  transform: translateX(-50%);
+}
+
+.supplyMemoryCard header {
+  display: grid;
+  gap: 2px;
+  text-align: center;
+}
+
+.supplyMemoryCard header span {
+  color: #ff80bb;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+}
+
+.supplyMemoryCard header strong {
+  font-family: "New Rocker", Georgia, serif;
+  font-size: clamp(24px, 3vw, 37px);
+  font-weight: 400;
+  letter-spacing: 0;
+  transform: translateY(-4px);
+}
+
+.supplyMemoryCard header small {
+  color: #f3d9e4;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.supplyMemoryCard ul {
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  margin: 10px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.supplyMemoryCard li {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.supplyMemoryCard li span,
+.supplyMemoryCard li b {
+  color: #fff;
+  font-family: "New Rocker", Georgia, serif;
+  font-size: clamp(17px, 2vw, 26px);
+  font-weight: 400;
+  text-shadow: 0 2px 0 #000;
+}
+
+.supplyMemoryCard li span {
+  min-width: 185px;
+}
+
+.supplyMemoryCard li b {
+  min-width: 52px;
+}
+
+.supplyMemoryPrompt {
+  position: absolute;
+  top: calc(8% + 40px);
+  right: 1.5%;
+  z-index: 6;
+  width: 31%;
+  margin: 0;
+  color: #fff9e9;
+  font-size: clamp(16px, 1.9vw, 23px);
+  font-weight: 1000;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  text-align: center;
+  text-shadow: 0 3px 2px rgb(0 0 0 / 0.9);
+  transform: translateX(8px);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.supplyMemoryCountdown {
+  position: absolute;
+  top: 50%;
+  right: 7%;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: clamp(104px, 12vw, 148px);
+  aspect-ratio: 1;
+  padding: 13px;
+  border: 4px solid var(--cartoon-ink);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 28%, #fff5bd 0 9%, transparent 10%),
+    linear-gradient(145deg, #ffd95d, #ffae35);
+  color: var(--cartoon-ink);
+  box-shadow:
+    0 8px 0 var(--cartoon-ink),
+    0 18px 34px rgb(0 0 0 / 0.38),
+    inset 0 3px 0 rgb(255 255 255 / 0.55);
+  transform: translateY(-50%);
+  animation: supply-memory-countdown-pop 320ms cubic-bezier(0.18, 0.9, 0.3, 1.35);
+}
+
+.supplyMemoryCountdown>strong {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-family: "New Rocker", Georgia, serif;
+  font-size: clamp(58px, 7vw, 86px);
+  font-feature-settings: "tnum" 1;
+  font-weight: 400;
+  line-height: 1;
+  text-align: center;
+  text-shadow: 0 3px 0 rgb(255 255 255 / 0.38);
+}
+
+@keyframes supply-memory-countdown-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.68) rotate(-5deg);
+  }
+
+  70% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1.08) rotate(2deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1) rotate(0);
+  }
+}
+
+.supplyPrimary {
+  min-height: 34px;
+  padding: 6px 18px;
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 999px;
+  background: var(--cartoon-gold);
+  color: var(--cartoon-ink);
+  font: 900 11px/1.2 inherit;
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+  cursor: pointer;
+}
+
+.supplyPrimary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 var(--cartoon-ink);
+}
+
+.supplyPrimary:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--cartoon-ink);
+}
+
+.supplyPrimary:disabled {
+  cursor: default;
+  filter: grayscale(0.7);
+  opacity: 0.5;
+}
+
+.supplyInstruction {
+  position: absolute;
+  top: 6.5%;
+  left: 50%;
+  z-index: 10;
+  margin: 0;
+  padding: 7px 18px 9px;
+  border: 2px solid var(--cartoon-ink);
+  border-radius: 999px;
+  background: rgb(255 249 233 / 0.94);
+  color: var(--cartoon-ink);
+  /* 카트 운반 맵에서 안내 배너가 과하게 커 보여 0.8배로 축소 (15pt → 12pt) */
+  font-size: 12pt;
+  font-weight: 900;
+  line-height: 1.2;
+  box-shadow: 0 3px 0 var(--cartoon-ink);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.supplyPickScene {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.supplyPickGroup {
+  display: contents;
+}
+
+.supplyPickItem {
+  --hit-width: 40px;
+  --hit-height: 65px;
+  position: absolute;
+  z-index: 2;
+  width: max(48px, var(--hit-width));
+  height: max(48px, var(--hit-height));
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: transparent;
+  box-shadow: none;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+}
+
+.supplyPickItem::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--hit-width);
+  height: var(--hit-height);
+  border: 2px solid transparent;
+  border-radius: 5px;
+  content: "";
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.supplyPickItem:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.04);
+}
+
+.supplyPickItem:active:not(:disabled) {
+  background: rgb(255 255 255 / 0.16);
+}
+
+.supplyPickItem[data-item="레드"]::before {
+  border-color: #8a0433;
+  box-shadow: 0 0 12px #8a0433;
+}
+
+.supplyPickItem[data-item="화이트"]::before {
+  border-color: #0bd01f;
+  box-shadow: 0 0 12px #0bd01f;
+}
+
+.supplyPickItem[data-item="스파클링"]::before {
+  border-color: #b9e67a;
+  box-shadow: 0 0 12px #b9e67a;
+}
+
+.supplyPickItem[data-item="로제"]::before {
+  border-color: #ff00a6;
+  box-shadow: 0 0 12px #ff00a6;
+}
+
+.supplyPickItem[data-item="스위트"]::before {
+  border-color: #fff019;
+  box-shadow: 0 0 12px #fff019;
+}
+
+.supplyBoxName,
+.supplyBoxCount {
+  position: absolute;
+  left: 50%;
+  color: #fff;
+  font-family: "New Rocker", Georgia, serif;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1;
+  text-shadow: 0 2px 2px #000, 0 0 6px #000;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.supplyBoxName {
+  bottom: calc(50% + var(--hit-height) / 2 + 4px);
+}
+
+.supplyBoxCount {
+  top: calc(50% + var(--hit-height) / 2 + 4px);
+  color: #ffd75c;
+  font-size: 11px;
+}
+
+.supplyHintButton {
+  position: absolute;
+  right: 2.2%;
+  bottom: 3.5%;
+  z-index: 11;
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  padding: 3px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #fff;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.supplyHintButton span {
+  font-size: 23px;
+  line-height: 1;
+  filter: grayscale(1);
+}
+
+.supplyHintButton small {
+  font-size: 7px;
+  font-weight: 900;
+  white-space: nowrap; /* "힌트 3/3" 이 두 줄로 접히지 않게 */
+}
+
+/* 3회를 다 쓰면 더 못 누른다는 걸 눈으로도 알 수 있게 흐리게 처리한다. */
+.supplyHintButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.supplyHintButton:focus-visible {
+  outline: none;
+}
+
+.supplyHintButton:focus-visible span {
+  text-shadow: 0 0 8px #fff4a8, 0 0 18px #ffd75c;
+}
+
+.supplyHintButton[aria-pressed="true"] {
+  background: transparent;
+  box-shadow: none;
+}
+
+.supplyHintButton[aria-pressed="true"] span {
+  filter: none;
+  text-shadow: 0 0 8px #fff4a8, 0 0 18px #ffd75c;
+}
+
+.supplyCounter {
+  position: absolute;
+  bottom: 4%;
+  left: 50%;
+  z-index: 8;
+  display: grid;
+  gap: 6px;
+  width: min(40.8%, 432px);
+  padding: 10px 12px;
+  border: 4px solid #8a0d4f;
+  border-radius: 22px;
+  background: rgb(34 12 29 / 0.93);
+  color: #fff9e9;
+  box-shadow: 0 5px 0 var(--cartoon-ink);
+  transform: translateX(-50%);
+}
+
+.supplyCounter header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10pt;
+}
+
+.supplyCounter header span {
+  color: var(--cartoon-gold);
+  font-weight: 900;
+}
+
+.supplyCounter>div {
+  display: grid;
+  gap: 2px;
+}
+
+.supplyCounter article {
+  display: grid;
+  grid-template-columns: 1fr 41px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.06);
+}
+
+.supplyCounter article span {
+  padding-left: 5px;
+  overflow: hidden;
+  font-family: "New Rocker", Georgia, serif;
+  font-size: 10pt;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.supplyCounter article b {
+  font-family: "New Rocker", Georgia, serif;
+  font-size: 10pt;
+  font-weight: 400;
+  text-align: center;
+}
+
+.supplyCounter>.supplyPrimary {
+  position: relative;
+  top: 2px;
+  justify-self: center;
+  min-height: 32px;
+  padding: 4px 16px;
+  border-color: #8a0d4f;
+  background: #8a0d4f;
+  color: #fff;
+  font-size: 10pt;
+  box-shadow: none;
+}
+
+.supplyRoad {
+  position: absolute;
+  top: 15%;
+  right: 1.5%;
+  bottom: 4%;
+  left: 1.5%;
+  z-index: 3;
+  overflow: hidden;
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 18px;
+  background:
+    linear-gradient(90deg, rgb(24 30 47 / 0.06), rgb(24 30 47 / 0.16)),
+    repeating-linear-gradient(90deg, transparent 0 72px, rgb(255 255 255 / 0.03) 74px 76px);
+  box-shadow: inset 0 0 24px rgb(0 0 0 / 0.18);
+}
+
+.supplyRoad:focus {
+  outline: none;
+}
+
+.supplyRoad:focus-visible {
+  box-shadow:
+    inset 0 0 0 2px rgb(101 224 215 / 0.85),
+    inset 0 0 24px rgb(0 0 0 / 0.18);
+}
+
+.supplyLaneGrid {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(13, 1fr);
+  grid-template-rows: repeat(7, 1fr);
+  pointer-events: none;
+}
+
+.supplyLaneGrid span {
+  border-right: 1px solid rgb(255 255 255 / 0.24);
+  border-bottom: 1px solid rgb(255 255 255 / 0.42);
+  background: rgb(249 246 238 / 0.08);
+  box-shadow: inset 0 -1px 0 rgb(21 25 40 / 0.18);
+}
+
+.supplyLaneGrid span:nth-child(n + 14):nth-child(-n + 26),
+.supplyLaneGrid span:nth-child(n + 40):nth-child(-n + 52),
+.supplyLaneGrid span:nth-child(n + 66):nth-child(-n + 78) {
+  background: rgb(31 37 52 / 0.09);
+}
+
+.supplyLaneGrid span:nth-child(13n) {
+  border-right: 0;
+}
+
+.supplyLaneGrid span:nth-child(n + 79) {
+  border-bottom: 0;
+}
+
+.supplyStartPoint {
+  position: absolute;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: calc(100% / 13);
+  height: calc(100% / 7);
+  color: #fff;
+  filter: drop-shadow(0 5px 8px rgb(34 12 60 / 0.5));
+  transform: translate(0, -100%);
+  pointer-events: none;
+}
+
+.supplyStartPoint img,
+.supplyFinishLine img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.supplyFinishLine {
+  position: absolute;
+  right: auto;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: calc(100% / 13);
+  height: calc(100% / 7);
+  filter: drop-shadow(0 6px 9px rgb(82 49 0 / 0.48));
+  transform: translate(-100%, 0);
+  pointer-events: none;
+}
+
+.supplyTransportIntro {
+  position: absolute;
+  inset: 4% 15%;
+  z-index: 14;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 9px;
+  padding: 22px;
+  border: 3px solid #9a0057;
+  border-radius: 28px;
+  background: rgb(11 8 17 / 0.78);
+  color: #fff;
+  text-align: center;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.45);
+}
+
+.supplyTransportIntro strong {
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.supplyTransportIntro p {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  text-shadow: 0 2px 3px #000;
+}
+
+.supplyObstacle {
+  position: absolute;
+  z-index: 4;
+  display: grid;
+  justify-items: center;
+  width: 42px;
+  transition: left 120ms linear, filter 100ms linear, opacity 120ms linear;
+  transform: translate(-50%, -50%);
+}
+
+.supplyObstacle img {
+  max-width: 38px;
+  max-height: 34px;
+  object-fit: contain;
+  filter: drop-shadow(2px 3px 0 var(--cartoon-ink));
+}
+
+.supplyObstacle small {
+  display: none;
+}
+
+.supplyObstacle[data-hit="true"] {
+  filter: saturate(0.2);
+  opacity: 0.55;
+}
+
+.supplyObstacle[data-kind="dynamic"] {
+  z-index: 6;
+}
+
+.supplyObstacle[data-kind="static"] {
+  z-index: 4;
+}
+
+.supplyObstacle[data-kind="dynamic"] small {
+  border-color: #b9214c;
+  background: #fff0f3;
+  color: #8f1639;
+}
+
+.supplyObstacle[data-kind="static"] small {
+  border-color: #245fb5;
+  background: #eef6ff;
+  color: #17477e;
+}
+
+.supplyCart {
+  position: absolute;
+  z-index: 7;
+  width: 44px;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  transition:
+    left 150ms cubic-bezier(0.2, 0.8, 0.3, 1),
+    top 150ms cubic-bezier(0.2, 0.8, 0.3, 1),
+    filter 120ms linear;
+  pointer-events: none;
+}
+
+.supplyCart img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(3px 5px 0 rgb(23 24 39 / 0.88));
+  transform: scaleX(-1);
+  user-select: none;
+}
+
+.supplyCart[data-hit="true"] {
+  filter: drop-shadow(0 0 7px #ff4c73);
+}
+
+.supplyDrivePanel {
+  position: absolute;
+  bottom: 2.5%;
+  left: 50%;
+  z-index: 8;
+  display: flex;
+  justify-content: center;
+  width: min(42%, 380px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  box-shadow: none;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.supplyDriveStatus {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.supplyDriveStatus span {
+  min-width: 86px;
+  padding: 8px 10px;
+  border: 1px solid rgb(255 255 255 / 0.45);
+  border-radius: 12px;
+  background: rgb(19 24 39 / 0.72);
+  color: #fff;
+  text-align: center;
+  box-shadow: 0 4px 12px rgb(8 11 22 / 0.28);
+  backdrop-filter: blur(6px);
+}
+
+.supplyDriveStatus b {
+  color: #ff8aa9;
+}
+
+.supplyDriveStatus b[data-state="안정"] {
+  color: #71e2c1;
+}
+
+.supplyDriveStatus b[data-state="충격 발생"],
+.supplyDriveStatus b[data-state="파손 위험"] {
+  color: #c72249;
+}
+
+.supplyComplete {
+  position: absolute;
+  inset: 16% 24%;
+  z-index: 20;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 18px;
+  border: 4px solid var(--cartoon-ink);
+  border-radius: 24px;
+  background: rgb(255 249 233 / 0.96);
+  color: var(--cartoon-ink);
+  text-align: center;
+  box-shadow: 0 8px 0 var(--cartoon-ink), 0 20px 50px rgb(0 0 0 / 0.38);
+}
+
+.supplyComplete strong {
+  font-size: 20px;
+}
+
+.supplyComplete span {
+  font-size: 10px;
+  font-weight: 800;
+}
+
+@media (max-width: 700px) {
+  .supplyBoard {
+    min-height: 390px;
+    aspect-ratio: auto;
+  }
+
+  .supplyMemoryCard {
+    width: 62%;
+  }
+
+  .supplyInstruction {
+    max-width: 88%;
+    overflow: hidden;
+    font-size: 15pt;
+    text-overflow: ellipsis;
+  }
+
+  .supplyCounter {
+    width: 62.4%;
+  }
+
+  .supplyDrivePanel {
+    width: 64%;
+  }
+
+  .supplyRoad {
+    bottom: 5%;
+  }
+
+  .supplyDriveStatus span {
+    min-width: 70px;
+    padding: 6px 7px;
+  }
+}

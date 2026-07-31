@@ -1,0 +1,28 @@
+# J044 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J044_*.yaml
+code: j044
+title: 인바운드 상담사
+description: 고객의 목소리를 가장 먼저 듣고 필요한 정보와 절차를 안내하는 직무. 복잡하고 두서없는 문의 속에서 핵심을 빠르게 파악하여 정확한 해결책을 제시하고, 금융 사고나
+  민원 등의 돌발 상황에 유연하게 대처합니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 5
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 1
+  investigative: 2
+  artistic: 1
+  social: 5
+  enterprising: 3
+  conventional: 4
+# 공식 매핑: K000004177 컨텍센터상담원 (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 144" role="img" aria-label="보라 화면흐름 막개">
+  <defs><linearGradient id="metal" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#8793aa"/><stop offset="1" stop-color="#4d566c"/></linearGradient><linearGradient id="purple" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#b88aff"/><stop offset="1" stop-color="#7341d4"/></linearGradient></defs>
+  <rect x="8" y="17" width="112" height="84" rx="28" fill="url(#metal)" stroke="#171a2a" stroke-width="8"/>
+  <rect x="20" y="29" width="88" height="60" rx="21" fill="#30394f" stroke="#b9c1d1" stroke-width="5"/>
+  <rect x="39" y="36" width="52" height="39" rx="7" fill="url(#purple)" stroke="#171a2a" stroke-width="5"/>
+  <path d="M40 47h50" stroke="#171a2a" stroke-width="5"/><circle cx="48" cy="42" r="2.5" fill="#ffe76a"/>
+  <path d="M50 61h25M69 54l8 7-8 7" fill="none" stroke="#fff9dc" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M47 101h34v27c0 6-5 10-10 10H57c-5 0-10-4-10-10v-27Z" fill="url(#metal)" stroke="#171a2a" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M57 112h14" stroke="#cbd1de" stroke-width="5" stroke-linecap="round"/>
+</svg>

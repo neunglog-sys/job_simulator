@@ -1,0 +1,28 @@
+# J091 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J091_*.yaml
+code: j091
+title: 객실관리 보조
+description: 호텔이나 숙박시설의 객실 상태를 점검하고 쾌적하게 정비하는 직무. 표준 순서에 따라 정밀한 청소와 비품 보충을 수행하며, 분실물이나 시설 파손 등의 특이사항을
+  신속하게 기록하여 인계한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 2
+  communication: 3
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 1
+  artistic: 1
+  social: 2
+  enterprising: 1
+  conventional: 4
+# 공식 매핑: K000002179 호텔객실청소원 (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

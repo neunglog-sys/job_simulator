@@ -1,0 +1,28 @@
+# J082 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J082_*.yaml
+code: j082
+title: 물류분류 작업자
+description: 컨베이어 벨트 등 자동화 설비를 활용하여 물품을 목적지별로 신속하고 정확하게 분류하는 직무. 설비 오작동이나 물품 끼임 등의 돌발 상황 발생 시 안전 규정에 따라
+  대처하며 원활한 물류 흐름을 유지합니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 3
+  communication: 2
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 5
+  investigative: 2
+  artistic: 1
+  social: 1
+  enterprising: 1
+  conventional: 4
+# 공식 매핑: K000005061 창고작업원(일반) (docs/jobs/batch2_mapping_review.md #30)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

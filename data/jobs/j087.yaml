@@ -1,0 +1,28 @@
+# J087 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J087_*.yaml
+code: j087
+title: 부품검수 보조
+description: 생산에 투입되기 전 부품의 성적서와 로트 번호를 대조하여 적합성을 검수하는 직무. 입고된 자재의 수량과 규격을 확인하고 기록하여 생산 라인에 결함이 없는 자재만
+  공급되도록 지원한다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 4
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 3
+  investigative: 3
+  artistic: 1
+  social: 2
+  enterprising: 2
+  conventional: 5
+# 공식 매핑: K000003610 자재검수원 (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

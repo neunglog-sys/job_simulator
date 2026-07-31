@@ -1,0 +1,26 @@
+code: ms-03
+title: 총무·행정·사무보조
+description: 요청 접수 → 규정·서식 확인 → 우선순위·일정 설정 → 문서·회의·자원 지원 → 결재 → 시행 → 기록·인계
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 4
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 1
+  investigative: 1
+  artistic: 1
+  social: 3
+  enterprising: 2
+  conventional: 5
+# dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
+dimension_weights:
+  interest.investigative: 1.0
+  interest.conventional: 1.0
+  work_target.data: 0.8
+  work_target.documents: 0.8
+  work_style.structured: 0.8
+  work_style.detail_orientation: 0.8
+  skill.error_detection: 0.6
+  skill.coordination: 0.6

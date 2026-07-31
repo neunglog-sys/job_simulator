@@ -1,0 +1,27 @@
+# J046 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J046_*.yaml
+code: j046
+title: 고객지원 매니저 보조
+description: 고객지원 부서의 원활한 운영을 돕고 상담 이력 관리 및 후속 조치를 지원하는 직무. 고객의 기초 요구사항을 분류하여 담당자에게 정확히 이관하고, 미비한 서류나
+  예약을 꼼꼼하게 챙겨 업무의 공백을 메웁니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 4
+  collaboration: 3
+  task_management: 5
+interest_profile:
+  realistic: 1
+  investigative: 2
+  artistic: 1
+  social: 4
+  enterprising: 2
+  conventional: 5
+# 공식 매핑 없음 — 팀 검수 결과 반려(적합한 공식 직업사전 항목 없음) (docs/jobs/batch2_mapping_review.md #15)
+education_requirement:
+  value: null
+  note: "적합한 공식 직업사전 매핑 없음 — 후보 검토 결과 업무 성격 불일치 또는 후보 부재로 반려."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+certifications: []
+status: not_found

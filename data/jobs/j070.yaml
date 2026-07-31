@@ -1,0 +1,28 @@
+# J070 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J070_*.yaml
+code: j070
+title: 주니어 웹개발자
+description: 웹 브라우저에서 동작하는 화면과 서버를 아우르며 전반적인 웹 서비스를 개발하고 관리하는 직무. 기획 요구사항을 검토하여 실제 코드로 구현하고 배포 전 단계까지
+  꼼꼼하게 테스트를 수행한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 4
+  communication: 4
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 3
+  investigative: 4
+  artistic: 2
+  social: 2
+  enterprising: 3
+  conventional: 4
+# 공식 매핑: K000005999 웹프로그래머 (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

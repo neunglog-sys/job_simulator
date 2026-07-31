@@ -1,0 +1,83 @@
+# 손작성 NPC 원본 (backend-dev-day1) — NPC 설정은 이 파일에서만 수정
+scenario_id: backend-dev-day1
+npcs:
+- npc_id: npc_bdd_01
+  name: 김민지
+  role: 서비스 기획자
+  rank: 대리
+  personality:
+  - 꼼꼼하고 목표 지향적
+  - 사용자 관점을 중시
+  - 논리적 설명에는 유연함
+  likes:
+  - 구체적인 요구사항 확인 질문
+  - 리스크를 솔직히 공유하는 태도
+  dislikes:
+  - 근거 없는 일정 연기
+  - 확인 없이 넘겨짚는 것
+  speech_habits:
+  - 정말 가능하세요?
+  - 사용자 입장에서 보면요?
+  responsibilities:
+  - 장바구니 알림 기능 요구사항 정의
+  - 개발 우선순위 조율
+  appearance:
+    location: teamjang
+    available_steps:
+    - kickoff
+    - implement
+    - incident
+- npc_id: npc_bdd_02
+  name: 박준혁
+  role: 시니어 백엔드 개발자(사수)
+  rank: 과장
+  personality:
+  - 경험 많고 무뚝뚝함
+  - 후배를 잘 챙김
+  - 기술 부채·확장성을 중시
+  likes:
+  - 트레이드오프를 스스로 따져보는 태도
+  - 리스크를 먼저 식별하는 것
+  dislikes:
+  - 고민 없는 결정
+  - 정답만 떠먹여 달라는 요구
+  speech_habits:
+  - 그렇게 하면 나중에 어떻게 될 것 같아?
+  - 트레이드오프부터 봐.
+  responsibilities:
+  - 구현 방식 자문
+  - 개발 계획 검토
+  - 배포 리스크 판단
+  appearance:
+    location: sasu
+    available_steps:
+    - kickoff
+    - implement
+    - coding
+    - incident
+- npc_id: npc_bdd_03
+  name: 운영팀 주임
+  role: 서비스 운영·CS
+  rank: 주임
+  personality:
+  - 다급하지만 협조적
+  - 고객 불만에 민감
+  - 개발 용어는 모름
+  likes:
+  - 침착하게 정보를 정리해주는 것
+  - 고객 안내 문구를 함께 잡아주는 것
+  dislikes:
+  - 확인 안 된 원인 단정
+  - 고객에게 섣부른 약속
+  speech_habits:
+  - 확실한 거예요? 고객한테 그렇게 말해도 돼요?
+  - 지금 문의가 계속 들어와요.
+  responsibilities:
+  - 고객센터 문의 전달
+  - 임시 안내문 전파
+  appearance:
+    location: bujang
+    available_steps:
+    - quest
+    conditions:
+    - quest_started

@@ -1,0 +1,906 @@
+/* sort 엔진 — 분류·트리아지 전용 스타일.
+   공용 껍데기(HUD·결과 바)는 minigame.module.css 를 그대로 쓰고,
+   여기에는 대기열 카드·통·범례·돌발 배너·행동 버튼만 둔다.
+   시나리오 HUD 의 --scenario-* 토큰을 동일하게 따른다. */
+
+/* ── 범례(기준표) — kts-01·kts-04: 증상/배지 → 행선 ── */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 9px 13px;
+  border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.22));
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.05);
+}
+
+.legendTitle {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  /* 가시성: 테마 muted(0.74)가 12px에서 배경에 묻힘 — 명시 색으로 대비 확보 */
+  color: rgb(244 240 255 / 0.9);
+  white-space: nowrap;
+}
+
+.legendRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendArrow {
+  font-size: 12px;
+  color: rgb(244 240 255 / 0.82); /* 가시성: 0.6 알파는 화살표가 사라져 보임 */
+}
+
+.legendDest {
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+}
+
+/* 증상·배지·아이콘 공용 칩 — 스프라이트 아트 전까지 텍스트 마커로 쓴다 */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px solid rgb(255 255 255 / 0.26);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: rgb(255 255 255 / 0.92);
+  background: rgb(255 255 255 / 0.08);
+  white-space: nowrap;
+}
+
+.chip[data-kind="badge"] {
+  border-color: rgb(255 215 110 / 0.55);
+  background: rgb(255 215 110 / 0.14);
+  color: #ffd76e;
+}
+
+/* ── 대기열 ── */
+.queue {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.2));
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 22% 18%, rgb(255 255 255 / 0.06), transparent 42%),
+    linear-gradient(160deg, rgb(38 44 66 / 0.96), rgb(24 27 44 / 0.98));
+}
+
+/* 아이템 카드 — sprite id 를 라벨 마커로 렌더(SpotGame 방식, 아트 들어오면 교체) */
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border: 1px solid rgb(255 255 255 / 0.28);
+  border-radius: 10px;
+  color: rgb(255 255 255 / 0.92);
+  background: rgb(255 255 255 / 0.07);
+  cursor: pointer;
+  text-align: center;
+  transition:
+    transform 140ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1)),
+    background-color 140ms ease,
+    border-color 140ms ease;
+}
+
+.card:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.14);
+  transform: translateY(-2px);
+}
+
+.card:disabled {
+  cursor: default;
+}
+
+.card[data-state="selected"] {
+  border-color: var(--scenario-accent, #8a63ee);
+  background: var(--scenario-accent-soft, rgb(193 126 255 / 0.2));
+  box-shadow: 0 0 0 3px var(--scenario-accent-soft, rgb(193 126 255 / 0.24));
+}
+
+/* 가시성: 처리 카드의 전체 opacity 0.85가 라벨·도장까지 흐려지게 했다 — 0.92로 */
+.card[data-state="ok"] {
+  border-color: rgb(120 240 200 / 0.6);
+  background: rgb(30 160 130 / 0.24);
+  opacity: 0.92;
+}
+
+.card[data-state="wrong"] {
+  border-color: rgb(255 130 150 / 0.6);
+  background: rgb(190 50 80 / 0.24);
+  opacity: 0.92;
+}
+
+.cardSprite {
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.cardChips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+}
+
+.cardLabel {
+  font-size: 11px;
+  line-height: 1.4;
+  /* 가시성: muted 0.74 × 처리 카드 opacity 로 10px 글자가 배경에 묻힘 — 명시 색 */
+  color: rgb(244 240 255 / 0.92);
+}
+
+/* 처리 결과 도장 — ✓ 간 곳 / ✕ 잘못 간 곳 */
+.cardDest {
+  font-size: 10px;
+  font-weight: 900;
+  padding: 1px 8px;
+  border-radius: 999px;
+  color: #06231d;
+  background: #5adcb4;
+}
+
+.cardDest[data-verdict="wrong"] {
+  color: #2a0f16;
+  background: #ff8fa3;
+}
+
+/* ── 통(bin) ── */
+.bins {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.bin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-height: 58px;
+  padding: 9px 8px;
+  border: 2px dashed rgb(255 255 255 / 0.3);
+  border-radius: 12px;
+  color: #fff;
+  background: rgb(255 255 255 / 0.05);
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
+}
+
+.bin:hover:not(:disabled) {
+  border-color: var(--scenario-accent, #8a63ee);
+  background: var(--scenario-accent-soft, rgb(193 126 255 / 0.16));
+  transform: translateY(-2px);
+}
+
+.bin:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.binDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgb(0 0 0 / 0.3);
+}
+
+.binLabel {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.3;
+  text-align: center;
+  word-break: keep-all;
+}
+
+/* 통 아트 폴백 칩 — 파일 부재 시 PixelSprite 가 sprite id 텍스트로 그린다(기존 표시 유지) */
+.binSprite {
+  font-size: 10px;
+  color: rgb(244 240 255 / 0.88); /* 가시성: 0.65 알파 10px는 판독 불가 수준 */
+}
+
+/* 통 아트(도트 스프라이트 img) — 라벨 위에 얹히는 앵커. 좁은 통에서도 넘치지 않게 */
+.bin img {
+  max-width: 100%;
+  margin-bottom: 1px; /* 아트 ↔ 색 점·라벨 사이 숨 고르기 */
+}
+
+/* ── 돌발 배너 — kts-01·kts-04 ── */
+.sudden {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 11px 13px;
+  border: 1px solid rgb(255 170 90 / 0.6);
+  border-radius: 12px;
+  background: rgb(255 140 60 / 0.1);
+  animation: suddenIn 260ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+.sudden[data-phase="resolved"] {
+  border-color: rgb(255 255 255 / 0.24);
+  background: rgb(255 255 255 / 0.05);
+}
+
+@keyframes suddenIn {
+  from {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.suddenHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.suddenBadge {
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: #2a1204;
+  background: #ffb35c;
+}
+
+.suddenLabel {
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.suddenCard {
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 9px 14px;
+  border: 1px solid rgb(255 170 90 / 0.7);
+  border-radius: 10px;
+  color: #fff;
+  background: rgb(255 140 60 / 0.16);
+  cursor: pointer;
+  transition: box-shadow 140ms ease, background-color 140ms ease;
+}
+
+.suddenCard:hover:not(:disabled) {
+  background: rgb(255 140 60 / 0.26);
+}
+
+.suddenCard[aria-pressed="true"] {
+  box-shadow: 0 0 0 3px rgb(255 179 92 / 0.4);
+  background: rgb(255 140 60 / 0.3);
+}
+
+.suddenNote {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgb(244 240 255 / 0.9); /* 가시성: 주황 배너 위 muted 글자 대비 보강 */
+}
+
+.suddenNote[data-kind="warn"] {
+  color: #ffd76e;
+  font-weight: 700;
+}
+
+.suddenNote[data-kind="bad"] {
+  color: #ff8fa3;
+  font-weight: 700;
+}
+
+.suddenNote[data-kind="ok"] {
+  color: #5adcb4;
+  font-weight: 700;
+}
+
+/* 응대 단계 버튼 — 매뉴얼 순서대로 눌러야 한다 */
+.stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stageBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: 1px solid rgb(255 255 255 / 0.28);
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: rgb(255 255 255 / 0.92);
+  background: rgb(255 255 255 / 0.08);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.stageBtn:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.16);
+}
+
+.stageBtn:disabled {
+  cursor: default;
+}
+
+.stageBtn[data-done="true"] {
+  border-color: rgb(120 240 200 / 0.6);
+  background: rgb(30 160 130 / 0.28);
+}
+
+.stageOrder {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 900;
+  color: #06231d;
+  background: rgb(255 255 255 / 0.85);
+  flex-shrink: 0;
+}
+
+.stageBtn[data-done="true"] .stageOrder {
+  background: #5adcb4;
+}
+
+/* 단계 아이콘(도트 스프라이트 img) — 긴 라벨 옆에서 눌리지 않게 폭 고정 */
+.stageBtn img {
+  flex-shrink: 0;
+}
+
+/* 단계 아이콘 폴백 — 라벨 텍스트가 이미 버튼 안에 있으므로 칩을 숨겨 중복을 막는다.
+   아트 파일이 없으면 버튼은 지금과 동일한 '번호 + 라벨' 표시로 남는다. */
+.stageSpriteFallback {
+  display: none;
+}
+
+/* ── 행동 줄: escalate + 마감 ── */
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.escalateBtn {
+  min-height: 42px;
+  padding: 0 20px;
+  border: 1px solid rgb(255 130 150 / 0.55);
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffd3db;
+  background: rgb(190 50 80 / 0.28);
+  cursor: pointer;
+  transition: background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.escalateBtn:hover:not(:disabled) {
+  background: rgb(190 50 80 / 0.44);
+}
+
+.escalateBtn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* 단계를 다 밟아 지금 누르는 것이 정답인 상태 — 은은히 깜빡여 알린다 */
+.escalateBtn[data-armed="true"] {
+  animation: armedPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes armedPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(255 130 150 / 0);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgb(255 130 150 / 0.28);
+  }
+}
+
+.submitBtn {
+  min-height: 42px;
+  padding: 0 22px;
+  border: 1px solid rgb(255 255 255 / 0.22);
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, var(--scenario-accent, #8a63ee), var(--scenario-accent-2, #ef71bc));
+  cursor: pointer;
+}
+
+.submitBtn:active {
+  transform: translateY(1px);
+}
+
+/* ── 직전 행동 피드백 ── */
+.feedback {
+  margin: 0;
+  padding: 7px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  background: rgb(255 255 255 / 0.06);
+  color: rgb(244 240 255 / 0.92); /* 가시성: info 피드백 글자 대비 보강 */
+}
+
+.feedback[data-kind="ok"] {
+  border-color: rgb(120 240 200 / 0.45);
+  color: #5adcb4;
+}
+
+.feedback[data-kind="warn"] {
+  border-color: rgb(255 215 110 / 0.5);
+  color: #ffd76e;
+}
+
+.feedback[data-kind="bad"] {
+  border-color: rgb(255 130 150 / 0.5);
+  color: #ff8fa3;
+}
+
+/* ── 컨베이어 연출 — data.presentation: conveyor (gm-01) ──
+   물건이 한 번에 하나씩 좌→중앙 슬라이드로 도착하고, 벨트 줄무늬가 굴러간다.
+   옆에는 발주서(검수서) 패널이 상시 붙는다. */
+.conveyorRow {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.conveyor {
+  position: relative;
+  flex: 1 1 300px;
+  min-height: 172px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px 16px 38px;
+  border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.2));
+  border-radius: 14px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 24% 16%, rgb(255 255 255 / 0.06), transparent 44%),
+    linear-gradient(160deg, rgb(38 44 66 / 0.96), rgb(24 27 44 / 0.98));
+}
+
+/* 벨트 — 롤러 줄무늬가 좌로 굴러 '우측으로 흐르는' 느낌을 준다 */
+.belt {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+  height: 34px;
+  border-top: 2px solid rgb(255 255 255 / 0.28);
+  border-bottom: 2px solid rgb(0 0 0 / 0.5);
+  background-color: #232741;
+  background-image:
+    repeating-linear-gradient(90deg, rgb(255 255 255 / 0.16) 0 5px, transparent 5px 30px),
+    linear-gradient(180deg, rgb(255 255 255 / 0.07), transparent 55%);
+  animation: beltRoll 0.8s linear infinite;
+}
+
+@keyframes beltRoll {
+  to {
+    background-position: 30px 0, 0 0;
+  }
+}
+
+/* 처리 대기(돌발 동결·물량 없음·종료)면 벨트도 멈춘다 */
+.belt[data-paused="true"] {
+  animation-play-state: paused;
+}
+
+/* 중앙에 도착한 현재 물건 — 자동 선택 상태라 선택 링과 같은 강조를 쓴다 */
+.conveyorItem {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: 1px solid var(--scenario-accent, #8a63ee);
+  border-radius: 12px;
+  color: rgb(255 255 255 / 0.94);
+  background: linear-gradient(160deg, rgb(52 46 88 / 0.96), rgb(34 30 60 / 0.97));
+  box-shadow: 0 0 0 3px var(--scenario-accent-soft, rgb(193 126 255 / 0.24));
+  animation: conveyorIn 460ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+@keyframes conveyorIn {
+  from {
+    transform: translateX(-190px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.conveyorLabel {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: rgb(244 240 255 / 0.92);
+  text-align: center;
+}
+
+/* '촬영됨' 태그 — 병행필수(gm-01) 사진 증빙 표시. 채점과 무관한 표시 전용 */
+.photoTag {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  padding: 2px 9px;
+  border: 1px solid rgb(255 255 255 / 0.8);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #0e1a2e;
+  background: #cfe4ff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+  animation: photoTagIn 220ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+@keyframes photoTagIn {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 셔터 플래시 — 촬영 순간 검수대를 덮는 흰 섬광. 정지 상태 opacity 0 이라
+   애니메이션이 꺼져도(모션 최소화) 화면을 가리지 않는다 */
+.shutterFlash {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: #fff;
+  opacity: 0;
+  animation: shutterFlash 340ms ease-out;
+}
+
+@keyframes shutterFlash {
+  0% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.conveyorEmpty {
+  z-index: 1;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgb(244 240 255 / 0.9);
+}
+
+/* 처리 내역 스탬프 줄 — 대기열 카드 도장을 대신하는 복기용 */
+.doneStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.doneStamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #06231d;
+  background: #5adcb4;
+}
+
+.doneStamp[data-verdict="wrong"] {
+  color: #2a0f16;
+  background: #ff8fa3;
+}
+
+/* 스탬프 안의 '촬영' 복기 마크 — 증빙 사진을 남긴 박스 표시(표시 전용) */
+.stampPhoto {
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 900;
+  color: #0e1a2e;
+  background: rgb(255 255 255 / 0.85);
+}
+
+/* ── 발주서(검수서) 패널 — data.order_sheet ──
+   서류 느낌의 밝은 종이 배경 + 진한 잉크 글자(대비 확보).
+   실루엣 칸은 흑백·반투명, 합격 처리되면 원색 + 체크가 얹힌다. */
+.orderSheet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 0 1 180px;
+  min-width: 150px;
+  padding: 11px 13px;
+  border: 1px solid rgb(120 100 60 / 0.6);
+  border-radius: 12px;
+  background: linear-gradient(165deg, #f7f1de, #e9dfc4);
+  color: #3a2f18;
+}
+
+.orderTitle {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #3a2f18;
+}
+
+.orderCells {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.orderCell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1.5px dashed rgb(90 74 40 / 0.55);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.55);
+}
+
+/* 실루엣 — 아직 안 들어온 발주 수량 */
+.orderCell img {
+  filter: grayscale(1) opacity(0.4);
+}
+
+.orderCell[data-filled="true"] {
+  border-style: solid;
+  border-color: #2c7a54;
+  background: rgb(90 200 140 / 0.2);
+}
+
+.orderCell[data-filled="true"] img {
+  filter: none;
+}
+
+.orderCheck {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 900;
+  color: #fff;
+  background: #15794b;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+}
+
+/* 칸을 다 채운 뒤에도 같은 박스를 합격시키면 뜨는 경고 */
+.orderOver {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  color: #fff;
+  background: #c22f4d;
+}
+
+.orderCellFallback {
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #3a2f18;
+  text-align: center;
+  word-break: keep-all;
+}
+
+.orderHint {
+  font-size: 10px;
+  line-height: 1.5;
+  color: #4c3f22;
+}
+
+/* ── 접근성: 키보드 초점 ── */
+.card:focus-visible,
+.bin:focus-visible,
+.suddenCard:focus-visible,
+.stageBtn:focus-visible,
+.escalateBtn:focus-visible,
+.submitBtn:focus-visible {
+  outline: 2px solid var(--scenario-accent, #8a63ee);
+  outline-offset: 2px;
+}
+
+/* ── 모션 최소화 존중 ── */
+@media (prefers-reduced-motion: reduce) {
+  .sudden {
+    animation: none;
+  }
+  .belt {
+    animation: none; /* 롤러 줄무늬 정지 */
+  }
+  .conveyorItem {
+    animation: none; /* 좌→중앙 슬라이드 생략 */
+  }
+  .shutterFlash {
+    animation: none; /* 정지 opacity 0 — 섬광 생략 */
+  }
+  .photoTag {
+    animation: none;
+  }
+  .escalateBtn[data-armed="true"] {
+    animation: none;
+    box-shadow: 0 0 0 3px rgb(255 130 150 / 0.28);
+  }
+  .card,
+  .bin,
+  .stageBtn,
+  .suddenCard,
+  .escalateBtn {
+    transition: none;
+  }
+}
+
+/* ── 2026 visual pass: 스마트 물류 워크스테이션 ── */
+.conveyor {
+  border-radius: 18px;
+  border-color: color-mix(in srgb, var(--scenario-accent) 34%, rgb(255 255 255 / 0.2));
+  background:
+    radial-gradient(circle at 50% -30%, var(--scenario-accent-soft), transparent 48%),
+    linear-gradient(160deg, #11182c, #171326);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.09), 0 14px 32px rgb(0 0 0 / 0.24);
+  overflow: hidden;
+}
+.belt {
+  background:
+    repeating-linear-gradient(90deg, transparent 0 54px, rgb(255 255 255 / 0.075) 55px 57px),
+    linear-gradient(180deg, #26334a, #151c2b);
+  border-color: rgb(255 255 255 / 0.15);
+  box-shadow: inset 0 10px 20px rgb(0 0 0 / 0.2), 0 9px 0 #0b101b, 0 18px 28px rgb(0 0 0 / 0.28);
+}
+.conveyorItem,
+.card {
+  border-color: rgb(255 255 255 / 0.2);
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 0.12), rgb(255 255 255 / 0.035)),
+    rgb(14 16 38 / 0.82);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 12px 24px rgb(0 0 0 / 0.24);
+}
+.conveyorItem:hover,
+.card:hover { border-color: var(--scenario-accent-2); box-shadow: 0 14px 28px rgb(0 0 0 / 0.3), 0 0 22px var(--scenario-accent-soft); }
+.queue,
+.orderSheet,
+.legend,
+.sudden { border-color: rgb(255 255 255 / 0.16); background: rgb(9 11 30 / 0.48); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07); }
+.bin {
+  border-color: color-mix(in srgb, var(--scenario-accent) 35%, rgb(255 255 255 / 0.2));
+  background: linear-gradient(160deg, rgb(255 255 255 / 0.1), rgb(9 10 30 / 0.62));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1), 0 10px 24px rgb(0 0 0 / 0.18);
+}
+.bin:hover { border-color: var(--scenario-accent-2); background: linear-gradient(160deg, var(--scenario-accent-soft), rgb(9 10 30 / 0.7)); }
+.submitBtn,
+.escalateBtn { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 10px 24px var(--scenario-accent-soft); }
+
+/* Cartoon surface pass: item and bin sprites remain the existing assets. */
+.legend,
+.sudden,
+.orderSheet,
+.doneStrip {
+  border: 2px solid var(--cartoon-ink);
+  background: #fff2d6;
+  color: var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+
+:global([data-cartoon-background="true"]) .conveyorRow,
+:global([data-cartoon-background="true"]) .queue {
+  background-image:
+    linear-gradient(rgb(8 12 26 / 0.12), rgb(8 12 26 / 0.2)),
+    var(--minigame-background-image);
+  aspect-ratio: 24 / 11;
+  align-content: center;
+  background-position: center, center;
+  background-size: 100% 100%, contain;
+  background-repeat: no-repeat, no-repeat;
+  border-radius: 14px;
+}
+.queue,
+.conveyor {
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 18px;
+  background: #334363;
+  box-shadow: 0 5px 0 var(--cartoon-ink), inset 0 2px 0 rgb(255 255 255 / 0.12);
+}
+.belt { border: 3px solid var(--cartoon-ink); background: repeating-linear-gradient(90deg, #606a7d 0 28px, #465168 28px 56px); box-shadow: inset 0 5px 0 rgb(255 255 255 / 0.1); }
+.card,
+.bin,
+.suddenCard,
+.stageBtn,
+.orderCell {
+  border: 2px solid var(--cartoon-ink);
+  background: #fff2d6;
+  color: var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+.card:hover,
+.bin:hover,
+.suddenCard:hover,
+.stageBtn:hover { border-color: var(--cartoon-ink); background: #ffffff; box-shadow: 0 6px 0 var(--cartoon-ink); }
+.card[data-state="selected"] { background: #d7c6ff; box-shadow: 0 4px 0 var(--cartoon-ink), 0 0 0 3px var(--cartoon-purple); }
+.submitBtn,
+.escalateBtn { border: 2px solid var(--cartoon-ink); box-shadow: 0 4px 0 var(--cartoon-ink); }
+.submitBtn:active,
+.escalateBtn:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--cartoon-ink); }
+
+/* Cartoon contrast pass: light paper surfaces always use dark readable copy. */
+.legendTitle,
+.legendArrow,
+.legendDest,
+.cardLabel,
+.feedback,
+.feedback[data-kind="ok"],
+.feedback[data-kind="warn"],
+.feedback[data-kind="bad"] {
+  color: var(--cartoon-ink);
+  text-shadow: none;
+}
+.chip,
+.chip[data-kind="badge"] {
+  border-color: var(--cartoon-ink);
+  background: #ffffff;
+  color: var(--cartoon-ink);
+}
+.submitBtn {
+  background: var(--cartoon-gold);
+  color: var(--cartoon-ink);
+}
+.escalateBtn {
+  background: var(--cartoon-coral);
+  color: var(--cartoon-ink);
+}

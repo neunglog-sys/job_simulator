@@ -1,0 +1,17 @@
+# F06 마케팅·광고·홍보 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f06
+title: 마케팅·광고·홍보
+description: 시장과 고객을 읽어 캠페인과 메시지를 기획하고 브랜드를 알리는 분야입니다. 아이디어를 설득력 있게 전달하고 성과에 도전하는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 4
+  communication: 5
+  collaboration: 4
+  task_management: 2
+interest_profile:
+  realistic: 1
+  investigative: 2
+  artistic: 4
+  social: 2
+  enterprising: 5
+  conventional: 1

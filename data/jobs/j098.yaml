@@ -1,0 +1,34 @@
+# J098 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J098_*.yaml
+code: j098
+title: 경비·보안 요원
+description: 치안 유지와 신변 보호를 위해 출입 통제, 순찰, 긴급 출동 업무를 수행하는 직무입니다. 신고 접수 시 신속하게 현장 상황을 파악하고 장비를 점검하여 초동 조치와
+  현장 보존을 지원하며, 발생한 사건을 육하원칙에 따라 기록해 관계 부서에 인계합니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 4
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 5
+  investigative: 3
+  artistic: 1
+  social: 4
+  enterprising: 4
+  conventional: 4
+# 공식 매핑: K000007575 경비원 (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: "특별한 학력·교육훈련 요건 없음"
+  source_field: needKnwgCn
+  evidence_type: descriptive_text
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics:
+    median_annual_krw: 24000000
+    statistic_type: median
+    population: "재직자 약 30명 설문조사"
+    reference_year: 2023
+certifications:
+  - name: "일반경비지도사(국가전문)"
+    tier: related
+status: provisional

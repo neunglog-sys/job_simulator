@@ -1,0 +1,17 @@
+# F04 무역·물류·운송사무 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f04
+title: 무역·물류·운송사무
+description: 수출입 서류와 운송·통관 일정을 관리하고 돌발 상황을 조정해 화물의 흐름을 잇는 분야입니다. 상황 변화를 빠르게 판단하고 대체안을 찾아내는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 4
+  collaboration: 2
+  task_management: 4
+interest_profile:
+  realistic: 3
+  investigative: 3
+  artistic: 1
+  social: 1
+  enterprising: 4
+  conventional: 5

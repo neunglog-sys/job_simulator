@@ -1,0 +1,28 @@
+# J048 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J048_*.yaml
+code: j048
+title: 예약·접수 상담원
+description: 병원이나 서비스 센터의 최전선에서 예약 상태를 확인하고 방문 고객을 맞이하는 직무. 대기 상황과 환자 상태를 실시간으로 파악하여 진료 순서를 조정하고, 민감한
+  개인정보를 철저히 보호하며 접수를 진행합니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 3
+  communication: 4
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 2
+  investigative: 2
+  artistic: 1
+  social: 5
+  enterprising: 2
+  conventional: 4
+# 공식 매핑: K000005000 예약접수원 (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

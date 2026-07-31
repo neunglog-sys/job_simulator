@@ -1,0 +1,28 @@
+# J078 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J078_*.yaml
+code: j078
+title: 기술지원 담당
+description: 고객사나 내부 사용자가 겪는 복잡한 기술적 문제를 진단하고 솔루션을 제공하는 직무. 시스템 로그 분석과 데이터 대조를 통해 장애의 근본 원인을 추적하며, 개발팀과
+  협력하여 기술적 난제를 해결한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 5
+  communication: 4
+  collaboration: 3
+  task_management: 3
+interest_profile:
+  realistic: 3
+  investigative: 5
+  artistic: 1
+  social: 3
+  enterprising: 2
+  conventional: 4
+# 공식 매핑: K000002106 컴퓨터시스템관리원 (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

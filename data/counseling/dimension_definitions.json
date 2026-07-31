@@ -1,0 +1,1036 @@
+{
+  "dimensions": [
+    {
+      "dimension_code": "interest.realistic",
+      "group": "interest",
+      "name": "실행·현장형 흥미",
+      "definition": "손이나 몸을 써서 결과가 눈에 보이는 작업(장비 조작, 현장 활동 등)에 끌리는 정도.",
+      "positive_examples": [
+        "\"기계 조립하는 게 재밌었어요\"",
+        "\"직접 몸을 움직여서 만드는 걸 할 때 만족스러워요\""
+      ],
+      "negative_examples": [
+        "\"현장 일은 생각만 해도 피곤해요\""
+      ],
+      "ambiguous_examples": [
+        "\"손으로 뭘 만드는 건 좋은데 오래 서 있는 건 싫어요\" — 흥미와 체력 제약이 섞여 followup 필요"
+      ],
+      "confirmation_question_ids": [
+        "CQ-INT-R-001"
+      ],
+      "related_module_ids": [
+        "작업순서·절차형",
+        "장비·상태점검형",
+        "안전·위험판단형"
+      ],
+      "prohibited_inferences": [
+        "도구를 한두 번 써봤다고 현장직 전체 적성으로 단정하지 않는다"
+      ],
+      "source_ids": [
+        "SRC-ONET-INTEREST-PROFILER",
+        "SRC-WORK24-CAREER-PREF-S"
+      ]
+    },
+    {
+      "dimension_code": "interest.investigative",
+      "group": "interest",
+      "name": "탐구·분석형 흥미",
+      "definition": "원인과 이유를 파고들어 논리적으로 분석하는 활동에 끌리는 정도.",
+      "positive_examples": [
+        "\"왜 그런 결과가 나왔는지 끝까지 알아봤어요\""
+      ],
+      "negative_examples": [
+        "\"이유 분석하는 건 지루해요\""
+      ],
+      "ambiguous_examples": [
+        "\"궁금하긴 한데 깊게 파고드는 건 귀찮아요\" — 강도 확인 필요"
+      ],
+      "confirmation_question_ids": [
+        "CQ-INT-I-001"
+      ],
+      "related_module_ids": [
+        "정보·판단형",
+        "장비·상태점검형",
+        "절차·점검형"
+      ],
+      "prohibited_inferences": [
+        "호기심 표현 한 번으로 연구직 적성을 확정하지 않는다"
+      ],
+      "source_ids": [
+        "SRC-ONET-INTEREST-PROFILER",
+        "SRC-WORK24-CAREER-PREF-S"
+      ]
+    },
+    {
+      "dimension_code": "interest.artistic",
+      "group": "interest",
+      "name": "창작·표현형 흥미",
+      "definition": "글, 그림, 영상, 디자인 등 새로운 것을 표현·창작하는 활동에 끌리는 정도.",
+      "positive_examples": [
+        "\"영상 편집을 밤새 해도 재밌었어요\""
+      ],
+      "negative_examples": [
+        "\"창작 활동은 저랑 안 맞아요\""
+      ],
+      "ambiguous_examples": [
+        "\"보는 건 좋아하는데 만드는 건 자신 없어요\" — 흥미와 자신감 구분 필요"
+      ],
+      "confirmation_question_ids": [
+        "CQ-INT-A-001"
+      ],
+      "related_module_ids": [
+        "제작·상태판단형"
+      ],
+      "prohibited_inferences": [
+        "취미로 만든 콘텐츠를 전문 창작 역량으로 확대 해석하지 않는다"
+      ],
+      "source_ids": [
+        "SRC-ONET-INTEREST-PROFILER",
+        "SRC-WORK24-CAREER-PREF-S"
+      ]
+    },
+    {
+      "dimension_code": "interest.social",
+      "group": "interest",
+      "name": "대인·조력형 흥미",
+      "definition": "사람을 돕거나 가르치고 소통하는 활동에서 만족을 느끼는 정도.",
+      "positive_examples": [
+        "\"누가 저 덕분에 문제를 해결했다고 할 때 뿌듯해요\""
+      ],
+      "negative_examples": [
+        "\"사람 상대하는 건 별로예요\""
+      ],
+      "ambiguous_examples": [
+        "\"돕는 건 좋은데 계속 대화하는 건 피곤해요\" — high_social_contact와 별도 축으로 분리"
+      ],
+      "confirmation_question_ids": [
+        "CQ-INT-S-001"
+      ],
+      "related_module_ids": [
+        "대인응대형"
+      ],
+      "prohibited_inferences": [
+        "돕는 걸 좋아한다고 해서 장시간 대면 응대 체력까지 있다고 단정하지 않는다"
+      ],
+      "source_ids": [
+        "SRC-ONET-INTEREST-PROFILER",
+        "SRC-WORK24-CAREER-PREF-S"
+      ]
+    },
+    {
+      "dimension_code": "interest.enterprising",
+      "group": "interest",
+      "name": "설득·주도형 흥미",
+      "definition": "사람들을 설득·기획·주도해서 목표를 성사시키는 활동에 끌리는 정도.",
+      "positive_examples": [
+        "\"팀을 설득해서 계획대로 진행시킨 적 있어요\""
+      ],
+      "negative_examples": [
+        "\"나서서 이끄는 건 부담스러워요\""
+      ],
+      "ambiguous_examples": [
+        "\"리더십이 좋은 것 같아요\" — 실제 행동 사례 확인 전까지는 가설"
+      ],
+      "confirmation_question_ids": [
+        "CQ-INT-E-001"
+      ],
+      "related_module_ids": [
+        "대인응대형",
+        "정보·판단형",
+        "돌발상황 대처형"
+      ],
+      "prohibited_inferences": [
+        "주도적 경험 서술 한 번으로 리더십 역량을 확정하지 않는다"
+      ],
+      "source_ids": [
+        "SRC-ONET-INTEREST-PROFILER",
+        "SRC-WORK24-CAREER-PREF-S"
+      ]
+    },
+    {
+      "dimension_code": "interest.conventional",
+      "group": "interest",
+      "name": "규칙·정리형 흥미",
+      "definition": "정해진 규칙과 기준에 따라 자료를 정리·점검·관리하는 활동에서 편안함을 느끼는 정도.",
+      "positive_examples": [
+        "\"정해진 양식대로 정리하는 게 마음 편해요\""
+      ],
+      "negative_examples": [
+        "\"똑같은 걸 반복 확인하는 건 지루해요\""
+      ],
+      "ambiguous_examples": [
+        "\"정리는 잘하는데 매번 같은 일이면 질릴 것 같아요\" — structured와 novelty 축 함께 확인"
+      ],
+      "confirmation_question_ids": [
+        "CQ-EXP-001",
+        "CQ-INT-C-001"
+      ],
+      "related_module_ids": [
+        "절차·점검형",
+        "작업순서·절차형"
+      ],
+      "prohibited_inferences": [
+        "규칙 선호를 창의성 부족으로 확대 해석하지 않는다"
+      ],
+      "source_ids": [
+        "SRC-ONET-INTEREST-PROFILER",
+        "SRC-WORK24-CAREER-PREF-S"
+      ]
+    },
+    {
+      "dimension_code": "work_target.people",
+      "group": "work_target",
+      "name": "사람 대상 업무 선호",
+      "definition": "업무의 주요 대상이 사람(고객, 학생, 동료 등)인 것을 선호하는 정도.",
+      "positive_examples": [
+        "\"사람 만나서 이야기하는 일이 좋아요\""
+      ],
+      "negative_examples": [
+        "\"혼자 처리하는 업무가 편해요\""
+      ],
+      "ambiguous_examples": [
+        "\"사람은 좋은데 낯선 사람은 부담돼요\" — high_social_contact와 교차 확인"
+      ],
+      "confirmation_question_ids": [
+        "CQ-TGT-001"
+      ],
+      "related_module_ids": [
+        "대인응대형"
+      ],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-NCS-INITIAL-INTERVIEW"
+      ]
+    },
+    {
+      "dimension_code": "work_target.data",
+      "group": "work_target",
+      "name": "데이터 대상 업무 선호",
+      "definition": "숫자, 통계, 자료를 분석하고 패턴을 찾는 업무를 선호하는 정도.",
+      "positive_examples": [
+        "\"엑셀로 데이터 정리하고 패턴 찾는 게 재밌어요\""
+      ],
+      "negative_examples": [
+        "\"숫자 보는 건 머리 아파요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-TGT-002"
+      ],
+      "related_module_ids": [
+        "정보·판단형",
+        "절차·점검형"
+      ],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-APTITUDE"
+      ]
+    },
+    {
+      "dimension_code": "work_target.documents",
+      "group": "work_target",
+      "name": "문서 대상 업무 선호",
+      "definition": "문서, 계약서, 기록물을 정확하게 다루는 업무를 선호하는 정도.",
+      "positive_examples": [
+        "\"문서 검토하고 정리하는 걸 꼼꼼하게 하는 편이에요\""
+      ],
+      "negative_examples": [
+        "\"서류 작업은 지루해요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-TGT-003"
+      ],
+      "related_module_ids": [
+        "절차·점검형"
+      ],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-NCS-INITIAL-INTERVIEW"
+      ]
+    },
+    {
+      "dimension_code": "work_target.ideas",
+      "group": "work_target",
+      "name": "아이디어 대상 업무 선호",
+      "definition": "새로운 기획, 아이디어, 컨셉을 구상하는 업무를 선호하는 정도.",
+      "positive_examples": [
+        "\"새로운 걸 기획하는 게 재밌어요\""
+      ],
+      "negative_examples": [
+        "\"이미 정해진 걸 실행하는 게 더 편해요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-TGT-004"
+      ],
+      "related_module_ids": [
+        "제작·상태판단형",
+        "정보·판단형"
+      ],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-CAREER-PREF-L"
+      ]
+    },
+    {
+      "dimension_code": "work_target.equipment",
+      "group": "work_target",
+      "name": "장비·도구 대상 업무 선호",
+      "definition": "기계, 장비, 도구를 직접 다루고 점검하는 업무를 선호하는 정도.",
+      "positive_examples": [
+        "\"장비 상태 점검하고 고치는 게 재밌어요\""
+      ],
+      "negative_examples": [
+        "\"기계 다루는 건 자신 없어요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-TGT-005"
+      ],
+      "related_module_ids": [
+        "장비·상태점검형",
+        "작업순서·절차형"
+      ],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-ONET-INTEREST-PROFILER"
+      ]
+    },
+    {
+      "dimension_code": "work_target.environment",
+      "group": "work_target",
+      "name": "현장·환경 대상 업무 선호",
+      "definition": "실내 고정 근무보다 현장·이동·환경 대응 업무를 선호하는 정도.",
+      "positive_examples": [
+        "\"현장에서 몸을 움직이는 게 답답하지 않아 좋아요\""
+      ],
+      "negative_examples": [
+        "\"실내에서 차분히 일하는 게 좋아요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-TGT-006"
+      ],
+      "related_module_ids": [
+        "돌발상황 대처형",
+        "안전·위험판단형",
+        "작업순서·절차형"
+      ],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-NCS-INITIAL-INTERVIEW"
+      ]
+    },
+    {
+      "dimension_code": "work_style.structured",
+      "group": "work_style",
+      "name": "구조화 선호",
+      "definition": "정해진 절차와 순서를 따르는 업무 방식을 선호하는 정도.",
+      "positive_examples": [
+        "\"매뉴얼대로 진행하는 게 마음 편해요\""
+      ],
+      "negative_examples": [
+        "\"매번 똑같은 순서는 답답해요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-EXP-001",
+        "CQ-STY-001"
+      ],
+      "related_module_ids": [
+        "절차·점검형"
+      ],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-CAREER-PREF-L"
+      ]
+    },
+    {
+      "dimension_code": "work_style.novelty",
+      "group": "work_style",
+      "name": "새로움 추구",
+      "definition": "반복적인 업무보다 새로운 문제·상황을 계속 만나는 업무를 선호하는 정도.",
+      "positive_examples": [
+        "\"매번 다른 문제를 푸는 게 재밌어요\""
+      ],
+      "negative_examples": [
+        "\"익숙한 방식이 편해요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-STY-002"
+      ],
+      "related_module_ids": [
+        "제작·상태판단형",
+        "정보·판단형"
+      ],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-CAREER-PREF-L"
+      ]
+    },
+    {
+      "dimension_code": "work_style.collaboration",
+      "group": "work_style",
+      "name": "협업 선호",
+      "definition": "여러 사람과 함께 협력해서 일하는 방식을 선호하는 정도.",
+      "positive_examples": [
+        "\"팀으로 같이 할 때 결과가 더 좋았어요\""
+      ],
+      "negative_examples": [
+        "\"혼자 몰입할 때 성과가 더 좋아요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-STY-003"
+      ],
+      "related_module_ids": [
+        "대인응대형"
+      ],
+      "prohibited_inferences": [
+        "협업 선호를 대인 피로가 전혀 없다는 의미로 확대하지 않는다"
+      ],
+      "source_ids": [
+        "SRC-WORK24-CAREER-PREF-L"
+      ]
+    },
+    {
+      "dimension_code": "work_style.field",
+      "group": "work_style",
+      "name": "현장 근무 선호",
+      "definition": "사무실보다 현장을 돌아다니며 일하는 방식을 선호하는 정도.",
+      "positive_examples": [
+        "\"현장 돌아다니는 게 답답하지 않아요\""
+      ],
+      "negative_examples": [
+        "\"자리에 앉아서 일하는 게 편해요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-STY-004"
+      ],
+      "related_module_ids": [
+        "작업순서·절차형",
+        "돌발상황 대처형"
+      ],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-NCS-INITIAL-INTERVIEW"
+      ]
+    },
+    {
+      "dimension_code": "work_style.time_pressure",
+      "group": "work_style",
+      "name": "시간 압박 내성",
+      "definition": "마감이나 긴급 상황의 시간 압박 속에서도 집중력을 유지하는 정도.",
+      "positive_examples": [
+        "\"마감 임박하면 오히려 집중이 잘 돼요\""
+      ],
+      "negative_examples": [
+        "\"급하면 실수가 늘어요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-STY-005"
+      ],
+      "related_module_ids": [
+        "돌발상황 대처형",
+        "안전·위험판단형"
+      ],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-JOB-READINESS"
+      ]
+    },
+    {
+      "dimension_code": "work_style.detail_orientation",
+      "group": "work_style",
+      "name": "세부지향성",
+      "definition": "작은 오류나 세부 사항을 놓치지 않고 확인하는 성향.",
+      "positive_examples": [
+        "\"오탈자나 숫자 오류를 잘 찾아내요\""
+      ],
+      "negative_examples": [
+        "\"큰 그림 위주로 보고 세부는 잘 놓쳐요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-STY-006"
+      ],
+      "related_module_ids": [
+        "절차·점검형",
+        "장비·상태점검형"
+      ],
+      "prohibited_inferences": [
+        "세부지향성을 완벽주의·강박으로 과대 해석하지 않는다"
+      ],
+      "source_ids": [
+        "SRC-WORK24-APTITUDE"
+      ]
+    },
+    {
+      "dimension_code": "work_style.autonomy",
+      "group": "work_style",
+      "name": "업무 자율성 선호",
+      "definition": "세세한 지시보다 스스로 방향을 정해 진행하는 방식을 선호하는 정도.",
+      "positive_examples": [
+        "\"제가 방향을 정해서 진행할 때 더 잘돼요\""
+      ],
+      "negative_examples": [
+        "\"구체적으로 지시받는 게 마음 편해요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-STY-007"
+      ],
+      "related_module_ids": [
+        "제작·상태판단형",
+        "정보·판단형"
+      ],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-CAREER-PREF-L"
+      ]
+    },
+    {
+      "dimension_code": "work_value.social_contribution",
+      "group": "work_value",
+      "name": "사회 기여 가치",
+      "definition": "일을 통해 타인·사회에 도움이 되는 것을 중요하게 여기는 정도.",
+      "positive_examples": [
+        "\"제 일이 누군가에게 도움이 되는 게 중요해요\""
+      ],
+      "negative_examples": [
+        "\"기여보다는 제 성과가 우선이에요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-VAL-001"
+      ],
+      "related_module_ids": [],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-VALUES"
+      ]
+    },
+    {
+      "dimension_code": "work_value.change_orientation",
+      "group": "work_value",
+      "name": "변화 지향 가치",
+      "definition": "익숙한 방식보다 새로운 시도·변화를 중요하게 여기는 정도.",
+      "positive_examples": [
+        "\"새로운 방식을 계속 시도하는 게 중요해요\""
+      ],
+      "negative_examples": [
+        "\"안정적으로 유지되는 게 좋아요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-VAL-002"
+      ],
+      "related_module_ids": [],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-VALUES"
+      ]
+    },
+    {
+      "dimension_code": "work_value.achievement",
+      "group": "work_value",
+      "name": "성취 가치",
+      "definition": "눈에 보이는 성과와 목표 달성을 중요하게 여기는 정도.",
+      "positive_examples": [
+        "\"목표를 달성했을 때 동기부여가 커요\""
+      ],
+      "negative_examples": [
+        "\"성과보다 과정이 편안한 게 중요해요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-VAL-003"
+      ],
+      "related_module_ids": [],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-VALUES"
+      ]
+    },
+    {
+      "dimension_code": "work_value.compensation",
+      "group": "work_value",
+      "name": "보상 가치",
+      "definition": "급여·처우 등 물질적 보상을 우선순위로 여기는 정도.",
+      "positive_examples": [
+        "\"보상이 다른 조건보다 우선이에요\""
+      ],
+      "negative_examples": [
+        "\"보상보다 다른 조건이 더 중요해요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-VAL-004"
+      ],
+      "related_module_ids": [],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-VALUES"
+      ]
+    },
+    {
+      "dimension_code": "work_value.growth",
+      "group": "work_value",
+      "name": "성장 가치",
+      "definition": "새로운 것을 배우고 역량이 성장하는 것을 중요하게 여기는 정도.",
+      "positive_examples": [
+        "\"계속 배우고 성장하는 느낌이 중요해요\""
+      ],
+      "negative_examples": [
+        "\"익숙한 걸 유지하는 게 편해요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-VAL-005"
+      ],
+      "related_module_ids": [],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-VALUES"
+      ]
+    },
+    {
+      "dimension_code": "work_value.work_life_balance",
+      "group": "work_value",
+      "name": "일-생활 균형 가치",
+      "definition": "일과 개인 시간의 균형을 중요하게 여기는 정도.",
+      "positive_examples": [
+        "\"퇴근 후 개인 시간이 보장되는 게 중요해요\""
+      ],
+      "negative_examples": [
+        "\"일에 몰입하는 시간이 많아도 괜찮아요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-VAL-006"
+      ],
+      "related_module_ids": [],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-VALUES"
+      ]
+    },
+    {
+      "dimension_code": "work_value.recognition",
+      "group": "work_value",
+      "name": "인정 가치",
+      "definition": "주변으로부터 성과를 인정받는 것을 중요하게 여기는 정도.",
+      "positive_examples": [
+        "\"제가 한 일을 인정받는 게 중요해요\""
+      ],
+      "negative_examples": [
+        "\"인정보다 스스로 만족이 더 중요해요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-VAL-007"
+      ],
+      "related_module_ids": [],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-VALUES"
+      ]
+    },
+    {
+      "dimension_code": "work_value.autonomy",
+      "group": "work_value",
+      "name": "자율성 가치",
+      "definition": "일하는 방식과 순서를 스스로 결정하는 것을 중요하게 여기는 정도.",
+      "positive_examples": [
+        "\"제가 방식을 정할 수 있는 게 중요해요\""
+      ],
+      "negative_examples": [
+        "\"명확한 지침이 있는 게 더 편해요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-VAL-008"
+      ],
+      "related_module_ids": [],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-VALUES"
+      ]
+    },
+    {
+      "dimension_code": "work_value.stability",
+      "group": "work_value",
+      "name": "안정성 가치",
+      "definition": "안정적으로 오래 지속 가능한 것을 중요하게 여기는 정도.",
+      "positive_examples": [
+        "\"오래 안정적으로 다닐 수 있는 게 중요해요\""
+      ],
+      "negative_examples": [
+        "\"도전적이고 변동이 있어도 괜찮아요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-VAL-009"
+      ],
+      "related_module_ids": [],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-VALUES"
+      ]
+    },
+    {
+      "dimension_code": "skill.communication",
+      "group": "skill",
+      "name": "의사소통 강점",
+      "definition": "생각이나 정보를 상대에게 명확히 전달하고 설득하는 역량.",
+      "positive_examples": [
+        "\"낯선 사람에게 설명해서 잘 전달됐어요\""
+      ],
+      "negative_examples": [
+        "\"설명하다가 상대가 못 알아들은 적이 많아요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-SKL-001"
+      ],
+      "related_module_ids": [
+        "대인응대형"
+      ],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-APTITUDE"
+      ]
+    },
+    {
+      "dimension_code": "skill.error_detection",
+      "group": "skill",
+      "name": "오류 탐지 강점",
+      "definition": "다른 사람이 놓친 실수나 오류를 먼저 찾아내는 역량.",
+      "positive_examples": [
+        "\"팀원이 놓친 오류를 제가 먼저 발견했어요\""
+      ],
+      "negative_examples": [
+        "\"오류를 잘 못 찾는 편이에요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-SKL-002"
+      ],
+      "related_module_ids": [
+        "절차·점검형",
+        "장비·상태점검형"
+      ],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-APTITUDE"
+      ]
+    },
+    {
+      "dimension_code": "skill.data_analysis",
+      "group": "skill",
+      "name": "데이터 분석 강점",
+      "definition": "자료에서 경향이나 패턴을 스스로 찾아내는 역량.",
+      "positive_examples": [
+        "\"자료를 보다가 패턴을 스스로 찾아냈어요\""
+      ],
+      "negative_examples": [
+        "\"데이터에서 패턴 찾는 건 어려워요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-SKL-003"
+      ],
+      "related_module_ids": [
+        "정보·판단형"
+      ],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-APTITUDE"
+      ]
+    },
+    {
+      "dimension_code": "skill.coordination",
+      "group": "skill",
+      "name": "조율 강점",
+      "definition": "여러 사람의 일정·역할을 조율하는 역량.",
+      "positive_examples": [
+        "\"여러 사람 일정을 조율해서 프로젝트를 진행했어요\""
+      ],
+      "negative_examples": [
+        "\"일정 조율은 늘 꼬였어요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-SKL-004"
+      ],
+      "related_module_ids": [
+        "대인응대형",
+        "절차·점검형"
+      ],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-APTITUDE"
+      ]
+    },
+    {
+      "dimension_code": "skill.creative_production",
+      "group": "skill",
+      "name": "창작·제작 강점",
+      "definition": "무언가를 처음부터 기획해 완성물로 만들어내는 역량.",
+      "positive_examples": [
+        "\"기획부터 완성까지 직접 만들어봤어요\""
+      ],
+      "negative_examples": [
+        "\"처음부터 만드는 건 막막해요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-SKL-005"
+      ],
+      "related_module_ids": [
+        "제작·상태판단형"
+      ],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-APTITUDE"
+      ]
+    },
+    {
+      "dimension_code": "skill.tool_operation",
+      "group": "skill",
+      "name": "도구·장비 운용 강점",
+      "definition": "특정 장비, 프로그램, 도구를 능숙하게 다루는 역량.",
+      "positive_examples": [
+        "\"엑셀은 잘 다뤄요\"",
+        "\"특정 장비를 능숙하게 다뤄본 적 있어요\""
+      ],
+      "negative_examples": [
+        "\"도구 다루는 건 서툴러요\""
+      ],
+      "ambiguous_examples": [
+        "\"엑셀은 잘하는데 하루 종일 표만 보는 건 싫어요\" — 능력(skill)과 흥미(interest)를 분리해서 기록, 능력만으로 추천하지 않음"
+      ],
+      "confirmation_question_ids": [
+        "CQ-SKL-006"
+      ],
+      "related_module_ids": [
+        "장비·상태점검형",
+        "작업순서·절차형"
+      ],
+      "prohibited_inferences": [
+        "도구 숙련도만으로 그 업무를 좋아한다고 단정하지 않는다"
+      ],
+      "source_ids": [
+        "SRC-WORK24-APTITUDE"
+      ]
+    },
+    {
+      "dimension_code": "skill.risk_detection",
+      "group": "skill",
+      "name": "위험 감지 강점",
+      "definition": "위험하거나 잘못될 수 있는 상황을 미리 알아채는 역량.",
+      "positive_examples": [
+        "\"위험 신호를 미리 알아채고 대응했어요\""
+      ],
+      "negative_examples": [
+        "\"위험 상황을 늦게 알아채는 편이에요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-SKL-007"
+      ],
+      "related_module_ids": [
+        "안전·위험판단형",
+        "돌발상황 대처형"
+      ],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-APTITUDE"
+      ]
+    },
+    {
+      "dimension_code": "skill.priority_judgment",
+      "group": "skill",
+      "name": "우선순위 판단 강점",
+      "definition": "여러 일이 몰렸을 때 무엇부터 처리할지 스스로 판단하는 역량.",
+      "positive_examples": [
+        "\"급한 일부터 스스로 순서를 정해 처리했어요\""
+      ],
+      "negative_examples": [
+        "\"우선순위 정하는 게 늘 헷갈려요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-SKL-008"
+      ],
+      "related_module_ids": [
+        "돌발상황 대처형",
+        "안전·위험판단형"
+      ],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-APTITUDE",
+        "SRC-WORK24-JOB-READINESS"
+      ]
+    },
+    {
+      "dimension_code": "constraint.night_shift",
+      "group": "constraint",
+      "name": "야간·교대 근무 제약",
+      "definition": "건강·생활 패턴상 야간·교대 근무가 어려운 상태(선호가 아니라 제약).",
+      "positive_examples": [
+        "\"건강 때문에 야간근무는 할 수 없어요\""
+      ],
+      "negative_examples": [
+        "\"야간 근무도 가능해요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-CON-001"
+      ],
+      "related_module_ids": [],
+      "prohibited_inferences": [
+        "제약을 선호로 바꿔 표현하지 않는다 — 제약은 필터, 선호는 가중치로 별도 처리"
+      ],
+      "source_ids": [
+        "SRC-NCS-INITIAL-INTERVIEW",
+        "SRC-WORK24-JOB-READINESS"
+      ]
+    },
+    {
+      "dimension_code": "constraint.field_work",
+      "group": "constraint",
+      "name": "현장 근무 가능 여부",
+      "definition": "이동이 잦거나 실외 활동이 많은 현장 근무가 가능한 상태인지.",
+      "positive_examples": [
+        "\"현장 근무 가능해요\""
+      ],
+      "negative_examples": [
+        "\"현장 이동이 어려운 상황이에요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-CON-002"
+      ],
+      "related_module_ids": [],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-NCS-INITIAL-INTERVIEW"
+      ]
+    },
+    {
+      "dimension_code": "constraint.location",
+      "group": "constraint",
+      "name": "지역·이동 제약",
+      "definition": "출퇴근 가능한 지역이나 이동 범위의 제약.",
+      "positive_examples": [
+        "\"통근 가능 범위가 넓어요\""
+      ],
+      "negative_examples": [
+        "\"이동 가능한 지역이 제한적이에요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-CON-003"
+      ],
+      "related_module_ids": [],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-JOB-READINESS"
+      ]
+    },
+    {
+      "dimension_code": "constraint.training_period",
+      "group": "constraint",
+      "name": "교육·훈련 기간 감수 가능 여부",
+      "definition": "취업 전 별도 교육·훈련 기간을 감수할 수 있는지.",
+      "positive_examples": [
+        "\"교육 기간을 감수할 수 있어요\""
+      ],
+      "negative_examples": [
+        "\"바로 시작할 수 있는 일이 필요해요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-CON-004"
+      ],
+      "related_module_ids": [],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-JOB-READINESS"
+      ]
+    },
+    {
+      "dimension_code": "constraint.license_required",
+      "group": "constraint",
+      "name": "자격증·면허 준비 의향",
+      "definition": "특정 자격증·면허가 필요한 직무를 준비할 의향이 있는지.",
+      "positive_examples": [
+        "\"필요하면 자격증을 준비할 의향 있어요\""
+      ],
+      "negative_examples": [
+        "\"자격증 준비 없이 바로 시작하고 싶어요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-CON-005"
+      ],
+      "related_module_ids": [],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-WORK24-JOB-READINESS"
+      ]
+    },
+    {
+      "dimension_code": "constraint.physical_demand",
+      "group": "constraint",
+      "name": "체력 부담 제약",
+      "definition": "장시간 서서 일하기, 무거운 물건 다루기 등 체력적 부담에 대한 제약.",
+      "positive_examples": [
+        "\"체력적으로 부담되는 업무는 어려워요\""
+      ],
+      "negative_examples": [
+        "\"체력적인 부담은 괜찮아요\""
+      ],
+      "ambiguous_examples": [],
+      "confirmation_question_ids": [
+        "CQ-CON-006"
+      ],
+      "related_module_ids": [],
+      "prohibited_inferences": [],
+      "source_ids": [
+        "SRC-NCS-INITIAL-INTERVIEW"
+      ]
+    },
+    {
+      "dimension_code": "constraint.high_social_contact",
+      "group": "constraint",
+      "name": "고빈도 대면 응대 제약",
+      "definition": "낯선 사람을 계속 응대해야 하는 업무가 체력적·심리적으로 부담되는 정도.",
+      "positive_examples": [
+        "\"계속 낯선 사람을 응대하는 건 부담돼요\""
+      ],
+      "negative_examples": [
+        "\"낯선 사람 응대도 괜찮아요\""
+      ],
+      "ambiguous_examples": [
+        "\"사람 상대가 싫은 게 아니라 화난 사람을 상대하는 게 힘든 거예요\" — 대인 흥미 전체를 부정하지 않고 상황(감정노동 강도)만 제약으로 기록"
+      ],
+      "confirmation_question_ids": [
+        "CQ-CON-007"
+      ],
+      "related_module_ids": [],
+      "prohibited_inferences": [
+        "일부 상황(예: 감정노동)에 대한 부담을 사람 대상 업무 전체에 대한 거부로 확대하지 않는다"
+      ],
+      "source_ids": [
+        "SRC-NCS-INITIAL-INTERVIEW",
+        "SRC-WORK24-JOB-READINESS"
+      ]
+    }
+  ]
+}

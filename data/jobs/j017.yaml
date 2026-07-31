@@ -1,0 +1,28 @@
+# J017 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J017_*.yaml
+code: j017
+title: 운송·배차 보조
+description: 운송 차량 배차와 상차 일정을 조율하고, 배송 지연 등의 돌발 상황 발생 시 신속하게 대체안을 마련하는 직무입니다. 운송사 및 창고 담당자와 긴밀하게 소통하며
+  물류의 물리적 흐름을 매끄럽게 잇습니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 4
+  collaboration: 4
+  task_management: 3
+interest_profile:
+  realistic: 4
+  investigative: 2
+  artistic: 1
+  social: 3
+  enterprising: 3
+  conventional: 4
+# 공식 매핑: K000003714 화물차배차원 (docs/jobs/batch2_mapping_review.md #3)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

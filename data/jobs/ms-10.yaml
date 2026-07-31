@@ -1,0 +1,24 @@
+code: ms-10
+title: 건설·토목·조경 시공절차
+description: 도면·현장 확인 → 위험·간섭 점검 → 작업허가·자재 준비 → 기준선 표시 → 순차 시공 → 중간점검 → 시험·검사 → 보수·보양 → 인계
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 3
+  collaboration: 4
+  task_management: 4
+interest_profile:
+  realistic: 5
+  investigative: 2
+  artistic: 1
+  social: 1
+  enterprising: 2
+  conventional: 3
+# dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
+dimension_weights:
+  interest.realistic: 1.0
+  interest.conventional: 1.0
+  work_target.equipment: 0.8
+  work_target.environment: 0.8
+  work_style.field: 0.8
+  skill.tool_operation: 0.6

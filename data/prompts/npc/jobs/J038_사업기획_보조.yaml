@@ -1,0 +1,287 @@
+schema_version: npc.job-override.v1
+job:
+  job_id: J038
+  job_name: 사업기획 보조
+  family_id: F08
+  family_name: 서비스·상품기획·PM보조
+  module: 정보·판단형
+review:
+  status: researched_needs_human_review
+  generated: true
+  human_review_required: true
+prompt_contract:
+  npc_visible:
+    work_targets:
+    - 요구사항
+    - 사용자 불편
+    - 기능목록
+    - 우선순위
+    npc_roles:
+    - PM
+    - 개발자
+    - 디자이너
+    - 고객
+    outputs:
+    - 요구사항정리표
+    - 우선순위표
+    - 회의록
+    forbidden:
+    - 플레이어를 채점하거나 점수·통과 여부를 말하지 않는다.
+    - 오류의 정답·모범답안·단계별 해설을 제공하지 않는다.
+    - 업무상 필요한 지시·사실·자료·권한 범위만 전달한다.
+  coach_private:
+    success_criteria:
+    - 목적·자료·기준·결과·다음액션 포함
+    failure_patterns:
+    - 추측 진행
+    - 질문 누락
+    - 산출물 혼동
+kb_stages:
+- chunk_id: J038-S1
+  stage_id: S1
+  name: 업무요청 이해
+  goal: 요청자의 목적, 결과물, 마감, 제한조건을 확인한다.
+  rag_chunk_text: '[사업기획 보조/서비스·상품기획·PM보조/정보·판단형] 업무요청 이해: 요청자의 목적, 결과물, 마감, 제한조건을 확인한다. 업무대상은 요구사항, 사용자 불편, 기능목록, 우선순위. 주요상대/NPC는
+    PM, 개발자, 디자이너, 고객. 핵심산출물은 요구사항정리표, 우선순위표, 회의록. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 서비스·상품기획·PM보조의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J038-S2
+  stage_id: S2
+  name: 자료·현황 확인
+  goal: 업무대상 자료를 읽고 누락/불일치/위험요소를 표시한다.
+  rag_chunk_text: '[사업기획 보조/서비스·상품기획·PM보조/정보·판단형] 자료·현황 확인: 업무대상 자료를 읽고 누락/불일치/위험요소를 표시한다. 업무대상은 요구사항, 사용자 불편, 기능목록, 우선순위.
+    주요상대/NPC는 PM, 개발자, 디자이너, 고객. 핵심산출물은 요구사항정리표, 우선순위표, 회의록. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 서비스·상품기획·PM보조의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J038-S3
+  stage_id: S3
+  name: 처리·제작·응대
+  goal: 직무별 기준에 맞춰 문서/응대/작업/산출물을 만든다.
+  rag_chunk_text: '[사업기획 보조/서비스·상품기획·PM보조/정보·판단형] 처리·제작·응대: 직무별 기준에 맞춰 문서/응대/작업/산출물을 만든다. 업무대상은 요구사항, 사용자 불편, 기능목록, 우선순위.
+    주요상대/NPC는 PM, 개발자, 디자이너, 고객. 핵심산출물은 요구사항정리표, 우선순위표, 회의록. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 서비스·상품기획·PM보조의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J038-S4
+  stage_id: S4
+  name: 검수·판단
+  goal: 오류, 안전, 고객영향, 비용, 일정, 품질을 점검한다.
+  rag_chunk_text: '[사업기획 보조/서비스·상품기획·PM보조/정보·판단형] 검수·판단: 오류, 안전, 고객영향, 비용, 일정, 품질을 점검한다. 업무대상은 요구사항, 사용자 불편, 기능목록, 우선순위. 주요상대/NPC는
+    PM, 개발자, 디자이너, 고객. 핵심산출물은 요구사항정리표, 우선순위표, 회의록. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 서비스·상품기획·PM보조의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J038-S5
+  stage_id: S5
+  name: 보고·인계
+  goal: 결과, 근거, 남은 이슈, 다음 액션을 공유한다.
+  rag_chunk_text: '[사업기획 보조/서비스·상품기획·PM보조/정보·판단형] 보고·인계: 결과, 근거, 남은 이슈, 다음 액션을 공유한다. 업무대상은 요구사항, 사용자 불편, 기능목록, 우선순위. 주요상대/NPC는
+    PM, 개발자, 디자이너, 고객. 핵심산출물은 요구사항정리표, 우선순위표, 회의록. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 서비스·상품기획·PM보조의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+content_variants:
+- category: 신규사업 자료수집·가설·실행안·성과지표 정리 보조
+  module: null
+  rag_status: researched
+  workflow: 사업문제와 결정질문 확인 → 시장·내부·비용 자료 수집 → 가설과 실행대안 작성 → 근거부족·낙관가정·리스크 점검 → 전제·지표·다음검증을 보고
+  npc_visible:
+    npc_roles:
+    - role: 사업기획 팀장
+      instruction_scope: 검토범위·가정·의사결정기준 지시
+    - role: 재무·운영 담당자
+      instruction_scope: 비용·운영제약·기존실적 전달
+    - role: 파트너·고객 담당자
+      instruction_scope: 수요·협업조건·우려 전달
+    input_materials: &id001
+    - 사업목표
+    - 고객·시장자료
+    - 내부역량
+    - 비용·일정
+    - 이해관계자
+    - 성과지표
+    outputs: &id002
+    - 환경분석표
+    - 사업가설
+    - 실행 로드맵
+    - 리스크·성과지표표
+    sudden_events: &id003
+    - 출처 없는 시장규모
+    - 비용을 누락한 수익성 주장
+    - 미검증 가설을 확정사실로 보고
+    constraints:
+    - 범위·일정·비용 변경은 담당 PM 또는 승인권자에게 보고한다.
+    - 요구사항과 결정사항은 근거·담당자·기한을 남기며 임의 확정하지 않는다.
+  stages:
+  - stage_id: S1
+    name: 사업문제와 결정질문 확인
+    goal: 사업문제와 결정질문 확인
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 사업기획 팀장
+      - 재무·운영 담당자
+      - 파트너·고객 담당자
+      outputs: *id002
+      mission_candidate: 사업문제와 결정질문 확인
+    coach_private:
+      success_criteria: &id004
+      - 사실·가정 구분
+      - 출처와 기준일 명시
+      - 대안 비교기준 일치
+      - 의사결정 권한 준수
+      failure_patterns: *id003
+  - stage_id: S2
+    name: 시장·내부·비용 자료 수집
+    goal: 시장·내부·비용 자료 수집
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 사업기획 팀장
+      - 재무·운영 담당자
+      - 파트너·고객 담당자
+      outputs: *id002
+      mission_candidate: 시장·내부·비용 자료 수집
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  - stage_id: S3
+    name: 가설과 실행대안 작성
+    goal: 가설과 실행대안 작성
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 사업기획 팀장
+      - 재무·운영 담당자
+      - 파트너·고객 담당자
+      outputs: *id002
+      mission_candidate: 가설과 실행대안 작성
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  - stage_id: S4
+    name: 근거부족·낙관가정·리스크 점검
+    goal: 근거부족·낙관가정·리스크 점검
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 사업기획 팀장
+      - 재무·운영 담당자
+      - 파트너·고객 담당자
+      outputs: *id002
+      mission_candidate: 근거부족·낙관가정·리스크 점검
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  - stage_id: S5
+    name: 전제·지표·다음검증을 보고
+    goal: 전제·지표·다음검증을 보고
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 사업기획 팀장
+      - 재무·운영 담당자
+      - 파트너·고객 담당자
+      outputs: *id002
+      mission_candidate: 전제·지표·다음검증을 보고
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  missions:
+  - mission_id: null
+    situation_type: 정상업무
+    difficulty: 보통
+    npc_visible:
+      npc: 사업기획 팀장
+      request_line: 사업문제와 결정질문 확인 업무를 진행해 주세요. 검토범위·가정·의사결정기준 지시 기준을 확인하세요.
+      materials: *id001
+      user_mission: 사업문제와 결정질문 확인
+      outputs: *id002
+      sudden_event: 출처 없는 시장규모
+    coach_private:
+      required_actions:
+      - 사업문제와 결정질문 확인
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 자료·정보 누락
+    difficulty: 어려움
+    npc_visible:
+      npc: 재무·운영 담당자
+      request_line: 시장·내부·비용 자료 수집 업무를 진행해 주세요. 비용·운영제약·기존실적 전달 기준을 확인하세요.
+      materials: *id001
+      user_mission: 시장·내부·비용 자료 수집
+      outputs: *id002
+      sudden_event: 비용을 누락한 수익성 주장
+    coach_private:
+      required_actions:
+      - 시장·내부·비용 자료 수집
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 우선순위 충돌
+    difficulty: 어려움
+    npc_visible:
+      npc: 파트너·고객 담당자
+      request_line: 가설과 실행대안 작성 업무를 진행해 주세요. 수요·협업조건·우려 전달 기준을 확인하세요.
+      materials: *id001
+      user_mission: 가설과 실행대안 작성
+      outputs: *id002
+      sudden_event: 미검증 가설을 확정사실로 보고
+    coach_private:
+      required_actions:
+      - 가설과 실행대안 작성
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 오류·안전위험
+    difficulty: 어려움
+    npc_visible:
+      npc: 사업기획 팀장
+      request_line: 근거부족·낙관가정·리스크 점검 업무를 진행해 주세요. 검토범위·가정·의사결정기준 지시 기준을 확인하세요.
+      materials: *id001
+      user_mission: 근거부족·낙관가정·리스크 점검
+      outputs: *id002
+      sudden_event: 출처 없는 시장규모
+    coach_private:
+      required_actions:
+      - 근거부족·낙관가정·리스크 점검
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 보고·인계
+    difficulty: 보통
+    npc_visible:
+      npc: 재무·운영 담당자
+      request_line: 전제·지표·다음검증을 보고 업무를 진행해 주세요. 비용·운영제약·기존실적 전달 기준을 확인하세요.
+      materials: *id001
+      user_mission: 전제·지표·다음검증을 보고
+      outputs: *id002
+      sudden_event: 비용을 누락한 수익성 주장
+    coach_private:
+      required_actions:
+      - 전제·지표·다음검증을 보고
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+provenance:
+  excel:
+  - file: 입문직무_RAG_KB_v5_정리본.xlsx
+    sheet: 01_직무마스터
+    rows: job_id=J038
+  - file: 입문직무_RAG_KB_v5_정리본.xlsx
+    sheet: 02_RAG프로세스
+    rows: job_id=J038
+  - file: 팀통합_8모듈_조사자료_표준화완료.xlsx
+    sheet: 01_연결맵/02_단계별프로세스/05_상황별미션
+    rows: job_id=J038
+  research_sources:
+  - source_id: NCS-PROJECT
+    title: 프로젝트 통합·일정·리스크·의사소통관리 능력단위
+    url: https://ncs.go.kr/blind/bl04/JdsptList.do
+    publisher: 한국산업인력공단 NCS 공정채용
+  - source_id: NCS-MARKETING
+    title: PR·광고·마케팅전략기획 요구능력단위 사례
+    url: https://www.ncs.go.kr/blind/bl04/RecrtNotifDetail.do?recrtNo=20260123111231
+    publisher: 한국산업인력공단 NCS 공정채용

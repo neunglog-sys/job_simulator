@@ -1,0 +1,55 @@
+name: Backend CI
+
+# PR/push마다 실제 컨테이너 스택(로컬 DB 프로필)을 띄워 ruff + pytest를 돌린다.
+# 시연용 .env가 없어도 LLM/임베딩은 자동으로 mock 프로바이더 폴백되므로 시크릿 불필요.
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 로컬 DB 프로필로 스택 기동 (db + redis + api)
+        working-directory: infra
+        run: docker compose --profile localdb up -d --build db redis api
+
+      - name: API 헬스체크 대기 (마이그레이션 + 시드 완료까지)
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8000/health > /dev/null; then
+              echo "API ready"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "API가 제한 시간 내에 기동하지 않음"
+          docker compose -f infra/docker-compose.yml -f infra/docker-compose.override.yml logs api
+          exit 1
+
+      - name: 린트 (ruff)
+        working-directory: infra
+        run: docker compose exec -T api ruff check app tests
+
+      - name: 백엔드 테스트
+        working-directory: infra
+        run: docker compose exec -T api python -m pytest tests/backend -q
+
+      - name: 실패 시 로그 덤프
+        if: failure()
+        working-directory: infra
+        run: docker compose logs
+
+      - name: 컨테이너 정리
+        if: always()
+        working-directory: infra
+        run: docker compose down -v

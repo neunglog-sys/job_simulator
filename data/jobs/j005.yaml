@@ -1,0 +1,34 @@
+# J005 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J005_*.yaml
+code: j005
+title: 비품·자산관리 보조
+description: 사내 비품의 재고를 파악하고 자산의 구매, 등록, 폐기 과정을 실무적으로 보조하는 직무입니다. 자산 목록과 실제 수량을 철저히 대조하고, 필요한 부서에 적시에
+  자원이 배정될 수 있도록 현장 중심의 지원을 제공합니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 2
+  communication: 3
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 4
+  investigative: 2
+  artistic: 1
+  social: 3
+  enterprising: 2
+  conventional: 5
+# 공식 매핑: K000007517 총무사무원 (docs/jobs/batch1_mapping_candidates.md)
+education_requirement:
+  value: "고졸 이상(소규모·중소기업), 관련분야 대졸 이상(대기업) — 사업체 규모에 따라 상이"
+  source_field: needKnwgCn
+  evidence_type: descriptive_text
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics:
+    median_annual_krw: 52500000
+    statistic_type: median
+    population: "재직자 약 30명 설문조사"
+    reference_year: 2025
+certifications:
+  - name: "ERP정보관리사《물류/생산/인사/회계》(국가공인 민간)"
+    tier: related
+status: provisional

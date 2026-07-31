@@ -1,0 +1,910 @@
+/* place 엔진 — 조각 카트 → 슬롯 배치. 공용 셸(HUD·결과)은 minigame.module.css 를 쓰고
+   여기엔 배치판·카트·얼룩·버튼만 둔다. 스프라이트 아트 전까지 라벨 마커 규약(spot과 동일).
+   맵 모드는 아래 "맵 모드" 구역 — 배치도 위 절대좌표 슬롯 + 2줄 트레이. 배경은 두 갈래:
+   유도 SVG 배치도(ms-03 회의실)와 도트 씬 아트(.mapSceneArt — scene 파일이 있는 hr-01·cln-01).
+   글자 대비는 어두운 바탕 기준 4.5:1 이상을 목표로 잡는다(흰 글자 알파 0.7 미만 금지). */
+
+/* ── 얼룩 정비 줄 — 씬 아트 맵이 아닐 때의 얼룩 UI (cln-01 목록 폴백·미래 stains 게임).
+   씬 아트 맵에선 얼룩이 .mapStain 오버레이로 침대 위에 직접 올라간다. ── */
+.stainRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.2));
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.05);
+}
+
+.stain {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+  padding: 9px 11px;
+  border: 1px dashed rgb(255 170 130 / 0.6);
+  border-radius: 10px;
+  background: rgb(190 90 50 / 0.16);
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.stain:hover {
+  background: rgb(190 90 50 / 0.28);
+}
+
+.stain[data-resolved="true"] {
+  border-style: solid;
+  border-color: rgb(120 240 200 / 0.6);
+  background: rgb(30 160 130 / 0.24);
+  cursor: default;
+}
+
+.stainName {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.stainBar {
+  position: relative;
+  height: 5px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.18);
+  overflow: hidden;
+}
+
+.stainBarFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffd76e, #5adcb4);
+  transition: width 160ms ease;
+}
+
+.stainHint {
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffd76e;
+}
+
+.stainDone {
+  font-size: 10px;
+  font-weight: 900;
+  color: #5adcb4;
+}
+
+/* ── 배치판 ── */
+.board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.2));
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 22% 18%, rgb(255 255 255 / 0.06), transparent 42%),
+    linear-gradient(160deg, rgb(38 44 66 / 0.96), rgb(24 27 44 / 0.98));
+}
+
+.slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-height: 92px;
+  padding: 10px 11px;
+  border: 1px dashed rgb(255 255 255 / 0.32);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.05);
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.slot:hover {
+  background: rgb(255 255 255 / 0.11);
+}
+
+.slot:disabled {
+  cursor: default;
+}
+
+.slot[data-filled="true"] {
+  border-style: solid;
+  border-color: rgb(255 255 255 / 0.45);
+}
+
+/* fit:any — 정답 구간이 비었거나 틀린 조각이면 계속 새는 표시 */
+.slot[data-leak="true"] {
+  border-color: rgb(255 130 150 / 0.8);
+  background: rgb(190 50 80 / 0.16);
+}
+
+.slot[data-verdict="ok"],
+.mapSlot[data-verdict="ok"] {
+  border-style: solid;
+  border-color: rgb(120 240 200 / 0.7);
+  background: rgb(30 160 130 / 0.22);
+}
+
+.slot[data-verdict="bad"],
+.mapSlot[data-verdict="bad"] {
+  border-style: solid;
+  border-color: rgb(255 130 150 / 0.7);
+  background: rgb(190 50 80 / 0.22);
+}
+
+.mapSlot[data-verdict="ok"] {
+  background: rgb(20 74 60 / 0.88);
+}
+
+.mapSlot[data-verdict="bad"] {
+  background: rgb(84 26 42 / 0.88);
+}
+
+/* 좌석 색 명패(ms-03) 등 슬롯 단서 */
+.marker {
+  padding: 1px 8px;
+  border: 1px solid rgb(255 215 110 / 0.6);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #ffd76e;
+  background: rgb(255 215 110 / 0.12);
+}
+
+.slotTitle {
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.35;
+  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.74));
+}
+
+.placedPiece {
+  padding: 3px 9px;
+  border: 1px solid rgb(255 255 255 / 0.35);
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  background: rgb(255 255 255 / 0.12);
+}
+
+.emptyMark {
+  font-size: 10px;
+  font-weight: 700;
+  /* 0.4 → 0.72: 흰 40% 는 배치판 바탕에서 약 3.3:1 로 4.5:1 미달이었다 */
+  color: rgb(255 255 255 / 0.72);
+}
+
+.leakBadge {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  color: #2a0f16;
+  background: #ff8fa3;
+  animation: leakPulse 1.1s ease-in-out infinite;
+}
+
+.pluggedBadge {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  color: #06231d;
+  background: #5adcb4;
+}
+
+@keyframes leakPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* 채점 후 ✓/✕ */
+.slotMark {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 900;
+  color: #fff;
+  background: #d1365f;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+}
+
+.slotMark[data-ok="true"] {
+  background: #17a67f;
+}
+
+/* ── 조각 카트 ── */
+.cart {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 54px;
+  padding: 10px 12px;
+  border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.2));
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.05);
+}
+
+.piece {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 11px;
+  border: 1px solid rgb(255 255 255 / 0.28);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.09);
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 140ms var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1)), background-color 140ms ease;
+}
+
+.piece:hover {
+  background: rgb(255 255 255 / 0.16);
+  transform: translateY(-1px);
+}
+
+.piece:disabled {
+  cursor: default;
+}
+
+.piece[data-selected="true"] {
+  border-color: var(--scenario-accent, #8a63ee);
+  background: rgb(138 99 238 / 0.28);
+  box-shadow: 0 0 0 3px var(--scenario-accent-soft, rgb(193 126 255 / 0.24));
+}
+
+.pieceName {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.pieceCue {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.74));
+}
+
+.cartEmpty {
+  font-size: 11px;
+  font-weight: 700;
+  /* 0.45 → 0.72: 대비 4.5:1 확보(가시성 전수 점검) */
+  color: rgb(255 255 255 / 0.72);
+}
+
+/* ── 맵 모드 (ms-03 회의실 배치도 · cln-01·hr-01 씬 아트) ──
+   보드는 논리 캔버스 960×440 비율 고정. 모달 폭을 꽉 채워(가로 100%) 씬 전체가
+   잘림 없이 보이고, 세로로 길어지면 모달의 전역 스크롤(.missionGameScroll)이 받는다.
+   슬롯은 at 좌표를 % 로 환산해 절대배치한다.
+
+   flex: 0 0 auto 가 핵심 — .mapWrap 은 .shell(flex 세로) 안의 아이템이고, 자식 .mapBoard
+   는 aspect-ratio 로만 높이가 서고 그 안이 전부 절대배치(슬롯·씬 이미지)라 고유
+   min-height 가 0 이다. 기본 flex-shrink:1 이면 모달 높이가 빠듯할 때 이 보드가 0 까지
+   찌그러지고, overflow-x:auto 가 세로축까지 스크롤 컨테이너로 만들어 씬이 얇은 띠로만
+   보이던 것이 "화면이 작다"의 원인이었다. shrink 를 끄면 보드가 원래 높이를 지키고,
+   넘치는 세로는 shell 이 아니라 전역 스크롤이 처리한다. */
+.mapWrap {
+  flex: 0 0 auto;
+  overflow-x: auto;
+  border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.2));
+  border-radius: 14px;
+  background: linear-gradient(160deg, rgb(38 44 66 / 0.96), rgb(24 27 44 / 0.98));
+}
+
+.mapBoard {
+  position: relative;
+  width: 100%;
+  min-width: 560px;
+  aspect-ratio: 960 / 440;
+}
+
+.mapScene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 13px;
+}
+
+/* ── 씬 아트 배경 (scene + at — hr-01 면접실 배치도, cln-01 805호 객실) ──
+   RouteGame 의 map 배경 패턴: public/assets/minigames/<scene>.svg 도트 씬을
+   캔버스에 꽉 채우고 확대가 뭉개지지 않게 pixelated. 파일이 없으면 이 모드
+   자체가 열리지 않아 기존 목록 렌더로 폴백된다(엔진 쪽 로드 게이트). */
+.mapSceneArt {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 13px;
+  image-rendering: pixelated;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+:global([data-cartoon-background="true"]) .board,
+:global([data-cartoon-background="true"]) .mapBoard {
+  background-image:
+    linear-gradient(rgb(8 12 26 / 0.06), rgb(8 12 26 / 0.12)),
+    var(--minigame-background-image);
+  background-position: center, center;
+  background-size: 100% 100%, contain;
+  background-repeat: no-repeat, no-repeat;
+}
+
+:global([data-cartoon-background="true"]) .board {
+  aspect-ratio: 24 / 11;
+  align-content: center;
+}
+
+:global([data-cartoon-background="true"]) .mapSceneArt,
+:global([data-cartoon-background="true"]) .mapScene {
+  display: none;
+}
+
+/* 생성형 카툰 배경은 픽셀 확대를 적용하지 않는다. 기존 확장자 없는 SVG 씬은 종전대로
+   pixelated 렌더링을 유지한다. */
+.mapSceneArt[data-smooth="true"] {
+  image-rendering: auto;
+}
+
+/* 아트 위 거치대 슬롯은 컴팩트 드롭 패드 — 배치도의 가구가 이미 자리를 설명하고,
+   이웃 슬롯이 논리 50px 간격(hr-01 평가표·이력서 쌍)이라 폭을 그 아래로 줄여
+   서로 겹치지 않게 한다. 좁은 보드에선 min-width 로 탭 목표를 지킨다. */
+.mapBoard[data-art="true"] .mapSlot[data-kind="dock"] {
+  width: 4.8%;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 2px 3px;
+  gap: 2px;
+  border-radius: 7px;
+}
+
+/* 패드 폭보다 큰 도트 조각은 패드에 맞춰 축소(비율 유지 — height:auto 는 인라인) */
+.mapBoard[data-art="true"] .mapSlot img {
+  max-width: 100%;
+}
+
+/* 빈 패드 표시 — '여기에 놓는다'만 알리는 + 글리프(자리 설명은 아트·툴팁·aria가 한다) */
+.mapEmptyPad {
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  color: rgb(255 255 255 / 0.78);
+}
+
+.mapSlot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 5px 7px;
+  border: 1.5px dashed rgb(255 255 255 / 0.5);
+  border-radius: 10px;
+  background: rgb(13 17 34 / 0.66);
+  color: #fff;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.mapSlot[data-kind="seat"] {
+  width: 15.5%;
+  min-height: 56px;
+}
+
+.mapSlot[data-kind="dock"] {
+  width: 10.5%;
+  min-height: 38px;
+  border-radius: 8px;
+}
+
+.mapSlot:not(:disabled):hover {
+  background: rgb(46 53 88 / 0.88);
+}
+
+.mapSlot:disabled {
+  cursor: default;
+}
+
+.mapSlot[data-filled="true"] {
+  border-style: solid;
+  border-color: rgb(255 255 255 / 0.6);
+  background: rgb(24 30 56 / 0.9);
+}
+
+/* 드래그 중 포인터가 올라간 슬롯 — 드롭 대상 하이라이트 */
+.mapSlot[data-drop="true"] {
+  border-style: solid;
+  border-color: var(--scenario-accent, #8a63ee);
+  background: rgb(138 99 238 / 0.4);
+  box-shadow: 0 0 0 3px var(--scenario-accent-soft, rgb(193 126 255 / 0.32));
+}
+
+/* 좌석 명패 — 도트 아트가 있으면 스프라이트, 없으면 색 칩 폴백(currentColor) */
+.seatMarkerWrap {
+  display: block;
+  max-width: 100%;
+}
+
+.seatMarker {
+  display: block;
+  max-width: 100%;
+  padding: 1px 7px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  background: rgb(9 12 26 / 0.72);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 배치된 사람 — 배지색 아이콘(currentColor) + 흰 이름(4.5:1 확보) */
+.occupant {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.occupantName {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dockItem {
+  display: block;
+  max-width: 100%;
+}
+
+/* 거치대에 놓인 자료의 라벨 폴백 칩 — 테두리·글자는 배지색(currentColor) */
+.dockPiece {
+  display: block;
+  max-width: 100%;
+  padding: 2px 6px;
+  border: 1px solid currentColor;
+  border-radius: 7px;
+  font-size: 9.5px;
+  font-weight: 800;
+  background: rgb(9 12 26 / 0.6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapEmpty {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgb(255 255 255 / 0.74);
+}
+
+/* ── 씬 아트 얼룩 오버레이 (cln-01 침대 시트) ──
+   at 좌표(논리 960×440)를 % 환산해 씬 위에 겹친다. 행 UI(.stain)와 같은 주황 점선
+   어휘로 '정비 대상'임을 알리고, 문지르기 진행도는 .stainBar 를 그대로 재사용한다.
+   stains 없는 게임(ms-03·hr-01)은 이 클래스가 아예 렌더되지 않는다. */
+.mapStain {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 2px;
+  width: 5.2%;
+  min-width: 32px;
+  min-height: 30px;
+  padding: 2px;
+  border: 1.5px dashed rgb(255 170 130 / 0.75);
+  border-radius: 7px;
+  background: rgb(190 90 50 / 0.14);
+  color: #fff;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.mapStain:not(:disabled):hover {
+  background: rgb(190 90 50 / 0.3);
+}
+
+.mapStain:disabled {
+  cursor: default;
+}
+
+/* 드래그 중 포인터가 올라간 얼룩 — 슬롯과 같은 드롭 하이라이트 어휘 */
+.mapStain[data-drop="true"] {
+  border-style: solid;
+  border-color: var(--scenario-accent, #8a63ee);
+  background: rgb(138 99 238 / 0.4);
+  box-shadow: 0 0 0 3px var(--scenario-accent-soft, rgb(193 126 255 / 0.32));
+}
+
+.mapStain[data-resolved="true"] {
+  border-style: solid;
+  border-color: rgb(120 240 200 / 0.6);
+  background: rgb(30 160 130 / 0.2);
+}
+
+/* 얼룩 도트 — 문지른 만큼 옅어진다(인라인 opacity). 패드 폭에 맞춰 축소 */
+.mapStainArt {
+  display: block;
+  margin: 0 auto;
+  transition: opacity 140ms ease;
+}
+
+.mapStain img {
+  max-width: 100%;
+}
+
+/* 스프라이트 파일이 없을 때의 라벨 칩 폴백(PixelSprite 규약) */
+.mapStainName {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 800;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 문지르기 피드백 말풍선 — '지워지지 않는다 → 교체'를 발견하게 하는 핵심 단서라
+   얼룩 아래에 띄우고 이웃 슬롯 위로 올린다(pointer-events 없음 — 드롭 판정 불간섭) */
+.mapStainHint {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  width: max-content;
+  max-width: 190px;
+  padding: 3px 8px;
+  border: 1px solid rgb(255 215 110 / 0.5);
+  border-radius: 8px;
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  color: #ffd76e;
+  background: rgb(13 17 34 / 0.92);
+  pointer-events: none;
+}
+
+.mapStainDone {
+  margin: 0 auto;
+  font-size: 12px;
+  font-weight: 900;
+  color: #5adcb4;
+}
+
+/* ── 맵 모드 트레이 — 위 줄 참석자, 아래 줄 자료·소품 ── */
+.tray {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--scenario-glass-border, rgb(255 255 255 / 0.2));
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.05);
+}
+
+.trayRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.trayLabel {
+  flex: 0 0 60px;
+  padding-top: 12px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.78));
+}
+
+.trayItems {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.trayHint {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--scenario-reading-muted, rgb(241 234 255 / 0.78));
+}
+
+/* 드래그 가능한 조각 — 터치 스크롤 대신 드래그를 받도록 touch-action 차단 */
+.trayPiece {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: grab;
+}
+
+.trayPiece:active {
+  cursor: grabbing;
+}
+
+.trayPiece[data-dragging="true"] {
+  opacity: 0.45;
+}
+
+.personPiece {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.personBody {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.personName {
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+}
+
+/* 드래그 고스트 — body 포털, 포인터를 따라다니는 미리보기 */
+.dragGhost {
+  position: fixed;
+  z-index: 90;
+  transform: translate(-50%, -110%);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  border: 1px solid var(--scenario-accent, #8a63ee);
+  border-radius: 10px;
+  background: rgb(34 39 65 / 0.96);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: 0 10px 26px rgb(0 0 0 / 0.45);
+}
+
+/* ── 하단 버튼 ── */
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.escalateButton {
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid rgb(255 200 120 / 0.55);
+  border-radius: 14px;
+  color: #ffd76e;
+  background: rgb(190 130 40 / 0.2);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.escalateButton:hover {
+  background: rgb(190 130 40 / 0.32);
+}
+
+.escalateButton[data-on="true"] {
+  border-color: rgb(120 240 200 / 0.6);
+  color: #b8f5e3;
+  background: rgb(30 160 130 / 0.32);
+}
+
+.submitButton {
+  min-height: 44px;
+  padding: 0 26px;
+  border: 1px solid rgb(255 255 255 / 0.22);
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--scenario-accent, #8a63ee), var(--scenario-accent-2, #ef71bc));
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.submitButton:active {
+  transform: translateY(1px);
+}
+
+/* 키보드 접근 — 포커스 링 */
+.slot:focus-visible,
+.mapSlot:focus-visible,
+.mapStain:focus-visible,
+.piece:focus-visible,
+.stain:focus-visible,
+.escalateButton:focus-visible,
+.submitButton:focus-visible {
+  outline: 2px solid var(--scenario-accent, #8a63ee);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leakBadge {
+    animation: none;
+  }
+  .slot,
+  .mapSlot,
+  .mapStain,
+  .mapStainArt,
+  .piece,
+  .stain,
+  .stainBarFill,
+  .escalateButton {
+    transition: none;
+  }
+  .piece:hover {
+    transform: none;
+  }
+}
+
+/* ── 2026 visual pass: 공간 배치·작업대 ── */
+.board,
+.mapBoard {
+  border-radius: 18px;
+  border-color: color-mix(in srgb, var(--scenario-accent) 32%, rgb(255 255 255 / 0.2));
+  background:
+    radial-gradient(circle at 50% 0%, var(--scenario-accent-soft), transparent 42%),
+    linear-gradient(155deg, #12172d, #181125);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), inset 0 -35px 65px rgb(0 0 0 / 0.22), 0 15px 34px rgb(0 0 0 / 0.24);
+}
+.mapSceneArt { filter: saturate(0.92) contrast(1.04) drop-shadow(0 12px 26px rgb(0 0 0 / 0.18)); }
+.cart,
+.tray,
+.footer { border-color: rgb(255 255 255 / 0.15); background: linear-gradient(130deg, rgb(255 255 255 / 0.09), rgb(8 10 28 / 0.5)); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07); }
+.piece,
+.trayPiece,
+.dockPiece,
+.personPiece {
+  border-color: rgb(255 255 255 / 0.2);
+  background: linear-gradient(145deg, rgb(255 255 255 / 0.13), rgb(15 16 38 / 0.82));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1), 0 9px 20px rgb(0 0 0 / 0.2);
+}
+.piece:hover,
+.trayPiece:hover,
+.dockPiece:hover { border-color: var(--scenario-accent-2); box-shadow: 0 12px 24px rgb(0 0 0 / 0.26), 0 0 20px var(--scenario-accent-soft); }
+.slot,
+.mapSlot { border-color: color-mix(in srgb, var(--scenario-accent) 45%, rgb(255 255 255 / 0.2)); background: var(--scenario-accent-soft); box-shadow: inset 0 0 18px rgb(0 0 0 / 0.12); }
+.placedPiece,
+.occupant { filter: drop-shadow(0 8px 14px rgb(0 0 0 / 0.28)); }
+.submitButton,
+.escalateButton { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 10px 24px var(--scenario-accent-soft); }
+
+/* Cartoon surface pass: map art, people, and draggable item art stay unchanged. */
+.board,
+.mapBoard {
+  border: 3px solid var(--cartoon-ink);
+  border-radius: 18px;
+  background: #334363;
+  box-shadow: 0 5px 0 var(--cartoon-ink), inset 0 2px 0 rgb(255 255 255 / 0.12);
+}
+
+/* stn-05 fit:any 퍼널 — 파이프 소켓 위에 충분한 드롭 영역을 만들고 근거 카드는
+   소켓 위로 띄운다. 배경·근거·막개는 서로 다른 레이어라 판정과 아트를 독립 유지한다. */
+.mapBoard[data-fit-any="true"] .mapSlot[data-kind="dock"] {
+  width: 8.5%;
+  min-width: 54px;
+  min-height: 54px;
+  padding: 5px;
+  border-radius: 50%;
+  background: rgb(7 13 33 / 0.72);
+}
+
+.mapBoard[data-fit-any="true"] .seatMarkerWrap {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px;
+  border: 2px solid var(--cartoon-ink, #20243a);
+  border-radius: 9px;
+  background: #fff2d6;
+  box-shadow: 0 3px 0 var(--cartoon-ink, #20243a);
+}
+
+.mapBoard[data-fit-any="true"] .mapSlot[data-leak="true"] {
+  border-color: #ff6f61;
+  background: rgb(96 12 25 / 0.62);
+  box-shadow: inset 0 0 0 2px var(--cartoon-ink, #20243a), 0 0 22px rgb(255 76 76 / 0.52);
+}
+
+.mapBoard[data-fit-any="true"] .mapSlot[data-plugged="true"] {
+  border-style: solid;
+  border-color: #5bd7d0;
+  background: rgb(11 78 78 / 0.9);
+  box-shadow: inset 0 0 0 2px var(--cartoon-ink, #20243a), 0 0 22px rgb(91 215 208 / 0.52);
+}
+
+.mapBoard[data-fit-any="true"] .leakBadge,
+.mapBoard[data-fit-any="true"] .pluggedBadge {
+  top: calc(100% + 7px);
+  right: 50%;
+  transform: translateX(50%);
+  width: max-content;
+}
+.mapSceneArt { filter: none; }
+.cart,
+.tray,
+.footer,
+.stain {
+  border: 2px solid var(--cartoon-ink);
+  background: #fff2d6;
+  color: var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+.piece,
+.trayPiece,
+.dockPiece,
+.personPiece {
+  border: 2px solid var(--cartoon-ink);
+  background: #fff2d6;
+  color: var(--cartoon-ink);
+  box-shadow: 0 4px 0 var(--cartoon-ink);
+}
+.piece:hover,
+.trayPiece:hover,
+.dockPiece:hover { border-color: var(--cartoon-ink); background: #ffffff; box-shadow: 0 6px 0 var(--cartoon-ink); }
+.slot,
+.mapSlot { border: 3px dashed var(--cartoon-aqua); background: rgb(91 215 208 / 0.16); box-shadow: inset 0 0 0 2px var(--cartoon-ink); }
+.placedPiece,
+.occupant { filter: none; }
+.submitButton,
+.escalateButton { border: 2px solid var(--cartoon-ink); box-shadow: 0 4px 0 var(--cartoon-ink); }
+
+/* Cartoon contrast pass: tray/card copy and controls on cream paper. */
+.stainHint,
+.pieceCue,
+.cartEmpty,
+.trayLabel,
+.trayHint,
+.personName {
+  color: var(--cartoon-ink);
+}
+.submitButton,
+.escalateButton {
+  color: var(--cartoon-ink);
+  background: var(--cartoon-gold);
+}
+.escalateButton[data-on="true"] {
+  border-color: var(--cartoon-ink);
+  color: var(--cartoon-ink);
+  background: var(--cartoon-mint);
+}

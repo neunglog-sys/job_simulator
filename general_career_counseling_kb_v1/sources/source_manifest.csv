@@ -1,0 +1,13 @@
+﻿source_id,title,organization,url,type,used_for,stability,review_cycle_days
+NCS_FAIR_HIRING,NCS 공정채용 소개,한국산업인력공단 NCS,https://www.ncs.go.kr/blind/bl01/RH-102-001-01.scdo,official,"직무능력 중심 서류·면접, 직무 관련 교육·훈련·자격·경험 중심 작성, 차별 요소 제외",slow-changing,180
+NCS_DEFINITION,NCS 국가직무능력표준 소개,한국산업인력공단 NCS,https://ncs.go.kr/mobile/rm01/TH10200101.do,official,직무 수행에 필요한 지식·기술·태도(KSA) 기준,slow-changing,180
+WORK24,고용24,고용노동부·한국고용정보원,https://www.work24.go.kr/,official,"최신 채용정보, 직업심리검사, 이력서·자소서 작성가이드의 실시간 확인 경로",dynamic,7
+CAREERNET,커리어넷 직업정보,교육부·한국직업능력연구원,https://www.career.go.kr/,official,"직업의 하는 일, 준비방법, 적성·흥미, 필요 능력과 업무환경 확인 경로",slow-changing,90
+QNET,Q-Net 자격의 모든 것,한국산업인력공단,https://www.q-net.or.kr/,official,"자격 시험 일정, 응시자격, 응시자격 자가진단의 최신 확인 경로",dynamic,7
+MIT_RESUME,Career toolkit: Crafting an effective resume,MIT Career Advising & Professional Development,https://capd.mit.edu/resources/career-toolkit-crafting-an-effective-resume/,university-career-center,"PAR(Project–Action–Result) 문장, 행동 동사, 성과 정량화, 프로젝트·봉사·개인 경험 활용",stable,365
+MIT_RESUME_CHECKLIST,Resume checklist and worksheet,MIT Career Advising & Professional Development,https://capd.mit.edu/resources/resume-checklist/,university-career-center,이력서 경험·기술·활동 항목 체크리스트,stable,365
+MIT_STAR,Using the STAR method for your next behavioral interview,MIT Career Advising & Professional Development,https://capd.mit.edu/resources/the-star-method-for-behavioral-interviews/,university-career-center,STAR 답변 구성과 Action 중심 시간 배분,stable,365
+YALE_BEHAVIORAL,Preparing for the Behavioral Interview,Yale Office of Career Strategy,https://ocs.yale.edu/stem-ppg-module-6-behavioral-interview-with-star/,university-career-center,"간결한 경험 이야기, 스토리 뱅크, 녹화·모의면접 연습",stable,365
+CAREERONESTOP_PORTFOLIO,Portfolios,"CareerOneStop, U.S. Department of Labor",https://www.careeronestop.org/JobSearch/Resumes/portfolios.aspx,government-career-service,"포트폴리오 목적, 대표 작업 선택, 프로젝트 설명·기여·결과, 디지털 포트폴리오 점검",stable,365
+CAREERONESTOP_JOB_SEARCH,Job Search,"CareerOneStop, U.S. Department of Labor",https://www.careeronestop.org/JobSearch/job-search.aspx,government-career-service,취업 준비를 계획·자료준비·기업조사·네트워킹·지원·면접으로 구조화,stable,365
+NCS_GAP,Explain a gap in employment,UK National Careers Service,https://nationalcareers.service.gov.uk/careers-advice/explain-gaps-in-work-history/,government-career-service,"공백기를 솔직하고 간결하게 설명하고, 학습·이전가능역량·복귀 준비에 초점을 두는 원칙",stable,365

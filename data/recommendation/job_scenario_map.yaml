@@ -1,0 +1,42 @@
+# 추천 F 직무군 → 체험 시나리오 (F 개편 2026-07-27, 수동 관리)
+# ⚠️ AUTO-GENERATED 마커를 다시 붙이지 말 것 — map_jobs_to_scenarios 재실행이
+#    J 기반 매핑으로 덮어쓰는 것을 이 마커 부재가 막는다(_write_protected 규약).
+# f37은 null = 체험 미연결 확정(버튼 비활성). 로더가 null을 걸러 후보 선정과 분리된다.
+f01: ms-03
+f02: ms-02
+f03: gm-01
+f04: ms-04
+f05: hr-01
+f06: stn-01
+f07: sns-01
+f08: stn-05
+f09: stn-03
+f10: kts-04
+f11: kts-03
+f12: kts-05
+f13: kts-02
+f14: yg-01
+f16: yg-03
+f17: yg-04
+f18: wh-01
+f19: ms-09
+f20: ms-07
+f21: cln-01
+f22: ys-09
+f23: ys-03
+f24: jm-01
+f25: jm-03
+f26: jm-04
+f27: ms-06
+f28: ms-08
+f29: ms-10
+f30: stn-04
+f31: yg-02
+f32: ys-01
+f33: ys-02
+f34: kts-01
+f35: ys-04
+f36: ys-05
+f37: null
+f38: jm-02
+f39: jm-05

@@ -1,0 +1,25 @@
+code: jm-03
+title: 항공 운항·관제 대응
+description: 운항브리핑(기상·NOTAM·연료) → 신체·음주 적합성 확인 → 외부점검(워크어라운드)·콕핏 셋업 → 관제허가 수신·푸시백·택싱 → 이륙브리핑·이륙 → 순항·관제교신
+  모니터링 → 접근·착륙 → 디브리핑·비행일지 기록
+competencies:
+  situation_judgment: 5
+  problem_solving: 5
+  communication: 4
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 4
+  investigative: 4
+  artistic: 1
+  social: 1
+  enterprising: 2
+  conventional: 5
+# dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
+dimension_weights:
+  interest.enterprising: 1.0
+  work_target.environment: 0.8
+  work_style.field: 0.8
+  work_style.time_pressure: 0.8
+  skill.risk_detection: 0.6
+  skill.priority_judgment: 0.6

@@ -1,0 +1,170 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(31, 24, 67, 0.38);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.dialog {
+  position: relative;
+  width: min(420px, 100%);
+  padding: 32px;
+  overflow: hidden;
+  color: #2e2358;
+  text-align: center;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.97), rgba(250, 245, 255, 0.94)),
+    #fff;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 24px;
+  box-shadow:
+    0 24px 70px rgba(31, 19, 75, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.dialog::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  content: "";
+  background: linear-gradient(90deg, #58d5d0, #8b68e9 55%, #dc72bd);
+}
+
+.closeButton {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: #756a96;
+  cursor: pointer;
+  background: #f3effb;
+  border: 0;
+  border-radius: 50%;
+  place-items: center;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.closeButton:hover {
+  color: #3b2e67;
+  background: #eae3f7;
+}
+
+.closeButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+.icon {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 18px;
+  color: #fff;
+  background: linear-gradient(135deg, #55cec9, #8d6de8 58%, #d966b7);
+  border-radius: 18px;
+  box-shadow: 0 10px 24px rgba(125, 88, 210, 0.25);
+  place-items: center;
+}
+
+.icon svg {
+  width: 27px;
+  height: 27px;
+}
+
+.copy h2 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.35;
+  letter-spacing: -0.03em;
+}
+
+.copy p {
+  margin: 9px 0 0;
+  color: #786e98;
+  font-size: 14px;
+  line-height: 1.6;
+  letter-spacing: -0.02em;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 26px;
+}
+
+.actions button {
+  min-height: 48px;
+  padding: 0 18px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 14px;
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.actions button:hover {
+  transform: translateY(-1px);
+}
+
+.actions button:active {
+  transform: translateY(0);
+}
+
+.cancelButton {
+  color: #5d527e;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #ded6ed;
+}
+
+.cancelButton:hover {
+  border-color: #bcaee0;
+}
+
+.confirmButton {
+  color: #fff;
+  background: linear-gradient(100deg, #7653dd, #cb5db4);
+  border: 1px solid transparent;
+  box-shadow: 0 10px 22px rgba(129, 77, 201, 0.22);
+}
+
+.confirmButton:hover {
+  box-shadow: 0 12px 26px rgba(129, 77, 201, 0.3);
+}
+
+.closeButton:focus-visible,
+.actions button:focus-visible {
+  outline: 3px solid rgba(112, 83, 216, 0.3);
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .backdrop {
+    padding: 16px;
+  }
+
+  .dialog {
+    padding: 28px 22px 22px;
+    border-radius: 20px;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .backdrop {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .dialog {
+    background: #fbf8ff;
+  }
+}

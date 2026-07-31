@@ -1,0 +1,17 @@
+# F09 데이터·CRM·매출분석 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f09
+title: 데이터·CRM·매출분석
+description: 데이터를 모아 가공·분석하고 지표와 리포트로 의사결정을 돕는 분야입니다. 숫자 속 원인을 끝까지 파헤치고 정확하게 검증하는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 5
+  communication: 3
+  collaboration: 2
+  task_management: 4
+interest_profile:
+  realistic: 1
+  investigative: 5
+  artistic: 1
+  social: 1
+  enterprising: 2
+  conventional: 4

@@ -1,0 +1,281 @@
+schema_version: npc.job-override.v1
+job:
+  job_id: J042
+  job_name: 데이터 라벨링 관리
+  family_id: F09
+  family_name: 데이터·CRM·매출분석
+  module: 정보·판단형
+review:
+  status: researched_needs_human_review
+  generated: true
+  human_review_required: true
+prompt_contract:
+  npc_visible:
+    work_targets:
+    - 매출표
+    - 고객데이터
+    - 캠페인 결과
+    - 대시보드
+    npc_roles:
+    - 마케팅팀장
+    - 영업팀
+    - 데이터담당
+    outputs:
+    - 분석요약표
+    - 인사이트 메모
+    - 리포트
+    forbidden:
+    - 플레이어를 채점하거나 점수·통과 여부를 말하지 않는다.
+    - 오류의 정답·모범답안·단계별 해설을 제공하지 않는다.
+    - 업무상 필요한 지시·사실·자료·권한 범위만 전달한다.
+  coach_private:
+    success_criteria:
+    - 목적·자료·기준·결과·다음액션 포함
+    failure_patterns:
+    - 추측 진행
+    - 질문 누락
+    - 산출물 혼동
+kb_stages:
+- chunk_id: J042-S1
+  stage_id: S1
+  name: 업무요청 이해
+  goal: 요청자의 목적, 결과물, 마감, 제한조건을 확인한다.
+  rag_chunk_text: '[데이터 라벨링 관리/데이터·CRM·매출분석/정보·판단형] 업무요청 이해: 요청자의 목적, 결과물, 마감, 제한조건을 확인한다. 업무대상은 매출표, 고객데이터, 캠페인 결과, 대시보드.
+    주요상대/NPC는 마케팅팀장, 영업팀, 데이터담당. 핵심산출물은 분석요약표, 인사이트 메모, 리포트. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 데이터·CRM·매출분석의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J042-S2
+  stage_id: S2
+  name: 자료·현황 확인
+  goal: 업무대상 자료를 읽고 누락/불일치/위험요소를 표시한다.
+  rag_chunk_text: '[데이터 라벨링 관리/데이터·CRM·매출분석/정보·판단형] 자료·현황 확인: 업무대상 자료를 읽고 누락/불일치/위험요소를 표시한다. 업무대상은 매출표, 고객데이터, 캠페인 결과, 대시보드.
+    주요상대/NPC는 마케팅팀장, 영업팀, 데이터담당. 핵심산출물은 분석요약표, 인사이트 메모, 리포트. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 데이터·CRM·매출분석의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J042-S3
+  stage_id: S3
+  name: 처리·제작·응대
+  goal: 직무별 기준에 맞춰 문서/응대/작업/산출물을 만든다.
+  rag_chunk_text: '[데이터 라벨링 관리/데이터·CRM·매출분석/정보·판단형] 처리·제작·응대: 직무별 기준에 맞춰 문서/응대/작업/산출물을 만든다. 업무대상은 매출표, 고객데이터, 캠페인 결과, 대시보드.
+    주요상대/NPC는 마케팅팀장, 영업팀, 데이터담당. 핵심산출물은 분석요약표, 인사이트 메모, 리포트. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 데이터·CRM·매출분석의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J042-S4
+  stage_id: S4
+  name: 검수·판단
+  goal: 오류, 안전, 고객영향, 비용, 일정, 품질을 점검한다.
+  rag_chunk_text: '[데이터 라벨링 관리/데이터·CRM·매출분석/정보·판단형] 검수·판단: 오류, 안전, 고객영향, 비용, 일정, 품질을 점검한다. 업무대상은 매출표, 고객데이터, 캠페인 결과, 대시보드.
+    주요상대/NPC는 마케팅팀장, 영업팀, 데이터담당. 핵심산출물은 분석요약표, 인사이트 메모, 리포트. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 데이터·CRM·매출분석의
+    업무대상과 산출물을 벗어난 미션 생성 금지.'
+- chunk_id: J042-S5
+  stage_id: S5
+  name: 보고·인계
+  goal: 결과, 근거, 남은 이슈, 다음 액션을 공유한다.
+  rag_chunk_text: '[데이터 라벨링 관리/데이터·CRM·매출분석/정보·판단형] 보고·인계: 결과, 근거, 남은 이슈, 다음 액션을 공유한다. 업무대상은 매출표, 고객데이터, 캠페인 결과, 대시보드. 주요상대/NPC는
+    마케팅팀장, 영업팀, 데이터담당. 핵심산출물은 분석요약표, 인사이트 메모, 리포트. 성공기준은 요청 목적, 누락자료, 판단근거, 다음 액션이 명확한 것이다. 금지혼합: 같은 모듈이라도 데이터·CRM·매출분석의 업무대상과
+    산출물을 벗어난 미션 생성 금지.'
+content_variants:
+- category: 데이터 라벨링 지침·샘플·작업결과·품질이슈 관리
+  module: null
+  rag_status: researched
+  workflow: 라벨 정의와 품질기준 확인 → 샘플·권한·배치상태 확인 → 작업배정과 검수표 작성 → 불일치·편향·민감정보·가이드 공백 점검 → 오류율·이견·가이드 변경요청 보고
+  npc_visible:
+    npc_roles:
+    - role: 라벨링 프로젝트 리더
+      instruction_scope: 정의·품질기준·배치·마감 지시
+    - role: 검수자
+      instruction_scope: 불일치·오류유형·샘플결과 전달
+    - role: 라벨러
+      instruction_scope: 애매사례·도구오류·작업질문 전달
+    input_materials: &id001
+    - 라벨링 가이드
+    - 원천데이터
+    - 작업배치
+    - 검수샘플
+    - 이견·오류 이력
+    outputs: &id002
+    - 작업배정표
+    - 검수결과표
+    - 오류유형 목록
+    - 가이드 수정요청
+    sudden_events: &id003
+    - 개인 기준으로 라벨 변경
+    - 검수 샘플을 임의 선택
+    - 원천데이터 외부 반출
+    constraints:
+    - 원본 데이터와 가공 데이터를 구분하고 결측·중복·필터 조건을 기록한다.
+    - 개인정보가 포함된 원자료를 대화나 산출물에 그대로 노출하지 않는다.
+  stages:
+  - stage_id: S1
+    name: 라벨 정의와 품질기준 확인
+    goal: 라벨 정의와 품질기준 확인
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 라벨링 프로젝트 리더
+      - 검수자
+      - 라벨러
+      outputs: *id002
+      mission_candidate: 라벨 정의와 품질기준 확인
+    coach_private:
+      success_criteria: &id004
+      - 가이드 버전 기록
+      - 무작위 검수 근거
+      - 애매사례 임의확정 금지
+      - 민감데이터 접근 제한
+      failure_patterns: *id003
+  - stage_id: S2
+    name: 샘플·권한·배치상태 확인
+    goal: 샘플·권한·배치상태 확인
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 라벨링 프로젝트 리더
+      - 검수자
+      - 라벨러
+      outputs: *id002
+      mission_candidate: 샘플·권한·배치상태 확인
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  - stage_id: S3
+    name: 작업배정과 검수표 작성
+    goal: 작업배정과 검수표 작성
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 라벨링 프로젝트 리더
+      - 검수자
+      - 라벨러
+      outputs: *id002
+      mission_candidate: 작업배정과 검수표 작성
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  - stage_id: S4
+    name: 불일치·편향·민감정보·가이드 공백 점검
+    goal: 불일치·편향·민감정보·가이드 공백 점검
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 라벨링 프로젝트 리더
+      - 검수자
+      - 라벨러
+      outputs: *id002
+      mission_candidate: 불일치·편향·민감정보·가이드 공백 점검
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  - stage_id: S5
+    name: 오류율·이견·가이드 변경요청 보고
+    goal: 오류율·이견·가이드 변경요청 보고
+    npc_visible:
+      materials: *id001
+      npc_roles:
+      - 라벨링 프로젝트 리더
+      - 검수자
+      - 라벨러
+      outputs: *id002
+      mission_candidate: 오류율·이견·가이드 변경요청 보고
+    coach_private:
+      success_criteria: *id004
+      failure_patterns: *id003
+  missions:
+  - mission_id: null
+    situation_type: 정상업무
+    difficulty: 보통
+    npc_visible:
+      npc: 라벨링 프로젝트 리더
+      request_line: 라벨 정의와 품질기준 확인 업무를 진행해 주세요. 정의·품질기준·배치·마감 지시 기준을 확인하세요.
+      materials: *id001
+      user_mission: 라벨 정의와 품질기준 확인
+      outputs: *id002
+      sudden_event: 개인 기준으로 라벨 변경
+    coach_private:
+      required_actions:
+      - 라벨 정의와 품질기준 확인
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 자료·정보 누락
+    difficulty: 어려움
+    npc_visible:
+      npc: 검수자
+      request_line: 샘플·권한·배치상태 확인 업무를 진행해 주세요. 불일치·오류유형·샘플결과 전달 기준을 확인하세요.
+      materials: *id001
+      user_mission: 샘플·권한·배치상태 확인
+      outputs: *id002
+      sudden_event: 검수 샘플을 임의 선택
+    coach_private:
+      required_actions:
+      - 샘플·권한·배치상태 확인
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 우선순위 충돌
+    difficulty: 어려움
+    npc_visible:
+      npc: 라벨러
+      request_line: 작업배정과 검수표 작성 업무를 진행해 주세요. 애매사례·도구오류·작업질문 전달 기준을 확인하세요.
+      materials: *id001
+      user_mission: 작업배정과 검수표 작성
+      outputs: *id002
+      sudden_event: 원천데이터 외부 반출
+    coach_private:
+      required_actions:
+      - 작업배정과 검수표 작성
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 오류·안전위험
+    difficulty: 어려움
+    npc_visible:
+      npc: 라벨링 프로젝트 리더
+      request_line: 불일치·편향·민감정보·가이드 공백 점검 업무를 진행해 주세요. 정의·품질기준·배치·마감 지시 기준을 확인하세요.
+      materials: *id001
+      user_mission: 불일치·편향·민감정보·가이드 공백 점검
+      outputs: *id002
+      sudden_event: 개인 기준으로 라벨 변경
+    coach_private:
+      required_actions:
+      - 불일치·편향·민감정보·가이드 공백 점검
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+  - mission_id: null
+    situation_type: 보고·인계
+    difficulty: 보통
+    npc_visible:
+      npc: 검수자
+      request_line: 오류율·이견·가이드 변경요청 보고 업무를 진행해 주세요. 불일치·오류유형·샘플결과 전달 기준을 확인하세요.
+      materials: *id001
+      user_mission: 오류율·이견·가이드 변경요청 보고
+      outputs: *id002
+      sudden_event: 검수 샘플을 임의 선택
+    coach_private:
+      required_actions:
+      - 오류율·이견·가이드 변경요청 보고
+      success_criteria: *id004
+      failure_patterns: *id003
+    scorer_private:
+      rag_link: researched_override
+provenance:
+  excel:
+  - file: 입문직무_RAG_KB_v5_정리본.xlsx
+    sheet: 01_직무마스터
+    rows: job_id=J042
+  - file: 입문직무_RAG_KB_v5_정리본.xlsx
+    sheet: 02_RAG프로세스
+    rows: job_id=J042
+  - file: 팀통합_8모듈_조사자료_표준화완료.xlsx
+    sheet: 01_연결맵/02_단계별프로세스/05_상황별미션
+    rows: job_id=J042
+  research_sources:
+  - source_id: NCS-DATA
+    title: 통계조사·자료처리·분석·보고서 작성 요구능력단위 사례
+    url: https://www.ncs.go.kr/blind/bl04/RecrtNotifDetail.do?recrtNo=20250207112506
+    publisher: 한국산업인력공단 NCS 공정채용

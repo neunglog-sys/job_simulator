@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 144" role="img" aria-label="노란 말풍선 막개">
+  <defs><linearGradient id="metal" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#8793aa"/><stop offset="1" stop-color="#4d566c"/></linearGradient><linearGradient id="yellow" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ffe76a"/><stop offset="1" stop-color="#efb428"/></linearGradient></defs>
+  <path d="M25 20h78c9 0 16 7 16 16v51c0 9-7 16-16 16H25c-9 0-16-7-16-16V36c0-9 7-16 16-16Z" fill="#171a2a" opacity=".25" transform="translate(2 4)"/>
+  <rect x="8" y="17" width="112" height="84" rx="28" fill="url(#metal)" stroke="#171a2a" stroke-width="8"/>
+  <rect x="20" y="29" width="88" height="60" rx="21" fill="#30394f" stroke="#b9c1d1" stroke-width="5"/>
+  <path d="M38 45c0-7 6-12 13-12h28c7 0 13 5 13 12v16c0 7-6 12-13 12H63L49 83l3-10h-1c-7 0-13-5-13-12V45Z" fill="url(#yellow)" stroke="#171a2a" stroke-width="6" stroke-linejoin="round"/>
+  <circle cx="56" cy="54" r="3.5" fill="#171a2a"/><circle cx="66" cy="54" r="3.5" fill="#171a2a"/><circle cx="76" cy="54" r="3.5" fill="#171a2a"/>
+  <path d="M47 101h34v27c0 6-5 10-10 10H57c-5 0-10-4-10-10v-27Z" fill="url(#metal)" stroke="#171a2a" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M57 112h14" stroke="#cbd1de" stroke-width="5" stroke-linecap="round"/>
+</svg>

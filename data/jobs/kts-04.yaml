@@ -1,0 +1,24 @@
+code: kts-04
+title: 상담·안내·중개 응대
+description: 상담 접수·신분/서류 확인 → 요구사항 청취·상담카드 작성 → 상품·절차 안내(약관·중요사항 설명) → 민원·불완전판매 방지 대응 → 처리·예약·기록·후속 안내
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 5
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 1
+  investigative: 3
+  artistic: 1
+  social: 4
+  enterprising: 4
+  conventional: 4
+# dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
+dimension_weights:
+  interest.social: 1.0
+  interest.enterprising: 1.0
+  work_target.people: 0.8
+  work_style.collaboration: 0.8
+  skill.communication: 0.6
+  skill.coordination: 0.6

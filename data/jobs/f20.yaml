@@ -1,0 +1,17 @@
+# F20 조리·식품제조 — F 직무군 추천 후보 (F 개편 2026-07-27). 소속·시나리오는 data/recommendation/f_families.yaml 참조.
+code: f20
+title: 조리·식품제조
+description: 레시피와 위생 기준에 따라 음식을 조리하거나 식품을 만들어내는 분야입니다. 반복 작업을 성실하게 해내고 동료와 손발을 맞추는 것을 좋아하는 사람에게 잘 맞습니다.
+competencies:
+  situation_judgment: 3
+  problem_solving: 3
+  communication: 3
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 5
+  investigative: 1
+  artistic: 3
+  social: 3
+  enterprising: 1
+  conventional: 3

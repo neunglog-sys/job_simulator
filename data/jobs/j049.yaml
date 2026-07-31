@@ -1,0 +1,28 @@
+# J049 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J049_*.yaml
+code: j049
+title: 매장 판매원
+description: 매장을 방문한 고객의 취향과 예산을 파악하여 최적의 상품을 제안하고 판매하는 직무. 재고 확인과 매장 정리부터 결제, 교환, 환불 등 현장에서 발생하는 다양한
+  고객 요구에 신속하고 친절하게 대응한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 5
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 4
+  investigative: 1
+  artistic: 2
+  social: 5
+  enterprising: 4
+  conventional: 3
+# 공식 매핑: K000008001 매장판매원(일반) (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

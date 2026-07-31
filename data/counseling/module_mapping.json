@@ -1,0 +1,448 @@
+{
+  "disclaimer": "아래 가중치는 팀 조사자료(팀통합_8모듈_조사자료_표준화완료.xlsx)와 RIASEC/직업가치관 개념구조를 참고해 만든 초기 연구 가설이며, 확정된 심리측정 점수가 아니다. RIASEC(interest.*) 단독으로 모듈을 확정하지 않는다 — interest + work_target + work_style + work_value + skill + constraint를 종합해 판단한다. constraint.*는 가중치가 아니라 하드 필터(제약 위반 시 해당 대표미션·직무 후보에서 제외)로만 사용한다.",
+  "modules": [
+    {
+      "module": "대인응대형",
+      "categories": [
+        "의료·복지·상담 응대",
+        "교육·강의·코칭 응대",
+        "영업·판매·매장응대",
+        "상담·안내·중개 응대",
+        "안내·접수·예약·프론트"
+      ],
+      "dimension_weights": {
+        "interest.social": 1.0,
+        "interest.enterprising": 1.0,
+        "work_target.people": 0.8,
+        "work_style.collaboration": 0.8,
+        "skill.communication": 0.6,
+        "skill.coordination": 0.6
+      },
+      "representative_mission_codes": [
+        "KTS-03-04",
+        "KTS-04-04",
+        "KTS-01-04",
+        "KTS-05-04",
+        "KTS-02-04"
+      ]
+    },
+    {
+      "module": "절차·점검형",
+      "categories": [
+        "문서·법무·기록관리",
+        "회계·경리·정산 사무",
+        "총무·행정·사무보조",
+        "무역·물류·운송 사무",
+        "생산·품질관리 사무"
+      ],
+      "dimension_weights": {
+        "interest.investigative": 1.0,
+        "interest.conventional": 1.0,
+        "work_target.data": 0.8,
+        "work_target.documents": 0.8,
+        "work_style.structured": 0.8,
+        "work_style.detail_orientation": 0.8,
+        "skill.error_detection": 0.6,
+        "skill.coordination": 0.6
+      },
+      "representative_mission_codes": [
+        "MS-01-04",
+        "MS-02-04",
+        "MS-03-04",
+        "MS-04-04",
+        "MS-05-04"
+      ]
+    },
+    {
+      "module": "작업순서·절차형",
+      "categories": [
+        "농축산 현장 작업",
+        "조리·식품제조 현장",
+        "생활서비스 현장 작업",
+        "기계가공·금속가공 작업",
+        "건설·토목·조경 시공절차"
+      ],
+      "dimension_weights": {
+        "interest.realistic": 1.0,
+        "interest.conventional": 1.0,
+        "work_target.equipment": 0.8,
+        "work_target.environment": 0.8,
+        "work_style.field": 0.8,
+        "skill.tool_operation": 0.6
+      },
+      "representative_mission_codes": [
+        "MS-06-04",
+        "MS-07-04",
+        "MS-08-04",
+        "MS-09-04",
+        "MS-10-04"
+      ]
+    },
+    {
+      "module": "제작·상태판단형",
+      "categories": [
+        "디자인·영상·콘텐츠 제작",
+        "콘텐츠·예술·공예 제작",
+        "웹·앱·소프트웨어 개발",
+        "IT·시스템 개발·운영",
+        "웹 운영·콘텐츠 관리"
+      ],
+      "dimension_weights": {
+        "interest.artistic": 1.0,
+        "work_target.ideas": 0.8,
+        "work_style.novelty": 0.8,
+        "work_style.autonomy": 0.8,
+        "skill.creative_production": 0.6
+      },
+      "representative_mission_codes": [
+        "YG-01-05",
+        "YG-02-05",
+        "YG-03-02",
+        "YG-04-05",
+        "YG-05-05"
+      ]
+    },
+    {
+      "module": "돌발상황 대처형",
+      "categories": [
+        "육상 운전·배송 대응",
+        "철도 운행·기관 운전",
+        "항공 운항·관제 대응",
+        "해상 운항·선박 조종",
+        "중장비·특수장비 조종"
+      ],
+      "dimension_weights": {
+        "interest.enterprising": 1.0,
+        "work_target.environment": 0.8,
+        "work_style.field": 0.8,
+        "work_style.time_pressure": 0.8,
+        "skill.risk_detection": 0.6,
+        "skill.priority_judgment": 0.6
+      },
+      "representative_mission_codes": [
+        "JM-01-04",
+        "JM-02-04",
+        "JM-03-04",
+        "JM-04-04",
+        "JM-05-04"
+      ]
+    },
+    {
+      "module": "안전·위험판단형",
+      "categories": [
+        "치안·범죄현장 대응",
+        "군사·국가안보 작전",
+        "경호·신변보호·보안",
+        "소방·구조·방재 대응",
+        "건설·시설 안전관리"
+      ],
+      "dimension_weights": {
+        "interest.realistic": 1.0,
+        "work_target.environment": 0.8,
+        "work_style.time_pressure": 0.8,
+        "skill.risk_detection": 0.6,
+        "skill.priority_judgment": 0.6
+      },
+      "representative_mission_codes": [
+        "YS-01-04",
+        "YS-02-04",
+        "YS-03-04",
+        "YS-04-04",
+        "YS-05-04"
+      ]
+    },
+    {
+      "module": "장비·상태점검형",
+      "categories": [
+        "전기·배전·계측 점검",
+        "차량·기계 정비 보조",
+        "기계·전자·산업장비 점검",
+        "설비·장비 설치·정비",
+        "시설·설비·전기관리"
+      ],
+      "dimension_weights": {
+        "interest.realistic": 1.0,
+        "interest.investigative": 1.0,
+        "work_target.equipment": 0.8,
+        "work_style.detail_orientation": 0.8,
+        "skill.error_detection": 0.6,
+        "skill.tool_operation": 0.6
+      },
+      "representative_mission_codes": [
+        "YS-06-01",
+        "YS-07-02",
+        "YS-08-04",
+        "YS-09-04",
+        "YS-10-01"
+      ]
+    },
+    {
+      "module": "정보·판단형",
+      "categories": [
+        "마케팅·광고·홍보 운영",
+        "행사·전시·콘텐츠 기획",
+        "데이터·CRM·매출 분석",
+        "과학·기술 조사분석",
+        "서비스·상품·사업기획 보조"
+      ],
+      "dimension_weights": {
+        "interest.investigative": 1.0,
+        "interest.enterprising": 1.0,
+        "work_target.data": 0.8,
+        "work_target.ideas": 0.8,
+        "work_style.novelty": 0.8,
+        "work_style.autonomy": 0.8,
+        "skill.data_analysis": 0.6
+      },
+      "representative_mission_codes": [
+        "STN-01-04",
+        "STN-02-04",
+        "STN-03-04",
+        "STN-04-04",
+        "STN-05-04"
+      ]
+    }
+  ],
+  "representative_missions": [
+    {
+      "mission_code": "KTS-03-04",
+      "module": "대인응대형",
+      "category": "영업·판매·매장응대",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "KTS-04-04",
+      "module": "대인응대형",
+      "category": "상담·안내·중개 응대",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "KTS-01-04",
+      "module": "대인응대형",
+      "category": "의료·복지·상담 응대",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "KTS-05-04",
+      "module": "대인응대형",
+      "category": "안내·접수·예약·프론트",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "KTS-02-04",
+      "module": "대인응대형",
+      "category": "교육·강의·코칭 응대",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "MS-01-04",
+      "module": "절차·점검형",
+      "category": "문서·법무·기록관리",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "MS-02-04",
+      "module": "절차·점검형",
+      "category": "회계·경리·정산 사무",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "MS-03-04",
+      "module": "절차·점검형",
+      "category": "총무·행정·사무보조",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "MS-04-04",
+      "module": "절차·점검형",
+      "category": "무역·물류·운송 사무",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "MS-05-04",
+      "module": "절차·점검형",
+      "category": "생산·품질관리 사무",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "MS-06-04",
+      "module": "작업순서·절차형",
+      "category": "농축산 현장 작업",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "MS-07-04",
+      "module": "작업순서·절차형",
+      "category": "조리·식품제조 현장",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "MS-08-04",
+      "module": "작업순서·절차형",
+      "category": "생활서비스 현장 작업",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "MS-09-04",
+      "module": "작업순서·절차형",
+      "category": "기계가공·금속가공 작업",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "MS-10-04",
+      "module": "작업순서·절차형",
+      "category": "건설·토목·조경 시공절차",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "YG-01-05",
+      "module": "제작·상태판단형",
+      "category": "디자인·영상·콘텐츠 제작",
+      "situation_type": "보고·인계"
+    },
+    {
+      "mission_code": "YG-02-05",
+      "module": "제작·상태판단형",
+      "category": "콘텐츠·예술·공예 제작",
+      "situation_type": "보고·인계"
+    },
+    {
+      "mission_code": "YG-03-02",
+      "module": "제작·상태판단형",
+      "category": "웹·앱·소프트웨어 개발",
+      "situation_type": "자료·정보 누락"
+    },
+    {
+      "mission_code": "YG-04-05",
+      "module": "제작·상태판단형",
+      "category": "IT·시스템 개발·운영",
+      "situation_type": "보고·인계"
+    },
+    {
+      "mission_code": "YG-05-05",
+      "module": "제작·상태판단형",
+      "category": "웹 운영·콘텐츠 관리",
+      "situation_type": "보고·인계"
+    },
+    {
+      "mission_code": "JM-01-04",
+      "module": "돌발상황 대처형",
+      "category": "육상 운전·배송 대응",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "JM-02-04",
+      "module": "돌발상황 대처형",
+      "category": "철도 운행·기관 운전",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "JM-03-04",
+      "module": "돌발상황 대처형",
+      "category": "항공 운항·관제 대응",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "JM-04-04",
+      "module": "돌발상황 대처형",
+      "category": "해상 운항·선박 조종",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "JM-05-04",
+      "module": "돌발상황 대처형",
+      "category": "중장비·특수장비 조종",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "YS-01-04",
+      "module": "안전·위험판단형",
+      "category": "치안·범죄현장 대응",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "YS-02-04",
+      "module": "안전·위험판단형",
+      "category": "군사·국가안보 작전",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "YS-03-04",
+      "module": "안전·위험판단형",
+      "category": "경호·신변보호·보안",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "YS-04-04",
+      "module": "안전·위험판단형",
+      "category": "소방·구조·방재 대응",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "YS-05-04",
+      "module": "안전·위험판단형",
+      "category": "건설·시설 안전관리",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "YS-06-01",
+      "module": "장비·상태점검형",
+      "category": "전기·배전·계측 점검",
+      "situation_type": "정상업무"
+    },
+    {
+      "mission_code": "YS-07-02",
+      "module": "장비·상태점검형",
+      "category": "차량·기계 정비 보조",
+      "situation_type": "자료·정보 누락"
+    },
+    {
+      "mission_code": "YS-08-04",
+      "module": "장비·상태점검형",
+      "category": "기계·전자·산업장비 점검",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "YS-09-04",
+      "module": "장비·상태점검형",
+      "category": "설비·장비 설치·정비",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "YS-10-01",
+      "module": "장비·상태점검형",
+      "category": "시설·설비·전기관리",
+      "situation_type": "정상업무"
+    },
+    {
+      "mission_code": "STN-01-04",
+      "module": "정보·판단형",
+      "category": "마케팅·광고·홍보 운영",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "STN-02-04",
+      "module": "정보·판단형",
+      "category": "행사·전시·콘텐츠 기획",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "STN-03-04",
+      "module": "정보·판단형",
+      "category": "데이터·CRM·매출 분석",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "STN-04-04",
+      "module": "정보·판단형",
+      "category": "과학·기술 조사분석",
+      "situation_type": "오류·안전위험"
+    },
+    {
+      "mission_code": "STN-05-04",
+      "module": "정보·판단형",
+      "category": "서비스·상품·사업기획 보조",
+      "situation_type": "오류·안전위험"
+    }
+  ]
+}

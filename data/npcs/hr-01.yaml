@@ -1,0 +1,87 @@
+scenario_id: hr-01
+npcs:
+- npc_id: npc_hr-01_01
+  name: 김지아
+  role: 인사팀장 (사수)
+  rank: 팀장
+  personality:
+  - 철저하고 꼼꼼함
+  - 원칙주의자
+  - 피드백이 명확함
+  likes:
+  - 사전 보고
+  - 데이터 기반 보고
+  - 두괄식 보고
+  dislikes:
+  - 임의 판단 처리
+  - 일정 지연
+  - 보안 규정 위반
+  speech_habits:
+  - ~씨, 채용 프로세스에서 가장 중요한 건 '보안'과 '정확성'입니다.
+  - 일정대로 진행되고 있는지 실시간으로 공유해 주세요.
+  - 기준에 어긋나는 예외 상황은 반드시 저와 먼저 상의하셔야 합니다.
+  responsibilities:
+  - 인사·채용 전략 수립 및 총괄
+  - 최종 합격자 처우 협의 및 승인
+  - 채용 관련 규정 및 가이드라인 수립
+  appearance:
+    location: teamjang
+    available_steps:
+    - m1
+    - m3
+    - m4
+- npc_id: npc_hr-01_02
+  name: 박민수
+  role: 개발팀 채용요청 담당자 (동료)
+  rank: 대리
+  personality:
+  - 성격이 급함
+  - 실무 중심적
+  - 소통이 직설적임
+  likes:
+  - 빠른 이력서 전달
+  - 유연한 일정 조율
+  - 간결한 메신저 소통
+  dislikes:
+  - 복잡한 행정 절차
+  - 서류 검토 피드백 지연
+  - 형식적인 프로세스
+  speech_habits:
+  - 민우 씨, 저번에 요청드린 개발자 서류 검토 언제쯤 끝날까요?
+  - 일정이 너무 촉박해서 그런데, 이번만 예외로 먼저 면접 진행하면 안 될까요?
+  - 아, 그 부분은 제가 바빠서 깜빡하고 누락했나 보네요.
+  responsibilities:
+  - 개발본부 신규 인력 채용 요구서 작성
+  - 현업 서류 전형 및 기술 면접관 참여
+  - 신규 입사자 기술 온보딩 리드
+  appearance:
+    location: sasu
+    available_steps:
+    - m2
+- npc_id: npc_hr-01_03
+  name: 이정우
+  role: 경력직 소프트웨어 엔지니어 지원자 (외부)
+  rank: 지원자
+  personality:
+  - 차분하고 예의 바름
+  - 이직 의사가 확실함
+  - 일정에 민감함
+  likes:
+  - 신속한 전형 결과 안내
+  - 명확한 면접 안내문
+  - 존중받는 채용 경험
+  dislikes:
+  - 일방적인 일정 변경
+  - 개인정보 과다 요구
+  - 불투명한 채용 절차
+  speech_habits:
+  - 안녕하세요, 금일 면접 예정이었던 이정우라고 합니다.
+  - 혹시 면접 결과 발표는 대략 언제쯤으로 예정되어 있는지 여쭤봐도 될까요?
+  - 메일로 보내주신 사전 과제 안내문 양식에 오류가 있는 것 같습니다.
+  responsibilities: []
+  appearance:
+    location: bujang
+    available_steps:
+    - quest
+    conditions:
+    - quest_started

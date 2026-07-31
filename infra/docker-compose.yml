@@ -1,0 +1,67 @@
+name: jobsimulator
+
+services:
+  api:
+    build: ../services/api
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      # DATABASE_URL은 .env에서 주입 (Supabase 클라우드 DB).
+      # 로컬 DB를 쓰려면: .env에 postgresql+asyncpg://app:app@db:5432/jobsim 설정 후
+      # `docker compose --profile localdb up -d` 로 기동.
+      REDIS_URL: redis://redis:6379/0
+      STORAGE_DIR: /app/storage
+      # Docker 웹은 80 포트에서 서비스되므로 OAuth 성공 후 같은 origin으로 복귀시킨다.
+      # 배포 환경에서는 .env의 FRONTEND_URL로 실제 프론트 주소를 지정한다.
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../data:/app/data:ro
+      - ../storage:/app/storage
+      - ../secrets:/app/secrets:ro  # GCP 서비스계정 JSON(Vertex AI)용 — 없으면 빈 디렉토리(무해)
+      - ../maps:/app/maps:ro  # 게임 맵 (geometry + 배경 PNG — PNG는 git에 없어서 서버엔 별도 업로드 필요)
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  db:
+    profiles: ["localdb"]  # 기본은 Supabase — 로컬 DB가 필요할 때만 활성화
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: jobsim
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d jobsim"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build:
+      context: ../apps/web
+      args:
+        # 기본 빈 값 → 프론트가 상대경로(/api·/ws)로 호출, nginx가 api:8000으로 동일오리진 프록시
+        # (nginx.conf) → CORS 없음·터널 주소 독립. 특정 오리진 강제 시에만 .env에 VITE_API_BASE_URL 지정.
+        # ⚠️ ':-'(empty도 기본값 대체) 대신 그냥 빈 기본값 — 서버 .env에서 비우면 그대로 빈 값이 넘어가야 함.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

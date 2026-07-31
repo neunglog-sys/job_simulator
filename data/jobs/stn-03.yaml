@@ -1,0 +1,25 @@
+code: stn-03
+title: 데이터·CRM·매출 분석
+description: 분석 요청·지표 정의 → 데이터 확보·품질 점검 → 가공·분석·모델링 → 결과 검증·해석 → 시각화·보고·인계
+competencies:
+  situation_judgment: 4
+  problem_solving: 5
+  communication: 3
+  collaboration: 3
+  task_management: 4
+interest_profile:
+  realistic: 1
+  investigative: 5
+  artistic: 1
+  social: 1
+  enterprising: 3
+  conventional: 4
+# dimension_weights 출처: module_mapping.json (팀 조사자료 기반 8모듈 가중치, 이 직무 개별 조사 아님)
+dimension_weights:
+  interest.investigative: 1.0
+  interest.enterprising: 1.0
+  work_target.data: 0.8
+  work_target.ideas: 0.8
+  work_style.novelty: 0.8
+  work_style.autonomy: 0.8
+  skill.data_analysis: 0.6

@@ -1,0 +1,43 @@
+# J099 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J099_*.yaml
+code: j099
+title: 소방점검 보조
+description: 화재 및 재난 현장에서 인명 구조와 진압 활동을 보조하고 소방 장비를 관리하는 직무입니다. 출동 지령에 맞춰 개인 안전 장비를 철저히 점검하고, 현장 도착 후
+  지휘관의 지시에 따라 신속하게 주민 대피와 소방용수 확보를 지원하며 활동 일지를 작성합니다.
+competencies:
+  situation_judgment: 5
+  problem_solving: 4
+  communication: 4
+  collaboration: 5
+  task_management: 4
+interest_profile:
+  realistic: 5
+  investigative: 3
+  artistic: 1
+  social: 4
+  enterprising: 3
+  conventional: 4
+# 공식 매핑: K000007495 소방관 (docs/jobs/batch2_mapping_review.md #38)
+# 참고: 프로젝트 직무명("소방점검 보조")과 실제 description(화재진압·인명구조 현장 활동)이 상충 — 팀 검수
+# 결과 실제 업무 내용(현장 소방활동)에 맞춰 코드를 확정함. 원본 데이터의 제목/설명 불일치는 본 배치의 수정
+# 범위 밖.
+education_requirement:
+  value: "소방직공무원 공개채용시험 또는 소방간부후보생 선발시험 합격 필요. 소방·응급구조 관련 학과 졸업자 및 의무소방원 전역자 대상 특별채용 가능. 전공 필수는 아니나 관련 학과 이수 시 특별채용 응시 기회 및 체계적 학습 이점이 있음. 역할별로 화재조사관, 인명구조사, 화재대응능력 등 관련 자격 소지 시 유리."
+  source_field: needKnwgCn
+  evidence_type: descriptive_text
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics:
+    median_annual_krw: 42000000
+    statistic_type: median
+    population: "재직자 약 30명 설문조사"
+    reference_year: 2025
+certifications:
+  - name: "응급구조사 1, 2급"
+    tier: related
+  - name: "자동차운전면허 제 1종 보통"
+    tier: related
+  - name: "화약류관리기사"
+    tier: related
+  - name: "화재감식평가산업기사, 기사"
+    tier: related
+status: provisional

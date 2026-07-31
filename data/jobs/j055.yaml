@@ -1,0 +1,28 @@
+# J055 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J055_*.yaml
+code: j055
+title: 병원 코디네이터 보조
+description: 병원 최전선에서 환자를 맞이하고 진료 접수부터 수납까지의 여정을 안내하는 직무. 환자의 상태와 문진표 정보를 정확하게 확인하여 의료진에게 전달하고, 대기 순서를
+  효율적으로 조율하여 원활한 병원 운영을 지원한다.
+competencies:
+  situation_judgment: 4
+  problem_solving: 3
+  communication: 5
+  collaboration: 4
+  task_management: 5
+interest_profile:
+  realistic: 2
+  investigative: 2
+  artistic: 1
+  social: 5
+  enterprising: 3
+  conventional: 5
+# 공식 매핑: K000001694 병원코디네이터 (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found

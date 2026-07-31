@@ -1,0 +1,28 @@
+# J023 — LLM 생성(연구 카탈로그 기반, family 단위 비교평가), 원본: data/prompts/npc/jobs/J023_*.yaml
+code: j023
+title: 근태관리 보조
+description: 임직원의 출퇴근, 휴가, 연장근로 등 근태 기록을 시스템 데이터와 대조하여 정확하게 관리하는 직무입니다. 누락되거나 불일치하는 내역을 찾아내어 정정하고, 민감한
+  개인 근태 정보가 안전하게 보호되도록 관리 기준을 철저히 준수합니다.
+competencies:
+  situation_judgment: 2
+  problem_solving: 3
+  communication: 3
+  collaboration: 2
+  task_management: 5
+interest_profile:
+  realistic: 1
+  investigative: 3
+  artistic: 1
+  social: 2
+  enterprising: 1
+  conventional: 5
+# 공식 매핑: K000003735 인사사무원 (docs/jobs/batch2_mapping_candidates.md)
+education_requirement:
+  value: null
+  note: "needKnwgCn 등 edcInfo 전 필드 공백 — 통계 조사 미포함 직업으로 판단."
+salary:
+  entry_level: { min_krw: null, max_krw: null }
+  reference_statistics: null
+  note: "wageInfo 전 필드 0/null(konetOccpNm도 null) — 임금 조사 대상 아님."
+certifications: []
+status: not_found
